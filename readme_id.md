@@ -1,6 +1,6 @@
 # UltimateAI
 
-## Memudahkan Peneliti Membangun Perangkat Lunak Penelitian Tanpa Menulis Kode
+## Memudahkan Peneliti Membangun Perangkat Lunak Penelitian Sesuai Kebutuhan Penelitian Tanpa Menulis Kode
 
 UltimateAI adalah platform pembangun infrastruktur penelitian berbasis kecerdasan buatan (AI-Powered Research Infrastructure Builder) dan platform generasi alat penelitian (Research Tool Generation Platform) yang mengubah ide penelitian menjadi perangkat lunak penelitian yang siap digunakan.
 
@@ -9,6 +9,20 @@ Peneliti cukup menjelaskan kebutuhan mereka menggunakan bahasa alami, dan Ultima
 UltimateAI bertindak sebagai mitra cerdas yang berkolaborasi dengan peneliti untuk merancang dan membangun perangkat lunak penelitian sesuai metodologi, tujuan penelitian, variabel penelitian, kebutuhan analisis, dan persyaratan ilmiah yang ditetapkan.
 
 UltimateAI bertujuan menjadi platform terdepan di dunia yang mampu mentransformasikan ide penelitian menjadi perangkat lunak yang berfungsi melalui pemanfaatan kecerdasan buatan.
+
+Contoh 1 — Peneliti Biologi
+
+Peneliti menulis:
+Saya ingin meneliti pengaruh suhu dan pH terhadap pertumbuhan bakteri Escherichia coli selama 14 hari.
+
+Saya membutuhkan:
+- Input data harian
+- Grafik pertumbuhan
+- Analisis korelasi suhu
+- Analisis korelasi pH
+- Uji ANOVA
+- Export PDF dan Excel
+maka software yang dibutuhkan itu akan dibuat dan siap dalam hitungan menit dan langsung dapat digunakan oleh peneliti.
 
 ---
 
