@@ -2,9 +2,9 @@
 
 **Helping Researchers Build, Not Code.**
 
-UltimateAI is an open-source AI platform that helps researchers, universities, research institutions, and scientific communities create digital tools for research without requiring programming skills.
+UltimateAI is an AI-Powered Research Infrastructure Builder and Research Tool Generation Platform that transforms research ideas into ready-to-use research software. Researchers describe what they need in natural language, and UltimateAI automatically creates the digital tools required to support their research activities.
 
-Researchers often have innovative ideas but lack the technical resources to build software, databases, dashboards, repositories, or digital research infrastructure. UltimateAI bridges this gap by transforming natural language instructions into working research applications.
+UltimateAI aims to become the world's leading platform for transforming research ideas into working software through artificial intelligence.
 
 ---
 
@@ -26,7 +26,7 @@ We believe every researcher should be able to build the tools they need without 
 
 ---
 
-## What UltimateAI Can Build
+## What UltimateAI Can Generate
 
 ### Research Data Collection
 
@@ -57,12 +57,12 @@ We believe every researcher should be able to build the tools they need without 
 * Open Access Repositories
 * Research Archives
 
-### Scholarly Communication
+### Scientific Knowledge Systems
 
-* Journal Platforms
-* Preprint Servers
-* Peer Review Systems
-* Academic Publishing Tools
+* Knowledge Management Platforms
+* Research Collaboration Systems
+* Scientific Information Systems
+* Digital Research Workspaces
 
 ### Custom Research Applications
 
@@ -78,15 +78,15 @@ We believe every researcher should be able to build the tools they need without 
 
 Researchers simply describe what they need:
 
-> Create a survey platform for bullying research in high schools.
+Create a tool to analyze bacterial growth under different temperature conditions.
 
 Or:
 
-> Build a dashboard for poverty analysis in North Sumatra.
+Create a survey platform for bullying research in high schools.
 
 Or:
 
-> Create a repository for faculty research datasets.
+Build a dashboard for poverty analysis in North Sumatra.
 
 UltimateAI automatically generates:
 
@@ -96,6 +96,8 @@ UltimateAI automatically generates:
 * Authentication System
 * Deployment Configuration
 * Documentation
+
+The result is a ready-to-use research tool that can be deployed and used immediately.
 
 ---
 
@@ -111,6 +113,13 @@ UltimateAI automatically generates:
 * Supabase Integration
 * Vercel Deployment
 * Multi-AI Routing Architecture
+
+---
+## Project Status
+
+🚧 Early Development (MVP Stage)
+
+UltimateAI is currently in active development. The first milestone focuses on generating research software specifications, project structures, and deployable applications from natural language descriptions.
 
 ---
 
@@ -169,7 +178,7 @@ Apache License 2.0
 
 ## Maintainers
 
-### Muhibbuddin
+### Muhibbuddin bin Abdul Rahman
 Founder & Project Lead
 
 ### Dr. Bakhrul Khair Amal, M.Si
