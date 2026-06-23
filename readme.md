@@ -171,7 +171,43 @@ We welcome contributions from:
 * Open Science Communities
 
 ---
+## Previous Projects & Development Experience
 
+The team behind UltimateAI has previously developed and managed several digital platforms and software initiatives, including:
+
+### Audit Justice
+
+https://aj.beritaindonesia.news
+
+A digital platform focused on legal auditing, legal analysis, case monitoring, and justice-related information systems.
+
+### Audit Public Policy
+
+https://akp.beritaindonesia.news
+
+A policy analysis and public governance platform designed to support policy evaluation, monitoring, and public administration studies.
+
+### Tender Intelligence
+
+https://ti.beritaindonesia.news
+
+A procurement and tender intelligence platform for monitoring, analysis, and transparency of procurement activities.
+
+### Research Journal House, Analysis & Justice Indonesian Public (RJRAKP)
+
+https://rjrakp.com
+
+A scholarly publishing and research dissemination platform supporting journals, academic publications, open science initiatives, and research visibility.
+
+### Master Advocate
+
+https://master-advocat.vercel.app
+
+An AI-assisted legal knowledge and advocacy platform designed to support legal practitioners, researchers, and policy experts.
+
+These projects demonstrate practical experience in building digital platforms, research systems, legal technology solutions, public policy applications, publishing infrastructure, and AI-powered information systems that contribute to the development of UltimateAI.
+
+---
 ## License
 
 Apache License 2.0
