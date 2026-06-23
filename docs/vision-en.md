@@ -1,6 +1,7 @@
 # UltimateAI Vision
 
 ## Helping Researchers Build, Not Code.
+Empowering Researchers to Build Research Software Without Writing Code.
 
 ### Executive Summary
 
