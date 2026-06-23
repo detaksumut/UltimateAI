@@ -3,6 +3,7 @@
 **Helping Researchers Build, Not Code.**
 
 UltimateAI is an AI-Powered Research Infrastructure Builder and Research Tool Generation Platform that transforms research ideas into ready-to-use research software. Researchers describe what they need in natural language, and UltimateAI automatically creates the digital tools required to support their research activities.
+AI-Powered Research Infrastructure Builder that collaborates with researchers to design and generate research software according to their methodology, objectives, and analytical requirements.
 
 UltimateAI aims to become the world's leading platform for transforming research ideas into working software through artificial intelligence.
 
@@ -103,6 +104,7 @@ The result is a ready-to-use research tool that can be deployed and used immedia
 
 ## Core Features
 
+* Research Requirement Engine
 * AI Research Builder
 * Natural Language Application Generation
 * Database Builder
