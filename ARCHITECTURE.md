@@ -1,6 +1,6 @@
 Researcher
      ↓
-UltimateAI
+UltimateAI Interface
      ↓
 Research Requirement Engine
      ↓
@@ -10,16 +10,9 @@ Research Intelligence Layer
      ↓
 9Router AI Gateway
      ↓
-Multi-AI Ecosystem
-(Claude • GPT • Gemini • GPT-OSS)
+UltimateAI AI Combo
      ↓
 Research Software Generator
-     ↓
-Database Generator
-     ↓
-UI/UX Generator
-     ↓
-Documentation Generator
      ↓
 Deployment Engine
      ↓
@@ -30,3 +23,7 @@ Supabase
 Vercel
      ↓
 Ready-to-Use Research Software
+
+Purpose
+
+UltimateAI enables researchers to create custom research software based on their research objectives, methodology, variables, and analytical requirements without programming knowledge.
