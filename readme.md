@@ -101,7 +101,40 @@ UltimateAI automatically generates:
 The result is a ready-to-use research tool that can be deployed and used immediately.
 
 ---
+## How UltimateAI Works
 
+UltimateAI does not immediately generate software.
+
+Before building a system, UltimateAI collaborates with researchers to understand their scientific objectives, methodology, variables, and analytical requirements.
+
+### Workflow
+
+Research Idea
+↓
+Research Requirement Engine
+↓
+Methodology Analysis
+↓
+Feature Recommendation
+↓
+Research Software Generation
+↓
+Ready-to-Use Research Tool
+
+### Example
+Researcher:
+"I want to study the effect of temperature and pH on E. coli growth."
+
+UltimateAI:
+✓ Identifies research methodology
+✓ Identifies variables
+✓ Recommends analytical methods
+✓ Suggests software features
+✓ Generates research software
+
+The resulting tool can be used immediately without requiring programming skills.
+
+---
 ## Core Features
 
 * Research Requirement Engine
