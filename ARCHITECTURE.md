@@ -2,16 +2,31 @@ Researcher
      ↓
 UltimateAI
      ↓
-9Router
-     ↓
-AI Models
+Research Requirement Engine
      ↓
 Research Understanding Engine
      ↓
-Tool Generator
+Research Intelligence Layer
+     ↓
+9Router AI Gateway
+     ↓
+Multi-AI Ecosystem
+(Claude • GPT • Gemini • GPT-OSS)
+     ↓
+Research Software Generator
+     ↓
+Database Generator
+     ↓
+UI/UX Generator
+     ↓
+Documentation Generator
+     ↓
+Deployment Engine
      ↓
 GitHub
      ↓
 Supabase
      ↓
 Vercel
+     ↓
+Ready-to-Use Research Software
