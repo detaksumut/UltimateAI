@@ -166,6 +166,7 @@ UltimateAI acts as an AI Research Architect, not merely an AI App Builder.
 * GitHub Integration
 * Supabase Integration
 * Vercel Deployment
+* 9Router AI Gateway Integration
 * Multi-AI Routing Architecture
 
 ---
