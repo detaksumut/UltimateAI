@@ -156,8 +156,12 @@ It should be preserved.
 UltimateAI Project
 
 Founder & Project Lead
-
 Muhibbuddin bin Abdul Rahman
+
+Dr. Bakhrul Khair Amal, M.Si
+Research Advisor, Academic Lead, and Open Science Advocate
+
+
 
 ---
 
