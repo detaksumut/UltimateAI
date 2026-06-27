@@ -1,7 +1,7 @@
 import { IIntentParser } from './interfaces';
 import { UserIntent } from './models';
 import { UserGoal } from '../goal/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class IntentParser implements IIntentParser {
     constructor(private router: RouterManager) {}

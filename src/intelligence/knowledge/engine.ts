@@ -1,7 +1,7 @@
 import { IKnowledgeEngine, ISourceConnector } from './interfaces';
 import { KnowledgeGraph, ScientificReference } from './models';
 import { ContextSignature } from '../context/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class KnowledgeEngine implements IKnowledgeEngine {
     constructor(private router: RouterManager, private connector: ISourceConnector) {}

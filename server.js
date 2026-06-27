@@ -431,6 +431,76 @@ app.get('/api/projects/:id', (req, res) => {
   res.json(projects[id]);
 });
 
+// ---------- Magic Simulator Endpoint (Sprint 6) ----------
+app.post('/api/magic', async (req, res) => {
+  const { goal } = req.body;
+  
+  // Here we simulate the new Three Worlds architecture Pipeline
+  // In full implementation, this calls RouterManager -> Intent -> Blueprint -> Generation
+  
+  // Mock generated HTML prototype based on the Goal
+  const mockupHtml = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Aplikasi Survei Kemiskinan</title>
+      <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background: #f0fdf4; color: #1f2937; }
+        header { background: #10b981; color: white; padding: 24px 20px; text-align: center; font-size: 24px; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .container { padding: 24px; }
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
+        .btn-outline { width: 100%; padding: 16px; background: white; border: 2px solid #10b981; border-radius: 12px; margin-bottom: 12px; font-weight: 600; color: #10b981; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+        .btn-outline:active { background: #ecfdf5; }
+        .btn-solid { width: 100%; padding: 16px; background: #10b981; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4); }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #4b5563; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+      </style>
+    </head>
+    <body>
+      <header>Survei Kemiskinan</header>
+      <div class="container">
+        <div class="card">
+          <h3 style="margin-top: 0; margin-bottom: 20px;">Data Subjek</h3>
+          <div class="input-group">
+            <label>Nama Kepala Keluarga</label>
+            <input type="text" placeholder="Masukkan nama..." />
+          </div>
+          <div class="input-group">
+            <label>Penghasilan Per Bulan (Rp)</label>
+            <input type="number" placeholder="Contoh: 1500000" />
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 style="margin-top: 0; margin-bottom: 20px;">Lokasi & Verifikasi</h3>
+          <button class="btn-outline">📍 Ambil Titik GPS (Offline)</button>
+          <button class="btn-outline">📸 Ambil Foto Rumah</button>
+        </div>
+        
+        <button class="btn-solid">Simpan Data (Sinkronisasi Otomatis)</button>
+      </div>
+      <script>
+        // Simulasi interaksi
+        document.querySelectorAll('.btn-outline').forEach(btn => {
+          btn.addEventListener('click', function() {
+            this.style.background = '#10b981';
+            this.style.color = 'white';
+            this.innerText = '✅ Berhasil Direkam';
+          });
+        });
+      </script>
+    </body>
+    </html>
+  `;
+  
+  setTimeout(() => {
+    res.json({ html: mockupHtml });
+  }, 2000); // Simulate pipeline generation time
+});
+
 // ---------- Server start ----------
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

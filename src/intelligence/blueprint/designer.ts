@@ -1,7 +1,7 @@
 import { IBlueprintDesigner } from './interfaces';
 import { ProductBlueprint } from './models';
 import { Blueprint as RequirementBlueprint } from '../requirement/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class BlueprintDesigner implements IBlueprintDesigner {
     constructor(private router: RouterManager) {}

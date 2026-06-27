@@ -1,0 +1,114 @@
+import dotenv from 'dotenv';
+dotenv.config();
+console.log('[Server] Starting up with fresh cache v18...');
+
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+
+// Import Intelligence Engines
+import { RouterManager } from '../connectors/routerManager';
+import { GoalAnalyzer } from '../../intelligence/goal/analyzer';
+import { IntentParser } from '../../intelligence/intent/parser';
+import { ContextEngine } from '../../intelligence/context/engine';
+import { ReasoningEngine } from '../../intelligence/reasoning/engine';
+import { BlueprintDesigner } from '../../intelligence/blueprint/designer';
+import { GenerationEngine } from '../../production/generation/engine';
+
+import { ClarificationEngine } from '../../intelligence/requirement/clarifier';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Initialize AI Pipeline
+const routerManager = new RouterManager();
+const clarificationEngine = new ClarificationEngine(routerManager);
+const goalAnalyzer = new GoalAnalyzer(routerManager);
+const intentParser = new IntentParser(routerManager);
+const contextEngine = new ContextEngine(routerManager);
+const reasoningEngine = new ReasoningEngine(routerManager);
+const blueprintDesigner = new BlueprintDesigner(routerManager);
+const generationEngine = new GenerationEngine(routerManager);
+
+// ---------- Magic Simulator Endpoint (Sprint 8: SSE Stream) ----------
+app.post('/api/magic', async (req: Request, res: Response) => {
+  const { messages } = req.body;
+  
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'Messages array is required' });
+  }
+
+  // Set headers for Server-Sent Events (SSE) but using fetch stream approach
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const sendEvent = (type: string, data: any) => {
+    res.write(`data: ${JSON.stringify({ type, data })}\n\n`);
+  };
+
+  try {
+    const latestMessage = messages[messages.length - 1].content;
+    console.log(`\n[API Magic Stream] Received user message: "${latestMessage}"`);
+    
+    // 1. Clarification & Requirement Gathering
+    sendEvent('progress', { step: 'Requirement', message: 'Menganalisis Kebutuhan...' });
+    const clarification = await clarificationEngine.analyzeRequirements(messages);
+    
+    if (clarification.level === 3) {
+      sendEvent('clarification', { 
+        message: clarification.message,
+        proposal: clarification.proposal,
+        diff: clarification.diff
+      });
+      return res.end();
+    } else if (clarification.level === 2) {
+      sendEvent('options', { message: clarification.message, options: clarification.options });
+      return res.end();
+    }
+
+    // Level 1: Requirements MET! Proceed to build the app
+    const combinedRequirements = clarification.inferredRequirements || latestMessage;
+    
+    // 2. Goal Analysis
+    sendEvent('progress', { step: 'Goal', message: 'Mengekstrak Tujuan Utama...' });
+    const goal = await goalAnalyzer.analyze(combinedRequirements);
+
+    // 3. Intent Parsing
+    sendEvent('progress', { step: 'Intent', message: 'Menentukan Intent Aplikasi...' });
+    const intent = await intentParser.deriveIntent(goal);
+
+    // 4. Context & Knowledge (Future stubs, just emitting events for UI)
+    sendEvent('progress', { step: 'Context', message: 'Membangun Konteks Lingkungan...' });
+    await new Promise(r => setTimeout(r, 600)); 
+    sendEvent('progress', { step: 'Knowledge', message: 'Mengambil Pengetahuan Eksternal...' });
+    await new Promise(r => setTimeout(r, 600)); 
+    sendEvent('progress', { step: 'Reasoning', message: 'Sintesis Logika...' });
+    await new Promise(r => setTimeout(r, 600)); 
+    
+    // 5. Blueprint Design
+    sendEvent('progress', { step: 'Blueprint', message: 'Mendesain Cetak Biru (Blueprint)...' });
+    const blueprint = await blueprintDesigner.designProduct({} as any);
+    
+    // 6. Generation (Simulation)
+    sendEvent('progress', { step: 'Simulation', message: 'Merender UI di Simulator...' });
+    const asset = await generationEngine.generate(blueprint, 'WEB_PROTOTYPE', combinedRequirements);
+
+    // 7. Delivery
+    sendEvent('progress', { step: 'Delivery', message: 'Selesai.' });
+
+    // Return the generated raw HTML
+    sendEvent('asset', { html: asset.rawData });
+    res.end();
+  } catch (error: any) {
+    console.error('[API Magic Stream] Error during pipeline execution:', error);
+    sendEvent('error', { message: error.message || 'Unknown error' });
+    res.end();
+  }
+});
+
+// ---------- Server start ----------
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`🚀 UltimateAI TS Backend listening on http://localhost:${PORT}`);
+});

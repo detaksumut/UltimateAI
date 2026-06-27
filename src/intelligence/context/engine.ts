@@ -1,7 +1,7 @@
 import { IContextEngine } from './interfaces';
 import { ContextSignature } from './models';
 import { UserIntent } from '../intent/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class ContextEngine implements IContextEngine {
     constructor(private router: RouterManager) {}

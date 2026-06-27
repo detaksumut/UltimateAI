@@ -3,7 +3,7 @@ import { ReasoningChain } from './models';
 import { UserIntent } from '../intent/models';
 import { ContextSignature } from '../context/models';
 import { KnowledgeGraph } from '../knowledge/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class ReasoningEngine implements IReasoningEngine {
     constructor(private router: RouterManager) {}

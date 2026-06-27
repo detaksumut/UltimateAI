@@ -7,7 +7,6 @@ import {
   Download, Eye, Rocket, CheckCircle2, AlertCircle, Loader2,
   Moon, Sun, FolderOpen
 } from 'lucide-react';
-import logoUrl from '../../logo-ultimateAI.png';
 
 function GeneratedApps() {
   const [apps, setApps] = useState([]);

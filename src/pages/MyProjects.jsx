@@ -7,7 +7,6 @@ import {
   Rocket, AlertCircle, Loader2, Moon, Sun, FolderOpen,
   ArrowRight, Calendar, Tag
 } from 'lucide-react';
-import logoUrl from '../../logo-ultimateAI.png';
 
 function MyProjects() {
   const [projects, setProjects] = useState([]);

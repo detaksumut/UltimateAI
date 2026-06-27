@@ -1,26 +1,42 @@
 import { IGenerationEngine } from './interfaces';
 import { DigitalAsset, AssetType } from './models';
 import { ProductBlueprint } from '../../intelligence/blueprint/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
+import { PromptBuilder } from '../../cognition/prompt-builder/builder';
+import { OutputParser } from '../../cognition/output-parser/parser';
 
 export class GenerationEngine implements IGenerationEngine {
+    private promptBuilder = new PromptBuilder();
+    private outputParser = new OutputParser();
+
     constructor(private router: RouterManager) {}
 
-    async generate(blueprint: ProductBlueprint, target: AssetType): Promise<DigitalAsset> {
+    async generate(blueprint: any, target: AssetType | string, rawInput: string = ''): Promise<DigitalAsset> {
         console.log(`[GenerationEngine] Starting generation for asset type: ${target}`);
         
-        // This is where heavy coding or content generation models are used
+        let systemPrompt = 'You are a general generation engine.';
+        
+        if (target === 'WEB_PROTOTYPE') {
+            systemPrompt = await this.promptBuilder.build('generation', {
+                USER_INPUT: rawInput,
+                BLUEPRINT_ID: blueprint.id || 'N/A'
+            });
+        }
+
         const response = await this.router.routeTask({
             id: `gen-${Date.now()}`,
-            prompt: `Generate production-ready asset of type ${target} based on blueprint ${blueprint.id}`,
-            systemPrompt: 'You are the ultimate Generation Engine. You output raw code, text, or structure based on the target asset.',
-            requiredCapability: 'CODING' // Deepseek, Anthropic, or Gemini
+            prompt: `Generate the ${target} based on the instructions.`,
+            systemPrompt: systemPrompt,
+            requiredCapability: 'CODING' 
         });
+        
+        // Use Cognition OutputParser to strip markdown
+        const rawData = this.outputParser.parseHtml(response.content);
         
         return {
             taskId: `task-${Date.now()}`,
-            type: target,
-            rawData: response.content,
+            type: target as any,
+            rawData: rawData,
             metadata: {
                 generatedAt: new Date().toISOString(),
                 providerUsed: response.provider

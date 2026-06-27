@@ -1,6 +1,6 @@
-import { Blueprint } from './models';
-import { ReasoningChain } from '../reasoning/models';
+import { FeatureSet } from './models';
+import { ProductBlueprint } from '../blueprint/models';
 
-export interface IRequirementBuilder {
-    build(reasoning: ReasoningChain): Promise<Blueprint>;
+export interface IFeatureExtractor {
+    extractFeatures(blueprint: ProductBlueprint): Promise<FeatureSet>;
 }

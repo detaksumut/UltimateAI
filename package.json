@@ -9,8 +9,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "npx vite",
-    "serve": "node server.js",
-    "test:e2e": "playwright test"
+    "serve": "npx tsx src/infrastructure/server/server.ts",
+    "test:e2e": "playwright test",
+    "test:pipeline": "npx tsx test-pipeline.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "electron": "^42.5.0",
     "electron-builder": "^26.15.3",
     "express": "^5.2.1",
+    "jimp": "^0.22.10",
     "lucide-react": "^1.21.0",
     "node-fetch": "^3.3.2",
     "react": "^19.0.0",
@@ -35,6 +37,8 @@
   "devDependencies": {
     "@playwright/test": "^1.44.0",
     "@tailwindcss/postcss": "^4.3.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "autoprefixer": "^10.5.1",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1",

@@ -1,7 +1,7 @@
 import { ISimulatorEngine } from './interfaces';
 import { SimulationState, RevisionRequest } from './models';
 import { ProductBlueprint } from '../../intelligence/blueprint/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class SimulatorEngine implements ISimulatorEngine {
     constructor(private router: RouterManager) {}

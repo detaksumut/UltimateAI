@@ -1,6 +1,6 @@
 import { IEvolutionEngine } from './interfaces';
 import { EvolutionFeedback } from './models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class EvolutionEngine implements IEvolutionEngine {
     constructor(private router: RouterManager) {}

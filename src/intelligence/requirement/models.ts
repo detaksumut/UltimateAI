@@ -1,43 +1,12 @@
-export interface BusinessRequirement {
-    readonly objective: string;
-    readonly kpi: ReadonlyArray<string>;
-}
+export type FeatureType = 'CAMERA' | 'GPS' | 'MAP' | 'EXCEL_EXPORT' | 'QR_CODE' | 'VOICE' | 'VIDEO' | 'SIGNATURE' | 'GALLERY' | 'OFFLINE_SYNC' | 'PHOTO_ANNOTATION';
 
-export interface FunctionalRequirement {
-    readonly id: string;
+export interface ProductFeature {
+    readonly type: FeatureType;
     readonly description: string;
-    readonly actor: string;
+    readonly isCoreExperience: boolean;
 }
 
-export interface NonFunctionalRequirement {
-    readonly category: 'PERFORMANCE' | 'SECURITY' | 'USABILITY';
-    readonly description: string;
-}
-
-export interface DataModel {
-    readonly entities: ReadonlyArray<{ name: string; attributes: ReadonlyArray<string> }>;
-}
-
-export interface Workflow {
-    readonly steps: ReadonlyArray<string>;
-}
-
-export interface UIDraft {
-    readonly screens: ReadonlyArray<{ name: string; components: ReadonlyArray<string> }>;
-}
-
-export interface TestScenario {
-    readonly title: string;
-    readonly steps: ReadonlyArray<string>;
-    readonly expectedResult: string;
-}
-
-export interface Blueprint {
-    readonly business: BusinessRequirement;
-    readonly functional: ReadonlyArray<FunctionalRequirement>;
-    readonly nonFunctional: ReadonlyArray<NonFunctionalRequirement>;
-    readonly data: DataModel;
-    readonly workflow: Workflow;
-    readonly ui: UIDraft;
-    readonly tests: ReadonlyArray<TestScenario>;
+export interface FeatureSet {
+    readonly blueprintId: string;
+    readonly features: ReadonlyArray<ProductFeature>;
 }

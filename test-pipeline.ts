@@ -1,10 +1,10 @@
-import { RouterManager } from './src/infrastructure/gateway/routerManager';
+import { RouterManager } from './src/infrastructure/connectors/routerManager';
 import { GoalAnalyzer } from './src/intelligence/goal/analyzer';
 import { IntentParser } from './src/intelligence/intent/parser';
 import { ContextEngine } from './src/intelligence/context/engine';
 import { ReasoningEngine } from './src/intelligence/reasoning/engine';
 import { BlueprintDesigner } from './src/intelligence/blueprint/designer';
-import { FeatureExtractor } from './src/intelligence/features/extractor';
+import { FeatureExtractor } from './src/intelligence/requirement/extractor';
 import { GenerationEngine } from './src/production/generation/engine';
 import { DeliveryService } from './src/production/delivery/service';
 

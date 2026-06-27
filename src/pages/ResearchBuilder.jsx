@@ -10,7 +10,6 @@ import {
   PlusCircle, Table, Check, Lock, Smartphone, RefreshCw, Send,
   Globe, Shield, WifiOff, Bell, Users, ToggleLeft, HelpCircle
 } from 'lucide-react';
-import logoUrl from '../../logo-ultimateAI.png';
 import DeploymentStatus from '../components/DeploymentStatus';
 
 // Import Visual Prototype Core Modules

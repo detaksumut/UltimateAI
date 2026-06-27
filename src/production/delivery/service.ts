@@ -1,7 +1,7 @@
 import { IDeliveryService } from './interfaces';
 import { DeliveryPackage, DeliveryMethod } from './models';
 import { DigitalAsset } from '../generation/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class DeliveryService implements IDeliveryService {
     constructor(private router: RouterManager) {}

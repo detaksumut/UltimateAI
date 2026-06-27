@@ -1,7 +1,7 @@
 import { IFeatureExtractor } from './interfaces';
 import { FeatureSet } from './models';
 import { ProductBlueprint } from '../blueprint/models';
-import { RouterManager } from '../../infrastructure/gateway/routerManager';
+import { RouterManager } from '../../infrastructure/connectors/routerManager';
 
 export class FeatureExtractor implements IFeatureExtractor {
     constructor(private router: RouterManager) {}

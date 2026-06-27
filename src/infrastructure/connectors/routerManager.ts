@@ -35,6 +35,7 @@ export class RouterManager {
         console.log(`[Router] 🔄 Initiating Auto-Failover to Direct APIs: [${fallbacks.join(', ')}]`);
         
         // Try each fallback sequentially until one succeeds
+        let lastError = null;
         for (const providerType of fallbacks) {
             try {
                 console.log(`[Router] Failover attempt: ${providerType}...`);
@@ -43,10 +44,11 @@ export class RouterManager {
                 console.log(`[Router] ✅ Failover Success via ${providerType}!`);
                 return result;
             } catch (err: any) {
+                lastError = err.message;
                 console.error(`[Router] ❌ Failover attempt ${providerType} failed: ${err.message}`);
             }
         }
 
-        throw new Error('[Router] CRITICAL: All failover routes exhausted. Task failed.');
+        throw new Error(`[Router] CRITICAL: All failover routes exhausted. Last error: ${lastError}`);
     }
 }
