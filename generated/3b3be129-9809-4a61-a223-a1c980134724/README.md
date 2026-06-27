@@ -1,0 +1,3 @@
+# InvestigatetherelationshipbetweensocialmediausagepatternsandanxietylevApp
+
+Investigate the relationship between psychological variables Measure psychological construct levels in the target population Identify risk factors and protective factors

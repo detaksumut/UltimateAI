@@ -1,0 +1,6402 @@
+[
+  {
+    "discipline": "Medicine",
+    "prompt": "Investigate the correlation between sleep duration and cardiovascular risk markers (blood pressure, cholesterol, CRP) in adults aged 40-65 over a 12-month longitudinal study",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Investigate the correlation between sleep duration and cardiovascular risk marke",
+      "researchType": "Medicine – Clinical/Longitudinal Research",
+      "researchObjectives": [
+        "Investigate correlations between clinical variables and health outcomes",
+        "Identify risk markers in the target population",
+        "Assess temporal changes in biomarkers over the study period"
+      ],
+      "researchQuestions": [
+        "What is the correlation between the independent variables and cardiovascular risk markers?",
+        "How do biomarkers change over the longitudinal study period?"
+      ],
+      "variables": {
+        "independent": [
+          "Sleep Duration (hours)",
+          "Age Group",
+          "BMI"
+        ],
+        "dependent": [
+          "Systolic Blood Pressure (mmHg)",
+          "Cholesterol (mg/dL)",
+          "CRP Level (mg/L)"
+        ]
+      },
+      "methodology": "Longitudinal Cohort Study",
+      "recommendedParameters": [
+        {
+          "name": "Patient ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Sleep Duration (hours)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Systolic BP (mmHg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Diastolic BP (mmHg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Total Cholesterol (mg/dL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "HDL Cholesterol (mg/dL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "LDL Cholesterol (mg/dL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "CRP Level (mg/L)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "BMI",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Visit Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Medical History",
+          "type": "textarea",
+          "required": false
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Patient Registry",
+        "Clinical Dashboard",
+        "Biomarker Trend Chart",
+        "Risk Assessment",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Investigate the correlation between sleep duration and cardiovascular risk marke",
+      "researchType": "Medicine – Clinical/Longitudinal Research",
+      "researchObjectives": [
+        "Investigate correlations between clinical variables and health outcomes",
+        "Identify risk markers in the target population",
+        "Assess temporal changes in biomarkers over the study period"
+      ],
+      "researchQuestions": [
+        "What is the correlation between the independent variables and cardiovascular risk markers?",
+        "How do biomarkers change over the longitudinal study period?"
+      ],
+      "variables": {
+        "independent": [
+          "Sleep Duration (hours)",
+          "Age Group",
+          "BMI"
+        ],
+        "dependent": [
+          "Systolic Blood Pressure (mmHg)",
+          "Cholesterol (mg/dL)",
+          "CRP Level (mg/L)"
+        ]
+      },
+      "methodology": "Longitudinal Cohort Study",
+      "recommendedParameters": [
+        {
+          "name": "Patient ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Sleep Duration (hours)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Systolic BP (mmHg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Diastolic BP (mmHg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Total Cholesterol (mg/dL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "HDL Cholesterol (mg/dL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "LDL Cholesterol (mg/dL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "CRP Level (mg/L)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "BMI",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Visit Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Medical History",
+          "type": "textarea",
+          "required": false
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Patient Registry",
+        "Clinical Dashboard",
+        "Biomarker Trend Chart",
+        "Risk Assessment",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "71eca7da-c21f-4d7f-ae67-093157927bbf",
+      "appName": "InvestigatethecorrelationbetweensleepdurationandcardiovascularriskmarkeApp",
+      "appDescription": "Investigate correlations between clinical variables and health outcomes Identify risk markers in the target population Assess temporal changes in biomarkers over the study period",
+      "dbTables": [
+        "age",
+        "attachments",
+        "bmi",
+        "crp_level_(mg/l)",
+        "diastolic_bp_(mmhg)",
+        "gender",
+        "hdl_cholesterol_(mg/dl)",
+        "ldl_cholesterol_(mg/dl)",
+        "measurements",
+        "medical_history",
+        "notes",
+        "observations",
+        "patient_id",
+        "sleep_duration_(hours)",
+        "systolic_bp_(mmhg)",
+        "total_cholesterol_(mg/dl)",
+        "visit_date"
+      ],
+      "forms": [
+        "Observation Form",
+        "Patient Form",
+        "Sleep Form",
+        "Systolic Form",
+        "Diastolic Form",
+        "Total Form",
+        "HDL Form",
+        "LDL Form",
+        "CRP Form",
+        "Visit Form",
+        "Medical Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Patient Registry",
+        "Clinical Dashboard",
+        "Biomarker Trend Chart",
+        "Risk Assessment",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Patient Registry",
+            "file": "PatientRegistry.jsx",
+            "route": "/patient-registry"
+          },
+          {
+            "name": "Clinical Dashboard",
+            "file": "ClinicalDashboard.jsx",
+            "route": "/clinical-dashboard"
+          },
+          {
+            "name": "Biomarker Trend Chart",
+            "file": "BiomarkerTrendChart.jsx",
+            "route": "/biomarker-trend-chart"
+          },
+          {
+            "name": "Risk Assessment",
+            "file": "RiskAssessment.jsx",
+            "route": "/risk-assessment"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/patient-registry",
+            "component": "Patient Registry"
+          },
+          {
+            "path": "/clinical-dashboard",
+            "component": "Clinical Dashboard"
+          },
+          {
+            "path": "/biomarker-trend-chart",
+            "component": "Biomarker Trend Chart"
+          },
+          {
+            "path": "/risk-assessment",
+            "component": "Risk Assessment"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "71eca7da-c21f-4d7f-ae67-093157927bbf",
+      "outputPath": "C:\\ultimateai\\generated\\71eca7da-c21f-4d7f-ae67-093157927bbf",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\71eca7da-c21f-4d7f-ae67-093157927bbf\\project.zip"
+    },
+    "timings": {
+      "analyze": 107,
+      "generate": 8,
+      "artifacts": 94
+    }
+  },
+  {
+    "discipline": "Nursing",
+    "prompt": "Evaluate the effectiveness of a nurse-led wound care protocol on healing rates and patient satisfaction in diabetic foot ulcer patients",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Evaluate the effectiveness of a nurse-led wound care protocol on healing rates a",
+      "researchType": "Nursing – Clinical Intervention Study",
+      "researchObjectives": [
+        "Evaluate the effectiveness of the nursing intervention protocol",
+        "Measure patient healing outcomes and satisfaction levels",
+        "Compare pre- and post-intervention outcomes"
+      ],
+      "researchQuestions": [
+        "Does the nurse-led protocol improve healing rates compared to standard care?",
+        "What is the impact on patient satisfaction?"
+      ],
+      "variables": {
+        "independent": [
+          "Care Protocol Type",
+          "Nurse Experience Level"
+        ],
+        "dependent": [
+          "Wound Healing Rate (%)",
+          "Patient Satisfaction Score",
+          "Healing Time (days)"
+        ]
+      },
+      "methodology": "Quasi-Experimental Pre-Post Design",
+      "recommendedParameters": [
+        {
+          "name": "Patient ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Wound Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Diabetic Ulcer",
+            "Pressure Ulcer",
+            "Surgical Wound",
+            "Burns"
+          ]
+        },
+        {
+          "name": "Wound Size (cm²)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Protocol Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Nurse-Led Protocol",
+            "Standard Care"
+          ]
+        },
+        {
+          "name": "Healing Progress (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Pain Level (1-10)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Patient Satisfaction (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Visit Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Nurse ID",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Clinical Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Patient Tracker",
+        "Wound Progress Chart",
+        "Satisfaction Survey",
+        "Comparative Dashboard",
+        "Export Excel"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Evaluate the effectiveness of a nurse-led wound care protocol on healing rates a",
+      "researchType": "Nursing – Clinical Intervention Study",
+      "researchObjectives": [
+        "Evaluate the effectiveness of the nursing intervention protocol",
+        "Measure patient healing outcomes and satisfaction levels",
+        "Compare pre- and post-intervention outcomes"
+      ],
+      "researchQuestions": [
+        "Does the nurse-led protocol improve healing rates compared to standard care?",
+        "What is the impact on patient satisfaction?"
+      ],
+      "variables": {
+        "independent": [
+          "Care Protocol Type",
+          "Nurse Experience Level"
+        ],
+        "dependent": [
+          "Wound Healing Rate (%)",
+          "Patient Satisfaction Score",
+          "Healing Time (days)"
+        ]
+      },
+      "methodology": "Quasi-Experimental Pre-Post Design",
+      "recommendedParameters": [
+        {
+          "name": "Patient ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Wound Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Diabetic Ulcer",
+            "Pressure Ulcer",
+            "Surgical Wound",
+            "Burns"
+          ]
+        },
+        {
+          "name": "Wound Size (cm²)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Protocol Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Nurse-Led Protocol",
+            "Standard Care"
+          ]
+        },
+        {
+          "name": "Healing Progress (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Pain Level (1-10)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Patient Satisfaction (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Visit Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Nurse ID",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Clinical Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Patient Tracker",
+        "Wound Progress Chart",
+        "Satisfaction Survey",
+        "Comparative Dashboard",
+        "Export Excel"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "855e1509-782c-4a81-a03e-bc9019d48273",
+      "appName": "Evaluatetheeffectivenessofanurse-ledwoundcareprotocolonhealingratesaApp",
+      "appDescription": "Evaluate the effectiveness of the nursing intervention protocol Measure patient healing outcomes and satisfaction levels Compare pre- and post-intervention outcomes",
+      "dbTables": [
+        "age",
+        "attachments",
+        "clinical_notes",
+        "gender",
+        "healing_progress_(%)",
+        "measurements",
+        "nurse_id",
+        "observations",
+        "pain_level_(1-10)",
+        "patient_id",
+        "patient_satisfaction_(1-5)",
+        "protocol_type",
+        "visit_date",
+        "wound_size_(cm²)",
+        "wound_type"
+      ],
+      "forms": [
+        "Observation Form",
+        "Patient Form",
+        "Wound Form",
+        "Protocol Form",
+        "Healing Form",
+        "Pain Form",
+        "Visit Form",
+        "Nurse Form",
+        "Clinical Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Patient Tracker",
+        "Wound Progress Chart",
+        "Satisfaction Survey",
+        "Comparative Dashboard",
+        "Export Excel"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Patient Tracker",
+            "file": "PatientTracker.jsx",
+            "route": "/patient-tracker"
+          },
+          {
+            "name": "Wound Progress Chart",
+            "file": "WoundProgressChart.jsx",
+            "route": "/wound-progress-chart"
+          },
+          {
+            "name": "Satisfaction Survey",
+            "file": "SatisfactionSurvey.jsx",
+            "route": "/satisfaction-survey"
+          },
+          {
+            "name": "Comparative Dashboard",
+            "file": "ComparativeDashboard.jsx",
+            "route": "/comparative-dashboard"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/patient-tracker",
+            "component": "Patient Tracker"
+          },
+          {
+            "path": "/wound-progress-chart",
+            "component": "Wound Progress Chart"
+          },
+          {
+            "path": "/satisfaction-survey",
+            "component": "Satisfaction Survey"
+          },
+          {
+            "path": "/comparative-dashboard",
+            "component": "Comparative Dashboard"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "855e1509-782c-4a81-a03e-bc9019d48273",
+      "outputPath": "C:\\ultimateai\\generated\\855e1509-782c-4a81-a03e-bc9019d48273",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\855e1509-782c-4a81-a03e-bc9019d48273\\project.zip"
+    },
+    "timings": {
+      "analyze": 15,
+      "generate": 3,
+      "artifacts": 37
+    }
+  },
+  {
+    "discipline": "Pharmacy",
+    "prompt": "Analyze the bioavailability and pharmacokinetic profile of a new oral metformin extended-release formulation compared to immediate-release tablets in healthy volunteers",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Analyze the bioavailability and pharmacokinetic profile of a new oral metformin",
+      "researchType": "Pharmacy – Pharmacokinetic/Bioavailability Study",
+      "researchObjectives": [
+        "Compare bioavailability profiles between formulations",
+        "Analyze pharmacokinetic parameters (Cmax, Tmax, AUC)",
+        "Determine bioequivalence of the test formulation"
+      ],
+      "researchQuestions": [
+        "Is the extended-release formulation bioequivalent to the immediate-release?",
+        "What are the pharmacokinetic differences between the two formulations?"
+      ],
+      "variables": {
+        "independent": [
+          "Formulation Type",
+          "Dosage (mg)",
+          "Administration Route"
+        ],
+        "dependent": [
+          "Cmax (ng/mL)",
+          "Tmax (hours)",
+          "AUC (ng·h/mL)",
+          "Half-life (hours)"
+        ]
+      },
+      "methodology": "Randomized Crossover Clinical Trial",
+      "recommendedParameters": [
+        {
+          "name": "Subject ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Weight (kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Formulation",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Extended-Release",
+            "Immediate-Release"
+          ]
+        },
+        {
+          "name": "Dosage (mg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Sampling Time (hours)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plasma Concentration (ng/mL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Cmax (ng/mL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Tmax (hours)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "AUC (ng·h/mL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Adverse Effects",
+          "type": "textarea",
+          "required": false
+        },
+        {
+          "name": "Collection Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "PK Curve Plot",
+        "Bioequivalence Dashboard",
+        "Subject Registry",
+        "Adverse Event Log",
+        "Export Excel",
+        "Statistical Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Analyze the bioavailability and pharmacokinetic profile of a new oral metformin",
+      "researchType": "Pharmacy – Pharmacokinetic/Bioavailability Study",
+      "researchObjectives": [
+        "Compare bioavailability profiles between formulations",
+        "Analyze pharmacokinetic parameters (Cmax, Tmax, AUC)",
+        "Determine bioequivalence of the test formulation"
+      ],
+      "researchQuestions": [
+        "Is the extended-release formulation bioequivalent to the immediate-release?",
+        "What are the pharmacokinetic differences between the two formulations?"
+      ],
+      "variables": {
+        "independent": [
+          "Formulation Type",
+          "Dosage (mg)",
+          "Administration Route"
+        ],
+        "dependent": [
+          "Cmax (ng/mL)",
+          "Tmax (hours)",
+          "AUC (ng·h/mL)",
+          "Half-life (hours)"
+        ]
+      },
+      "methodology": "Randomized Crossover Clinical Trial",
+      "recommendedParameters": [
+        {
+          "name": "Subject ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Weight (kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Formulation",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Extended-Release",
+            "Immediate-Release"
+          ]
+        },
+        {
+          "name": "Dosage (mg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Sampling Time (hours)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plasma Concentration (ng/mL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Cmax (ng/mL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Tmax (hours)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "AUC (ng·h/mL)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Adverse Effects",
+          "type": "textarea",
+          "required": false
+        },
+        {
+          "name": "Collection Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "PK Curve Plot",
+        "Bioequivalence Dashboard",
+        "Subject Registry",
+        "Adverse Event Log",
+        "Export Excel",
+        "Statistical Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "a79fff90-ab6f-454c-aa1d-7be3c785cc92",
+      "appName": "AnalyzethebioavailabilityandpharmacokineticprofileofaneworalmetforminApp",
+      "appDescription": "Compare bioavailability profiles between formulations Analyze pharmacokinetic parameters (Cmax, Tmax, AUC) Determine bioequivalence of the test formulation",
+      "dbTables": [
+        "adverse_effects",
+        "age",
+        "attachments",
+        "auc_(ng·h/ml)",
+        "cmax_(ng/ml)",
+        "collection_date",
+        "dosage_(mg)",
+        "formulation",
+        "measurements",
+        "observations",
+        "plasma_concentration_(ng/ml)",
+        "sampling_time_(hours)",
+        "subject_id",
+        "tmax_(hours)",
+        "weight_(kg)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Subject Form",
+        "Weight Form",
+        "Dosage Form",
+        "Sampling Form",
+        "Plasma Form",
+        "Cmax Form",
+        "Tmax Form",
+        "AUC Form",
+        "Adverse Form",
+        "Collection Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "PK Curve Plot",
+        "Bioequivalence Dashboard",
+        "Subject Registry",
+        "Adverse Event Log",
+        "Export Excel",
+        "Statistical Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "PK Curve Plot",
+            "file": "PKCurvePlot.jsx",
+            "route": "/pk-curve-plot"
+          },
+          {
+            "name": "Bioequivalence Dashboard",
+            "file": "BioequivalenceDashboard.jsx",
+            "route": "/bioequivalence-dashboard"
+          },
+          {
+            "name": "Subject Registry",
+            "file": "SubjectRegistry.jsx",
+            "route": "/subject-registry"
+          },
+          {
+            "name": "Adverse Event Log",
+            "file": "AdverseEventLog.jsx",
+            "route": "/adverse-event-log"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "Statistical Report",
+            "file": "StatisticalReport.jsx",
+            "route": "/statistical-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/pk-curve-plot",
+            "component": "PK Curve Plot"
+          },
+          {
+            "path": "/bioequivalence-dashboard",
+            "component": "Bioequivalence Dashboard"
+          },
+          {
+            "path": "/subject-registry",
+            "component": "Subject Registry"
+          },
+          {
+            "path": "/adverse-event-log",
+            "component": "Adverse Event Log"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/statistical-report",
+            "component": "Statistical Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "a79fff90-ab6f-454c-aa1d-7be3c785cc92",
+      "outputPath": "C:\\ultimateai\\generated\\a79fff90-ab6f-454c-aa1d-7be3c785cc92",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\a79fff90-ab6f-454c-aa1d-7be3c785cc92\\project.zip"
+    },
+    "timings": {
+      "analyze": 14,
+      "generate": 4,
+      "artifacts": 36
+    }
+  },
+  {
+    "discipline": "Biology",
+    "prompt": "Study the effect of microplastic concentration on freshwater algae photosynthesis rates and cellular morphology across varying pH levels",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Study the effect of microplastic concentration on freshwater algae photosynthesi",
+      "researchType": "Agriculture – Field Experimental Research",
+      "researchObjectives": [
+        "Evaluate the effect of the treatment on crop yield",
+        "Assess soil nutrient changes under different treatment conditions",
+        "Determine optimal application rates for the treatment"
+      ],
+      "researchQuestions": [
+        "Does the soil amendment significantly improve crop yield?",
+        "How does the treatment affect soil nutrient retention over time?"
+      ],
+      "variables": {
+        "independent": [
+          "Treatment Type",
+          "Application Rate (t/ha)",
+          "Soil Type"
+        ],
+        "dependent": [
+          "Crop Yield (kg/ha)",
+          "Soil Nitrogen (mg/kg)",
+          "Soil Phosphorus (mg/kg)",
+          "Soil Organic Carbon (%)"
+        ]
+      },
+      "methodology": "Randomized Complete Block Design (RCBD)",
+      "recommendedParameters": [
+        {
+          "name": "Plot ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Block",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Block 1",
+            "Block 2",
+            "Block 3",
+            "Block 4"
+          ]
+        },
+        {
+          "name": "Treatment",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control",
+            "Biochar 5 t/ha",
+            "Biochar 10 t/ha",
+            "Biochar 15 t/ha"
+          ]
+        },
+        {
+          "name": "Crop Yield (kg/ha)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plant Height (cm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil N (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil P (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil pH",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil Moisture (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Harvest Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "GPS Location",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Field Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Study the effect of microplastic concentration on freshwater algae photosynthesi",
+      "researchType": "Agriculture – Field Experimental Research",
+      "researchObjectives": [
+        "Evaluate the effect of the treatment on crop yield",
+        "Assess soil nutrient changes under different treatment conditions",
+        "Determine optimal application rates for the treatment"
+      ],
+      "researchQuestions": [
+        "Does the soil amendment significantly improve crop yield?",
+        "How does the treatment affect soil nutrient retention over time?"
+      ],
+      "variables": {
+        "independent": [
+          "Treatment Type",
+          "Application Rate (t/ha)",
+          "Soil Type"
+        ],
+        "dependent": [
+          "Crop Yield (kg/ha)",
+          "Soil Nitrogen (mg/kg)",
+          "Soil Phosphorus (mg/kg)",
+          "Soil Organic Carbon (%)"
+        ]
+      },
+      "methodology": "Randomized Complete Block Design (RCBD)",
+      "recommendedParameters": [
+        {
+          "name": "Plot ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Block",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Block 1",
+            "Block 2",
+            "Block 3",
+            "Block 4"
+          ]
+        },
+        {
+          "name": "Treatment",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control",
+            "Biochar 5 t/ha",
+            "Biochar 10 t/ha",
+            "Biochar 15 t/ha"
+          ]
+        },
+        {
+          "name": "Crop Yield (kg/ha)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plant Height (cm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil N (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil P (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil pH",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil Moisture (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Harvest Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "GPS Location",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Field Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "2c16d42d-6840-4e7e-bd69-dde45b85a080",
+      "appName": "StudytheeffectofmicroplasticconcentrationonfreshwateralgaephotosynthesiApp",
+      "appDescription": "Evaluate the effect of the treatment on crop yield Assess soil nutrient changes under different treatment conditions Determine optimal application rates for the treatment",
+      "dbTables": [
+        "attachments",
+        "block",
+        "crop_yield_(kg/ha)",
+        "field_notes",
+        "gps_location",
+        "harvest_date",
+        "measurements",
+        "observations",
+        "plant_height_(cm)",
+        "plot_id",
+        "soil_moisture_(%)",
+        "soil_n_(mg/kg)",
+        "soil_p_(mg/kg)",
+        "soil_ph",
+        "treatment"
+      ],
+      "forms": [
+        "Observation Form",
+        "Plot Form",
+        "Crop Form",
+        "Plant Form",
+        "Soil Form",
+        "Harvest Form",
+        "GPS Form",
+        "Field Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Field Data Collection",
+            "file": "FieldDataCollection.jsx",
+            "route": "/field-data-collection"
+          },
+          {
+            "name": "Yield Comparison Chart",
+            "file": "YieldComparisonChart.jsx",
+            "route": "/yield-comparison-chart"
+          },
+          {
+            "name": "Soil Nutrient Dashboard",
+            "file": "SoilNutrientDashboard.jsx",
+            "route": "/soil-nutrient-dashboard"
+          },
+          {
+            "name": "ANOVA Analysis",
+            "file": "ANOVAAnalysis.jsx",
+            "route": "/anova-analysis"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/field-data-collection",
+            "component": "Field Data Collection"
+          },
+          {
+            "path": "/yield-comparison-chart",
+            "component": "Yield Comparison Chart"
+          },
+          {
+            "path": "/soil-nutrient-dashboard",
+            "component": "Soil Nutrient Dashboard"
+          },
+          {
+            "path": "/anova-analysis",
+            "component": "ANOVA Analysis"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "Observation FormForm",
+            "Plot FormForm",
+            "Crop FormForm",
+            "Plant FormForm",
+            "Soil FormForm",
+            "Harvest FormForm",
+            "GPS FormForm",
+            "Field FormForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "2c16d42d-6840-4e7e-bd69-dde45b85a080",
+      "outputPath": "C:\\ultimateai\\generated\\2c16d42d-6840-4e7e-bd69-dde45b85a080",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\2c16d42d-6840-4e7e-bd69-dde45b85a080\\project.zip"
+    },
+    "timings": {
+      "analyze": 13,
+      "generate": 4,
+      "artifacts": 32
+    }
+  },
+  {
+    "discipline": "Agriculture",
+    "prompt": "Evaluate the impact of biochar soil amendment on maize yield and soil nutrient retention under tropical dryland conditions",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Evaluate the impact of biochar soil amendment on maize yield and soil nutrient r",
+      "researchType": "Agriculture – Field Experimental Research",
+      "researchObjectives": [
+        "Evaluate the effect of the treatment on crop yield",
+        "Assess soil nutrient changes under different treatment conditions",
+        "Determine optimal application rates for the treatment"
+      ],
+      "researchQuestions": [
+        "Does the soil amendment significantly improve crop yield?",
+        "How does the treatment affect soil nutrient retention over time?"
+      ],
+      "variables": {
+        "independent": [
+          "Treatment Type",
+          "Application Rate (t/ha)",
+          "Soil Type"
+        ],
+        "dependent": [
+          "Crop Yield (kg/ha)",
+          "Soil Nitrogen (mg/kg)",
+          "Soil Phosphorus (mg/kg)",
+          "Soil Organic Carbon (%)"
+        ]
+      },
+      "methodology": "Randomized Complete Block Design (RCBD)",
+      "recommendedParameters": [
+        {
+          "name": "Plot ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Block",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Block 1",
+            "Block 2",
+            "Block 3",
+            "Block 4"
+          ]
+        },
+        {
+          "name": "Treatment",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control",
+            "Biochar 5 t/ha",
+            "Biochar 10 t/ha",
+            "Biochar 15 t/ha"
+          ]
+        },
+        {
+          "name": "Crop Yield (kg/ha)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plant Height (cm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil N (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil P (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil pH",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil Moisture (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Harvest Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "GPS Location",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Field Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Evaluate the impact of biochar soil amendment on maize yield and soil nutrient r",
+      "researchType": "Agriculture – Field Experimental Research",
+      "researchObjectives": [
+        "Evaluate the effect of the treatment on crop yield",
+        "Assess soil nutrient changes under different treatment conditions",
+        "Determine optimal application rates for the treatment"
+      ],
+      "researchQuestions": [
+        "Does the soil amendment significantly improve crop yield?",
+        "How does the treatment affect soil nutrient retention over time?"
+      ],
+      "variables": {
+        "independent": [
+          "Treatment Type",
+          "Application Rate (t/ha)",
+          "Soil Type"
+        ],
+        "dependent": [
+          "Crop Yield (kg/ha)",
+          "Soil Nitrogen (mg/kg)",
+          "Soil Phosphorus (mg/kg)",
+          "Soil Organic Carbon (%)"
+        ]
+      },
+      "methodology": "Randomized Complete Block Design (RCBD)",
+      "recommendedParameters": [
+        {
+          "name": "Plot ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Block",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Block 1",
+            "Block 2",
+            "Block 3",
+            "Block 4"
+          ]
+        },
+        {
+          "name": "Treatment",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control",
+            "Biochar 5 t/ha",
+            "Biochar 10 t/ha",
+            "Biochar 15 t/ha"
+          ]
+        },
+        {
+          "name": "Crop Yield (kg/ha)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Plant Height (cm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil N (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil P (mg/kg)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Soil pH",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Soil Moisture (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Harvest Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "GPS Location",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Field Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "8055a0d9-ae0e-47b0-af43-4637d96a7ae5",
+      "appName": "EvaluatetheimpactofbiocharsoilamendmentonmaizeyieldandsoilnutrientrApp",
+      "appDescription": "Evaluate the effect of the treatment on crop yield Assess soil nutrient changes under different treatment conditions Determine optimal application rates for the treatment",
+      "dbTables": [
+        "attachments",
+        "block",
+        "crop_yield_(kg/ha)",
+        "field_notes",
+        "gps_location",
+        "harvest_date",
+        "measurements",
+        "observations",
+        "plant_height_(cm)",
+        "plot_id",
+        "soil_moisture_(%)",
+        "soil_n_(mg/kg)",
+        "soil_p_(mg/kg)",
+        "soil_ph",
+        "treatment"
+      ],
+      "forms": [
+        "Observation Form",
+        "Plot Form",
+        "Crop Form",
+        "Plant Form",
+        "Soil Form",
+        "Harvest Form",
+        "GPS Form",
+        "Field Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Field Data Collection",
+        "Yield Comparison Chart",
+        "Soil Nutrient Dashboard",
+        "ANOVA Analysis",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Field Data Collection",
+            "file": "FieldDataCollection.jsx",
+            "route": "/field-data-collection"
+          },
+          {
+            "name": "Yield Comparison Chart",
+            "file": "YieldComparisonChart.jsx",
+            "route": "/yield-comparison-chart"
+          },
+          {
+            "name": "Soil Nutrient Dashboard",
+            "file": "SoilNutrientDashboard.jsx",
+            "route": "/soil-nutrient-dashboard"
+          },
+          {
+            "name": "ANOVA Analysis",
+            "file": "ANOVAAnalysis.jsx",
+            "route": "/anova-analysis"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/field-data-collection",
+            "component": "Field Data Collection"
+          },
+          {
+            "path": "/yield-comparison-chart",
+            "component": "Yield Comparison Chart"
+          },
+          {
+            "path": "/soil-nutrient-dashboard",
+            "component": "Soil Nutrient Dashboard"
+          },
+          {
+            "path": "/anova-analysis",
+            "component": "ANOVA Analysis"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "Observation FormForm",
+            "Plot FormForm",
+            "Crop FormForm",
+            "Plant FormForm",
+            "Soil FormForm",
+            "Harvest FormForm",
+            "GPS FormForm",
+            "Field FormForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "8055a0d9-ae0e-47b0-af43-4637d96a7ae5",
+      "outputPath": "C:\\ultimateai\\generated\\8055a0d9-ae0e-47b0-af43-4637d96a7ae5",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\8055a0d9-ae0e-47b0-af43-4637d96a7ae5\\project.zip"
+    },
+    "timings": {
+      "analyze": 14,
+      "generate": 4,
+      "artifacts": 33
+    }
+  },
+  {
+    "discipline": "Animal Science",
+    "prompt": "Study the effect of probiotic-supplemented feed on broiler chicken growth performance, gut microbiome diversity, and meat quality",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Pengaruh Suhu dan pH terhadap Pertumbuhan Bakteri E. coli",
+      "researchType": "Microbiology – Experimental Research",
+      "researchObjectives": [
+        "Menganalisis pengaruh variasi suhu terhadap jumlah koloni E. coli",
+        "Menganalisis pengaruh variasi pH terhadap pertumbuhan E. coli",
+        "Menentukan kondisi optimal suhu dan pH untuk pertumbuhan E. coli"
+      ],
+      "researchQuestions": [
+        "Bagaimana pengaruh suhu terhadap pertumbuhan koloni bakteri E. coli?",
+        "Bagaimana pengaruh pH terhadap pertumbuhan koloni bakteri E. coli?",
+        "Pada suhu dan pH berapa pertumbuhan E. coli paling optimal?"
+      ],
+      "variables": {
+        "independent": [
+          "pH"
+        ],
+        "dependent": [
+          "Bacterial Colony Count (CFU/mL)",
+          "Growth Rate (%)"
+        ]
+      },
+      "methodology": "Experimental Research",
+      "recommendedParameters": [
+        {
+          "name": "Temperature (°C)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "pH",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Colony Count (CFU/mL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Observation Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Sample Photo",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Incubation Duration (hours)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Growth Medium",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "LB Broth",
+            "Nutrient Agar",
+            "TSB",
+            "MacConkey"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Laboratory Log",
+        "Data Chart",
+        "Growth Curve",
+        "Data Export (Excel)",
+        "Dashboard"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Pengaruh Suhu dan pH terhadap Pertumbuhan Bakteri E. coli",
+      "researchType": "Microbiology – Experimental Research",
+      "researchObjectives": [
+        "Menganalisis pengaruh variasi suhu terhadap jumlah koloni E. coli",
+        "Menganalisis pengaruh variasi pH terhadap pertumbuhan E. coli",
+        "Menentukan kondisi optimal suhu dan pH untuk pertumbuhan E. coli"
+      ],
+      "researchQuestions": [
+        "Bagaimana pengaruh suhu terhadap pertumbuhan koloni bakteri E. coli?",
+        "Bagaimana pengaruh pH terhadap pertumbuhan koloni bakteri E. coli?",
+        "Pada suhu dan pH berapa pertumbuhan E. coli paling optimal?"
+      ],
+      "variables": {
+        "independent": [
+          "pH"
+        ],
+        "dependent": [
+          "Bacterial Colony Count (CFU/mL)",
+          "Growth Rate (%)"
+        ]
+      },
+      "methodology": "Experimental Research",
+      "recommendedParameters": [
+        {
+          "name": "Temperature (°C)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "pH",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Colony Count (CFU/mL)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Observation Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Sample Photo",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "Incubation Duration (hours)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Growth Medium",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "LB Broth",
+            "Nutrient Agar",
+            "TSB",
+            "MacConkey"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Laboratory Log",
+        "Data Chart",
+        "Growth Curve",
+        "Data Export (Excel)",
+        "Dashboard"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "2a2af3e5-e94a-48c2-9de5-1d2cafe83ba4",
+      "appName": "PengaruhSuhudanpHterhadapPertumbuhanBakteriE.coliApp",
+      "appDescription": "Menganalisis pengaruh variasi suhu terhadap jumlah koloni E. coli Menganalisis pengaruh variasi pH terhadap pertumbuhan E. coli Menentukan kondisi optimal suhu dan pH untuk pertumbuhan E. coli",
+      "dbTables": [
+        "attachments",
+        "colony_count_(cfu/ml)",
+        "growth_medium",
+        "incubation_duration_(hours)",
+        "measurements",
+        "notes",
+        "observation_date",
+        "observations",
+        "ph",
+        "sample_photo",
+        "temperature_(°c)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Temperature Form",
+        "Colony Form",
+        "Sample Form",
+        "Incubation Form",
+        "Growth Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Laboratory Log",
+        "Data Chart",
+        "Growth Curve",
+        "Data Export (Excel)",
+        "Dashboard"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Laboratory Log",
+            "file": "LaboratoryLog.jsx",
+            "route": "/laboratory-log"
+          },
+          {
+            "name": "Data Chart",
+            "file": "DataChart.jsx",
+            "route": "/data-chart"
+          },
+          {
+            "name": "Growth Curve",
+            "file": "GrowthCurve.jsx",
+            "route": "/growth-curve"
+          },
+          {
+            "name": "Data Export (Excel)",
+            "file": "DataExport(Excel).jsx",
+            "route": "/data-export-(excel)"
+          },
+          {
+            "name": "Dashboard",
+            "file": "Dashboard.jsx",
+            "route": "/dashboard"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/laboratory-log",
+            "component": "Laboratory Log"
+          },
+          {
+            "path": "/data-chart",
+            "component": "Data Chart"
+          },
+          {
+            "path": "/growth-curve",
+            "component": "Growth Curve"
+          },
+          {
+            "path": "/data-export-(excel)",
+            "component": "Data Export (Excel)"
+          },
+          {
+            "path": "/dashboard",
+            "component": "Dashboard"
+          }
+        ],
+        "components": {
+          "forms": [
+            "Observation FormForm",
+            "Temperature FormForm",
+            "Colony FormForm",
+            "Sample FormForm",
+            "Incubation FormForm",
+            "Growth FormForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "2a2af3e5-e94a-48c2-9de5-1d2cafe83ba4",
+      "outputPath": "C:\\ultimateai\\generated\\2a2af3e5-e94a-48c2-9de5-1d2cafe83ba4",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\2a2af3e5-e94a-48c2-9de5-1d2cafe83ba4\\project.zip"
+    },
+    "timings": {
+      "analyze": 12,
+      "generate": 3,
+      "artifacts": 36
+    }
+  },
+  {
+    "discipline": "Education",
+    "prompt": "Compare the effectiveness of gamified e-learning versus traditional lecture-based instruction on student engagement and learning outcomes in high school mathematics",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Compare the effectiveness of gamified e-learning versus traditional lecture-base",
+      "researchType": "Education – Quasi-Experimental Research",
+      "researchObjectives": [
+        "Compare learning outcomes between intervention and control groups",
+        "Measure student engagement across different teaching methods",
+        "Evaluate the effectiveness of educational technology on learning"
+      ],
+      "researchQuestions": [
+        "Is there a significant difference in learning outcomes between groups?",
+        "How does the intervention affect student engagement?"
+      ],
+      "variables": {
+        "independent": [
+          "Teaching Method",
+          "Class Level",
+          "Gender"
+        ],
+        "dependent": [
+          "Pre-Test Score",
+          "Post-Test Score",
+          "Engagement Score",
+          "Learning Gain"
+        ]
+      },
+      "methodology": "Quasi-Experimental Pre-Post Control Group Design",
+      "recommendedParameters": [
+        {
+          "name": "Student ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Class",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Group",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Experimental",
+            "Control"
+          ]
+        },
+        {
+          "name": "Pre-Test Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Post-Test Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Engagement Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Time on Task (minutes)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Attendance (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Test Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Teacher Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Student Registry",
+        "Score Comparison Chart",
+        "Engagement Dashboard",
+        "T-Test Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Compare the effectiveness of gamified e-learning versus traditional lecture-base",
+      "researchType": "Education – Quasi-Experimental Research",
+      "researchObjectives": [
+        "Compare learning outcomes between intervention and control groups",
+        "Measure student engagement across different teaching methods",
+        "Evaluate the effectiveness of educational technology on learning"
+      ],
+      "researchQuestions": [
+        "Is there a significant difference in learning outcomes between groups?",
+        "How does the intervention affect student engagement?"
+      ],
+      "variables": {
+        "independent": [
+          "Teaching Method",
+          "Class Level",
+          "Gender"
+        ],
+        "dependent": [
+          "Pre-Test Score",
+          "Post-Test Score",
+          "Engagement Score",
+          "Learning Gain"
+        ]
+      },
+      "methodology": "Quasi-Experimental Pre-Post Control Group Design",
+      "recommendedParameters": [
+        {
+          "name": "Student ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Class",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Group",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Experimental",
+            "Control"
+          ]
+        },
+        {
+          "name": "Pre-Test Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Post-Test Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Engagement Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Time on Task (minutes)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Attendance (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Test Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Teacher Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Student Registry",
+        "Score Comparison Chart",
+        "Engagement Dashboard",
+        "T-Test Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "70a785a6-95b4-4e96-be55-4c42cec05f8c",
+      "appName": "Comparetheeffectivenessofgamifiede-learningversustraditionallecture-baseApp",
+      "appDescription": "Compare learning outcomes between intervention and control groups Measure student engagement across different teaching methods Evaluate the effectiveness of educational technology on learning",
+      "dbTables": [
+        "attachments",
+        "attendance_(%)",
+        "class",
+        "engagement_score_(1-5)",
+        "gender",
+        "group",
+        "measurements",
+        "observations",
+        "post-test_score",
+        "pre-test_score",
+        "student_id",
+        "teacher_notes",
+        "test_date",
+        "time_on_task_(minutes)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Student Form",
+        "Pre-Test Form",
+        "Post-Test Form",
+        "Engagement Form",
+        "Time Form",
+        "Attendance Form",
+        "Test Form",
+        "Teacher Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Student Registry",
+        "Score Comparison Chart",
+        "Engagement Dashboard",
+        "T-Test Analysis",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Student Registry",
+            "file": "StudentRegistry.jsx",
+            "route": "/student-registry"
+          },
+          {
+            "name": "Score Comparison Chart",
+            "file": "ScoreComparisonChart.jsx",
+            "route": "/score-comparison-chart"
+          },
+          {
+            "name": "Engagement Dashboard",
+            "file": "EngagementDashboard.jsx",
+            "route": "/engagement-dashboard"
+          },
+          {
+            "name": "T-Test Analysis",
+            "file": "T-TestAnalysis.jsx",
+            "route": "/t-test-analysis"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/student-registry",
+            "component": "Student Registry"
+          },
+          {
+            "path": "/score-comparison-chart",
+            "component": "Score Comparison Chart"
+          },
+          {
+            "path": "/engagement-dashboard",
+            "component": "Engagement Dashboard"
+          },
+          {
+            "path": "/t-test-analysis",
+            "component": "T-Test Analysis"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "70a785a6-95b4-4e96-be55-4c42cec05f8c",
+      "outputPath": "C:\\ultimateai\\generated\\70a785a6-95b4-4e96-be55-4c42cec05f8c",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\70a785a6-95b4-4e96-be55-4c42cec05f8c\\project.zip"
+    },
+    "timings": {
+      "analyze": 15,
+      "generate": 3,
+      "artifacts": 31
+    }
+  },
+  {
+    "discipline": "Psychology",
+    "prompt": "Investigate the relationship between social media usage patterns and anxiety levels among university students using the GAD-7 scale",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Investigate the relationship between social media usage patterns and anxiety lev",
+      "researchType": "Psychology – Correlational/Survey Research",
+      "researchObjectives": [
+        "Investigate the relationship between psychological variables",
+        "Measure psychological construct levels in the target population",
+        "Identify risk factors and protective factors"
+      ],
+      "researchQuestions": [
+        "Is there a significant correlation between the predictor and outcome variables?",
+        "What factors moderate or mediate the relationship?"
+      ],
+      "variables": {
+        "independent": [
+          "Social Media Usage (hours/day)",
+          "Usage Pattern"
+        ],
+        "dependent": [
+          "Anxiety Level (GAD-7 Score)",
+          "Self-Esteem Score",
+          "Sleep Quality Index"
+        ]
+      },
+      "methodology": "Cross-Sectional Survey Design",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female",
+            "Non-binary"
+          ]
+        },
+        {
+          "name": "Social Media Hours/Day",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Primary Platform",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Instagram",
+            "TikTok",
+            "Twitter/X",
+            "Facebook",
+            "YouTube"
+          ]
+        },
+        {
+          "name": "GAD-7 Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "PHQ-9 Score",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Self-Esteem Score (Rosenberg)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Sleep Quality (PSQI)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Academic GPA",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Additional Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "Correlation Matrix",
+        "Anxiety Level Dashboard",
+        "Regression Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Investigate the relationship between social media usage patterns and anxiety lev",
+      "researchType": "Psychology – Correlational/Survey Research",
+      "researchObjectives": [
+        "Investigate the relationship between psychological variables",
+        "Measure psychological construct levels in the target population",
+        "Identify risk factors and protective factors"
+      ],
+      "researchQuestions": [
+        "Is there a significant correlation between the predictor and outcome variables?",
+        "What factors moderate or mediate the relationship?"
+      ],
+      "variables": {
+        "independent": [
+          "Social Media Usage (hours/day)",
+          "Usage Pattern"
+        ],
+        "dependent": [
+          "Anxiety Level (GAD-7 Score)",
+          "Self-Esteem Score",
+          "Sleep Quality Index"
+        ]
+      },
+      "methodology": "Cross-Sectional Survey Design",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female",
+            "Non-binary"
+          ]
+        },
+        {
+          "name": "Social Media Hours/Day",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Primary Platform",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Instagram",
+            "TikTok",
+            "Twitter/X",
+            "Facebook",
+            "YouTube"
+          ]
+        },
+        {
+          "name": "GAD-7 Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "PHQ-9 Score",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Self-Esteem Score (Rosenberg)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Sleep Quality (PSQI)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Academic GPA",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Additional Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "Correlation Matrix",
+        "Anxiety Level Dashboard",
+        "Regression Analysis",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "3b3be129-9809-4a61-a223-a1c980134724",
+      "appName": "InvestigatetherelationshipbetweensocialmediausagepatternsandanxietylevApp",
+      "appDescription": "Investigate the relationship between psychological variables Measure psychological construct levels in the target population Identify risk factors and protective factors",
+      "dbTables": [
+        "academic_gpa",
+        "additional_notes",
+        "age",
+        "attachments",
+        "gad-7_score",
+        "gender",
+        "measurements",
+        "observations",
+        "phq-9_score",
+        "primary_platform",
+        "respondent_id",
+        "self-esteem_score_(rosenberg)",
+        "sleep_quality_(psqi)",
+        "social_media_hours/day",
+        "survey_date"
+      ],
+      "forms": [
+        "Observation Form",
+        "Respondent Form",
+        "Social Form",
+        "Primary Form",
+        "GAD-7 Form",
+        "PHQ-9 Form",
+        "Self-Esteem Form",
+        "Sleep Form",
+        "Academic Form",
+        "Survey Form",
+        "Additional Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Survey Form",
+        "Correlation Matrix",
+        "Anxiety Level Dashboard",
+        "Regression Analysis",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Survey Form",
+            "file": "SurveyForm.jsx",
+            "route": "/survey-form"
+          },
+          {
+            "name": "Correlation Matrix",
+            "file": "CorrelationMatrix.jsx",
+            "route": "/correlation-matrix"
+          },
+          {
+            "name": "Anxiety Level Dashboard",
+            "file": "AnxietyLevelDashboard.jsx",
+            "route": "/anxiety-level-dashboard"
+          },
+          {
+            "name": "Regression Analysis",
+            "file": "RegressionAnalysis.jsx",
+            "route": "/regression-analysis"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/survey-form",
+            "component": "Survey Form"
+          },
+          {
+            "path": "/correlation-matrix",
+            "component": "Correlation Matrix"
+          },
+          {
+            "path": "/anxiety-level-dashboard",
+            "component": "Anxiety Level Dashboard"
+          },
+          {
+            "path": "/regression-analysis",
+            "component": "Regression Analysis"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "3b3be129-9809-4a61-a223-a1c980134724",
+      "outputPath": "C:\\ultimateai\\generated\\3b3be129-9809-4a61-a223-a1c980134724",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\3b3be129-9809-4a61-a223-a1c980134724\\project.zip"
+    },
+    "timings": {
+      "analyze": 17,
+      "generate": 3,
+      "artifacts": 38
+    }
+  },
+  {
+    "discipline": "Law",
+    "prompt": "Analyze the effectiveness of restorative justice programs in reducing juvenile recidivism rates compared to traditional punitive sentencing",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Analyze the effectiveness of restorative justice programs in reducing juvenile r",
+      "researchType": "Law – Normative/Empirical Legal Research",
+      "researchObjectives": [
+        "Analyze the effectiveness of legal instruments or programs",
+        "Compare legal approaches and their outcomes",
+        "Identify gaps in current legal frameworks"
+      ],
+      "researchQuestions": [
+        "How effective is the legal program in achieving its stated objectives?",
+        "What factors contribute to or hinder its effectiveness?"
+      ],
+      "variables": {
+        "independent": [
+          "Program Type",
+          "Jurisdiction",
+          "Implementation Year"
+        ],
+        "dependent": [
+          "Recidivism Rate (%)",
+          "Compliance Score",
+          "Effectiveness Rating"
+        ]
+      },
+      "methodology": "Normative-Empirical Legal Research",
+      "recommendedParameters": [
+        {
+          "name": "Case ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Program Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Restorative Justice",
+            "Community Service",
+            "Incarceration",
+            "Probation"
+          ]
+        },
+        {
+          "name": "Jurisdiction",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Municipal",
+            "State/Provincial",
+            "Federal",
+            "International"
+          ]
+        },
+        {
+          "name": "Offender Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Offense Category",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Property",
+            "Violent",
+            "Drug-related",
+            "Other"
+          ]
+        },
+        {
+          "name": "Sentence Length (months)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Recidivism (Yes/No)",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Time to Recidivism (months)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Case Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Legal Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Case Database",
+        "Recidivism Dashboard",
+        "Legal Comparison Chart",
+        "Document Repository",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Analyze the effectiveness of restorative justice programs in reducing juvenile r",
+      "researchType": "Law – Normative/Empirical Legal Research",
+      "researchObjectives": [
+        "Analyze the effectiveness of legal instruments or programs",
+        "Compare legal approaches and their outcomes",
+        "Identify gaps in current legal frameworks"
+      ],
+      "researchQuestions": [
+        "How effective is the legal program in achieving its stated objectives?",
+        "What factors contribute to or hinder its effectiveness?"
+      ],
+      "variables": {
+        "independent": [
+          "Program Type",
+          "Jurisdiction",
+          "Implementation Year"
+        ],
+        "dependent": [
+          "Recidivism Rate (%)",
+          "Compliance Score",
+          "Effectiveness Rating"
+        ]
+      },
+      "methodology": "Normative-Empirical Legal Research",
+      "recommendedParameters": [
+        {
+          "name": "Case ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Program Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Restorative Justice",
+            "Community Service",
+            "Incarceration",
+            "Probation"
+          ]
+        },
+        {
+          "name": "Jurisdiction",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Municipal",
+            "State/Provincial",
+            "Federal",
+            "International"
+          ]
+        },
+        {
+          "name": "Offender Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Offense Category",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Property",
+            "Violent",
+            "Drug-related",
+            "Other"
+          ]
+        },
+        {
+          "name": "Sentence Length (months)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Recidivism (Yes/No)",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Yes",
+            "No"
+          ]
+        },
+        {
+          "name": "Time to Recidivism (months)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Case Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Legal Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Case Database",
+        "Recidivism Dashboard",
+        "Legal Comparison Chart",
+        "Document Repository",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "14dc54d7-7eb5-436b-84a7-86bd0af4ca37",
+      "appName": "AnalyzetheeffectivenessofrestorativejusticeprogramsinreducingjuvenilerApp",
+      "appDescription": "Analyze the effectiveness of legal instruments or programs Compare legal approaches and their outcomes Identify gaps in current legal frameworks",
+      "dbTables": [
+        "attachments",
+        "case_date",
+        "case_id",
+        "jurisdiction",
+        "legal_notes",
+        "measurements",
+        "observations",
+        "offender_age",
+        "offense_category",
+        "program_type",
+        "recidivism_(yes/no)",
+        "sentence_length_(months)",
+        "time_to_recidivism_(months)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Case Form",
+        "Program Form",
+        "Offender Form",
+        "Offense Form",
+        "Sentence Form",
+        "Recidivism Form",
+        "Time Form",
+        "Legal Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Case Database",
+        "Recidivism Dashboard",
+        "Legal Comparison Chart",
+        "Document Repository",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Case Database",
+            "file": "CaseDatabase.jsx",
+            "route": "/case-database"
+          },
+          {
+            "name": "Recidivism Dashboard",
+            "file": "RecidivismDashboard.jsx",
+            "route": "/recidivism-dashboard"
+          },
+          {
+            "name": "Legal Comparison Chart",
+            "file": "LegalComparisonChart.jsx",
+            "route": "/legal-comparison-chart"
+          },
+          {
+            "name": "Document Repository",
+            "file": "DocumentRepository.jsx",
+            "route": "/document-repository"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/case-database",
+            "component": "Case Database"
+          },
+          {
+            "path": "/recidivism-dashboard",
+            "component": "Recidivism Dashboard"
+          },
+          {
+            "path": "/legal-comparison-chart",
+            "component": "Legal Comparison Chart"
+          },
+          {
+            "path": "/document-repository",
+            "component": "Document Repository"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "Observation FormForm",
+            "Case FormForm",
+            "Program FormForm",
+            "Offender FormForm",
+            "Offense FormForm",
+            "Sentence FormForm",
+            "Recidivism FormForm",
+            "Time FormForm",
+            "Legal FormForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "14dc54d7-7eb5-436b-84a7-86bd0af4ca37",
+      "outputPath": "C:\\ultimateai\\generated\\14dc54d7-7eb5-436b-84a7-86bd0af4ca37",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\14dc54d7-7eb5-436b-84a7-86bd0af4ca37\\project.zip"
+    },
+    "timings": {
+      "analyze": 16,
+      "generate": 3,
+      "artifacts": 32
+    }
+  },
+  {
+    "discipline": "Public Policy",
+    "prompt": "Evaluate the impact of congestion pricing policies on traffic volume, air quality, and public transit ridership in metropolitan areas",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Evaluate the impact of congestion pricing policies on traffic volume, air qualit",
+      "researchType": "Public Policy – Program Evaluation Research",
+      "researchObjectives": [
+        "Evaluate the causal impact of the policy intervention",
+        "Measure changes in outcome indicators before and after policy implementation",
+        "Assess unintended consequences of the policy"
+      ],
+      "researchQuestions": [
+        "What is the measurable impact of the policy on the target outcomes?",
+        "Are there differential impacts across population subgroups?"
+      ],
+      "variables": {
+        "independent": [
+          "Policy Implementation (Before/After)",
+          "City/Region",
+          "Policy Intensity"
+        ],
+        "dependent": [
+          "Traffic Volume (vehicles/day)",
+          "Air Quality Index",
+          "Transit Ridership"
+        ]
+      },
+      "methodology": "Difference-in-Differences (DiD) Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Observation ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "City/Region",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Policy Phase",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Pre-Implementation",
+            "During",
+            "Post-Implementation"
+          ]
+        },
+        {
+          "name": "Traffic Volume (vehicles/day)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Air Quality Index (AQI)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Public Transit Ridership",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Average Commute Time (min)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Revenue Generated ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Measurement Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Data Source",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Government Report",
+            "Sensor Data",
+            "Survey",
+            "Census"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Policy Dashboard",
+        "Before/After Comparison",
+        "Trend Analysis Chart",
+        "Impact Assessment",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Evaluate the impact of congestion pricing policies on traffic volume, air qualit",
+      "researchType": "Public Policy – Program Evaluation Research",
+      "researchObjectives": [
+        "Evaluate the causal impact of the policy intervention",
+        "Measure changes in outcome indicators before and after policy implementation",
+        "Assess unintended consequences of the policy"
+      ],
+      "researchQuestions": [
+        "What is the measurable impact of the policy on the target outcomes?",
+        "Are there differential impacts across population subgroups?"
+      ],
+      "variables": {
+        "independent": [
+          "Policy Implementation (Before/After)",
+          "City/Region",
+          "Policy Intensity"
+        ],
+        "dependent": [
+          "Traffic Volume (vehicles/day)",
+          "Air Quality Index",
+          "Transit Ridership"
+        ]
+      },
+      "methodology": "Difference-in-Differences (DiD) Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Observation ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "City/Region",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Policy Phase",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Pre-Implementation",
+            "During",
+            "Post-Implementation"
+          ]
+        },
+        {
+          "name": "Traffic Volume (vehicles/day)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Air Quality Index (AQI)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Public Transit Ridership",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Average Commute Time (min)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Revenue Generated ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Measurement Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Data Source",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Government Report",
+            "Sensor Data",
+            "Survey",
+            "Census"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Policy Dashboard",
+        "Before/After Comparison",
+        "Trend Analysis Chart",
+        "Impact Assessment",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "ab80e496-6f74-49eb-8c53-f91998c750bb",
+      "appName": "Evaluatetheimpactofcongestionpricingpoliciesontrafficvolume,airqualitApp",
+      "appDescription": "Evaluate the causal impact of the policy intervention Measure changes in outcome indicators before and after policy implementation Assess unintended consequences of the policy",
+      "dbTables": [
+        "air_quality_index_(aqi)",
+        "attachments",
+        "average_commute_time_(min)",
+        "city/region",
+        "data_source",
+        "measurement_date",
+        "measurements",
+        "notes",
+        "observation_id",
+        "observations",
+        "policy_phase",
+        "public_transit_ridership",
+        "revenue_generated_($)",
+        "traffic_volume_(vehicles/day)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Policy Form",
+        "Traffic Form",
+        "Air Form",
+        "Public Form",
+        "Average Form",
+        "Revenue Form",
+        "Measurement Form",
+        "Data Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Policy Dashboard",
+        "Before/After Comparison",
+        "Trend Analysis Chart",
+        "Impact Assessment",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Policy Dashboard",
+            "file": "PolicyDashboard.jsx",
+            "route": "/policy-dashboard"
+          },
+          {
+            "name": "Before/After Comparison",
+            "file": "Before/AfterComparison.jsx",
+            "route": "/before/after-comparison"
+          },
+          {
+            "name": "Trend Analysis Chart",
+            "file": "TrendAnalysisChart.jsx",
+            "route": "/trend-analysis-chart"
+          },
+          {
+            "name": "Impact Assessment",
+            "file": "ImpactAssessment.jsx",
+            "route": "/impact-assessment"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/policy-dashboard",
+            "component": "Policy Dashboard"
+          },
+          {
+            "path": "/before/after-comparison",
+            "component": "Before/After Comparison"
+          },
+          {
+            "path": "/trend-analysis-chart",
+            "component": "Trend Analysis Chart"
+          },
+          {
+            "path": "/impact-assessment",
+            "component": "Impact Assessment"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "ab80e496-6f74-49eb-8c53-f91998c750bb",
+      "outputPath": "C:\\ultimateai\\generated\\ab80e496-6f74-49eb-8c53-f91998c750bb",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\ab80e496-6f74-49eb-8c53-f91998c750bb\\project.zip"
+    },
+    "timings": {
+      "analyze": 14,
+      "generate": 2,
+      "artifacts": 26
+    }
+  },
+  {
+    "discipline": "Accounting",
+    "prompt": "Examine the relationship between corporate social responsibility disclosure quality and earnings management in publicly listed manufacturing companies",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Examine the relationship between corporate social responsibility disclosure qual",
+      "researchType": "Accounting – Empirical/Archival Research",
+      "researchObjectives": [
+        "Examine the relationship between corporate disclosure and financial performance",
+        "Test the effect of governance variables on earnings quality",
+        "Analyze accounting data from publicly listed companies"
+      ],
+      "researchQuestions": [
+        "Does CSR disclosure quality affect earnings management practices?",
+        "What governance mechanisms moderate this relationship?"
+      ],
+      "variables": {
+        "independent": [
+          "CSR Disclosure Score",
+          "Board Size",
+          "Audit Committee Independence"
+        ],
+        "dependent": [
+          "Discretionary Accruals",
+          "Earnings Quality Score",
+          "ROA"
+        ]
+      },
+      "methodology": "Panel Data Regression Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Company Code",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Company Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Industry",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Manufacturing",
+            "Mining",
+            "Consumer Goods",
+            "Finance",
+            "Infrastructure"
+          ]
+        },
+        {
+          "name": "Year",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "CSR Disclosure Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Total Assets (millions)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Net Income (millions)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "ROA (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Discretionary Accruals",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Board Size",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Audit Quality",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Big 4",
+            "Non-Big 4"
+          ]
+        },
+        {
+          "name": "Report Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Company Database",
+        "Financial Ratio Dashboard",
+        "Regression Results Panel",
+        "Correlation Matrix",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Examine the relationship between corporate social responsibility disclosure qual",
+      "researchType": "Accounting – Empirical/Archival Research",
+      "researchObjectives": [
+        "Examine the relationship between corporate disclosure and financial performance",
+        "Test the effect of governance variables on earnings quality",
+        "Analyze accounting data from publicly listed companies"
+      ],
+      "researchQuestions": [
+        "Does CSR disclosure quality affect earnings management practices?",
+        "What governance mechanisms moderate this relationship?"
+      ],
+      "variables": {
+        "independent": [
+          "CSR Disclosure Score",
+          "Board Size",
+          "Audit Committee Independence"
+        ],
+        "dependent": [
+          "Discretionary Accruals",
+          "Earnings Quality Score",
+          "ROA"
+        ]
+      },
+      "methodology": "Panel Data Regression Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Company Code",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Company Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Industry",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Manufacturing",
+            "Mining",
+            "Consumer Goods",
+            "Finance",
+            "Infrastructure"
+          ]
+        },
+        {
+          "name": "Year",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "CSR Disclosure Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Total Assets (millions)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Net Income (millions)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "ROA (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Discretionary Accruals",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Board Size",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Audit Quality",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Big 4",
+            "Non-Big 4"
+          ]
+        },
+        {
+          "name": "Report Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Company Database",
+        "Financial Ratio Dashboard",
+        "Regression Results Panel",
+        "Correlation Matrix",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "92157970-4121-4a05-8290-5d304d113075",
+      "appName": "ExaminetherelationshipbetweencorporatesocialresponsibilitydisclosurequalApp",
+      "appDescription": "Examine the relationship between corporate disclosure and financial performance Test the effect of governance variables on earnings quality Analyze accounting data from publicly listed companies",
+      "dbTables": [
+        "attachments",
+        "audit_quality",
+        "board_size",
+        "company_code",
+        "company_name",
+        "csr_disclosure_score",
+        "discretionary_accruals",
+        "industry",
+        "measurements",
+        "net_income_(millions)",
+        "observations",
+        "report_date",
+        "roa_(%)",
+        "total_assets_(millions)",
+        "year"
+      ],
+      "forms": [
+        "Observation Form",
+        "Company Form",
+        "CSR Form",
+        "Total Form",
+        "Net Form",
+        "ROA Form",
+        "Discretionary Form",
+        "Board Form",
+        "Audit Form",
+        "Report Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Company Database",
+        "Financial Ratio Dashboard",
+        "Regression Results Panel",
+        "Correlation Matrix",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Company Database",
+            "file": "CompanyDatabase.jsx",
+            "route": "/company-database"
+          },
+          {
+            "name": "Financial Ratio Dashboard",
+            "file": "FinancialRatioDashboard.jsx",
+            "route": "/financial-ratio-dashboard"
+          },
+          {
+            "name": "Regression Results Panel",
+            "file": "RegressionResultsPanel.jsx",
+            "route": "/regression-results-panel"
+          },
+          {
+            "name": "Correlation Matrix",
+            "file": "CorrelationMatrix.jsx",
+            "route": "/correlation-matrix"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/company-database",
+            "component": "Company Database"
+          },
+          {
+            "path": "/financial-ratio-dashboard",
+            "component": "Financial Ratio Dashboard"
+          },
+          {
+            "path": "/regression-results-panel",
+            "component": "Regression Results Panel"
+          },
+          {
+            "path": "/correlation-matrix",
+            "component": "Correlation Matrix"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "Observation FormForm",
+            "Company FormForm",
+            "CSR FormForm",
+            "Total FormForm",
+            "Net FormForm",
+            "ROA FormForm",
+            "Discretionary FormForm",
+            "Board FormForm",
+            "Audit FormForm",
+            "Report FormForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "92157970-4121-4a05-8290-5d304d113075",
+      "outputPath": "C:\\ultimateai\\generated\\92157970-4121-4a05-8290-5d304d113075",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\92157970-4121-4a05-8290-5d304d113075\\project.zip"
+    },
+    "timings": {
+      "analyze": 14,
+      "generate": 3,
+      "artifacts": 30
+    }
+  },
+  {
+    "discipline": "Economics",
+    "prompt": "Analyze the causal effect of minimum wage increases on employment levels and small business survival rates in the retail sector",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Analyze the causal effect of minimum wage increases on employment levels and sma",
+      "researchType": "Economics – Empirical/Econometric Research",
+      "researchObjectives": [
+        "Estimate the causal effect of the policy variable on economic outcomes",
+        "Control for confounding factors using appropriate econometric methods",
+        "Analyze panel or time-series data across regions or sectors"
+      ],
+      "researchQuestions": [
+        "What is the causal effect of the independent variable on the outcome?",
+        "How does the effect vary across subgroups or time periods?"
+      ],
+      "variables": {
+        "independent": [
+          "Minimum Wage Level",
+          "Region",
+          "Time Period"
+        ],
+        "dependent": [
+          "Employment Rate (%)",
+          "Business Survival Rate (%)",
+          "Average Wage"
+        ]
+      },
+      "methodology": "Econometric Regression Analysis (OLS/IV)",
+      "recommendedParameters": [
+        {
+          "name": "Region/State",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Year",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Quarter",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Q1",
+            "Q2",
+            "Q3",
+            "Q4"
+          ]
+        },
+        {
+          "name": "Minimum Wage ($)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Employment Rate (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Unemployment Rate (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Business Count",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "New Businesses",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Closed Businesses",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Average Wage ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "GDP per Capita ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Data Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Economic Dashboard",
+        "Time Series Chart",
+        "Regional Comparison",
+        "Regression Output Panel",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Analyze the causal effect of minimum wage increases on employment levels and sma",
+      "researchType": "Economics – Empirical/Econometric Research",
+      "researchObjectives": [
+        "Estimate the causal effect of the policy variable on economic outcomes",
+        "Control for confounding factors using appropriate econometric methods",
+        "Analyze panel or time-series data across regions or sectors"
+      ],
+      "researchQuestions": [
+        "What is the causal effect of the independent variable on the outcome?",
+        "How does the effect vary across subgroups or time periods?"
+      ],
+      "variables": {
+        "independent": [
+          "Minimum Wage Level",
+          "Region",
+          "Time Period"
+        ],
+        "dependent": [
+          "Employment Rate (%)",
+          "Business Survival Rate (%)",
+          "Average Wage"
+        ]
+      },
+      "methodology": "Econometric Regression Analysis (OLS/IV)",
+      "recommendedParameters": [
+        {
+          "name": "Region/State",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Year",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Quarter",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Q1",
+            "Q2",
+            "Q3",
+            "Q4"
+          ]
+        },
+        {
+          "name": "Minimum Wage ($)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Employment Rate (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Unemployment Rate (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Business Count",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "New Businesses",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Closed Businesses",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Average Wage ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "GDP per Capita ($)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Data Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Economic Dashboard",
+        "Time Series Chart",
+        "Regional Comparison",
+        "Regression Output Panel",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "d068d3e5-6a6c-4415-ba3f-b132eeaf5ded",
+      "appName": "AnalyzethecausaleffectofminimumwageincreasesonemploymentlevelsandsmaApp",
+      "appDescription": "Estimate the causal effect of the policy variable on economic outcomes Control for confounding factors using appropriate econometric methods Analyze panel or time-series data across regions or sectors",
+      "dbTables": [
+        "attachments",
+        "average_wage_($)",
+        "business_count",
+        "closed_businesses",
+        "data_date",
+        "employment_rate_(%)",
+        "gdp_per_capita_($)",
+        "measurements",
+        "minimum_wage_($)",
+        "new_businesses",
+        "observations",
+        "quarter",
+        "region/state",
+        "unemployment_rate_(%)",
+        "year"
+      ],
+      "forms": [
+        "Observation Form",
+        "Minimum Form",
+        "Employment Form",
+        "Unemployment Form",
+        "Business Form",
+        "New Form",
+        "Closed Form",
+        "Average Form",
+        "GDP Form",
+        "Data Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Economic Dashboard",
+        "Time Series Chart",
+        "Regional Comparison",
+        "Regression Output Panel",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Economic Dashboard",
+            "file": "EconomicDashboard.jsx",
+            "route": "/economic-dashboard"
+          },
+          {
+            "name": "Time Series Chart",
+            "file": "TimeSeriesChart.jsx",
+            "route": "/time-series-chart"
+          },
+          {
+            "name": "Regional Comparison",
+            "file": "RegionalComparison.jsx",
+            "route": "/regional-comparison"
+          },
+          {
+            "name": "Regression Output Panel",
+            "file": "RegressionOutputPanel.jsx",
+            "route": "/regression-output-panel"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/economic-dashboard",
+            "component": "Economic Dashboard"
+          },
+          {
+            "path": "/time-series-chart",
+            "component": "Time Series Chart"
+          },
+          {
+            "path": "/regional-comparison",
+            "component": "Regional Comparison"
+          },
+          {
+            "path": "/regression-output-panel",
+            "component": "Regression Output Panel"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "d068d3e5-6a6c-4415-ba3f-b132eeaf5ded",
+      "outputPath": "C:\\ultimateai\\generated\\d068d3e5-6a6c-4415-ba3f-b132eeaf5ded",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\d068d3e5-6a6c-4415-ba3f-b132eeaf5ded\\project.zip"
+    },
+    "timings": {
+      "analyze": 11,
+      "generate": 4,
+      "artifacts": 26
+    }
+  },
+  {
+    "discipline": "Management",
+    "prompt": "Investigate the impact of transformational leadership style on employee innovation behavior mediated by organizational culture in technology startups",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Investigate the impact of transformational leadership style on employee innovati",
+      "researchType": "Management – Survey/Structural Equation Modeling",
+      "researchObjectives": [
+        "Investigate the effect of leadership style on organizational outcomes",
+        "Test mediation and moderation effects in the proposed model",
+        "Validate measurement instruments for management constructs"
+      ],
+      "researchQuestions": [
+        "Does the leadership style significantly affect the outcome variable?",
+        "What is the mediating role of organizational culture?"
+      ],
+      "variables": {
+        "independent": [
+          "Transformational Leadership Score",
+          "Leader Experience (years)"
+        ],
+        "dependent": [
+          "Innovation Behavior Score",
+          "Job Satisfaction",
+          "Organizational Commitment"
+        ]
+      },
+      "methodology": "Quantitative Survey with SEM/PLS Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Company Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Department",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "R&D",
+            "Marketing",
+            "Operations",
+            "HR",
+            "Finance"
+          ]
+        },
+        {
+          "name": "Position Level",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Staff",
+            "Supervisor",
+            "Manager",
+            "Director"
+          ]
+        },
+        {
+          "name": "Tenure (years)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Leadership Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Innovation Behavior Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Org Culture Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Job Satisfaction (1-5)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Company Size",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "< 50",
+            "50-200",
+            "200-500",
+            "> 500"
+          ]
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Comments",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "SEM Path Diagram",
+        "Leadership Dashboard",
+        "Descriptive Statistics",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Investigate the impact of transformational leadership style on employee innovati",
+      "researchType": "Management – Survey/Structural Equation Modeling",
+      "researchObjectives": [
+        "Investigate the effect of leadership style on organizational outcomes",
+        "Test mediation and moderation effects in the proposed model",
+        "Validate measurement instruments for management constructs"
+      ],
+      "researchQuestions": [
+        "Does the leadership style significantly affect the outcome variable?",
+        "What is the mediating role of organizational culture?"
+      ],
+      "variables": {
+        "independent": [
+          "Transformational Leadership Score",
+          "Leader Experience (years)"
+        ],
+        "dependent": [
+          "Innovation Behavior Score",
+          "Job Satisfaction",
+          "Organizational Commitment"
+        ]
+      },
+      "methodology": "Quantitative Survey with SEM/PLS Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Company Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Department",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "R&D",
+            "Marketing",
+            "Operations",
+            "HR",
+            "Finance"
+          ]
+        },
+        {
+          "name": "Position Level",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Staff",
+            "Supervisor",
+            "Manager",
+            "Director"
+          ]
+        },
+        {
+          "name": "Tenure (years)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Leadership Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Innovation Behavior Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Org Culture Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Job Satisfaction (1-5)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Company Size",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "< 50",
+            "50-200",
+            "200-500",
+            "> 500"
+          ]
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Comments",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "SEM Path Diagram",
+        "Leadership Dashboard",
+        "Descriptive Statistics",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "8391e833-83c8-49d5-97d3-ea3a38d87f17",
+      "appName": "InvestigatetheimpactoftransformationalleadershipstyleonemployeeinnovatiApp",
+      "appDescription": "Investigate the effect of leadership style on organizational outcomes Test mediation and moderation effects in the proposed model Validate measurement instruments for management constructs",
+      "dbTables": [
+        "attachments",
+        "comments",
+        "company_name",
+        "company_size",
+        "department",
+        "innovation_behavior_score_(1-5)",
+        "job_satisfaction_(1-5)",
+        "leadership_score_(1-5)",
+        "measurements",
+        "observations",
+        "org_culture_score_(1-5)",
+        "position_level",
+        "respondent_id",
+        "survey_date",
+        "tenure_(years)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Respondent Form",
+        "Company Form",
+        "Position Form",
+        "Tenure Form",
+        "Leadership Form",
+        "Innovation Form",
+        "Org Form",
+        "Job Form",
+        "Survey Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Survey Form",
+        "SEM Path Diagram",
+        "Leadership Dashboard",
+        "Descriptive Statistics",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Survey Form",
+            "file": "SurveyForm.jsx",
+            "route": "/survey-form"
+          },
+          {
+            "name": "SEM Path Diagram",
+            "file": "SEMPathDiagram.jsx",
+            "route": "/sem-path-diagram"
+          },
+          {
+            "name": "Leadership Dashboard",
+            "file": "LeadershipDashboard.jsx",
+            "route": "/leadership-dashboard"
+          },
+          {
+            "name": "Descriptive Statistics",
+            "file": "DescriptiveStatistics.jsx",
+            "route": "/descriptive-statistics"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/survey-form",
+            "component": "Survey Form"
+          },
+          {
+            "path": "/sem-path-diagram",
+            "component": "SEM Path Diagram"
+          },
+          {
+            "path": "/leadership-dashboard",
+            "component": "Leadership Dashboard"
+          },
+          {
+            "path": "/descriptive-statistics",
+            "component": "Descriptive Statistics"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "8391e833-83c8-49d5-97d3-ea3a38d87f17",
+      "outputPath": "C:\\ultimateai\\generated\\8391e833-83c8-49d5-97d3-ea3a38d87f17",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\8391e833-83c8-49d5-97d3-ea3a38d87f17\\project.zip"
+    },
+    "timings": {
+      "analyze": 16,
+      "generate": 4,
+      "artifacts": 31
+    }
+  },
+  {
+    "discipline": "Civil Engineering",
+    "prompt": "Evaluate the compressive strength and durability of geopolymer concrete using fly ash and rice husk ash as binder replacement materials",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Evaluate the compressive strength and durability of geopolymer concrete using fl",
+      "researchType": "Civil Engineering – Experimental Material Testing",
+      "researchObjectives": [
+        "Evaluate the mechanical properties of the test material",
+        "Compare performance against standard reference materials",
+        "Determine optimal material composition ratios"
+      ],
+      "researchQuestions": [
+        "Does the material substitution achieve comparable structural performance?",
+        "What is the optimal replacement ratio for maximum strength?"
+      ],
+      "variables": {
+        "independent": [
+          "Mix Design Ratio",
+          "Curing Age (days)",
+          "Replacement Material (%)"
+        ],
+        "dependent": [
+          "Compressive Strength (MPa)",
+          "Tensile Strength (MPa)",
+          "Water Absorption (%)",
+          "Durability Index"
+        ]
+      },
+      "methodology": "Laboratory Experimental Design (ASTM/SNI Standards)",
+      "recommendedParameters": [
+        {
+          "name": "Specimen ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Mix Design",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control (OPC 100%)",
+            "FA 10%",
+            "FA 20%",
+            "FA 30%",
+            "RHA 10%",
+            "RHA 20%"
+          ]
+        },
+        {
+          "name": "Curing Age (days)",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "3",
+            "7",
+            "14",
+            "28",
+            "56",
+            "90"
+          ]
+        },
+        {
+          "name": "Compressive Strength (MPa)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Tensile Strength (MPa)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Flexural Strength (MPa)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Water Absorption (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Specimen Weight (kg)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Slump Value (mm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Test Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Lab Temperature (°C)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Material Test Log",
+        "Strength Comparison Chart",
+        "Curing Age Dashboard",
+        "Mix Design Optimizer",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Evaluate the compressive strength and durability of geopolymer concrete using fl",
+      "researchType": "Civil Engineering – Experimental Material Testing",
+      "researchObjectives": [
+        "Evaluate the mechanical properties of the test material",
+        "Compare performance against standard reference materials",
+        "Determine optimal material composition ratios"
+      ],
+      "researchQuestions": [
+        "Does the material substitution achieve comparable structural performance?",
+        "What is the optimal replacement ratio for maximum strength?"
+      ],
+      "variables": {
+        "independent": [
+          "Mix Design Ratio",
+          "Curing Age (days)",
+          "Replacement Material (%)"
+        ],
+        "dependent": [
+          "Compressive Strength (MPa)",
+          "Tensile Strength (MPa)",
+          "Water Absorption (%)",
+          "Durability Index"
+        ]
+      },
+      "methodology": "Laboratory Experimental Design (ASTM/SNI Standards)",
+      "recommendedParameters": [
+        {
+          "name": "Specimen ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Mix Design",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Control (OPC 100%)",
+            "FA 10%",
+            "FA 20%",
+            "FA 30%",
+            "RHA 10%",
+            "RHA 20%"
+          ]
+        },
+        {
+          "name": "Curing Age (days)",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "3",
+            "7",
+            "14",
+            "28",
+            "56",
+            "90"
+          ]
+        },
+        {
+          "name": "Compressive Strength (MPa)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Tensile Strength (MPa)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Flexural Strength (MPa)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Water Absorption (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Specimen Weight (kg)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Slump Value (mm)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Test Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Lab Temperature (°C)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Material Test Log",
+        "Strength Comparison Chart",
+        "Curing Age Dashboard",
+        "Mix Design Optimizer",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "a1f2c180-1e4c-468f-91db-10477675ebe3",
+      "appName": "EvaluatethecompressivestrengthanddurabilityofgeopolymerconcreteusingflApp",
+      "appDescription": "Evaluate the mechanical properties of the test material Compare performance against standard reference materials Determine optimal material composition ratios",
+      "dbTables": [
+        "attachments",
+        "compressive_strength_(mpa)",
+        "curing_age_(days)",
+        "flexural_strength_(mpa)",
+        "lab_temperature_(°c)",
+        "measurements",
+        "mix_design",
+        "notes",
+        "observations",
+        "slump_value_(mm)",
+        "specimen_id",
+        "specimen_weight_(kg)",
+        "tensile_strength_(mpa)",
+        "test_date",
+        "water_absorption_(%)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Specimen Form",
+        "Mix Form",
+        "Curing Form",
+        "Compressive Form",
+        "Tensile Form",
+        "Flexural Form",
+        "Water Form",
+        "Slump Form",
+        "Test Form",
+        "Lab Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Material Test Log",
+        "Strength Comparison Chart",
+        "Curing Age Dashboard",
+        "Mix Design Optimizer",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Material Test Log",
+            "file": "MaterialTestLog.jsx",
+            "route": "/material-test-log"
+          },
+          {
+            "name": "Strength Comparison Chart",
+            "file": "StrengthComparisonChart.jsx",
+            "route": "/strength-comparison-chart"
+          },
+          {
+            "name": "Curing Age Dashboard",
+            "file": "CuringAgeDashboard.jsx",
+            "route": "/curing-age-dashboard"
+          },
+          {
+            "name": "Mix Design Optimizer",
+            "file": "MixDesignOptimizer.jsx",
+            "route": "/mix-design-optimizer"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/material-test-log",
+            "component": "Material Test Log"
+          },
+          {
+            "path": "/strength-comparison-chart",
+            "component": "Strength Comparison Chart"
+          },
+          {
+            "path": "/curing-age-dashboard",
+            "component": "Curing Age Dashboard"
+          },
+          {
+            "path": "/mix-design-optimizer",
+            "component": "Mix Design Optimizer"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "a1f2c180-1e4c-468f-91db-10477675ebe3",
+      "outputPath": "C:\\ultimateai\\generated\\a1f2c180-1e4c-468f-91db-10477675ebe3",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\a1f2c180-1e4c-468f-91db-10477675ebe3\\project.zip"
+    },
+    "timings": {
+      "analyze": 15,
+      "generate": 3,
+      "artifacts": 31
+    }
+  },
+  {
+    "discipline": "Computer Science",
+    "prompt": "Develop and evaluate a federated learning approach for medical image classification that preserves patient privacy while maintaining diagnostic accuracy",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Develop and evaluate a federated learning approach for medical image classificat",
+      "researchType": "Computer Science – Experimental/Computational Research",
+      "researchObjectives": [
+        "Develop and implement the proposed computational method",
+        "Evaluate performance using standard metrics and benchmarks",
+        "Compare against existing state-of-the-art approaches"
+      ],
+      "researchQuestions": [
+        "Does the proposed method achieve competitive accuracy while meeting constraints?",
+        "How does performance scale with dataset size or model complexity?"
+      ],
+      "variables": {
+        "independent": [
+          "Algorithm/Model",
+          "Dataset",
+          "Hyperparameters"
+        ],
+        "dependent": [
+          "Accuracy (%)",
+          "Precision",
+          "Recall",
+          "F1-Score",
+          "Training Time (s)"
+        ]
+      },
+      "methodology": "Experimental Evaluation with Cross-Validation",
+      "recommendedParameters": [
+        {
+          "name": "Experiment ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Model Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Dataset",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "MNIST",
+            "CIFAR-10",
+            "ImageNet",
+            "Custom"
+          ]
+        },
+        {
+          "name": "Learning Rate",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Epochs",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Batch Size",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Accuracy (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Precision",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Recall",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "F1-Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Training Time (seconds)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "GPU Memory (GB)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Run Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Experiment Tracker",
+        "Performance Comparison Chart",
+        "Confusion Matrix",
+        "Hyperparameter Dashboard",
+        "Export CSV",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Develop and evaluate a federated learning approach for medical image classificat",
+      "researchType": "Computer Science – Experimental/Computational Research",
+      "researchObjectives": [
+        "Develop and implement the proposed computational method",
+        "Evaluate performance using standard metrics and benchmarks",
+        "Compare against existing state-of-the-art approaches"
+      ],
+      "researchQuestions": [
+        "Does the proposed method achieve competitive accuracy while meeting constraints?",
+        "How does performance scale with dataset size or model complexity?"
+      ],
+      "variables": {
+        "independent": [
+          "Algorithm/Model",
+          "Dataset",
+          "Hyperparameters"
+        ],
+        "dependent": [
+          "Accuracy (%)",
+          "Precision",
+          "Recall",
+          "F1-Score",
+          "Training Time (s)"
+        ]
+      },
+      "methodology": "Experimental Evaluation with Cross-Validation",
+      "recommendedParameters": [
+        {
+          "name": "Experiment ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Model Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Dataset",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "MNIST",
+            "CIFAR-10",
+            "ImageNet",
+            "Custom"
+          ]
+        },
+        {
+          "name": "Learning Rate",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Epochs",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Batch Size",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Accuracy (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Precision",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Recall",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "F1-Score",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Training Time (seconds)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "GPU Memory (GB)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Run Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Experiment Tracker",
+        "Performance Comparison Chart",
+        "Confusion Matrix",
+        "Hyperparameter Dashboard",
+        "Export CSV",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "87dfa6cf-3bd9-412f-96e2-783d032f979b",
+      "appName": "DevelopandevaluateafederatedlearningapproachformedicalimageclassificatApp",
+      "appDescription": "Develop and implement the proposed computational method Evaluate performance using standard metrics and benchmarks Compare against existing state-of-the-art approaches",
+      "dbTables": [
+        "accuracy_(%)",
+        "attachments",
+        "batch_size",
+        "dataset",
+        "epochs",
+        "experiment_id",
+        "f1-score",
+        "gpu_memory_(gb)",
+        "learning_rate",
+        "measurements",
+        "model_name",
+        "notes",
+        "observations",
+        "precision",
+        "recall",
+        "run_date",
+        "training_time_(seconds)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Experiment Form",
+        "Model Form",
+        "Learning Form",
+        "Batch Form",
+        "Accuracy Form",
+        "Training Form",
+        "GPU Form",
+        "Run Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Experiment Tracker",
+        "Performance Comparison Chart",
+        "Confusion Matrix",
+        "Hyperparameter Dashboard",
+        "Export CSV",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Experiment Tracker",
+            "file": "ExperimentTracker.jsx",
+            "route": "/experiment-tracker"
+          },
+          {
+            "name": "Performance Comparison Chart",
+            "file": "PerformanceComparisonChart.jsx",
+            "route": "/performance-comparison-chart"
+          },
+          {
+            "name": "Confusion Matrix",
+            "file": "ConfusionMatrix.jsx",
+            "route": "/confusion-matrix"
+          },
+          {
+            "name": "Hyperparameter Dashboard",
+            "file": "HyperparameterDashboard.jsx",
+            "route": "/hyperparameter-dashboard"
+          },
+          {
+            "name": "Export CSV",
+            "file": "ExportCSV.jsx",
+            "route": "/export-csv"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/experiment-tracker",
+            "component": "Experiment Tracker"
+          },
+          {
+            "path": "/performance-comparison-chart",
+            "component": "Performance Comparison Chart"
+          },
+          {
+            "path": "/confusion-matrix",
+            "component": "Confusion Matrix"
+          },
+          {
+            "path": "/hyperparameter-dashboard",
+            "component": "Hyperparameter Dashboard"
+          },
+          {
+            "path": "/export-csv",
+            "component": "Export CSV"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "87dfa6cf-3bd9-412f-96e2-783d032f979b",
+      "outputPath": "C:\\ultimateai\\generated\\87dfa6cf-3bd9-412f-96e2-783d032f979b",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\87dfa6cf-3bd9-412f-96e2-783d032f979b\\project.zip"
+    },
+    "timings": {
+      "analyze": 17,
+      "generate": 2,
+      "artifacts": 29
+    }
+  },
+  {
+    "discipline": "Information Systems",
+    "prompt": "Analyze the factors influencing user adoption of mobile health applications using an extended Technology Acceptance Model (TAM) framework",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Analyze the factors influencing user adoption of mobile health applications usin",
+      "researchType": "Information Systems – TAM/UTAUT Survey Research",
+      "researchObjectives": [
+        "Analyze factors influencing technology adoption",
+        "Validate the extended TAM/UTAUT model for the study context",
+        "Measure user perception and behavioral intention"
+      ],
+      "researchQuestions": [
+        "What factors significantly influence user adoption of the technology?",
+        "Does perceived usefulness mediate the relationship between external factors and adoption?"
+      ],
+      "variables": {
+        "independent": [
+          "Perceived Usefulness",
+          "Perceived Ease of Use",
+          "Social Influence",
+          "Trust"
+        ],
+        "dependent": [
+          "Behavioral Intention",
+          "Actual Use",
+          "User Satisfaction"
+        ]
+      },
+      "methodology": "Quantitative Survey with SEM/PLS Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Education",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "High School",
+            "Bachelor",
+            "Master",
+            "Doctorate"
+          ]
+        },
+        {
+          "name": "Tech Experience (years)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Perceived Usefulness (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Perceived Ease of Use (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Social Influence (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Trust Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Behavioral Intention (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Actual Usage Frequency",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Daily",
+            "Weekly",
+            "Monthly",
+            "Rarely",
+            "Never"
+          ]
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "TAM Model Dashboard",
+        "Path Analysis Diagram",
+        "Validity & Reliability Panel",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Analyze the factors influencing user adoption of mobile health applications usin",
+      "researchType": "Information Systems – TAM/UTAUT Survey Research",
+      "researchObjectives": [
+        "Analyze factors influencing technology adoption",
+        "Validate the extended TAM/UTAUT model for the study context",
+        "Measure user perception and behavioral intention"
+      ],
+      "researchQuestions": [
+        "What factors significantly influence user adoption of the technology?",
+        "Does perceived usefulness mediate the relationship between external factors and adoption?"
+      ],
+      "variables": {
+        "independent": [
+          "Perceived Usefulness",
+          "Perceived Ease of Use",
+          "Social Influence",
+          "Trust"
+        ],
+        "dependent": [
+          "Behavioral Intention",
+          "Actual Use",
+          "User Satisfaction"
+        ]
+      },
+      "methodology": "Quantitative Survey with SEM/PLS Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Respondent ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Age",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Gender",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Male",
+            "Female"
+          ]
+        },
+        {
+          "name": "Education",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "High School",
+            "Bachelor",
+            "Master",
+            "Doctorate"
+          ]
+        },
+        {
+          "name": "Tech Experience (years)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Perceived Usefulness (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Perceived Ease of Use (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Social Influence (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Trust Score (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Behavioral Intention (1-5)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Actual Usage Frequency",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Daily",
+            "Weekly",
+            "Monthly",
+            "Rarely",
+            "Never"
+          ]
+        },
+        {
+          "name": "Survey Date",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "recommendedFeatures": [
+        "Survey Form",
+        "TAM Model Dashboard",
+        "Path Analysis Diagram",
+        "Validity & Reliability Panel",
+        "Export Excel",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "dbbd4af2-9ca7-444f-8138-18eab1f4b812",
+      "appName": "AnalyzethefactorsinfluencinguseradoptionofmobilehealthapplicationsusinApp",
+      "appDescription": "Analyze factors influencing technology adoption Validate the extended TAM/UTAUT model for the study context Measure user perception and behavioral intention",
+      "dbTables": [
+        "actual_usage_frequency",
+        "age",
+        "attachments",
+        "behavioral_intention_(1-5)",
+        "education",
+        "gender",
+        "measurements",
+        "observations",
+        "perceived_ease_of_use_(1-5)",
+        "perceived_usefulness_(1-5)",
+        "respondent_id",
+        "social_influence_(1-5)",
+        "survey_date",
+        "tech_experience_(years)",
+        "trust_score_(1-5)"
+      ],
+      "forms": [
+        "Observation Form",
+        "Respondent Form",
+        "Tech Form",
+        "Perceived Form",
+        "Social Form",
+        "Trust Form",
+        "Behavioral Form",
+        "Actual Form",
+        "Survey Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Survey Form",
+        "TAM Model Dashboard",
+        "Path Analysis Diagram",
+        "Validity & Reliability Panel",
+        "Export Excel",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Survey Form",
+            "file": "SurveyForm.jsx",
+            "route": "/survey-form"
+          },
+          {
+            "name": "TAM Model Dashboard",
+            "file": "TAMModelDashboard.jsx",
+            "route": "/tam-model-dashboard"
+          },
+          {
+            "name": "Path Analysis Diagram",
+            "file": "PathAnalysisDiagram.jsx",
+            "route": "/path-analysis-diagram"
+          },
+          {
+            "name": "Validity & Reliability Panel",
+            "file": "Validity&ReliabilityPanel.jsx",
+            "route": "/validity-&-reliability-panel"
+          },
+          {
+            "name": "Export Excel",
+            "file": "ExportExcel.jsx",
+            "route": "/export-excel"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/survey-form",
+            "component": "Survey Form"
+          },
+          {
+            "path": "/tam-model-dashboard",
+            "component": "TAM Model Dashboard"
+          },
+          {
+            "path": "/path-analysis-diagram",
+            "component": "Path Analysis Diagram"
+          },
+          {
+            "path": "/validity-&-reliability-panel",
+            "component": "Validity & Reliability Panel"
+          },
+          {
+            "path": "/export-excel",
+            "component": "Export Excel"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "dbbd4af2-9ca7-444f-8138-18eab1f4b812",
+      "outputPath": "C:\\ultimateai\\generated\\dbbd4af2-9ca7-444f-8138-18eab1f4b812",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\dbbd4af2-9ca7-444f-8138-18eab1f4b812\\project.zip"
+    },
+    "timings": {
+      "analyze": 14,
+      "generate": 3,
+      "artifacts": 34
+    }
+  },
+  {
+    "discipline": "Geography / GIS",
+    "prompt": "Map and analyze urban heat island intensity patterns using Landsat thermal imagery and correlate with green space distribution and building density",
+    "status": "PASS",
+    "errors": [],
+    "analysis": {
+      "researchTitle": "Map and analyze urban heat island intensity patterns using Landsat thermal image",
+      "researchType": "Geography/GIS – Spatial Analysis Research",
+      "researchObjectives": [
+        "Map spatial distribution patterns of the phenomenon under study",
+        "Correlate spatial variables using GIS overlay analysis",
+        "Quantify land use or environmental changes over time"
+      ],
+      "researchQuestions": [
+        "What are the spatial distribution patterns of the target phenomenon?",
+        "How do environmental variables correlate with the observed patterns?"
+      ],
+      "variables": {
+        "independent": [
+          "Green Space Coverage (%)",
+          "Building Density",
+          "Elevation (m)"
+        ],
+        "dependent": [
+          "Land Surface Temperature (°C)",
+          "NDVI",
+          "Urban Heat Island Intensity"
+        ]
+      },
+      "methodology": "Remote Sensing & Spatial Statistical Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Location ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Latitude",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Longitude",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Land Surface Temperature (°C)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "NDVI",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Green Space (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Building Density (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Elevation (m)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Land Use Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Residential",
+            "Commercial",
+            "Industrial",
+            "Green Space",
+            "Water Body"
+          ]
+        },
+        {
+          "name": "Satellite Image Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Data Source",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Landsat 8",
+            "Landsat 9",
+            "Sentinel-2",
+            "MODIS"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Map Viewer",
+        "Spatial Distribution Chart",
+        "Land Use Dashboard",
+        "Temperature Heatmap",
+        "Export GeoJSON",
+        "PDF Report"
+      ]
+    },
+    "spec": {
+      "researchTitle": "Map and analyze urban heat island intensity patterns using Landsat thermal image",
+      "researchType": "Geography/GIS – Spatial Analysis Research",
+      "researchObjectives": [
+        "Map spatial distribution patterns of the phenomenon under study",
+        "Correlate spatial variables using GIS overlay analysis",
+        "Quantify land use or environmental changes over time"
+      ],
+      "researchQuestions": [
+        "What are the spatial distribution patterns of the target phenomenon?",
+        "How do environmental variables correlate with the observed patterns?"
+      ],
+      "variables": {
+        "independent": [
+          "Green Space Coverage (%)",
+          "Building Density",
+          "Elevation (m)"
+        ],
+        "dependent": [
+          "Land Surface Temperature (°C)",
+          "NDVI",
+          "Urban Heat Island Intensity"
+        ]
+      },
+      "methodology": "Remote Sensing & Spatial Statistical Analysis",
+      "recommendedParameters": [
+        {
+          "name": "Location ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "Latitude",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Longitude",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Land Surface Temperature (°C)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "NDVI",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Green Space (%)",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "Building Density (%)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Elevation (m)",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "Land Use Type",
+          "type": "dropdown",
+          "required": true,
+          "options": [
+            "Residential",
+            "Commercial",
+            "Industrial",
+            "Green Space",
+            "Water Body"
+          ]
+        },
+        {
+          "name": "Satellite Image Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "Data Source",
+          "type": "dropdown",
+          "required": false,
+          "options": [
+            "Landsat 8",
+            "Landsat 9",
+            "Sentinel-2",
+            "MODIS"
+          ]
+        },
+        {
+          "name": "Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ],
+      "recommendedFeatures": [
+        "Map Viewer",
+        "Spatial Distribution Chart",
+        "Land Use Dashboard",
+        "Temperature Heatmap",
+        "Export GeoJSON",
+        "PDF Report"
+      ]
+    },
+    "generatedApp": {
+      "projectId": "b41afd85-b282-4c60-a49d-fe59301b4fda",
+      "appName": "MapandanalyzeurbanheatislandintensitypatternsusingLandsatthermalimageApp",
+      "appDescription": "Map spatial distribution patterns of the phenomenon under study Correlate spatial variables using GIS overlay analysis Quantify land use or environmental changes over time",
+      "dbTables": [
+        "attachments",
+        "building_density_(%)",
+        "data_source",
+        "elevation_(m)",
+        "green_space_(%)",
+        "land_surface_temperature_(°c)",
+        "land_use_type",
+        "latitude",
+        "location_id",
+        "longitude",
+        "measurements",
+        "ndvi",
+        "notes",
+        "observations",
+        "satellite_image_date"
+      ],
+      "forms": [
+        "Observation Form",
+        "Location Form",
+        "Land Form",
+        "Green Form",
+        "Building Form",
+        "Elevation Form",
+        "Satellite Form",
+        "Data Form"
+      ],
+      "reports": [
+        "PDF Report",
+        "Excel Export"
+      ],
+      "pages": [
+        "Map Viewer",
+        "Spatial Distribution Chart",
+        "Land Use Dashboard",
+        "Temperature Heatmap",
+        "Export GeoJSON",
+        "PDF Report"
+      ],
+      "projectStructure": {
+        "directories": [
+          "src",
+          "src/pages",
+          "src/components",
+          "src/layouts",
+          "src/services",
+          "src/hooks",
+          "src/lib"
+        ],
+        "pages": [
+          {
+            "name": "Map Viewer",
+            "file": "MapViewer.jsx",
+            "route": "/map-viewer"
+          },
+          {
+            "name": "Spatial Distribution Chart",
+            "file": "SpatialDistributionChart.jsx",
+            "route": "/spatial-distribution-chart"
+          },
+          {
+            "name": "Land Use Dashboard",
+            "file": "LandUseDashboard.jsx",
+            "route": "/land-use-dashboard"
+          },
+          {
+            "name": "Temperature Heatmap",
+            "file": "TemperatureHeatmap.jsx",
+            "route": "/temperature-heatmap"
+          },
+          {
+            "name": "Export GeoJSON",
+            "file": "ExportGeoJSON.jsx",
+            "route": "/export-geojson"
+          },
+          {
+            "name": "PDF Report",
+            "file": "PDFReport.jsx",
+            "route": "/pdf-report"
+          }
+        ],
+        "routing": [
+          {
+            "path": "/map-viewer",
+            "component": "Map Viewer"
+          },
+          {
+            "path": "/spatial-distribution-chart",
+            "component": "Spatial Distribution Chart"
+          },
+          {
+            "path": "/land-use-dashboard",
+            "component": "Land Use Dashboard"
+          },
+          {
+            "path": "/temperature-heatmap",
+            "component": "Temperature Heatmap"
+          },
+          {
+            "path": "/export-geojson",
+            "component": "Export GeoJSON"
+          },
+          {
+            "path": "/pdf-report",
+            "component": "PDF Report"
+          }
+        ],
+        "components": {
+          "forms": [
+            "GenericForm"
+          ],
+          "tables": [
+            "Recent observationsTable"
+          ],
+          "charts": [
+            "GenericChart"
+          ],
+          "cards": [
+            "KpiCard"
+          ]
+        },
+        "services": [
+          "apiService",
+          "dbService",
+          "authService"
+        ],
+        "hooks": [
+          "useFetch",
+          "useForm",
+          "useAuth"
+        ],
+        "lib": [
+          "utils"
+        ]
+      }
+    },
+    "artifacts": {
+      "projectId": "b41afd85-b282-4c60-a49d-fe59301b4fda",
+      "outputPath": "C:\\ultimateai\\generated\\b41afd85-b282-4c60-a49d-fe59301b4fda",
+      "files": [
+        "README.md",
+        "package.json",
+        "schema.sql",
+        "project.zip"
+      ],
+      "zipFile": "C:\\ultimateai\\generated\\b41afd85-b282-4c60-a49d-fe59301b4fda\\project.zip"
+    },
+    "timings": {
+      "analyze": 10,
+      "generate": 2,
+      "artifacts": 25
+    }
+  }
+]

@@ -1,0 +1,3 @@
+# EvaluatethecompressivestrengthanddurabilityofgeopolymerconcreteusingflApp
+
+Evaluate the mechanical properties of the test material Compare performance against standard reference materials Determine optimal material composition ratios

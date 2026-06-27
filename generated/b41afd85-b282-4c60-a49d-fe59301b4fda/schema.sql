@@ -1,0 +1,2 @@
+-- Auto‑generated SQL schema
+-- No tables defined in blueprint
