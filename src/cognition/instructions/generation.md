@@ -71,128 +71,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   </div>
   
   <!-- TAB INPUT -->
-  <div id="tab-input" class="tab-content p-5 pt-10 bg-[#f4f7fb] min-h-screen pb-24" style="display: none;">
-    <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
-    
-    <form id="dynamic-form"><!-- Diisi otomatis oleh JS --></form>
-    
-    <!-- CARD MENU SETUP BERSARANG DI INPUT -->
-    <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-       <div class="flex justify-between items-center mb-1">
-          <h3 class="text-lg font-bold text-gray-800">Setup Variabel | Parameter</h3>
-          <i class="fas fa-cog text-gray-400"></i>
-       </div>
-       <p class="text-xs text-gray-500 mb-4">Kelola variabel, parameter, dan satuan penelitian</p>
-       
-       <div id="setup-menu-list" class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden shadow-sm"></div>
-    </div>
-  </div>
+  <div id="tab-input" class="tab-content p-5 pt-10 bg-[#f4f7fb] min-h-screen pb-24" style="display: none;"></div>
   
   <!-- TAB SETUP -->
-  <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;">
-    <div class="mb-6 border-b pb-4">
-       <h2 class="text-2xl font-bold text-gray-800">Setup Penelitian</h2>
-       <p class="text-gray-500 text-sm">Kelola Variabel Dasar dan Indikator Parameter sesuai kebutuhan Anda.</p>
-    </div>
-    
-    <!-- 1. SETUP VARIABEL -->
-    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">1. Setup Variabel Dasar</h3>
-    <form id="form-setup-var" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
-      <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Variabel</label>
-         <input type="text" id="new-var-name" placeholder="Cth: Nama..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
-      </div>
-      <div class="w-1/3">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
-         <select id="new-var-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
-           <option value="text">Teks</option>
-           <option value="number">Angka</option>
-         </select>
-      </div>
-      <button type="submit" class="bg-blue-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
-    </form>
-    <div id="variable-list" class="bg-transparent mb-8"></div>
-
-    <!-- 2. SETUP PARAMETER -->
-    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">2. Setup Parameter Ukur</h3>
-    <form id="form-setup-param" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
-      <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Parameter</label>
-         <input type="text" id="new-param-name" placeholder="Cth: Suhu..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" required>
-      </div>
-      <div class="w-1/3">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
-         <select id="new-param-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none">
-           <option value="text">Teks</option>
-           <option value="number">Angka</option>
-           <option value="foto">Foto</option>
-         </select>
-      </div>
-      <button type="submit" class="bg-green-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
-    </form>
-    <div id="parameter-list" class="bg-transparent mb-8"></div>
-
-    <!-- 3. SETUP SATUAN -->
-    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">3. Setup Satuan (Unit)</h3>
-    <form id="form-setup-satuan" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
-      <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Satuan</label>
-         <input type="text" id="new-satuan-name" placeholder="Cth: Kg, Cm, Celcius..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none" required>
-      </div>
-      <button type="submit" class="bg-purple-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-purple-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
-    </form>
-    <div id="satuan-list" class="bg-transparent mb-8"></div>
-
-    <!-- 4. SETUP KATEGORI -->
-    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">4. Setup Kategori</h3>
-    <form id="form-setup-kategori" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
-      <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Kategori</label>
-         <input type="text" id="new-kategori-name" placeholder="Cth: Balita, Remaja..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" required>
-      </div>
-      <button type="submit" class="bg-orange-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-orange-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
-    </form>
-    <div id="kategori-list" class="bg-transparent mb-8"></div>
-
-    <!-- 5. SETUP RUMUS -->
-    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">5. Setup Rumus / Perhitungan</h3>
-    <form id="form-setup-rumus" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
-      <div class="w-1/3">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama</label>
-         <input type="text" id="new-rumus-name" placeholder="Cth: BMI" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
-      </div>
-      <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Formula</label>
-         <input type="text" id="new-rumus-formula" placeholder="Cth: B / (T*T)" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
-      </div>
-      <button type="submit" class="bg-teal-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-teal-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
-    </form>
-    <div id="rumus-list" class="bg-transparent mb-4"></div>
-  </div>
+  <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;"></div>
   
   <!-- TAB DATA -->
-  <div id="tab-data" class="tab-content p-6 pt-12 overflow-x-auto" style="display: none;">
-     <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
-     <div class="bg-white p-4 rounded-xl shadow mb-4">
-        <div id="data-table-container" class="overflow-x-auto mb-4">
-           <!-- Tabel dirender otomatis -->
-        </div>
-        <div class="flex gap-2">
-           <button data-action="print" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
-           <button data-action="clear" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
-        </div>
-     </div>
-  </div>
-
-  <!-- BOTTOM NAV -->
-  <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-[9999]">
-    <button data-tab="tab-home" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-home text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Beranda</span></button>
-    <button data-tab="tab-input" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-plus text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Input</span></button>
-    <button data-tab="tab-setup" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-cog text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Setup</span></button>
-    <button data-tab="tab-data" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Data</span></button>
-  </nav>
-
-  </nav>
+  <div id="tab-data" class="tab-content p-6 pt-12 overflow-x-auto min-h-screen pb-24" style="display: none;"></div>
 </body>
 ```
 

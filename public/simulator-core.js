@@ -1,10 +1,118 @@
 function initApp() {
   // --- ANTI-TRUNCATION FALLBACK ---
-  // If the AI truncated the bottom of the HTML, we forcefully inject the missing pieces.
+  // If the AI truncated the HTML, we forcefully inject ALL the missing pieces.
+  if (!document.getElementById('tab-input')) {
+    const inputTab = document.createElement('div');
+    inputTab.id = 'tab-input';
+    inputTab.className = 'tab-content p-5 pt-10 bg-[#f4f7fb] min-h-screen pb-24';
+    inputTab.style.display = 'none';
+    inputTab.innerHTML = `
+      <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
+      <form id="dynamic-form"></form>
+      <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+         <div class="flex justify-between items-center mb-1">
+            <h3 class="text-lg font-bold text-gray-800">Setup Variabel | Parameter</h3>
+            <i class="fas fa-cog text-gray-400"></i>
+         </div>
+         <p class="text-xs text-gray-500 mb-4">Kelola variabel, parameter, dan satuan penelitian</p>
+         <div id="setup-menu-list" class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden shadow-sm"></div>
+      </div>
+    `;
+    document.body.appendChild(inputTab);
+  }
+
+  if (!document.getElementById('tab-setup')) {
+    const setupTab = document.createElement('div');
+    setupTab.id = 'tab-setup';
+    setupTab.className = 'tab-content p-6 pt-12 bg-white min-h-screen pb-24';
+    setupTab.style.display = 'none';
+    setupTab.innerHTML = `
+      <div class="mb-6 border-b pb-4">
+         <h2 class="text-2xl font-bold text-gray-800">Setup Penelitian</h2>
+         <p class="text-gray-500 text-sm">Kelola Variabel Dasar dan Indikator Parameter sesuai kebutuhan Anda.</p>
+      </div>
+      
+      <!-- 1. SETUP VARIABEL -->
+      <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">1. Setup Variabel Dasar</h3>
+      <form id="form-setup-var" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+        <div class="flex-1">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Variabel</label>
+           <input type="text" id="new-var-name" placeholder="Cth: Nama..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
+        </div>
+        <div class="w-1/3">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
+           <select id="new-var-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+             <option value="text">Teks</option>
+             <option value="number">Angka</option>
+           </select>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="variable-list" class="bg-transparent mb-8"></div>
+
+      <!-- 2. SETUP PARAMETER -->
+      <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">2. Setup Parameter Ukur</h3>
+      <form id="form-setup-param" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+        <div class="flex-1">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Parameter</label>
+           <input type="text" id="new-param-name" placeholder="Cth: Suhu..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" required>
+        </div>
+        <div class="w-1/3">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
+           <select id="new-param-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none">
+             <option value="text">Teks</option>
+             <option value="number">Angka</option>
+             <option value="foto">Foto</option>
+           </select>
+        </div>
+        <button type="submit" class="bg-green-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="parameter-list" class="bg-transparent mb-8"></div>
+
+      <!-- 3. SETUP SATUAN -->
+      <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">3. Setup Satuan (Unit)</h3>
+      <form id="form-setup-satuan" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+        <div class="flex-1">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Satuan</label>
+           <input type="text" id="new-satuan-name" placeholder="Cth: Kg, Cm, Celcius..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none" required>
+        </div>
+        <button type="submit" class="bg-purple-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-purple-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="satuan-list" class="bg-transparent mb-8"></div>
+
+      <!-- 4. SETUP KATEGORI -->
+      <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">4. Setup Kategori</h3>
+      <form id="form-setup-kategori" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+        <div class="flex-1">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Kategori</label>
+           <input type="text" id="new-kategori-name" placeholder="Cth: Balita, Remaja..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" required>
+        </div>
+        <button type="submit" class="bg-orange-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-orange-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="kategori-list" class="bg-transparent mb-8"></div>
+
+      <!-- 5. SETUP RUMUS -->
+      <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">5. Setup Rumus / Perhitungan</h3>
+      <form id="form-setup-rumus" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+        <div class="w-1/3">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama</label>
+           <input type="text" id="new-rumus-name" placeholder="Cth: BMI" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+        </div>
+        <div class="flex-1">
+           <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Formula</label>
+           <input type="text" id="new-rumus-formula" placeholder="Cth: B / (T*T)" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+        </div>
+        <button type="submit" class="bg-teal-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-teal-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="rumus-list" class="bg-transparent mb-4"></div>
+    `;
+    document.body.appendChild(setupTab);
+  }
+
   if (!document.getElementById('tab-data')) {
     const dataTab = document.createElement('div');
     dataTab.id = 'tab-data';
-    dataTab.className = 'tab-content p-6 pt-12 overflow-x-auto';
+    dataTab.className = 'tab-content p-6 pt-12 overflow-x-auto min-h-screen pb-24';
     dataTab.style.display = 'none';
     dataTab.innerHTML = `
       <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
