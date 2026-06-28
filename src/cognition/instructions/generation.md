@@ -26,15 +26,50 @@ Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penel
    - **Mock Data**: Anda WAJIB memasukkan 3-5 baris data bohongan yang realistis saat aplikasi pertama dimuat.
    - **Fitur Ekspor**: Sediakan 2 tombol: "Download Excel / CSV" (gunakan Vanilla JS ke `.csv`) dan "Download PDF" (`window.print()`).
 
-# WAJIB: LOGIKA PERPINDAHAN TAB (VANILLA JS)
-Agar halaman lain berfungsi, Anda WAJIB mengimplementasikan fungsi JS ini dan memasang `onclick` di navigasi:
-```javascript
-function showTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-  document.getElementById(tabId).classList.remove('hidden');
-}
+# WAJIB: KERANGKA HTML & JS (COPY PASTE INI)
+Agar halaman lain berfungsi sempurna dan tidak bocor/tumpang-tindih, Anda WAJIB menggunakan struktur kerangka persis seperti ini:
+```html
+<body class="pb-24">
+  <!-- TAB BERANDA -->
+  <div id="tab-home" class="tab-content p-6">...Konten Beranda...</div>
+  
+  <!-- TAB INPUT -->
+  <div id="tab-input" class="tab-content hidden p-6">
+    <h2 class="text-2xl font-bold mb-4">Input Data</h2>
+    <form id="dynamic-form"><!-- Diisi oleh JS --></form>
+  </div>
+  
+  <!-- TAB SETUP -->
+  <div id="tab-setup" class="tab-content hidden p-6">
+    <h2 class="text-2xl font-bold mb-4">Setup Variabel</h2>
+    <div id="variable-list"></div>
+    <!-- Beri form untuk menambah variabel baru -->
+  </div>
+  
+  <!-- TAB DATA -->
+  <div id="tab-data" class="tab-content hidden p-6">...Tabel dan Ekspor...</div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="fixed bottom-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t">
+    <button onclick="showTab('tab-home')" class="flex flex-col items-center"><i class="fas fa-home text-xl"></i><span class="text-xs">Beranda</span></button>
+    <button onclick="showTab('tab-input')" class="flex flex-col items-center"><i class="fas fa-plus text-xl"></i><span class="text-xs">Input</span></button>
+    <button onclick="showTab('tab-setup')" class="flex flex-col items-center"><i class="fas fa-cog text-xl"></i><span class="text-xs">Setup</span></button>
+    <button onclick="showTab('tab-data')" class="flex flex-col items-center"><i class="fas fa-table text-xl"></i><span class="text-xs">Data</span></button>
+  </nav>
+
+  <script>
+    // 1. Logika Mutlak Pindah Tab
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+    }
+
+    // 2. Logika Form Dinamis (WAJIB ANDA LENGKAPI)
+    // - Gunakan localStorage.getItem('schema')
+    // - Render ke #dynamic-form
+  </script>
+</body>
 ```
-Setiap konten halaman wajib dibungkus `<div id="tab-..." class="tab-content">`. Tambahkan class `hidden` pada semua tab kecuali Tab Beranda!
 
 # KUALITAS VISUAL & ESTETIKA (PREMIUM/ENTERPRISE)
 1. **IKON PROFESIONAL**: WAJIB memuat FontAwesome via CDN `https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css`. Setiap tombol, menu navigasi, dan header HARUS menggunakan ikon.
