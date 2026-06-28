@@ -92,6 +92,52 @@ export class DirectFallbackProvider extends BaseProvider {
             };
         }
 
+        // --- NATIVE OPENAI COMPATIBLE ROUTES (GROQ, DEEPSEEK) ---
+        let nativeUrl = '';
+        let nativeKey = '';
+        let nativeModel = '';
+        
+        if (this.type === 'GROQ' && process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.length > 10) {
+            nativeUrl = 'https://api.groq.com/openai/v1/chat/completions';
+            nativeKey = process.env.GROQ_API_KEY;
+            nativeModel = 'llama-3.1-8b-instant';
+        } else if (this.type === 'DEEPSEEK' && process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.length > 10) {
+            nativeUrl = 'https://api.deepseek.com/chat/completions';
+            nativeKey = process.env.DEEPSEEK_API_KEY;
+            nativeModel = 'deepseek-coder';
+        }
+        
+        if (nativeUrl && nativeKey) {
+            console.log(`[${this.type} NATIVE] Routing directly to Native API...`);
+            const response = await fetch(nativeUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${nativeKey}`
+                },
+                body: JSON.stringify({
+                    model: nativeModel,
+                    messages: [
+                        { role: 'system', content: typeof request.systemPrompt === 'string' ? request.systemPrompt : JSON.stringify(request.systemPrompt || '') },
+                        { role: 'user', content: typeof request.prompt === 'string' ? request.prompt : JSON.stringify(request.prompt || '') }
+                    ],
+                    temperature: 0.3
+                })
+            });
+            if (response.ok) {
+                const json = await response.json();
+                const content = json.choices?.[0]?.message?.content || '';
+                return {
+                    requestId: request.id,
+                    provider: `${this.type}_NATIVE`,
+                    content: content,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                    latencyMs: 1000
+                };
+            }
+            console.warn(`[${this.type} NATIVE] Native API failed (${response.status}). Falling back to OpenRouter...`);
+        }
+
         // --- OPENROUTER FALLBACK ROUTE ---
         let model = 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
         if (this.type === 'DEEPSEEK') model = 'deepseek/deepseek-coder';
