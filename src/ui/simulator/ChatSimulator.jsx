@@ -25,6 +25,18 @@ export default function ChatSimulator() {
   }, [messages, activeStep]);
 
   // Stepper logic
+  const getShortName = (id) => {
+    const map = {
+      'Knowledge': 'DATA',
+      'Reasoning': 'LOGIC',
+      'Requirement': 'REQ',
+      'Blueprint': 'PLAN',
+      'Simulation': 'UI',
+      'Delivery': 'DONE'
+    };
+    return map[id] || id;
+  };
+
   const pipelineSteps = [
     { id: 'Goal', icon: Target, color: 'text-rose-500', desc: 'Menentukan Tujuan Utama' },
     { id: 'Intent', icon: Lightbulb, color: 'text-amber-500', desc: 'Analisis Maksud Pengguna' },
@@ -283,8 +295,9 @@ export default function ChatSimulator() {
                   }`}>
                     {status === 'completed' ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" /> : <step.icon className="w-4 h-4 md:w-5 md:h-5" />}
                   </div>
-                  <span className={`text-[8px] md:text-[11px] text-center font-semibold uppercase tracking-wider ${status === 'active' ? 'text-indigo-400' : 'text-blue-300'}`}>
-                    {step.id}
+                  <span className={`text-[9px] md:text-[11px] text-center font-semibold uppercase tracking-wider ${status === 'active' ? 'text-indigo-400' : 'text-blue-300'}`}>
+                    <span className="md:hidden">{getShortName(step.id)}</span>
+                    <span className="hidden md:inline">{step.id}</span>
                   </span>
                 </div>
               );
