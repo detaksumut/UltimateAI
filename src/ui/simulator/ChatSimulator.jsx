@@ -10,6 +10,7 @@ export default function ChatSimulator() {
   const [messages, setMessages] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showSimulatorMobile, setShowSimulatorMobile] = useState(false);
+  const [activeMode, setActiveMode] = useState('APK');
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeStep, setActiveStep] = useState(null); // String: 'Goal', 'Intent', etc.
@@ -232,16 +233,16 @@ export default function ChatSimulator() {
           
           {/* Section 1 */}
           <div className="space-y-1 text-sm font-medium text-blue-300">
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg cursor-pointer">
-              <Smartphone className="w-4 h-4" />
+            <div onClick={() => setActiveMode('APK')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'APK' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
+              <Smartphone className={`w-4 h-4 ${activeMode !== 'APK' && 'text-blue-300'}`} />
               <span>Create APK</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
-              <Play className="w-4 h-4 text-amber-500" />
+            <div onClick={() => setActiveMode('Video')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Video' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
+              <Play className={`w-4 h-4 ${activeMode !== 'Video' && 'text-amber-500'}`} />
               <span>Create Video</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
-              <Image className="w-4 h-4 text-yellow-500" />
+            <div onClick={() => setActiveMode('Image')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Image' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
+              <Image className={`w-4 h-4 ${activeMode !== 'Image' && 'text-yellow-500'}`} />
               <span>Create Image</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
@@ -619,23 +620,27 @@ export default function ChatSimulator() {
         {/* Simulator Section */}
         <div className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-white tracking-wider">SIMULATOR</h3>
+            <h3 className="text-xs font-bold text-white tracking-wider">
+              {activeMode === 'APK' ? 'SIMULATOR' : activeMode === 'Video' ? 'VIDEO PLAYER' : 'CANVAS'}
+            </h3>
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowSimulatorMobile(false)} className="lg:hidden px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-md text-xs font-semibold text-white mr-2">Kembali ke Chat</button>
-              <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">iPhone 15</span>
+              <button onClick={() => setShowSimulatorMobile(false)} className="lg:hidden px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-md text-xs font-semibold text-white mr-2">Kembali</button>
+              <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">
+                {activeMode === 'APK' ? 'iPhone 15' : activeMode === 'Video' ? '16:9 HD' : '1:1 Square'}
+              </span>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse"></div> Online
               </div>
             </div>
           </div>
 
-          {/* iPhone Frame */}
-          <div className="relative mx-auto w-[340px] h-[680px] bg-black rounded-[40px] shadow-2xl border-[10px] border-neutral-900 shrink-0 flex flex-col overflow-hidden">
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[100px] h-[30px] bg-black rounded-full z-30"></div>
-            
-            <div className="flex-1 bg-[#151B2B] relative">
+          {/* Dynamic Frames */}
+          {activeMode === 'APK' && (
+            <div className="relative mx-auto w-[340px] h-[680px] bg-black rounded-[40px] shadow-2xl border-[10px] border-neutral-900 shrink-0 flex flex-col overflow-hidden">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[100px] h-[30px] bg-black rounded-full z-30"></div>
               
-              {/* Draft Watermark */}
+              <div className="flex-1 bg-[#151B2B] relative">
+                {/* Draft Watermark */}
               {messages.length > 0 && messages[messages.length - 1].type === 'proposal' && !simulatorHtml && (
                 <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                   <div className="border-4 border-rose-500/40 rounded-2xl p-6 text-center transform -rotate-12 bg-black/50 shadow-2xl">
@@ -660,6 +665,32 @@ export default function ChatSimulator() {
               )}
             </div>
           </div>
+          )}
+
+          {activeMode === 'Video' && (
+            <div className="relative mx-auto w-[340px] h-[191px] mt-20 bg-black rounded-xl shadow-2xl border border-neutral-800 shrink-0 flex flex-col overflow-hidden group">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center">
+                <Play className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-xs font-medium">Video belum dibuat. Silakan deskripsikan video yang Anda inginkan.</p>
+              </div>
+              
+              {/* Fake Video Controls */}
+              <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-50 group-hover:opacity-100 transition-opacity flex items-center gap-3">
+                <Play className="w-4 h-4 text-white" />
+                <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"><div className="w-0 h-full bg-indigo-500"></div></div>
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'Image' && (
+            <div className="relative mx-auto w-[340px] h-[340px] mt-10 bg-[#0B0F19] rounded-sm shadow-2xl border-8 border-white/5 shrink-0 flex flex-col overflow-hidden">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center border border-dashed border-[#1E293B] m-2">
+                <Image className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-sm font-medium">Kanvas kosong. Deskripsikan gambar yang ingin Anda buat.</p>
+              </div>
+            </div>
+          )}
+          
         </div>
 
         {/* Project Info Section */}
