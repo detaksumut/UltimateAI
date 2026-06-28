@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "npx vite",
+    "build": "npx vite build",
     "serve": "npx tsx src/infrastructure/server/server.ts",
     "test:e2e": "playwright test",
     "test:pipeline": "npx tsx test-pipeline.ts"
