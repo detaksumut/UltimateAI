@@ -1,6 +1,7 @@
 {
   "name": "ultimateai",
   "version": "1.0.0",
+  "type": "module",
   "description": "**Helping Researchers Build, Not Code.**",
   "main": "electron/main.js",
   "directories": {
