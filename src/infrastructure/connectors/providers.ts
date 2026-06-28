@@ -67,10 +67,17 @@ export class DirectFallbackProvider extends BaseProvider {
         try {
             // --- NATIVE GEMINI ROUTE ---
             if (this.type === 'GEMINI') {
-                const geminiKey = process.env.GEMINI_API_KEY;
-                if (!geminiKey || geminiKey.length < 10) throw new Error("GEMINI_API_KEY is missing or invalid in .env");
+                const geminiKeys = Object.keys(process.env)
+                    .filter(k => k.startsWith('GEMINI_API_KEY'))
+                    .map(k => process.env[k])
+                    .filter(k => k && k.length > 10) as string[];
+
+                if (geminiKeys.length === 0) throw new Error("No valid GEMINI_API_KEY found in .env");
                 
-                console.log(`[GEMINI NATIVE] Routing directly to Google API...`);
+                // Multi-Key Load Balancer (Random Picker)
+                const geminiKey = geminiKeys[Math.floor(Math.random() * geminiKeys.length)];
+                
+                console.log(`[GEMINI NATIVE] Routing directly to Google API (Load Balancer active: ${geminiKeys.length} keys)...`);
                 const modelName = 'gemini-1.5-flash-latest';
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
                     method: 'POST',
