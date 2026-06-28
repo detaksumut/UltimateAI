@@ -54,7 +54,12 @@ export default function ChatSimulator() {
     setActiveStep('Requirement');
 
     try {
-      const response = await fetch('http://localhost:3001/api/magic', {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_URL = isLocal 
+        ? 'http://localhost:3001/api/magic' 
+        : 'https://ultimateai-production.up.railway.app/api/magic';
+
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages })
