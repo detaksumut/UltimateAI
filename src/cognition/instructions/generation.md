@@ -130,7 +130,44 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
       </div>
       <button type="submit" class="bg-green-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
     </form>
-    <div id="parameter-list" class="bg-transparent mb-4"></div>
+    <div id="parameter-list" class="bg-transparent mb-8"></div>
+
+    <!-- 3. SETUP SATUAN -->
+    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">3. Setup Satuan (Unit)</h3>
+    <form id="form-setup-satuan" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+      <div class="flex-1">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Satuan</label>
+         <input type="text" id="new-satuan-name" placeholder="Cth: Kg, Cm, Celcius..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none" required>
+      </div>
+      <button type="submit" class="bg-purple-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-purple-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+    </form>
+    <div id="satuan-list" class="bg-transparent mb-8"></div>
+
+    <!-- 4. SETUP KATEGORI -->
+    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">4. Setup Kategori</h3>
+    <form id="form-setup-kategori" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+      <div class="flex-1">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Kategori</label>
+         <input type="text" id="new-kategori-name" placeholder="Cth: Balita, Remaja..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" required>
+      </div>
+      <button type="submit" class="bg-orange-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-orange-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+    </form>
+    <div id="kategori-list" class="bg-transparent mb-8"></div>
+
+    <!-- 5. SETUP RUMUS -->
+    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">5. Setup Rumus / Perhitungan</h3>
+    <form id="form-setup-rumus" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+      <div class="w-1/3">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama</label>
+         <input type="text" id="new-rumus-name" placeholder="Cth: BMI" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+      </div>
+      <div class="flex-1">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Formula</label>
+         <input type="text" id="new-rumus-formula" placeholder="Cth: B / (T*T)" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+      </div>
+      <button type="submit" class="bg-teal-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-teal-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+    </form>
+    <div id="rumus-list" class="bg-transparent mb-4"></div>
   </div>
   
   <!-- TAB DATA -->

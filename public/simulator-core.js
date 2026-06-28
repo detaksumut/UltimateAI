@@ -37,18 +37,30 @@ function initApp() {
   
   let variables = [];
   let parameters = [];
+  let satuans = [];
+  let kategoris = [];
+  let rumuses = [];
   let records = [];
   
   try {
     let parsedVars = JSON.parse(localStorage.getItem('app_variables_v3'));
     let parsedParams = JSON.parse(localStorage.getItem('app_parameters_v3'));
+    let parsedSatuans = JSON.parse(localStorage.getItem('app_satuans_v3'));
+    let parsedKategoris = JSON.parse(localStorage.getItem('app_kategoris_v3'));
+    let parsedRumuses = JSON.parse(localStorage.getItem('app_rumuses_v3'));
     let parsedRecords = JSON.parse(localStorage.getItem('app_records_v3'));
     variables = Array.isArray(parsedVars) ? parsedVars : defaultVars;
     parameters = Array.isArray(parsedParams) ? parsedParams : defaultParams;
+    satuans = Array.isArray(parsedSatuans) ? parsedSatuans : [];
+    kategoris = Array.isArray(parsedKategoris) ? parsedKategoris : [];
+    rumuses = Array.isArray(parsedRumuses) ? parsedRumuses : [];
     records = Array.isArray(parsedRecords) ? parsedRecords : [];
   } catch(e) {
     variables = defaultVars;
     parameters = defaultParams;
+    satuans = [];
+    kategoris = [];
+    rumuses = [];
     records = [];
   }
 
@@ -69,6 +81,15 @@ function initApp() {
     
     const paramList = document.getElementById('parameter-list');
     if(paramList) paramList.innerHTML = parameters.map((v, i) => `<div class="p-2 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700 text-sm">${v.label} <span class="text-xs text-gray-400">(${v.type})</span></span><button type="button" data-delete-param="${i}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash pointer-events-none"></i></button></div>`).join('');
+
+    const satuanList = document.getElementById('satuan-list');
+    if(satuanList) satuanList.innerHTML = satuans.map((v, i) => `<div class="p-2 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700 text-sm">${v.label}</span><button type="button" data-delete-satuan="${i}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash pointer-events-none"></i></button></div>`).join('');
+
+    const kategoriList = document.getElementById('kategori-list');
+    if(kategoriList) kategoriList.innerHTML = kategoris.map((v, i) => `<div class="p-2 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700 text-sm">${v.label}</span><button type="button" data-delete-kategori="${i}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash pointer-events-none"></i></button></div>`).join('');
+
+    const rumusList = document.getElementById('rumus-list');
+    if(rumusList) rumusList.innerHTML = rumuses.map((v, i) => `<div class="p-2 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700 text-sm">${v.name} <span class="text-xs text-gray-400">(${v.formula})</span></span><button type="button" data-delete-rumus="${i}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash pointer-events-none"></i></button></div>`).join('');
   }
 
   function renderForm() {
@@ -175,6 +196,56 @@ function initApp() {
     renderTable();
   }
 
+  function addSatuan(event) {
+    event.preventDefault();
+    const name = document.getElementById('new-satuan-name').value;
+    if(!name) return;
+    satuans.push({ id: 'satuan_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: name });
+    localStorage.setItem('app_satuans_v3', JSON.stringify(satuans));
+    document.getElementById('new-satuan-name').value = '';
+    renderSetup();
+  }
+
+  function addKategori(event) {
+    event.preventDefault();
+    const name = document.getElementById('new-kategori-name').value;
+    if(!name) return;
+    kategoris.push({ id: 'kategori_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: name });
+    localStorage.setItem('app_kategoris_v3', JSON.stringify(kategoris));
+    document.getElementById('new-kategori-name').value = '';
+    renderSetup();
+  }
+
+  function addRumus(event) {
+    event.preventDefault();
+    const name = document.getElementById('new-rumus-name').value;
+    const formula = document.getElementById('new-rumus-formula').value;
+    if(!name || !formula) return;
+    rumuses.push({ id: 'rumus_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: name, formula: formula });
+    localStorage.setItem('app_rumuses_v3', JSON.stringify(rumuses));
+    document.getElementById('new-rumus-name').value = '';
+    document.getElementById('new-rumus-formula').value = '';
+    renderSetup();
+  }
+
+  function deleteSatuan(index) {
+    satuans.splice(index, 1);
+    localStorage.setItem('app_satuans_v3', JSON.stringify(satuans));
+    renderSetup();
+  }
+
+  function deleteKategori(index) {
+    kategoris.splice(index, 1);
+    localStorage.setItem('app_kategoris_v3', JSON.stringify(kategoris));
+    renderSetup();
+  }
+
+  function deleteRumus(index) {
+    rumuses.splice(index, 1);
+    localStorage.setItem('app_rumuses_v3', JSON.stringify(rumuses));
+    renderSetup();
+  }
+
   function saveData() {
     let row = {};
     let valid = true;
@@ -210,7 +281,7 @@ function initApp() {
   
       // Event Delegation
       document.body.addEventListener('click', function(e) {
-        const target = e.target.closest('button, [data-tab], [data-action], [data-delete-var], [data-delete-param]');
+        const target = e.target.closest('button, [data-tab], [data-action], [data-delete-var], [data-delete-param], [data-delete-satuan], [data-delete-kategori], [data-delete-rumus]');
         if(!target) return;
         
         if(target.hasAttribute('data-tab')) {
@@ -224,12 +295,21 @@ function initApp() {
            deleteVar(parseInt(target.getAttribute('data-delete-var')));
         } else if(target.hasAttribute('data-delete-param')) {
            deleteParam(parseInt(target.getAttribute('data-delete-param')));
+        } else if(target.hasAttribute('data-delete-satuan')) {
+           deleteSatuan(parseInt(target.getAttribute('data-delete-satuan')));
+        } else if(target.hasAttribute('data-delete-kategori')) {
+           deleteKategori(parseInt(target.getAttribute('data-delete-kategori')));
+        } else if(target.hasAttribute('data-delete-rumus')) {
+           deleteRumus(parseInt(target.getAttribute('data-delete-rumus')));
         }
       });
       
       document.body.addEventListener('submit', function(e) {
         if(e.target.id === 'form-setup-var') addVariable(e);
         if(e.target.id === 'form-setup-param') addParameter(e);
+        if(e.target.id === 'form-setup-satuan') addSatuan(e);
+        if(e.target.id === 'form-setup-kategori') addKategori(e);
+        if(e.target.id === 'form-setup-rumus') addRumus(e);
       });
       
       function renderSetupMenu() {
@@ -238,9 +318,9 @@ function initApp() {
         const menus = [
           { title: 'Variabel', desc: 'Kelola daftar variabel observasi', icon: 'fa-font', color: 'blue', action: "showTab('tab-setup')" },
           { title: 'Parameter', desc: 'Atur parameter penelitian', icon: 'fa-sliders-h', color: 'green', action: "showTab('tab-setup')" },
-          { title: 'Satuan', desc: 'Kelola satuan pengukuran', icon: 'fa-ruler', color: 'purple', action: "alert('Fitur segera hadir!')" },
-          { title: 'Kategori', desc: 'Kelola kategori atau klasifikasi data', icon: 'fa-hashtag', color: 'orange', action: "alert('Fitur segera hadir!')" },
-          { title: 'Rumus / Perhitungan', desc: 'Atur rumus dan perhitungan otomatis', icon: 'fa-calculator', color: 'teal', action: "alert('Fitur segera hadir!')" }
+          { title: 'Satuan', desc: 'Kelola satuan pengukuran', icon: 'fa-ruler', color: 'purple', action: "showTab('tab-setup')" },
+          { title: 'Kategori', desc: 'Kelola kategori atau klasifikasi data', icon: 'fa-hashtag', color: 'orange', action: "showTab('tab-setup')" },
+          { title: 'Rumus / Perhitungan', desc: 'Atur rumus dan perhitungan otomatis', icon: 'fa-calculator', color: 'teal', action: "showTab('tab-setup')" }
         ];
         container.innerHTML = menus.map(m => `
           <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="${m.action}">
