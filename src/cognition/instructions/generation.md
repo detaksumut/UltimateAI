@@ -64,28 +64,46 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   <!-- TAB SETUP -->
   <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;">
     <div class="mb-6 border-b pb-4">
-       <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-       <h2 class="text-2xl font-bold text-gray-800">Setup Variabel: Penelitian...</h2>
-       <p class="text-gray-500 text-sm">Tambahkan atau hapus variabel penelitian sesuai kebutuhan Anda.</p>
+       <h2 class="text-2xl font-bold text-gray-800">Setup Penelitian</h2>
+       <p class="text-gray-500 text-sm">Kelola Variabel Dasar dan Indikator Parameter sesuai kebutuhan Anda.</p>
     </div>
     
-    <form id="form-setup" class="bg-white p-5 rounded-xl shadow-md border border-gray-100 mb-8 flex flex-row gap-3 items-end">
+    <!-- 1. SETUP VARIABEL -->
+    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">1. Setup Variabel Dasar</h3>
+    <form id="form-setup-var" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
       <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wide">Parameter</label>
-         <input type="text" id="new-var-name" placeholder="Ketik nama..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Variabel</label>
+         <input type="text" id="new-var-name" placeholder="Cth: Nama..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
       </div>
       <div class="w-1/3">
-         <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wide">Variabel</label>
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
          <select id="new-var-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+           <option value="text">Teks</option>
+           <option value="number">Angka</option>
+         </select>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
+    </form>
+    <div id="variable-list" class="bg-transparent mb-8"></div>
+
+    <!-- 2. SETUP PARAMETER -->
+    <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">2. Setup Parameter Ukur</h3>
+    <form id="form-setup-param" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
+      <div class="flex-1">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama Parameter</label>
+         <input type="text" id="new-param-name" placeholder="Cth: Suhu..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" required>
+      </div>
+      <div class="w-1/3">
+         <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Tipe</label>
+         <select id="new-param-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none">
            <option value="text">Teks</option>
            <option value="number">Angka</option>
            <option value="foto">Foto</option>
          </select>
       </div>
-      <button type="submit" class="bg-blue-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"><i class="fas fa-plus"></i></button>
+      <button type="submit" class="bg-green-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
     </form>
-    
-    <div id="variable-list" class="bg-transparent"></div>
+    <div id="parameter-list" class="bg-transparent mb-4"></div>
   </div>
   
   <!-- TAB DATA -->
@@ -111,9 +129,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   </nav>
 
   <script>
-    // WAJIB: Tentukan 3-5 variabel form bawaan sesuai topik penelitian.
+    // WAJIB: Tentukan variabel dasar dan parameter ukur sesuai topik penelitian.
     // Contoh di bawah ini HANYA formatnya, ubah isi array sesuai topik: "{{USER_INPUT}}"
-    window.APP_SCHEMA = [
+    window.APP_VARIABLES = [
+      { id: 'nama_subjek', label: 'Nama Subjek', type: 'text' },
+      { id: 'usia', label: 'Usia (Bulan)', type: 'number' }
+    ];
+    window.APP_PARAMETERS = [
       { id: 'tanggal', label: 'Tanggal Observasi', type: 'text' },
       { id: 'catatan', label: 'Catatan Lapangan', type: 'text' }
     ];
