@@ -31,6 +31,21 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
 
 ```html
 <body class="pb-24">
+  <!-- SCRIPT WAJIB DI ATAS AGAR TIDAK TERPOTONG AI -->
+  <script>
+    // WAJIB: Tentukan variabel dasar dan parameter ukur sesuai topik penelitian.
+    // Contoh di bawah ini HANYA formatnya, ubah isi array sesuai topik: "{{USER_INPUT}}"
+    window.APP_VARIABLES = [
+      { id: 'nama_subjek', label: 'Nama Subjek', type: 'text' },
+      { id: 'usia', label: 'Usia (Bulan)', type: 'number' }
+    ];
+    window.APP_PARAMETERS = [
+      { id: 'tanggal', label: 'Tanggal Observasi', type: 'text' },
+      { id: 'catatan', label: 'Catatan Lapangan', type: 'text' }
+    ];
+  </script>
+  <script src="/simulator-core.js"></script>
+
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
   <div id="tab-home" class="tab-content" style="display: block;">
      <!-- HERO SECTION (STATIS) -->
@@ -140,20 +155,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
     <button data-tab="tab-data" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Data</span></button>
   </nav>
 
-  <script>
-    // WAJIB: Tentukan variabel dasar dan parameter ukur sesuai topik penelitian.
-    // Contoh di bawah ini HANYA formatnya, ubah isi array sesuai topik: "{{USER_INPUT}}"
-    window.APP_VARIABLES = [
-      { id: 'nama_subjek', label: 'Nama Subjek', type: 'text' },
-      { id: 'usia', label: 'Usia (Bulan)', type: 'number' }
-    ];
-    window.APP_PARAMETERS = [
-      { id: 'tanggal', label: 'Tanggal Observasi', type: 'text' },
-      { id: 'catatan', label: 'Catatan Lapangan', type: 'text' }
-    ];
-  </script>
-  <!-- WAJIB: Jangan hapus script ini -->
-  <script src="/simulator-core.js"></script>
+  </nav>
 </body>
 ```
 

@@ -226,5 +226,9 @@ function initApp() {
       renderSetupMenu();
 }
 
-// Automatically execute on script load since we assume it's placed at the end of body.
-initApp();
+// Wait for DOM to be fully loaded before initializing
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
