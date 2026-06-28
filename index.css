@@ -14,10 +14,10 @@
 
 @layer base {
   body {
-    @apply antialiased text-slate-50 bg-blue-950 transition-colors duration-300;
+    @apply antialiased text-slate-50 bg-[#0B0F19] transition-colors duration-300;
   }
   .dark body {
-    @apply text-slate-50 bg-blue-950;
+    @apply text-slate-50 bg-[#0B0F19];
   }
 }
 
