@@ -26,7 +26,8 @@ Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penel
    - **Fitur Ekspor**: Sediakan 2 tombol: "Download Excel / CSV" (gunakan Vanilla JS ke `.csv`) dan "Download PDF" (`window.print()`).
 
 # WAJIB: KERANGKA HTML & JS (COPY PASTE INI 100% TANPA DIUBAH KECUALI JUDUL)
-Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hanya boleh mengubah teks Judul, Executive Summary, dan styling dasar.
+Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau menghapus class 'tab-content' pada kerangka ini.
+**SANGAT PENTING: JANGAN PERNAH MEMOTONG ATAU MENYINGKAT KODE <script>. TULIS SELURUH JAVASCRIPT SAMPAI SELESAI TANPA TERLEWAT 1 BARIS PUN. JIKA ANDA MERINGKASNYA (MISAL MENULIS "// script lanjutan..."), APLIKASI AKAN RUSAK DAN TOMBOL MENU TIDAK BERFUNGSI.**
 
 ```html
 <body class="pb-24">
@@ -112,8 +113,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
   <script>
     // --- DILARANG KERAS MENGUBAH SCRIPT INI. COPY PASTE 100% ---
     function showTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-      document.getElementById(tabId).classList.remove('hidden');
+      const tabs = ['tab-home', 'tab-input', 'tab-setup', 'tab-data'];
+      tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('hidden');
+      });
+      const selected = document.getElementById(tabId);
+      if(selected) selected.classList.remove('hidden');
       window.scrollTo(0, 0);
     }
 
