@@ -138,6 +138,41 @@ export class DirectFallbackProvider extends BaseProvider {
             console.warn(`[${this.type} NATIVE] Native API failed (${response.status}). Falling back to OpenRouter...`);
         }
 
+        // --- NATIVE ANTHROPIC ROUTE ---
+        if (this.type === 'ANTHROPIC' && process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.length > 10) {
+            console.log(`[ANTHROPIC NATIVE] Routing directly to Anthropic API...`);
+            const anthropicKey = process.env.ANTHROPIC_API_KEY;
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': anthropicKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    system: typeof request.systemPrompt === 'string' ? request.systemPrompt : JSON.stringify(request.systemPrompt || ''),
+                    messages: [
+                        { role: 'user', content: typeof request.prompt === 'string' ? request.prompt : JSON.stringify(request.prompt || '') }
+                    ],
+                    max_tokens: 4000,
+                    temperature: 0.3
+                })
+            });
+            if (response.ok) {
+                const json = await response.json();
+                const content = json.content?.[0]?.text || '';
+                return {
+                    requestId: request.id,
+                    provider: 'ANTHROPIC_NATIVE',
+                    content: content,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                    latencyMs: 1000
+                };
+            }
+            console.warn(`[ANTHROPIC NATIVE] Native API failed (${response.status}). Falling back to OpenRouter...`);
+        }
+
         // --- OPENROUTER FALLBACK ROUTE ---
         let model = 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
         if (this.type === 'DEEPSEEK') model = 'deepseek/deepseek-coder';
