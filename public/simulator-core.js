@@ -13,14 +13,6 @@ function initApp() {
     inputTab.innerHTML = `
       <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
       <form id="dynamic-form"></form>
-      <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-         <div class="flex justify-between items-center mb-1">
-            <h3 class="text-lg font-bold text-gray-800">Setup Variabel | Parameter</h3>
-            <i class="fas fa-cog text-gray-400"></i>
-         </div>
-         <p class="text-xs text-gray-500 mb-4">Kelola variabel, parameter, dan satuan penelitian</p>
-         <div id="setup-menu-list" class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden shadow-sm"></div>
-      </div>
     `;
   }
 
