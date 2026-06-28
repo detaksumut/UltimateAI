@@ -9,9 +9,10 @@ Guna mencapai standar desain "Enterprise & Premium" ala Apple, Stripe, atau Goje
 2. **MOBILE-NATIVE LAYOUT**: Desain aplikasi secara khusus untuk layar HP. 
    - WAJIB memiliki **Bottom Navigation Bar** (menu navigasi melayang di ujung bawah layar secara tetap/fixed) yang berisi 3-4 menu utama (misal: Beranda, Tambah, Riwayat) lengkap dengan ikon.
    - WAJIB memiliki **Sticky Header** di atas dengan efek *Glassmorphism* (background semi-transparan `bg-white/80 backdrop-blur-md` atau setara di dark mode).
-3. **PREMIUM STYLING**: 
-   - Hindari warna solid mencolok yang generik. Gunakan *soft gradients* (contoh: `bg-gradient-to-r from-blue-500 to-indigo-600`), warna pastel elegan, dan bayangan yang sangat halus (`shadow-sm`, `shadow-md`).
-   - Sudut semua kartu (card) dan input harus membulat elegan (`rounded-xl` atau `rounded-2xl`).
+3. **PREMIUM STYLING & LOGO**: 
+   - **LOGO ULTIMATEAI**: Anda WAJIB menyertakan identitas "UltimateAI" di bagian Header atau atas Dashboard (contoh: teks elegan berdampingan dengan logo/ikon AI).
+   - **TEMA BACKGROUND SPESIFIK**: Background aplikasi TIDAK BOLEH sekadar putih polos. Anda WAJIB menyesuaikan palet warna dan *soft gradients* background dengan **Jenis/Topik Penelitian**. (Contoh: aksen hijau daun yang sangat halus untuk pertanian, biru klinis yang bersih untuk kedokteran, rona emas/coklat elegan untuk hukum).
+   - Sudut semua kartu (card) dan input harus membulat elegan (`rounded-xl` atau `rounded-2xl`). Bayangan harus sangat halus (`shadow-sm`, `shadow-md`).
 4. **ANIMASI & INTERAKSI**: Tambahkan kelas Tailwind untuk interaksi yang mulus (misal: `transition-all duration-300 hover:scale-[1.02] active:scale-95`). Semua interaksi pengguna harus terasa sangat *snappy* namun lembut.
 5. **PADDING**: Berikan `pt-20` pada kontainer utama agar tidak tertutup notch HP dan header, serta `pb-24` agar konten tidak tertutup Bottom Navigation Bar.
 
