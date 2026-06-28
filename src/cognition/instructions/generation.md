@@ -31,40 +31,49 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 
 ```html
 <body class="pb-24">
-  <!-- TAB BERANDA -->
-  <div id="tab-home" class="tab-content p-6">
-    <div class="text-center mb-6">
-       <!-- WAJIB ADA LOGO INI -->
-       <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 mx-auto mb-4">
-       <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-       <h1 class="text-3xl font-bold text-gray-800">Judul Penelitian...</h1>
-    </div>
-    <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
-    <div class="bg-white p-4 rounded-xl shadow">
-       <h2 class="font-bold text-xl mb-2">Executive Summary</h2>
-       <p class="text-gray-600">...</p>
-    </div>
+  <!-- TAB BERANDA (HERO LANDING PAGE) -->
+  <div id="tab-home" class="tab-content p-6 flex flex-col items-center justify-center min-h-[80vh] text-center">
+     <!-- WAJIB ADA LOGO INI DI TENGAH -->
+     <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-24 mx-auto mb-6 drop-shadow-xl hover:scale-105 transition-transform duration-300">
+     <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
+     <h1 class="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">Judul Penelitian...</h1>
+     <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
+     <p class="text-lg text-gray-600 max-w-2xl leading-relaxed">
+        Penjelasan profesional mengenai tujuan dan metode penelitian ini...
+     </p>
   </div>
   
   <!-- TAB INPUT -->
   <div id="tab-input" class="tab-content hidden p-6">
-    <h2 class="text-2xl font-bold mb-4">Input Data</h2>
+    <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
     <form id="dynamic-form" onsubmit="event.preventDefault(); alert('Tersimpan!');"><!-- Diisi otomatis oleh JS --></form>
   </div>
   
   <!-- TAB SETUP -->
   <div id="tab-setup" class="tab-content hidden p-6">
-    <h2 class="text-2xl font-bold mb-4">Setup Variabel (Tambah Parameter Baru)</h2>
-    <div id="variable-list" class="mb-4 bg-white rounded-xl shadow p-4"></div>
-    <form onsubmit="addVariable(event)" class="bg-gray-100 p-4 rounded-xl shadow-inner">
-      <input type="text" id="new-var-name" placeholder="Nama Variabel Baru (contoh: Suhu)" class="w-full p-3 mb-3 rounded border" required>
-      <select id="new-var-type" class="w-full p-3 mb-3 rounded border">
-        <option value="text">Teks Singkat</option>
-        <option value="number">Angka</option>
-        <option value="foto">Foto/Kamera</option>
-      </select>
-      <button type="submit" class="w-full bg-green-600 text-white p-3 rounded font-bold hover:bg-green-700">Tambah Variabel</button>
+    <div class="mb-6 border-b pb-4">
+       <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
+       <h2 class="text-2xl font-bold text-gray-800">Setup Parameter: Judul Penelitian...</h2>
+       <p class="text-gray-500 text-sm">Tambahkan atau hapus variabel penelitian sesuai kebutuhan Anda.</p>
+    </div>
+    
+    <form onsubmit="addVariable(event)" class="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row gap-3 items-end">
+      <div class="flex-1 w-full">
+         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Nama Parameter Baru</label>
+         <input type="text" id="new-var-name" placeholder="Cth: Suhu Udara" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
+      </div>
+      <div class="w-full md:w-1/3">
+         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Tipe Data</label>
+         <select id="new-var-type" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+           <option value="text">Teks Singkat</option>
+           <option value="number">Angka</option>
+           <option value="foto">Foto/Kamera</option>
+         </select>
+      </div>
+      <button type="submit" class="w-full md:w-auto bg-blue-600 text-white p-3 px-6 rounded-lg font-bold hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"><i class="fas fa-plus mr-2"></i>Tambah</button>
     </form>
+    
+    <div id="variable-list" class="bg-transparent"></div>
   </div>
   
   <!-- TAB DATA -->
