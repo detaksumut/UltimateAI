@@ -64,6 +64,35 @@ export class DirectFallbackProvider extends BaseProvider {
     async execute(request: AIRequest): Promise<AIResponse> {
         console.log(`[${this.type} DIRECT] Executing failover request ${request.id}`);
         
+        // --- NATIVE GEMINI ROUTE ---
+        if (this.type === 'GEMINI' && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10) {
+            console.log(`[GEMINI NATIVE] Routing directly to Google API bypassing OpenRouter...`);
+            const geminiKey = process.env.GEMINI_API_KEY;
+            const modelName = 'gemini-1.5-flash';
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: (request.systemPrompt || '') + "\n\n---\n\n" + request.prompt }] }],
+                    generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
+                })
+            });
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Native Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+            }
+            const json = await response.json();
+            const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return {
+                requestId: request.id,
+                provider: this.type,
+                content: content,
+                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                latencyMs: 1000
+            };
+        }
+
+        // --- OPENROUTER FALLBACK ROUTE ---
         let model = 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
         if (this.type === 'DEEPSEEK') model = 'deepseek/deepseek-coder';
         if (this.type === 'GEMINI') model = 'openai/gpt-4o-mini'; // Fallback to OpenAI because Google strings are unstable
