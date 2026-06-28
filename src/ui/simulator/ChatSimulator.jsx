@@ -233,16 +233,16 @@ export default function ChatSimulator() {
           {/* Section 1 */}
           <div className="space-y-1 text-sm font-medium text-blue-300">
             <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg cursor-pointer">
-              <MessageSquare className="w-4 h-4" />
-              <span>Chat</span>
+              <Smartphone className="w-4 h-4" />
+              <span>Create APK</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
-              <Folder className="w-4 h-4 text-amber-500" />
-              <span>My Projects</span>
+              <Play className="w-4 h-4 text-amber-500" />
+              <span>Create Video</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
-              <Star className="w-4 h-4 text-yellow-500" />
-              <span>Favorites</span>
+              <Image className="w-4 h-4 text-yellow-500" />
+              <span>Create Image</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Clock className="w-4 h-4 text-blue-300" />
