@@ -66,7 +66,7 @@ export class DirectFallbackProvider extends BaseProvider {
         
         let model = 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
         if (this.type === 'DEEPSEEK') model = 'deepseek/deepseek-coder';
-        if (this.type === 'GEMINI') model = 'google/gemini-pro-1.5';
+        if (this.type === 'GEMINI') model = 'google/gemini-1.5-flash';
         if (this.type === 'GROQ') model = 'meta-llama/llama-3.1-8b-instruct';
         if (this.type === 'OPENAI') model = 'openai/gpt-4o-mini';
         
