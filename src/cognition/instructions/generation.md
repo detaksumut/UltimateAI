@@ -250,11 +250,8 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
       });
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-      initApp();
-    }
+    // Execute immediately since script is at the bottom of body
+    initApp();
   </script>
 </body>
 ```
