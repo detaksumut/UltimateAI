@@ -68,7 +68,7 @@ export class DirectFallbackProvider extends BaseProvider {
         if (this.type === 'GEMINI' && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10) {
             console.log(`[GEMINI NATIVE] Routing directly to Google API bypassing OpenRouter...`);
             const geminiKey = process.env.GEMINI_API_KEY;
-            const modelName = 'gemini-1.5-flash';
+            const modelName = 'gemini-1.5-flash-latest';
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -77,19 +77,18 @@ export class DirectFallbackProvider extends BaseProvider {
                     generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
                 })
             });
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`Native Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+            if (response.ok) {
+                const json = await response.json();
+                const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                return {
+                    requestId: request.id,
+                    provider: this.type,
+                    content: content,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                    latencyMs: 1000
+                };
             }
-            const json = await response.json();
-            const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            return {
-                requestId: request.id,
-                provider: this.type,
-                content: content,
-                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-                latencyMs: 1000
-            };
+            console.warn(`[GEMINI NATIVE] Native API failed (${response.status}). Falling back to OpenRouter...`);
         }
 
         // --- NATIVE OPENAI COMPATIBLE ROUTES (GROQ, DEEPSEEK) ---
