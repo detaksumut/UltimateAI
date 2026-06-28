@@ -8,32 +8,37 @@ Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penel
 
 1. **TAB 1: BERANDA (WELCOME & METODE)**
    - Halaman pertama yang selalu terbuka.
-   - **Logo & Sambutan**: Harus ada identitas "UltimateAI" (teks elegan berdampingan dengan ikon AI) sebagai penyambut di header.
-   - **Executive Summary**: Jelaskan secara profesional (dengan bahasa akademis/bisnis yang matang) tujuan dari aplikasi penelitian ini.
-   - **Metodologi**: Jelaskan metode riset atau standar analitik yang digunakan dalam aplikasi ini.
+   - **Logo & Sambutan**: Harus ada identitas "UltimateAI" (teks elegan berdampingan dengan ikon AI).
+   - **Executive Summary & Metodologi**: Jelaskan tujuan aplikasi dan metode riset secara profesional.
 
-2. **TAB 2: SETUP VARIABEL (DYNAMIC FORM BUILDER) 🔥 PENTING**
-   - Halaman ini adalah fitur revolusioner. Di sini, peneliti bisa menambahkan variabel (kolom isian data) mereka sendiri secara dinamis.
-   - Sediakan form "Tambah Variabel Baru" (Input: Nama Variabel, Tipe Data [Pilihan: Teks, Angka, Catatan Panjang, Foto]).
-   - Simpan skema (daftar variabel) ini ke `localStorage` (misal: `app_schema`). 
-   - **WAJIB**: Anda harus men-generate 3-5 variabel bawaan (default) yang sangat cerdas dan relevan berdasarkan topik "{{USER_INPUT}}" saat aplikasi pertama kali dimuat.
-
-3. **TAB 3: INPUT DATA (FORM DINAMIS)**
+2. **TAB 2: INPUT DATA (FORM DINAMIS)** (Ikon: Plus `+`)
    - Halaman ini memuat formulir pemasukan data operasional/penelitian.
-   - **SANGAT PENTING**: Kolom isian di form ini TIDAK BOLEH statis (hardcoded). Form ini harus secara dinamis me-render dirinya sendiri menggunakan Vanilla JS dengan membaca daftar variabel dari `localStorage` (skema dari Tab 2).
-   - Artinya, jika pengguna menambahkan variabel baru di Tab 2, kolom tersebut otomatis muncul di form Tab 3.
+   - **SANGAT PENTING**: Form ini harus me-render secara dinamis menggunakan Vanilla JS dengan membaca daftar variabel dari `localStorage`.
    - Jika tipe data adalah "Foto", wajib buat elemen `<input type="file" accept="image/*" capture="environment">`.
 
-4. **TAB 4: HASIL & EKSPOR (DATA DASHBOARD)**
-   - Menampilkan tabel dari semua data yang di-input (membaca data dari `localStorage`).
-   - **Mock Data**: Anda WAJIB memasukkan 3-5 baris data bohongan (dummy data) yang sangat realistis saat aplikasi pertama dimuat agar tabel tidak pernah kosong pada percobaan pertama pengguna!
-   - **Fitur Ekspor (Wajib Ada & Berfungsi)**: Sediakan 2 tombol:
-     1. "Download Excel / CSV": Gunakan Vanilla JS murni untuk mengonversi data array ke format CSV dan men-trigger proses download file `.csv`.
-     2. "Download PDF": Buat tombol yang memicu `window.print()`, dan berikan panduan UI singkat "Gunakan fitur Save as PDF pada browser Anda". Atau jika mampu, susun layout `@media print` yang rapi.
+3. **TAB 3: SETUP VARIABEL (DYNAMIC FORM BUILDER)** (Ikon: Gear/Settings)
+   - Di sini, peneliti bisa menambahkan variabel (kolom isian data) mereka sendiri secara dinamis.
+   - Simpan skema (daftar variabel) ini ke `localStorage` (misal: `app_schema`). 
+   - **WAJIB**: Anda harus men-generate 3-5 variabel bawaan (default) berdasarkan topik "{{USER_INPUT}}" saat dimuat.
+
+4. **TAB 4: HASIL & EKSPOR (DATA DASHBOARD)** (Ikon: Table/File)
+   - Menampilkan tabel dari semua data yang di-input.
+   - **Mock Data**: Anda WAJIB memasukkan 3-5 baris data bohongan yang realistis saat aplikasi pertama dimuat.
+   - **Fitur Ekspor**: Sediakan 2 tombol: "Download Excel / CSV" (gunakan Vanilla JS ke `.csv`) dan "Download PDF" (`window.print()`).
+
+# WAJIB: LOGIKA PERPINDAHAN TAB (VANILLA JS)
+Agar halaman lain berfungsi, Anda WAJIB mengimplementasikan fungsi JS ini dan memasang `onclick` di navigasi:
+```javascript
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+  document.getElementById(tabId).classList.remove('hidden');
+}
+```
+Setiap konten halaman wajib dibungkus `<div id="tab-..." class="tab-content">`. Tambahkan class `hidden` pada semua tab kecuali Tab Beranda!
 
 # KUALITAS VISUAL & ESTETIKA (PREMIUM/ENTERPRISE)
 1. **IKON PROFESIONAL**: WAJIB memuat FontAwesome via CDN `https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css`. Setiap tombol, menu navigasi, dan header HARUS menggunakan ikon.
-2. **BOTTOM NAVIGATION BAR**: Wajib ada navigasi di bawah layar (posisi `fixed`) berisi 4 menu (Beranda, Setup, Input, Data).
+2. **BOTTOM NAVIGATION BAR**: Wajib ada navigasi di bawah layar (posisi `fixed`) berisi 4 menu dengan urutan mutlak: **Beranda (Home) -> Input (+) -> Setup (Gear) -> Data (Table)**. Gunakan `onclick="showTab('id')"` pada setiap ikon.
 3. **PREMIUM STYLING & BACKGROUND TEMATIK**: 
    - Background aplikasi TIDAK BOLEH sekadar putih polos. Anda WAJIB menyesuaikan palet warna dan *soft gradients* background dengan **Jenis/Topik Penelitian**. (Contoh: aksen hijau daun yang halus untuk pertanian, biru klinis yang bersih untuk kedokteran, rona emas elegan untuk hukum/ekonomi).
    - Sudut kartu membulat elegan (`rounded-2xl`). Gunakan efek *Glassmorphism* (blur) pada header/navigasi.
