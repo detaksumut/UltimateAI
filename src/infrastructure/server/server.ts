@@ -4,6 +4,8 @@ console.log('[Server] Starting up with fresh cache v18...');
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 // Import Intelligence Engines
 import { RouterManager } from '../connectors/routerManager';
@@ -104,6 +106,68 @@ app.post('/api/magic', async (req: Request, res: Response) => {
     console.error('[API Magic Stream] Error during pipeline execution:', error);
     sendEvent('error', { message: error.message || 'Unknown error' });
     res.end();
+  }
+});
+
+// ---------- Direct Laptop Save Endpoint ----------
+app.post('/api/save-file', async (req: Request, res: Response) => {
+  try {
+    const { htmlContent } = req.body;
+    if (!htmlContent) {
+      return res.status(400).json({ error: 'htmlContent is required' });
+    }
+
+    let finalHtml = htmlContent;
+    const publicDir = path.join(process.cwd(), 'public');
+    
+    // 1. Inline simulator-core.js
+    try {
+      const jsPath = path.join(publicDir, 'simulator-core.js');
+      if (fs.existsSync(jsPath)) {
+        const jsContent = fs.readFileSync(jsPath, 'utf-8');
+        finalHtml = finalHtml.replace(
+          '<script src="/simulator-core.js"></script>',
+          `<script>\n// --- INJECTED: simulator-core.js ---\n${jsContent}\n</script>`
+        );
+      }
+    } catch (e) {
+      console.warn('[Server] Failed to inline JS:', e);
+    }
+
+    // 2. Inline images as Base64
+    const imagesToInline = ['/logo-ultimateAI-transparent.png', '/heroultimateai.png'];
+    for (const imgUrl of imagesToInline) {
+      try {
+        const imgPath = path.join(publicDir, imgUrl.replace(/^\//, ''));
+        if (fs.existsSync(imgPath)) {
+          const imgBuffer = fs.readFileSync(imgPath);
+          const ext = path.extname(imgPath).replace('.', '') || 'png';
+          const base64 = `data:image/${ext};base64,${imgBuffer.toString('base64')}`;
+          
+          finalHtml = finalHtml.split(`src="${imgUrl}"`).join(`src="${base64}"`);
+          finalHtml = finalHtml.split(`src='${imgUrl}'`).join(`src='${base64}'`);
+        }
+      } catch (e) {
+        console.warn(`[Server] Failed to inline image ${imgUrl}:`, e);
+      }
+    }
+
+    const downloadDir = path.join(process.cwd(), 'download-ultimateai');
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    const timestamp = Date.now();
+    const fileName = `Aplikasi-UltimateAI-${timestamp}.html`;
+    const filePath = path.join(downloadDir, fileName);
+
+    fs.writeFileSync(filePath, finalHtml, 'utf-8');
+    console.log(`[Server] Saved standalone HTML directly to laptop at: ${filePath}`);
+    
+    res.json({ success: true, filePath: filePath });
+  } catch (error: any) {
+    console.error('[Server] Error saving file:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
