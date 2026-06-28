@@ -100,6 +100,7 @@ function initApp() {
 
       <!-- 5. SETUP RUMUS -->
       <h3 class="font-bold text-gray-700 text-sm mb-2 uppercase tracking-wider">5. Setup Rumus / Perhitungan</h3>
+      <p class="text-[10px] text-gray-500 mb-2">💡 Tips: Ketik Nama Variabel persis seperti aslinya di dalam formula (misal: <code class="bg-gray-100 px-1">Berat / (Tinggi * Tinggi)</code>).</p>
       <form id="form-setup-rumus" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-2 flex flex-row gap-3 items-end">
         <div class="w-1/3">
            <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Nama</label>
@@ -107,7 +108,7 @@ function initApp() {
         </div>
         <div class="flex-1">
            <label class="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Formula</label>
-           <input type="text" id="new-rumus-formula" placeholder="Cth: B / (T*T)" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+           <input type="text" id="new-rumus-formula" placeholder="Cth: Berat / (Tinggi * Tinggi)" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
         </div>
         <button type="submit" class="bg-teal-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-teal-700 shadow-sm transition-all duration-300"><i class="fas fa-plus"></i></button>
       </form>
@@ -259,14 +260,14 @@ function initApp() {
        container.innerHTML = '<p class="text-gray-500 text-sm">Belum ada data.</p>';
        return;
     }
-    const allFields = [...variables, ...parameters];
+    const allFields = [...variables, ...parameters, ...rumuses.map(r => ({id: 'rumus_' + r.id, label: r.name}))];
     
     let html = '<table class="w-full text-left text-sm border-collapse"><thead><tr class="bg-gray-100 border-b">';
     allFields.forEach(v => html += `<th class="p-2 border-r whitespace-nowrap">${v.label}</th>`);
     html += '</tr></thead><tbody>';
     records.forEach(row => {
        html += '<tr class="border-b hover:bg-gray-50">';
-       allFields.forEach(v => html += `<td class="p-2 border-r">${row[v.id] || '-'}</td>`);
+       allFields.forEach(v => html += `<td class="p-2 border-r">${row[v.id] !== undefined ? row[v.id] : '-'}</td>`);
        html += '</tr>';
     });
     html += '</tbody></table>';
@@ -345,6 +346,7 @@ function initApp() {
     document.getElementById('new-rumus-name').value = '';
     document.getElementById('new-rumus-formula').value = '';
     renderSetup();
+    renderTable();
   }
 
   function deleteSatuan(index) {
@@ -363,6 +365,7 @@ function initApp() {
     rumuses.splice(index, 1);
     localStorage.setItem('app_rumuses_v3', JSON.stringify(rumuses));
     renderSetup();
+    renderTable();
   }
 
   function saveData() {
@@ -379,6 +382,34 @@ function initApp() {
        }
     });
     if(!valid) return alert('Lengkapi semua kolom!');
+    
+    // Evaluate Formulas
+    rumuses.forEach(r => {
+       let expression = r.formula;
+       // Replace variables by their exact label
+       allFields.forEach(v => {
+          // if label is "Berat", we replace "Berat" in formula with its numeric value
+          let val = parseFloat(row[v.id]) || 0;
+          // Escape label for regex
+          let labelEscaped = v.label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          let regex = new RegExp('\\b' + labelEscaped + '\\b', 'gi');
+          expression = expression.replace(regex, val);
+       });
+       
+       try {
+          // Prevent dangerous evaluation
+          if (/[a-zA-Z]/.test(expression.replace(/[Math|abs|sqrt|pow|round|floor|ceil|sin|cos|tan]/gi, ''))) {
+             throw new Error('Invalid characters in formula');
+          }
+          let result = eval(expression);
+          // Round to 2 decimal places if it's a number with decimals
+          if (!isNaN(result) && result % 1 !== 0) result = result.toFixed(2);
+          row['rumus_' + r.id] = result;
+       } catch(e) {
+          row['rumus_' + r.id] = 'Error';
+       }
+    });
+
     records.push(row);
     localStorage.setItem('app_records_v3', JSON.stringify(records));
     renderTable();
