@@ -227,7 +227,7 @@ function initApp() {
       html += variables.map(v => `
         <div class="mb-4">
           <label class="block text-sm font-semibold mb-2 text-gray-700">${v.label}</label>
-          <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required>
+          <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required>
         </div>
       `).join('');
     }
@@ -237,7 +237,7 @@ function initApp() {
       html += parameters.map(v => `
         <div class="mb-4">
           <label class="block text-sm font-semibold mb-2 text-gray-700">${v.label}</label>
-          <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" required>
+          <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" required>
         </div>
       `).join('');
     }
