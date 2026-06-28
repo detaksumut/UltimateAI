@@ -32,7 +32,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
 ```html
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
-  <div id="tab-home" class="tab-content">
+  <div id="tab-home" class="tab-content" style="display: block;">
      <!-- HERO SECTION (STATIS) -->
      <div class="flex flex-col items-center justify-start bg-[#050B14] pt-12 pb-6">
          <!-- LOGO TRANSPARAN DI ATAS -->
@@ -56,13 +56,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   </div>
   
   <!-- TAB INPUT -->
-  <div id="tab-input" class="tab-content hidden p-6 pt-12">
+  <div id="tab-input" class="tab-content p-6 pt-12" style="display: none;">
     <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
     <form id="dynamic-form" onsubmit="event.preventDefault(); alert('Tersimpan!');"><!-- Diisi otomatis oleh JS --></form>
   </div>
   
   <!-- TAB SETUP -->
-  <div id="tab-setup" class="tab-content hidden p-6 pt-12">
+  <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;">
     <div class="mb-6 border-b pb-4">
        <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
        <h2 class="text-2xl font-bold text-gray-800">Setup Parameter: Judul Penelitian...</h2>
@@ -89,7 +89,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   </div>
   
   <!-- TAB DATA -->
-  <div id="tab-data" class="tab-content hidden p-6 pt-12 overflow-x-auto">
+  <div id="tab-data" class="tab-content p-6 pt-12 overflow-x-auto" style="display: none;">
      <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
      <div class="bg-white p-4 rounded-xl shadow mb-4">
         <div id="data-table-container" class="overflow-x-auto mb-4">
@@ -116,10 +116,10 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
       const tabs = ['tab-home', 'tab-input', 'tab-setup', 'tab-data'];
       tabs.forEach(id => {
         const el = document.getElementById(id);
-        if(el) el.classList.add('hidden');
+        if(el) el.style.display = 'none';
       });
       const selected = document.getElementById(tabId);
-      if(selected) selected.classList.remove('hidden');
+      if(selected) selected.style.display = 'block';
       window.scrollTo(0, 0);
     }
 
