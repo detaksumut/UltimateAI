@@ -78,7 +78,7 @@ export class DirectFallbackProvider extends BaseProvider {
                 const geminiKey = geminiKeys[Math.floor(Math.random() * geminiKeys.length)];
                 
                 console.log(`[GEMINI NATIVE] Routing directly to Google API (Load Balancer active: ${geminiKeys.length} keys)...`);
-                const modelName = 'gemini-1.5-flash-latest';
+                const modelName = 'gemini-pro';
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
