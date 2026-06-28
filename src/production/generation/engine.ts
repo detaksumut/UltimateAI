@@ -12,26 +12,46 @@ export class GenerationEngine implements IGenerationEngine {
     constructor(private router: RouterManager) {}
 
     async generate(blueprint: any, target: AssetType | string, rawInput: string = ''): Promise<DigitalAsset> {
-        console.log(`[GenerationEngine] Starting generation for asset type: ${target}`);
+        console.log(`[GenerationEngine] Starting Pipeline generation for asset type: ${target}`);
         
-        let systemPrompt = 'You are a general generation engine.';
-        
+        // Get base instructions
+        let baseInstructions = 'You are a general generation engine.';
         if (target === 'WEB_PROTOTYPE') {
-            systemPrompt = await this.promptBuilder.build('generation', {
+            baseInstructions = await this.promptBuilder.build('generation', {
                 USER_INPUT: rawInput,
                 BLUEPRINT_ID: blueprint.id || 'N/A'
             });
         }
 
-        const response = await this.router.routeTask({
-            id: `gen-${Date.now()}`,
-            prompt: `Generate the ${target} based on the instructions.`,
-            systemPrompt: systemPrompt,
-            requiredCapability: 'CODING' 
+        // Pipeline Step 1: The Analyst (REASONING)
+        console.log(`\n>>> PIPELINE STEP 1: ANALYSIS <<<`);
+        const analysisResponse = await this.router.routeTask({
+            id: `gen-step1-${Date.now()}`,
+            prompt: `Extract requirements and build a conceptual specification for the ${target} based on the user instructions.`,
+            systemPrompt: baseInstructions + '\n\nYou are a Business Analyst. Do not write code yet, just outline the logic, data models, and features.',
+            requiredCapability: 'REASONING'
         });
         
-        // Use Cognition OutputParser to strip markdown
-        const rawData = this.outputParser.parseHtml(response.content);
+        // Pipeline Step 2: The Architect (CODING)
+        console.log(`\n>>> PIPELINE STEP 2: ARCHITECTURE <<<`);
+        const archResponse = await this.router.routeTask({
+            id: `gen-step2-${Date.now()}`,
+            prompt: `Here are the specifications:\n\n${analysisResponse.content}\n\nWrite the complete implementation for the ${target}.`,
+            systemPrompt: 'You are an Expert Software Architect. Write the code implementing the specifications. Provide the full code in markdown blocks.',
+            requiredCapability: 'CODING'
+        });
+
+        // Pipeline Step 3: The Reviewer (FAST_INFERENCE)
+        console.log(`\n>>> PIPELINE STEP 3: REVIEW & DELIVERY <<<`);
+        const reviewResponse = await this.router.routeTask({
+            id: `gen-step3-${Date.now()}`,
+            prompt: `Review and finalize the following code:\n\n${archResponse.content}\n\nEnsure it is completely functional and bug-free. Output the final HTML/JS/CSS code block.`,
+            systemPrompt: 'You are a Code Reviewer and Delivery Agent. Polish the code and ensure it is ready for production.',
+            requiredCapability: 'FAST_INFERENCE'
+        });
+
+        // Use Cognition OutputParser to strip markdown from final output
+        const rawData = this.outputParser.parseHtml(reviewResponse.content);
         
         return {
             taskId: `task-${Date.now()}`,
@@ -39,7 +59,8 @@ export class GenerationEngine implements IGenerationEngine {
             rawData: rawData,
             metadata: {
                 generatedAt: new Date().toISOString(),
-                providerUsed: response.provider
+                providerUsed: reviewResponse.provider,
+                pipelineProviders: [analysisResponse.provider, archResponse.provider, reviewResponse.provider]
             }
         };
     }
