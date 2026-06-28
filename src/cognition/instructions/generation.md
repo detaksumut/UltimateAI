@@ -58,7 +58,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   <!-- TAB INPUT -->
   <div id="tab-input" class="tab-content p-6 pt-12" style="display: none;">
     <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
-    <form id="dynamic-form" onsubmit="event.preventDefault(); alert('Tersimpan!');"><!-- Diisi otomatis oleh JS --></form>
+    <form id="dynamic-form"><!-- Diisi otomatis oleh JS --></form>
   </div>
   
   <!-- TAB SETUP -->
@@ -69,7 +69,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
        <p class="text-gray-500 text-sm">Tambahkan atau hapus variabel penelitian sesuai kebutuhan Anda.</p>
     </div>
     
-    <form onsubmit="addVariable(event)" class="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row gap-3 items-end">
+    <form id="form-setup" class="bg-white p-4 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-col md:flex-row gap-3 items-end">
       <div class="flex-1 w-full">
          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Nama Parameter Baru</label>
          <input type="text" id="new-var-name" placeholder="Cth: Suhu Udara" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
@@ -96,38 +96,26 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
            <!-- Tabel dirender otomatis -->
         </div>
         <div class="flex gap-2">
-           <button onclick="window.print()" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
-           <button onclick="clearData()" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
+           <button data-action="print" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
+           <button data-action="clear" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
         </div>
      </div>
   </div>
 
   <!-- BOTTOM NAV -->
   <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-[9999]">
-    <button onclick="showTab('tab-home')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-home text-xl mb-1"></i><span class="text-[10px] font-bold">Beranda</span></button>
-    <button onclick="showTab('tab-input')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-plus text-xl mb-1"></i><span class="text-[10px] font-bold">Input</span></button>
-    <button onclick="showTab('tab-setup')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-cog text-xl mb-1"></i><span class="text-[10px] font-bold">Setup</span></button>
-    <button onclick="showTab('tab-data')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1"></i><span class="text-[10px] font-bold">Data</span></button>
+    <button data-tab="tab-home" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-home text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Beranda</span></button>
+    <button data-tab="tab-input" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-plus text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Input</span></button>
+    <button data-tab="tab-setup" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-cog text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Setup</span></button>
+    <button data-tab="tab-data" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Data</span></button>
   </nav>
 
   <script>
     // --- DILARANG KERAS MENGUBAH SCRIPT INI. COPY PASTE 100% ---
-    function showTab(tabId) {
-      const tabs = ['tab-home', 'tab-input', 'tab-setup', 'tab-data'];
-      tabs.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'none';
-      });
-      const selected = document.getElementById(tabId);
-      if(selected) selected.style.display = 'block';
-      window.scrollTo(0, 0);
-    }
-
     let defaultSchema = [
       { id: 'tanggal', label: 'Tanggal Input', type: 'text' },
       { id: 'catatan', label: 'Catatan Umum', type: 'text' }
     ];
-    
     let schema = [];
     let records = [];
     
@@ -141,9 +129,20 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
       records = [];
     }
 
+    function showTab(tabId) {
+      const tabs = ['tab-home', 'tab-input', 'tab-setup', 'tab-data'];
+      tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+      });
+      const selected = document.getElementById(tabId);
+      if(selected) selected.style.display = 'block';
+      window.scrollTo(0, 0);
+    }
+
     function renderSetup() {
       const list = document.getElementById('variable-list');
-      if(list) list.innerHTML = schema.map((v, i) => `<div class="p-3 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700">${v.label} <span class="text-xs text-gray-400">(${v.type})</span></span><button type="button" onclick="deleteVar(${i})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></div>`).join('');
+      if(list) list.innerHTML = schema.map((v, i) => `<div class="p-3 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700">${v.label} <span class="text-xs text-gray-400">(${v.type})</span></span><button type="button" data-delete="${i}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash pointer-events-none"></i></button></div>`).join('');
     }
 
     function renderForm() {
@@ -154,7 +153,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
           <label class="block text-sm font-semibold mb-2 text-gray-700">${v.label}</label>
           <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" required>
         </div>
-      `).join('') + '<button type="button" onclick="saveData()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">Simpan Data</button>';
+      `).join('') + '<button type="button" data-action="save" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">Simpan Data</button>';
     }
 
     function renderTable() {
@@ -230,7 +229,27 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
       renderSetup();
       renderForm();
       renderTable();
+      
+      // Event Delegation
+      document.body.addEventListener('click', function(e) {
+        const target = e.target;
+        if(target.hasAttribute('data-tab')) {
+           showTab(target.getAttribute('data-tab'));
+        } else if(target.hasAttribute('data-action')) {
+           const action = target.getAttribute('data-action');
+           if(action === 'save') saveData();
+           if(action === 'print') window.print();
+           if(action === 'clear') clearData();
+        } else if(target.hasAttribute('data-delete')) {
+           deleteVar(parseInt(target.getAttribute('data-delete')));
+        }
+      });
+      
+      document.body.addEventListener('submit', function(e) {
+        if(e.target.id === 'form-setup') addVariable(e);
+      });
     }
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
     } else {
