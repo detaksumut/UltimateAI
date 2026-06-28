@@ -9,6 +9,7 @@ import {
 export default function ChatSimulator() {
   const [messages, setMessages] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showSimulatorMobile, setShowSimulatorMobile] = useState(false);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeStep, setActiveStep] = useState(null); // String: 'Goal', 'Intent', etc.
@@ -239,11 +240,16 @@ export default function ChatSimulator() {
       </div>
 
       {/* MIDDLE: CHAT & PIPELINE */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
+      <div className={`${showSimulatorMobile ? 'hidden' : 'flex'} lg:flex flex-1 flex-col min-w-0 bg-[#0B0F19]`}>
         
         {/* Topbar */}
-        <div className="h-16 border-b border-[#1E293B] bg-[#151B2B] flex items-center justify-between md:justify-end px-4 md:px-6 gap-4">
-          <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-white"><Menu className="w-6 h-6"/></button>
+        <div className="h-16 border-b border-[#1E293B] bg-[#151B2B] flex items-center justify-between lg:justify-end px-4 md:px-6 gap-4 shrink-0">
+          <div className="flex gap-3 items-center">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-white"><Menu className="w-6 h-6"/></button>
+            <button onClick={() => setShowSimulatorMobile(true)} className="lg:hidden px-3 py-1.5 bg-indigo-600 rounded-md text-xs font-semibold text-white">
+              Lihat Simulator
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             <Bell className="w-5 h-5 text-blue-300 cursor-pointer hover:text-white" />
             <div className="flex items-center gap-3 cursor-pointer">
@@ -557,13 +563,14 @@ export default function ChatSimulator() {
       </div>
 
       {/* RIGHT SIDEBAR: SIMULATOR & INFO */}
-      <div className="w-[400px] bg-[#151B2B] border-l border-[#1E293B] flex flex-col shrink-0 overflow-y-auto">
+      <div className={`${showSimulatorMobile ? 'flex' : 'hidden'} lg:flex w-full lg:w-[400px] bg-[#151B2B] border-l border-[#1E293B] flex-col shrink-0 overflow-y-auto`}>
         
         {/* Simulator Section */}
         <div className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-white tracking-wider">SIMULATOR</h3>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowSimulatorMobile(false)} className="lg:hidden px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-md text-xs font-semibold text-white mr-2">Kembali ke Chat</button>
               <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">iPhone 15</span>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse"></div> Online
