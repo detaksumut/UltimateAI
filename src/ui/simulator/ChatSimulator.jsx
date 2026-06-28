@@ -748,31 +748,7 @@ export default function ChatSimulator() {
           
         </div>
 
-        {/* Project Info Section */}
-        <div className="p-6">
-          <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-5 shadow-sm">
-            <h3 className="text-xs font-bold text-white tracking-wider mb-4">INFORMASI PROYEK</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-blue-300">Nama Proyek</span>
-                <span className="font-medium text-white">{simulatorHtml ? 'Aplikasi Survei' : 'Belum Ada'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-300">Jenis Produk</span>
-                <span className="font-medium text-white">Web Prototype</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-blue-300">Status</span>
-                <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded text-xs font-semibold">
-                  {isProcessing ? 'In Progress' : (simulatorHtml ? 'Completed' : 'Draft')}
-                </span>
-              </div>
-            </div>
-            <button className="w-full mt-6 bg-indigo-500/10 hover:bg-indigo-100 text-indigo-400 py-2.5 rounded-lg text-sm font-semibold transition-colors flex justify-center items-center gap-2">
-              Lihat Project Detail <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+
 
       </div>
 
