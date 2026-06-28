@@ -64,11 +64,11 @@ export class DirectFallbackProvider extends BaseProvider {
     async execute(request: AIRequest): Promise<AIResponse> {
         console.log(`[${this.type} DIRECT] Executing failover request ${request.id}`);
         
-        let model = 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
-        if (this.type === 'DEEPSEEK') model = 'deepseek/deepseek-coder';
-        if (this.type === 'GEMINI') model = 'google/gemini-1.5-flash';
-        if (this.type === 'GROQ') model = 'meta-llama/llama-3.1-8b-instruct';
-        if (this.type === 'OPENAI') model = 'openai/gpt-4o-mini';
+        let model = process.env.FALLBACK_MODEL_ANTHROPIC || 'anthropic/claude-3-haiku'; // Default OpenRouter fast model
+        if (this.type === 'DEEPSEEK') model = process.env.FALLBACK_MODEL_DEEPSEEK || 'deepseek/deepseek-coder';
+        if (this.type === 'GEMINI') model = process.env.FALLBACK_MODEL_GEMINI || 'google/gemini-1.5-flash';
+        if (this.type === 'GROQ') model = process.env.FALLBACK_MODEL_GROQ || 'meta-llama/llama-3.1-8b-instruct';
+        if (this.type === 'OPENAI') model = process.env.FALLBACK_MODEL_OPENAI || 'openai/gpt-4o-mini';
         
         try {
             const apiKey = process.env.OPENROUTER_API_KEY;
