@@ -177,7 +177,11 @@ export default function ChatSimulator() {
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error("API Fetch Error:", error);
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: `⚠️ Maaf, terjadi kesalahan koneksi ke server AI: ${error.message}. Pastikan koneksi internet stabil.` 
+      }]);
       setIsProcessing(false);
       setActiveStep(null);
     }
