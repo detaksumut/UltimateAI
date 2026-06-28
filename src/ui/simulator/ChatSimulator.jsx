@@ -19,6 +19,7 @@ export default function ChatSimulator() {
   const [selectedRecommendations, setSelectedRecommendations] = useState([]);
 
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -57,6 +58,31 @@ export default function ChatSimulator() {
     if (thisIndex < currentIndex) return 'completed';
     if (thisIndex === currentIndex) return 'active';
     return 'pending';
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Maaf, ukuran file maksimal 2 MB agar AI tidak kelebihan beban.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      const fileContext = `\n[Dokumen Terlampir: ${file.name}]\n${content}\n`;
+      setInput(prev => prev + fileContext);
+    };
+    reader.onerror = () => {
+      alert("Gagal membaca file.");
+    };
+    reader.readAsText(file);
+    
+    // Reset input so the same file can be selected again
+    e.target.value = null;
   };
 
   const sendMessage = async (text) => {
@@ -550,8 +576,20 @@ export default function ChatSimulator() {
 
           {/* Input Area */}
           <div className="mt-6 pt-4">
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".txt,.csv,.md,.json,.js,.jsx,.ts,.tsx,.html,.css"
+            />
             <form onSubmit={handleSubmit} className="relative shadow-sm rounded-2xl bg-[#151B2B] border border-[#1E293B] flex items-center p-2">
-              <button type="button" className="p-3 text-blue-300 hover:text-blue-300">
+              <button 
+                type="button" 
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                className="p-3 text-blue-300 hover:text-white transition-colors"
+                title="Unggah Dokumen (Teks/CSV)"
+              >
                 <Paperclip className="w-5 h-5" />
               </button>
               <input
