@@ -6,11 +6,9 @@ Blueprint ID: "{{BLUEPRINT_ID}}"
 # STRUKTUR WAJIB: SISTEM 4-TAB APLIKASI PENELITIAN
 Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penelitian Terpadu" yang sangat cerdas. Anda WAJIB membuat aplikasi ini dengan struktur 4-TAB yang dikendalikan melalui Bottom Navigation Bar (JavaScript Vanilla):
 
-1. **TAB 1: BERANDA (WELCOME & METODE)**
+1. **TAB 1: BERANDA (HERO LANDING PAGE)**
    - Halaman pertama yang selalu terbuka.
-   - **Logo & Sambutan**: Harus ada identitas "UltimateAI" (teks elegan berdampingan dengan ikon AI).
-   - **Executive Summary & Metodologi**: Jelaskan tujuan aplikasi dan metode riset secara profesional.
-
+   - **DILARANG KERAS** menambahkan teks, judul, paragraf, atau elemen HTML apa pun ke dalam Tab 1 ini. Tab 1 murni statis menampilkan gambar promosi.
 2. **TAB 2: INPUT DATA (FORM DINAMIS)** (Ikon: Plus `+`)
    - Halaman ini memuat formulir pemasukan data operasional/penelitian.
    - **SANGAT PENTING**: Form ini harus me-render secara dinamis menggunakan Vanilla JS dengan membaca daftar variabel dari `localStorage`.
@@ -33,9 +31,11 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
   <div id="tab-home" class="tab-content">
-     <div class="flex flex-col items-center justify-center min-h-screen bg-[#050B14]">
-         <!-- HANYA MENAMPILKAN GAMBAR HERO YANG DISEDIAKAN USER -->
-         <img src="/heroultimateai.png" alt="UltimateAI Hero" class="w-full h-auto object-contain">
+     <div class="flex flex-col items-center justify-start min-h-screen bg-[#050B14] pt-12">
+         <!-- LOGO TRANSPARAN DI ATAS -->
+         <img src="/logo-ultimateAI-transparent.png" alt="UltimateAI Logo" class="h-12 md:h-16 mb-2 object-contain">
+         <!-- GAMBAR HERO -->
+         <img src="/heroultimateai.png" alt="UltimateAI Hero" class="w-full max-w-5xl h-auto object-contain">
      </div>
   </div>
   
