@@ -198,6 +198,32 @@ function initApp() {
         if(e.target.id === 'form-setup-var') addVariable(e);
         if(e.target.id === 'form-setup-param') addParameter(e);
       });
+      
+      function renderSetupMenu() {
+        const container = document.getElementById('setup-menu-list');
+        if(!container) return;
+        const menus = [
+          { title: 'Variabel', desc: 'Kelola daftar variabel observasi', icon: 'fa-font', color: 'blue', action: "showTab('tab-setup')" },
+          { title: 'Parameter', desc: 'Atur parameter penelitian', icon: 'fa-sliders-h', color: 'green', action: "showTab('tab-setup')" },
+          { title: 'Satuan', desc: 'Kelola satuan pengukuran', icon: 'fa-ruler', color: 'purple', action: "alert('Fitur segera hadir!')" },
+          { title: 'Kategori', desc: 'Kelola kategori atau klasifikasi data', icon: 'fa-hashtag', color: 'orange', action: "alert('Fitur segera hadir!')" },
+          { title: 'Rumus / Perhitungan', desc: 'Atur rumus dan perhitungan otomatis', icon: 'fa-calculator', color: 'teal', action: "alert('Fitur segera hadir!')" }
+        ];
+        container.innerHTML = menus.map(m => `
+          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="${m.action}">
+             <div class="w-10 h-10 rounded-lg bg-${m.color}-50 flex items-center justify-center text-${m.color}-500">
+                <i class="fas ${m.icon} text-lg"></i>
+             </div>
+             <div class="flex-1">
+                <h4 class="text-sm font-bold text-gray-800">${m.title}</h4>
+                <p class="text-[10px] text-gray-500">${m.desc}</p>
+             </div>
+             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
+          </div>
+        `).join('');
+      }
+      
+      renderSetupMenu();
 }
 
 // Automatically execute on script load since we assume it's placed at the end of body.

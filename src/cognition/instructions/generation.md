@@ -69,67 +69,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
        </div>
        <p class="text-xs text-gray-500 mb-4">Kelola variabel, parameter, dan satuan penelitian</p>
        
-       <div class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden shadow-sm">
-          <!-- Item 1: Variabel -->
-          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="showTab('tab-setup')">
-             <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
-                <i class="fas fa-font text-lg"></i>
-             </div>
-             <div class="flex-1">
-                <h4 class="text-sm font-bold text-gray-800">Variabel</h4>
-                <p class="text-[10px] text-gray-500">Kelola daftar variabel observasi</p>
-             </div>
-             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </div>
-          
-          <!-- Item 2: Parameter -->
-          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="showTab('tab-setup')">
-             <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-500">
-                <i class="fas fa-sliders-h text-lg"></i>
-             </div>
-             <div class="flex-1">
-                <h4 class="text-sm font-bold text-gray-800">Parameter</h4>
-                <p class="text-[10px] text-gray-500">Atur parameter penelitian</p>
-             </div>
-             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </div>
-          
-          <!-- Item 3: Satuan -->
-          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="alert('Fitur Satuan segera hadir!')">
-             <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500">
-                <i class="fas fa-ruler text-lg"></i>
-             </div>
-             <div class="flex-1">
-                <h4 class="text-sm font-bold text-gray-800">Satuan</h4>
-                <p class="text-[10px] text-gray-500">Kelola satuan pengukuran</p>
-             </div>
-             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </div>
-          
-          <!-- Item 4: Kategori -->
-          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="alert('Fitur Kategori segera hadir!')">
-             <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500">
-                <i class="fas fa-hashtag text-lg"></i>
-             </div>
-             <div class="flex-1">
-                <h4 class="text-sm font-bold text-gray-800">Kategori</h4>
-                <p class="text-[10px] text-gray-500">Kelola kategori atau klasifikasi data</p>
-             </div>
-             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </div>
-          
-          <!-- Item 5: Rumus -->
-          <div class="p-3 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition" onclick="alert('Fitur Rumus segera hadir!')">
-             <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-500">
-                <i class="fas fa-calculator text-lg"></i>
-             </div>
-             <div class="flex-1">
-                <h4 class="text-sm font-bold text-gray-800">Rumus / Perhitungan</h4>
-                <p class="text-[10px] text-gray-500">Atur rumus dan perhitungan otomatis</p>
-             </div>
-             <i class="fas fa-chevron-right text-gray-400 text-xs"></i>
-          </div>
-       </div>
+       <div id="setup-menu-list" class="bg-white rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden shadow-sm"></div>
     </div>
   </div>
   
