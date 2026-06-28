@@ -125,9 +125,10 @@ app.post('/api/save-file', async (req: Request, res: Response) => {
       const jsPath = path.join(publicDir, 'simulator-core.js');
       if (fs.existsSync(jsPath)) {
         const jsContent = fs.readFileSync(jsPath, 'utf-8');
+        // FIX: Use a replacer function instead of a string to prevent '$&' in the JS code from being evaluated
         finalHtml = finalHtml.replace(
           '<script src="/simulator-core.js"></script>',
-          `<script>\n// --- INJECTED: simulator-core.js ---\n${jsContent}\n</script>`
+          () => `<script>\n// --- INJECTED: simulator-core.js ---\n${jsContent}\n</script>`
         );
       }
     } catch (e) {
