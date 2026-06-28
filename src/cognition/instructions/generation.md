@@ -69,20 +69,20 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
        <p class="text-gray-500 text-sm">Tambahkan atau hapus variabel penelitian sesuai kebutuhan Anda.</p>
     </div>
     
-    <form id="form-setup" class="bg-white p-3 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-row gap-2 items-end">
+    <form id="form-setup" class="bg-white p-5 rounded-xl shadow-md border border-gray-100 mb-8 flex flex-row gap-3 items-end">
       <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Variabel</label>
-         <input type="text" id="new-var-name" placeholder="Nama..." class="w-full p-2 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
+         <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wide">Parameter</label>
+         <input type="text" id="new-var-name" placeholder="Ketik nama..." class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
       </div>
       <div class="w-1/3">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Tipe</label>
-         <select id="new-var-type" class="w-full p-2 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+         <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wide">Variabel</label>
+         <select id="new-var-type" class="w-full p-2.5 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
            <option value="text">Teks</option>
            <option value="number">Angka</option>
            <option value="foto">Foto</option>
          </select>
       </div>
-      <button type="submit" class="bg-blue-600 text-white p-2 px-3 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"><i class="fas fa-plus"></i></button>
+      <button type="submit" class="bg-blue-600 text-white p-2.5 px-4 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"><i class="fas fa-plus"></i></button>
     </form>
     
     <div id="variable-list" class="bg-transparent"></div>
