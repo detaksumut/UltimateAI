@@ -27,7 +27,7 @@ Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penel
    - **Fitur Ekspor**: Sediakan 2 tombol: "Download Excel / CSV" (gunakan Vanilla JS ke `.csv`) dan "Download PDF" (`window.print()`).
 
 # WAJIB: KERANGKA HTML & JS (COPY PASTE INI)
-Agar halaman lain berfungsi sempurna dan tidak bocor/tumpang-tindih, Anda WAJIB menggunakan struktur kerangka persis seperti ini:
+Agar halaman lain berfungsi sempurna dan fitur Form Dinamis tidak error, Anda WAJIB menggunakan kerangka persis seperti ini:
 ```html
 <body class="pb-24">
   <!-- TAB BERANDA -->
@@ -36,14 +36,22 @@ Agar halaman lain berfungsi sempurna dan tidak bocor/tumpang-tindih, Anda WAJIB 
   <!-- TAB INPUT -->
   <div id="tab-input" class="tab-content hidden p-6">
     <h2 class="text-2xl font-bold mb-4">Input Data</h2>
-    <form id="dynamic-form"><!-- Diisi oleh JS --></form>
+    <form id="dynamic-form" onsubmit="event.preventDefault(); alert('Tersimpan!');"><!-- Diisi JS --></form>
   </div>
   
   <!-- TAB SETUP -->
   <div id="tab-setup" class="tab-content hidden p-6">
     <h2 class="text-2xl font-bold mb-4">Setup Variabel</h2>
-    <div id="variable-list"></div>
-    <!-- Beri form untuk menambah variabel baru -->
+    <div id="variable-list" class="mb-4 bg-white rounded-xl shadow p-4"></div>
+    <form onsubmit="addVariable(event)" class="bg-gray-100 p-4 rounded-xl">
+      <input type="text" id="new-var-name" placeholder="Nama Variabel Baru" class="w-full p-2 mb-2 rounded" required>
+      <select id="new-var-type" class="w-full p-2 mb-2 rounded">
+        <option value="text">Teks Singkat</option>
+        <option value="number">Angka</option>
+        <option value="foto">Foto/Kamera</option>
+      </select>
+      <button type="submit" class="w-full bg-green-600 text-white p-2 rounded font-bold">Tambah Variabel</button>
+    </form>
   </div>
   
   <!-- TAB DATA -->
@@ -58,15 +66,54 @@ Agar halaman lain berfungsi sempurna dan tidak bocor/tumpang-tindih, Anda WAJIB 
   </nav>
 
   <script>
-    // 1. Logika Mutlak Pindah Tab
     function showTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
     }
 
-    // 2. Logika Form Dinamis (WAJIB ANDA LENGKAPI)
-    // - Gunakan localStorage.getItem('schema')
-    // - Render ke #dynamic-form
+    // DYNAMIC FORM ENGINE (JANGAN UBAH LOGIKA INI!)
+    // AI HANYA PERLU MENGGANTI ISI defaultSchema SESUAI TOPIK APLIKASI
+    let defaultSchema = [
+      { id: 'parameter_1', label: 'Parameter 1', type: 'text' },
+      { id: 'parameter_2', label: 'Parameter 2', type: 'number' }
+    ];
+    
+    let schema = JSON.parse(localStorage.getItem('app_schema')) || defaultSchema;
+
+    function renderSetup() {
+      const list = document.getElementById('variable-list');
+      if(list) list.innerHTML = schema.map(v => `<div class="p-2 border-b">${v.label} (${v.type})</div>`).join('');
+    }
+
+    function renderForm() {
+      const form = document.getElementById('dynamic-form');
+      if(!form) return;
+      form.innerHTML = schema.map(v => `
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">${v.label}</label>
+          <input type="${v.type === 'foto' ? 'file' : v.type}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-2 border rounded-xl" required>
+        </div>
+      `).join('') + '<button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Simpan Data</button>';
+    }
+
+    function addVariable(event) {
+      event.preventDefault();
+      const name = document.getElementById('new-var-name').value;
+      const type = document.getElementById('new-var-type').value;
+      if(!name) return;
+      schema.push({ id: name.toLowerCase().replace(/ /g, '_'), label: name, type: type });
+      localStorage.setItem('app_schema', JSON.stringify(schema));
+      document.getElementById('new-var-name').value = '';
+      renderSetup();
+      renderForm();
+      alert('Variabel berhasil ditambahkan! Silakan cek Tab Input.');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSetup();
+      renderForm();
+      localStorage.setItem('app_schema', JSON.stringify(schema));
+    });
   </script>
 </body>
 ```
