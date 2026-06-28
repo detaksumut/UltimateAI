@@ -13,6 +13,9 @@ export default function ChatSimulator() {
   const [activeMode, setActiveMode] = useState('APK');
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [buildStatus, setBuildStatus] = useState('idle'); // idle, building, done
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [buildMessage, setBuildMessage] = useState('');
   const [activeStep, setActiveStep] = useState(null); // String: 'Goal', 'Intent', etc.
   const [simulatorHtml, setSimulatorHtml] = useState(null);
   const [revisionMode, setRevisionMode] = useState(false);
@@ -84,6 +87,22 @@ export default function ChatSimulator() {
     
     // Reset input so the same file can be selected again
     e.target.value = null;
+  };
+
+  const handleBuildApk = () => {
+    if (!simulatorHtml) return;
+    setBuildStatus('building');
+    setBuildProgress(10);
+    setBuildMessage('Compiling assets...');
+    
+    setTimeout(() => { setBuildProgress(45); setBuildMessage('Packaging WebAPK...'); }, 2000);
+    setTimeout(() => { setBuildProgress(80); setBuildMessage('Signing APK...'); }, 4500);
+    setTimeout(() => { setBuildStatus('done'); setBuildProgress(100); setBuildMessage('Build Complete!'); }, 7000);
+  };
+
+  const handleInstallApp = () => {
+    alert("Simulasi: Mengaktifkan mode WebAPK. Di HP sungguhan, Chrome akan memunculkan popup 'Add to Homescreen' untuk menginstal aplikasi ini secara langsung ke layar utama layaknya aplikasi Native.");
+    setBuildStatus('idle'); // reset
   };
 
   const sendMessage = async (text) => {
@@ -657,7 +676,7 @@ export default function ChatSimulator() {
               {simulatorHtml ? (
                 <iframe 
                   srcDoc={simulatorHtml} 
-                  className="w-full h-full border-none"
+                  className="w-full h-full border-none no-scrollbar"
                   sandbox="allow-scripts allow-same-origin allow-forms"
                   title="Simulator"
                 />
@@ -668,6 +687,38 @@ export default function ChatSimulator() {
                 </div>
               )}
             </div>
+            
+            {/* Build APK UI */}
+            {simulatorHtml && (
+              <div className="mt-8 mx-auto w-[340px] bg-[#151B2B] rounded-2xl p-4 border border-[#1E293B] shadow-xl">
+                {buildStatus === 'idle' && (
+                  <button 
+                    onClick={handleBuildApk}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/50"
+                  >
+                    <Smartphone className="w-5 h-5" /> Install ke HP (Build APK)
+                  </button>
+                )}
+                
+                {buildStatus === 'building' && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm font-medium text-blue-300 mb-2">{buildMessage}</p>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 transition-all duration-500 ease-out" style={{ width: `${buildProgress}%` }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {buildStatus === 'done' && (
+                  <button 
+                    onClick={handleInstallApp}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/50 animate-bounce"
+                  >
+                    <CheckCircle2 className="w-5 h-5" /> Unduh & Install Sekarang
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           )}
 

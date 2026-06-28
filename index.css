@@ -28,6 +28,13 @@
   .dark .glass-card {
     @apply bg-slate-900/80 border-slate-700/50 shadow-none;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 header.header {
