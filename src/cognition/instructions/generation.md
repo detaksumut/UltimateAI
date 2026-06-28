@@ -32,25 +32,25 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 ```html
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
-  <div id="tab-home" class="tab-content p-6 flex flex-col items-center justify-center min-h-[80vh] text-center">
+  <div id="tab-home" class="tab-content flex flex-col items-center justify-center min-h-screen text-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white pt-16 pb-24 px-6">
      <!-- WAJIB ADA LOGO INI DI TENGAH -->
-     <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-24 mx-auto mb-6 drop-shadow-xl hover:scale-105 transition-transform duration-300">
+     <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 sm:h-20 mx-auto mb-6 drop-shadow-2xl hover:scale-105 transition-transform duration-300 mix-blend-screen">
      <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-     <h1 class="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">Judul Penelitian...</h1>
+     <h1 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">Judul Penelitian...</h1>
      <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
-     <p class="text-lg text-gray-600 max-w-2xl leading-relaxed">
+     <p class="text-base md:text-lg text-blue-100 max-w-2xl leading-relaxed opacity-90">
         Penjelasan profesional mengenai tujuan dan metode penelitian ini...
      </p>
   </div>
   
   <!-- TAB INPUT -->
-  <div id="tab-input" class="tab-content hidden p-6">
+  <div id="tab-input" class="tab-content hidden p-6 pt-12">
     <h2 class="text-3xl font-bold mb-6 text-gray-800">Input Data Observasi</h2>
     <form id="dynamic-form" onsubmit="event.preventDefault(); alert('Tersimpan!');"><!-- Diisi otomatis oleh JS --></form>
   </div>
   
   <!-- TAB SETUP -->
-  <div id="tab-setup" class="tab-content hidden p-6">
+  <div id="tab-setup" class="tab-content hidden p-6 pt-12">
     <div class="mb-6 border-b pb-4">
        <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
        <h2 class="text-2xl font-bold text-gray-800">Setup Parameter: Judul Penelitian...</h2>
@@ -77,25 +77,25 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
   </div>
   
   <!-- TAB DATA -->
-  <div id="tab-data" class="tab-content hidden p-6 overflow-x-auto">
+  <div id="tab-data" class="tab-content hidden p-6 pt-12 overflow-x-auto">
      <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
      <div class="bg-white p-4 rounded-xl shadow mb-4">
         <div id="data-table-container" class="overflow-x-auto mb-4">
            <!-- Tabel dirender otomatis -->
         </div>
         <div class="flex gap-2">
-           <button onclick="window.print()" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold"><i class="fas fa-file-pdf"></i> PDF</button>
-           <button onclick="clearData()" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold"><i class="fas fa-trash"></i> Hapus Data</button>
+           <button onclick="window.print()" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
+           <button onclick="clearData()" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
         </div>
      </div>
   </div>
 
   <!-- BOTTOM NAV -->
-  <nav class="fixed bottom-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-    <button onclick="showTab('tab-home')" class="flex flex-col items-center text-gray-500 hover:text-green-600"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs font-medium">Beranda</span></button>
-    <button onclick="showTab('tab-input')" class="flex flex-col items-center text-gray-500 hover:text-green-600"><i class="fas fa-plus text-xl mb-1"></i><span class="text-xs font-medium">Input</span></button>
-    <button onclick="showTab('tab-setup')" class="flex flex-col items-center text-gray-500 hover:text-green-600"><i class="fas fa-cog text-xl mb-1"></i><span class="text-xs font-medium">Setup</span></button>
-    <button onclick="showTab('tab-data')" class="flex flex-col items-center text-gray-500 hover:text-green-600"><i class="fas fa-table text-xl mb-1"></i><span class="text-xs font-medium">Data</span></button>
+  <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-[9999]">
+    <button onclick="showTab('tab-home')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-home text-xl mb-1"></i><span class="text-[10px] font-bold">Beranda</span></button>
+    <button onclick="showTab('tab-input')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-plus text-xl mb-1"></i><span class="text-[10px] font-bold">Input</span></button>
+    <button onclick="showTab('tab-setup')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-cog text-xl mb-1"></i><span class="text-[10px] font-bold">Setup</span></button>
+    <button onclick="showTab('tab-data')" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1"></i><span class="text-[10px] font-bold">Data</span></button>
   </nav>
 
   <script>
@@ -103,6 +103,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
     function showTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
+      window.scrollTo(0, 0);
     }
 
     let defaultSchema = [
@@ -114,10 +115,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
     let records = [];
     
     try {
-      schema = JSON.parse(localStorage.getItem('app_schema_v2')) || defaultSchema;
-      records = JSON.parse(localStorage.getItem('app_records_v2')) || [];
+      let parsedSchema = JSON.parse(localStorage.getItem('app_schema_v2'));
+      let parsedRecords = JSON.parse(localStorage.getItem('app_records_v2'));
+      schema = Array.isArray(parsedSchema) ? parsedSchema : defaultSchema;
+      records = Array.isArray(parsedRecords) ? parsedRecords : [];
     } catch(e) {
       schema = defaultSchema;
+      records = [];
     }
 
     function renderSetup() {
