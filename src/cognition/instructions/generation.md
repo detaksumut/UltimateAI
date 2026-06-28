@@ -32,15 +32,17 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 ```html
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
-  <div id="tab-home" class="tab-content flex flex-col items-center justify-center min-h-screen text-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white pt-16 pb-24 px-6">
-     <!-- WAJIB ADA LOGO INI DI TENGAH -->
-     <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 sm:h-20 mx-auto mb-6 drop-shadow-2xl hover:scale-105 transition-transform duration-300 mix-blend-screen">
-     <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-     <h1 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">Judul Penelitian...</h1>
-     <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
-     <p class="text-base md:text-lg text-blue-100 max-w-2xl leading-relaxed opacity-90">
-        Penjelasan profesional mengenai tujuan dan metode penelitian ini...
-     </p>
+  <div id="tab-home" class="tab-content">
+     <div class="flex flex-col items-center justify-center min-h-screen text-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white pt-16 pb-24 px-6">
+         <!-- WAJIB ADA LOGO INI DI TENGAH -->
+         <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 sm:h-20 mx-auto mb-6 drop-shadow-2xl hover:scale-105 transition-transform duration-300 mix-blend-screen">
+         <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
+         <h1 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">Judul Penelitian...</h1>
+         <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
+         <p class="text-base md:text-lg text-blue-100 max-w-2xl leading-relaxed opacity-90">
+            Penjelasan profesional mengenai tujuan dan metode penelitian ini...
+         </p>
+     </div>
   </div>
   
   <!-- TAB INPUT -->
