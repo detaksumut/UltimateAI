@@ -8,7 +8,8 @@ Aplikasi ini BUKAN sekadar form statis. Ini adalah "Sistem Perangkat Lunak Penel
 
 1. **TAB 1: BERANDA (HERO LANDING PAGE)**
    - Halaman pertama yang selalu terbuka.
-   - **DILARANG KERAS** menambahkan teks, judul, paragraf, atau elemen HTML apa pun ke dalam Tab 1 ini. Tab 1 murni statis menampilkan gambar promosi.
+   - **Bagian Atas (Statis)**: Berisi Logo Transparan dan Gambar Hero (jangan ubah ini).
+   - **Bagian Bawah (Dinamis)**: Anda WAJIB men-generate teks "Selamat Datang di [Judul Penelitian]" dan sebuah "Executive Summary" yang menjelaskan tujuan dan metodologi riset tersebut secara profesional sesuai topik riset pengguna.
 2. **TAB 2: INPUT DATA (FORM DINAMIS)** (Ikon: Plus `+`)
    - Halaman ini memuat formulir pemasukan data operasional/penelitian.
    - **SANGAT PENTING**: Form ini harus me-render secara dinamis menggunakan Vanilla JS dengan membaca daftar variabel dari `localStorage`.
@@ -31,11 +32,25 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
   <div id="tab-home" class="tab-content">
-     <div class="flex flex-col items-center justify-start min-h-screen bg-[#050B14] pt-12">
+     <!-- HERO SECTION (STATIS) -->
+     <div class="flex flex-col items-center justify-start bg-[#050B14] pt-12 pb-6">
          <!-- LOGO TRANSPARAN DI ATAS -->
          <img src="/logo-ultimateAI-transparent.png" alt="UltimateAI Logo" class="h-12 md:h-16 mb-2 object-contain">
          <!-- GAMBAR HERO -->
          <img src="/heroultimateai.png" alt="UltimateAI Hero" class="w-full max-w-5xl h-auto object-contain">
+     </div>
+     
+     <!-- PENJELASAN RISET (DINAMIS - GANTI OLEH AI) -->
+     <div class="p-6 md:p-10 max-w-4xl mx-auto text-center">
+        <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
+        <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight leading-tight">Selamat Datang di UltimateAI</h1>
+        <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 text-left">
+           <h2 class="font-bold text-xl md:text-2xl mb-4 text-gray-800 border-b pb-2">Executive Summary</h2>
+           <p class="text-base md:text-lg text-gray-600 leading-relaxed">
+              Aplikasi ini bertujuan untuk memfasilitasi penelitian dalam bidang... dengan metode yang terintegrasi dan efisien...
+           </p>
+        </div>
      </div>
   </div>
   
