@@ -265,25 +265,25 @@ export default function ChatSimulator() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-8 overflow-hidden">
+        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 md:p-8 overflow-hidden">
           
           {/* Pipeline Stepper */}
-          <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-6 mb-8 flex items-center justify-between shrink-0 relative shadow-sm">
+          <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-4 md:p-6 mb-4 md:mb-8 flex items-center justify-between shrink-0 relative shadow-sm overflow-x-auto">
             {/* Connecting line */}
             <div className="absolute left-[40px] right-[40px] top-1/2 -translate-y-1/2 h-0.5 bg-neutral-100 -z-10"></div>
             
             {pipelineSteps.map((step, idx) => {
               const status = getStepStatus(step.id);
               return (
-                <div key={idx} className="flex flex-col items-center gap-2 bg-[#151B2B] px-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
+                <div key={idx} className="flex flex-col items-center gap-1.5 md:gap-2 bg-[#151B2B] px-1 md:px-2 min-w-[50px] md:min-w-0">
+                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
                     status === 'active' ? 'border-indigo-600 bg-indigo-500/10 text-indigo-400' :
                     status === 'completed' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' :
                     'border-[#1E293B] bg-[#151B2B] text-blue-300'
                   }`}>
-                    {status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
+                    {status === 'completed' ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" /> : <step.icon className="w-4 h-4 md:w-5 md:h-5" />}
                   </div>
-                  <span className={`text-[11px] font-semibold uppercase tracking-wider ${status === 'active' ? 'text-indigo-400' : 'text-blue-300'}`}>
+                  <span className={`text-[8px] md:text-[11px] text-center font-semibold uppercase tracking-wider ${status === 'active' ? 'text-indigo-400' : 'text-blue-300'}`}>
                     {step.id}
                   </span>
                 </div>
