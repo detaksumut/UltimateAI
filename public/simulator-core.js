@@ -36,6 +36,19 @@ function initApp() {
   function renderForm() {
     const form = document.getElementById('dynamic-form');
     if(!form) return;
+    
+    if(schema.length === 0) {
+      form.innerHTML = `
+        <div class="text-center p-6 bg-gray-50 rounded-xl border border-dashed border-gray-300 mb-5">
+          <i class="fas fa-clipboard-list text-3xl text-gray-300 mb-3"></i>
+          <p class="text-sm text-gray-500 font-medium">Belum ada variabel input.</p>
+          <p class="text-xs text-gray-400 mt-1">Silakan tambahkan variabel melalui menu <b>Setup</b> terlebih dahulu.</p>
+        </div>
+        <button type="button" disabled class="w-full bg-gray-300 text-white p-4 rounded-xl font-bold cursor-not-allowed">Simpan Data</button>
+      `;
+      return;
+    }
+
     form.innerHTML = schema.map(v => `
       <div class="mb-5">
         <label class="block text-sm font-semibold mb-2 text-gray-700">${v.label}</label>
@@ -74,7 +87,7 @@ function initApp() {
     renderSetup();
     renderForm();
     renderTable();
-    alert('Parameter ditambah!');
+    alert('Variabel ditambah!');
   }
 
   function deleteVar(index) {

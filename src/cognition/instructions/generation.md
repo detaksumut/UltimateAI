@@ -65,13 +65,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
   <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;">
     <div class="mb-6 border-b pb-4">
        <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-       <h2 class="text-2xl font-bold text-gray-800">Setup Parameter: Judul Penelitian...</h2>
+       <h2 class="text-2xl font-bold text-gray-800">Setup Variabel: Penelitian...</h2>
        <p class="text-gray-500 text-sm">Tambahkan atau hapus variabel penelitian sesuai kebutuhan Anda.</p>
     </div>
     
     <form id="form-setup" class="bg-white p-3 rounded-xl shadow-md border border-gray-100 mb-6 flex flex-row gap-2 items-end">
       <div class="flex-1">
-         <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Parameter</label>
+         <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Variabel</label>
          <input type="text" id="new-var-name" placeholder="Nama..." class="w-full p-2 text-xs rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" required>
       </div>
       <div class="w-1/3">
