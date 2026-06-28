@@ -220,11 +220,16 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function initApp() {
       renderSetup();
       renderForm();
       renderTable();
-    });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
 ```
