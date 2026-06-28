@@ -27,12 +27,14 @@ export class OutputParser {
      */
     public parseHtml(rawString: string): string {
         let cleanString = rawString.trim();
-        if (cleanString.startsWith('\`\`\`html')) {
-            cleanString = cleanString.replace(/\`\`\`html/g, '');
-            cleanString = cleanString.replace(/\`\`\`/g, '');
-        } else if (cleanString.startsWith('\`\`\`')) {
-            cleanString = cleanString.replace(/\`\`\`/g, '');
+        // Match ```html ... ``` or just ``` ... ```
+        const match = cleanString.match(/```(?:html|xml)?\s*([\s\S]*?)\s*```/i);
+        if (match) {
+            return match[1].trim();
         }
-        return cleanString.trim();
+        
+        // If no code block is found, just return the raw string
+        // but try to strip some common markdown if it's there
+        return cleanString.replace(/```html/gi, '').replace(/```/g, '').trim();
     }
 }
