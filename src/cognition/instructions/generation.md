@@ -68,11 +68,16 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
   </div>
   
   <!-- TAB DATA -->
-  <div id="tab-data" class="tab-content hidden p-6">
+  <div id="tab-data" class="tab-content hidden p-6 overflow-x-auto">
      <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
-     <div class="bg-white p-4 rounded-xl shadow text-center">
-        <p class="text-gray-500 mb-4">Data hasil input akan direkap di sini.</p>
-        <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded shadow"><i class="fas fa-file-pdf"></i> Download PDF</button>
+     <div class="bg-white p-4 rounded-xl shadow mb-4">
+        <div id="data-table-container" class="overflow-x-auto mb-4">
+           <!-- Tabel dirender otomatis -->
+        </div>
+        <div class="flex gap-2">
+           <button onclick="window.print()" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold"><i class="fas fa-file-pdf"></i> PDF</button>
+           <button onclick="clearData()" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold"><i class="fas fa-trash"></i> Hapus Data</button>
+        </div>
      </div>
   </div>
 
@@ -91,27 +96,24 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
       document.getElementById(tabId).classList.remove('hidden');
     }
 
-    // Default schema generik (Jangan diubah oleh AI)
     let defaultSchema = [
       { id: 'tanggal', label: 'Tanggal Input', type: 'text' },
       { id: 'catatan', label: 'Catatan Umum', type: 'text' }
     ];
     
     let schema = [];
+    let records = [];
+    
     try {
-      let stored = localStorage.getItem('app_schema_v2');
-      if(stored) {
-         schema = JSON.parse(stored);
-      } else {
-         schema = defaultSchema;
-      }
+      schema = JSON.parse(localStorage.getItem('app_schema_v2')) || defaultSchema;
+      records = JSON.parse(localStorage.getItem('app_records_v2')) || [];
     } catch(e) {
       schema = defaultSchema;
     }
 
     function renderSetup() {
       const list = document.getElementById('variable-list');
-      if(list) list.innerHTML = schema.map((v, i) => `<div class="p-3 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700">${v.label} <span class="text-xs text-gray-400">(${v.type})</span></span><button onclick="deleteVar(${i})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></div>`).join('');
+      if(list) list.innerHTML = schema.map((v, i) => `<div class="p-3 border-b flex justify-between items-center bg-gray-50 mb-1 rounded"><span class="font-medium text-gray-700">${v.label} <span class="text-xs text-gray-400">(${v.type})</span></span><button type="button" onclick="deleteVar(${i})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></div>`).join('');
     }
 
     function renderForm() {
@@ -120,9 +122,28 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
       form.innerHTML = schema.map(v => `
         <div class="mb-5">
           <label class="block text-sm font-semibold mb-2 text-gray-700">${v.label}</label>
-          <input type="${v.type === 'foto' ? 'file' : v.type}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" required>
+          <input type="${v.type === 'foto' ? 'file' : v.type}" id="input_${v.id}" accept="${v.type === 'foto' ? 'image/*' : ''}" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" required>
         </div>
-      `).join('') + '<button type="submit" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">Simpan Data</button>';
+      `).join('') + '<button type="button" onclick="saveData()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">Simpan Data</button>';
+    }
+
+    function renderTable() {
+      const container = document.getElementById('data-table-container');
+      if(!container) return;
+      if(records.length === 0) {
+         container.innerHTML = '<p class="text-gray-500 text-sm">Belum ada data.</p>';
+         return;
+      }
+      let html = '<table class="w-full text-left text-sm border-collapse"><thead><tr class="bg-gray-100 border-b">';
+      schema.forEach(v => html += `<th class="p-2 border-r">${v.label}</th>`);
+      html += '</tr></thead><tbody>';
+      records.forEach(row => {
+         html += '<tr class="border-b hover:bg-gray-50">';
+         schema.forEach(v => html += `<td class="p-2 border-r">${row[v.id] || '-'}</td>`);
+         html += '</tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
     }
 
     function addVariable(event) {
@@ -130,12 +151,13 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
       const name = document.getElementById('new-var-name').value;
       const type = document.getElementById('new-var-type').value;
       if(!name) return;
-      schema.push({ id: name.toLowerCase().replace(/ /g, '_'), label: name, type: type });
+      schema.push({ id: name.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: name, type: type });
       localStorage.setItem('app_schema_v2', JSON.stringify(schema));
       document.getElementById('new-var-name').value = '';
       renderSetup();
       renderForm();
-      alert('Berhasil ditambah! Silakan cek Tab Input.');
+      renderTable();
+      alert('Parameter ditambah!');
     }
 
     function deleteVar(index) {
@@ -143,11 +165,41 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
       localStorage.setItem('app_schema_v2', JSON.stringify(schema));
       renderSetup();
       renderForm();
+      renderTable();
+    }
+
+    function saveData() {
+      let row = {};
+      let valid = true;
+      schema.forEach(v => {
+         const el = document.getElementById('input_' + v.id);
+         if(el && el.value) {
+            row[v.id] = v.type === 'foto' ? '[File Gambar]' : el.value;
+            el.value = '';
+         } else {
+            valid = false;
+         }
+      });
+      if(!valid) return alert('Lengkapi semua kolom!');
+      records.push(row);
+      localStorage.setItem('app_records_v2', JSON.stringify(records));
+      renderTable();
+      alert('Data Tersimpan!');
+      showTab('tab-data');
+    }
+
+    function clearData() {
+      if(confirm('Hapus semua data?')) {
+         records = [];
+         localStorage.setItem('app_records_v2', JSON.stringify(records));
+         renderTable();
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       renderSetup();
       renderForm();
+      renderTable();
     });
   </script>
 </body>
