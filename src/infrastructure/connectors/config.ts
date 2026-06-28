@@ -12,6 +12,6 @@ export const CapabilityRouterMap: Record<TaskCapability, ReadonlyArray<AIProvide
 export const DefaultRouterConfig: RouterConfig = {
     primaryProvider: '9ROUTE',
     fallbackProviders: [], // will be populated dynamically based on task
-    timeoutMs: 15000,      // 15 seconds before giving up on primary
+    timeoutMs: 120000,     // 120 seconds before giving up on primary (to allow long coding generations)
     maxRetries: 2
 };
