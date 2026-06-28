@@ -33,15 +33,47 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah kerangka ini. Anda hany
 <body class="pb-24">
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
   <div id="tab-home" class="tab-content">
-     <div class="flex flex-col items-center justify-center min-h-screen text-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white pt-16 pb-24 px-6">
-         <!-- WAJIB ADA LOGO INI DI TENGAH -->
-         <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 sm:h-20 mx-auto mb-6 drop-shadow-2xl hover:scale-105 transition-transform duration-300 mix-blend-screen">
-         <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
-         <h1 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight leading-tight">Judul Penelitian...</h1>
-         <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
-         <p class="text-base md:text-lg text-blue-100 max-w-2xl leading-relaxed opacity-90">
-            Penjelasan profesional mengenai tujuan dan metode penelitian ini...
+     <div class="flex flex-col items-center justify-center min-h-screen text-center bg-[#050B14] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f172a] via-[#050B14] to-black text-white pt-16 pb-24 px-6 relative overflow-hidden">
+         <!-- Background subtle elements -->
+         <div class="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
+         <div class="absolute w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -top-10 -left-10 pointer-events-none"></div>
+         <div class="absolute w-96 h-96 bg-purple-600/10 rounded-full blur-3xl -bottom-10 -right-10 pointer-events-none"></div>
+         
+         <img src="/logo-ultimateAI.png" alt="UltimateAI Logo" class="h-16 sm:h-20 mx-auto mb-8 drop-shadow-2xl hover:scale-105 transition-transform duration-300 mix-blend-screen relative z-10">
+         
+         <!-- DILARANG MENGUBAH TEKS INI, HARUS STATIS SEPERTI INI -->
+         <h1 class="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight relative z-10 max-w-4xl">
+            Empowering Researchers to Build <br class="hidden md:block" /><span class="text-cyan-400">Research Software</span> Without Writing Code.
+         </h1>
+         
+         <!-- DILARANG MENGUBAH TEKS INI -->
+         <p class="text-sm md:text-base lg:text-lg text-gray-300 max-w-3xl leading-relaxed opacity-90 mb-12 relative z-10">
+            Transform research ideas into ready-to-use research software, databases, dashboards, repositories, and scientific tools using the power of artificial intelligence.
          </p>
+
+         <!-- 4 Icons Grid -->
+         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 max-w-4xl w-full relative z-10 border-t border-gray-800/60 pt-10">
+            <div class="flex flex-col items-center border-r border-transparent md:border-gray-800/60">
+               <i class="far fa-comment-dots text-cyan-400 text-3xl mb-3"></i>
+               <h3 class="text-sm font-bold text-white">Describe</h3>
+               <p class="text-[10px] md:text-xs text-gray-400">your research</p>
+            </div>
+            <div class="flex flex-col items-center border-r border-transparent md:border-gray-800/60">
+               <i class="fas fa-brain text-purple-400 text-3xl mb-3"></i>
+               <h3 class="text-sm font-bold text-white">AI Generates</h3>
+               <p class="text-[10px] md:text-xs text-gray-400">the system</p>
+            </div>
+            <div class="flex flex-col items-center border-r border-transparent md:border-gray-800/60">
+               <i class="fas fa-cloud-upload-alt text-blue-400 text-3xl mb-3"></i>
+               <h3 class="text-sm font-bold text-white">Deploy</h3>
+               <p class="text-[10px] md:text-xs text-gray-400">instantly</p>
+            </div>
+            <div class="flex flex-col items-center">
+               <i class="fas fa-bullseye text-indigo-400 text-3xl mb-3"></i>
+               <h3 class="text-sm font-bold text-white">Focus on</h3>
+               <p class="text-[10px] md:text-xs text-gray-400">what matters</p>
+            </div>
+         </div>
      </div>
   </div>
   
