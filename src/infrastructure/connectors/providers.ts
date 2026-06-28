@@ -87,7 +87,7 @@ export class DirectFallbackProvider extends BaseProvider {
                         { role: 'user', content: typeof request.prompt === 'string' ? request.prompt : JSON.stringify(request.prompt || '') }
                     ],
                     temperature: 0.3,
-                    max_tokens: 1000
+                    max_tokens: 500
                 })
             });
 
