@@ -1,4 +1,37 @@
 function initApp() {
+  // --- ANTI-TRUNCATION FALLBACK ---
+  // If the AI truncated the bottom of the HTML, we forcefully inject the missing pieces.
+  if (!document.getElementById('tab-data')) {
+    const dataTab = document.createElement('div');
+    dataTab.id = 'tab-data';
+    dataTab.className = 'tab-content p-6 pt-12 overflow-x-auto';
+    dataTab.style.display = 'none';
+    dataTab.innerHTML = `
+      <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
+      <div class="bg-white p-4 rounded-xl shadow mb-4">
+         <div id="data-table-container" class="overflow-x-auto mb-4"></div>
+         <div class="flex gap-2">
+            <button data-action="print" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button data-action="clear" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
+         </div>
+      </div>
+    `;
+    document.body.appendChild(dataTab);
+  }
+
+  if (!document.querySelector('nav')) {
+    const nav = document.createElement('nav');
+    nav.className = 'fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md flex justify-around p-3 border-t shadow-[0_-10px_20px_rgba(0,0,0,0.1)] z-[9999]';
+    nav.innerHTML = `
+      <button data-tab="tab-home" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-home text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Beranda</span></button>
+      <button data-tab="tab-input" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-plus text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Input</span></button>
+      <button data-tab="tab-setup" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-cog text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Setup</span></button>
+      <button data-tab="tab-data" class="flex flex-col items-center text-gray-500 hover:text-blue-600 w-full py-1"><i class="fas fa-table text-xl mb-1 pointer-events-none"></i><span class="text-[10px] font-bold pointer-events-none">Data</span></button>
+    `;
+    document.body.appendChild(nav);
+  }
+  // --- END ANTI-TRUNCATION FALLBACK ---
+
   let defaultVars = window.APP_VARIABLES || [];
   let defaultParams = window.APP_PARAMETERS || [];
   
