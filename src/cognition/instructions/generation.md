@@ -33,6 +33,7 @@ Agar halaman berfungsi sempurna, DILARANG KERAS mengubah struktur ID atau mengha
     ];
   </script>
   <script src="/simulator-core.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- TAB BERANDA (HERO LANDING PAGE) -->
   <div id="tab-home" class="tab-content" style="display: block;">

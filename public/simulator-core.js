@@ -121,10 +121,11 @@ function initApp() {
       <h2 class="text-2xl font-bold mb-4">Hasil & Ekspor</h2>
       <div class="bg-white p-4 rounded-xl shadow mb-4">
          <div id="data-table-container" class="overflow-x-auto mb-4"></div>
-         <div class="flex gap-2">
+         <div class="flex gap-2 mb-6">
             <button data-action="print" class="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold shadow hover:bg-blue-700"><i class="fas fa-file-pdf"></i> PDF</button>
             <button data-action="clear" class="flex-1 bg-red-600 text-white p-3 rounded-lg font-bold shadow hover:bg-red-700"><i class="fas fa-trash"></i> Hapus Data</button>
          </div>
+         <div id="data-analytics-container"></div>
       </div>
     `;
   }
@@ -247,9 +248,12 @@ function initApp() {
 
   function renderTable() {
     const container = document.getElementById('data-table-container');
+    const analyticsContainer = document.getElementById('data-analytics-container');
+    
     if(!container) return;
     if(records.length === 0) {
        container.innerHTML = '<p class="text-gray-500 text-sm">Belum ada data.</p>';
+       if (analyticsContainer) analyticsContainer.innerHTML = '';
        return;
     }
     const allFields = [...variables, ...parameters, ...rumuses.map(r => ({id: 'rumus_' + r.id, label: r.name}))];
@@ -264,6 +268,106 @@ function initApp() {
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+    
+    // Trigger analytics rendering
+    renderAnalytics(allFields);
+  }
+
+  function renderAnalytics(allFields) {
+    const container = document.getElementById('data-analytics-container');
+    if (!container) return;
+    
+    // Find numerical fields (only 'number' type or formulas)
+    const numericalFields = allFields.filter(f => {
+      if (f.id.startsWith('rumus_')) return true;
+      const original = variables.find(v => v.id === f.id) || parameters.find(v => v.id === f.id);
+      return original && original.type === 'number';
+    });
+
+    if (numericalFields.length === 0 || records.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    // AI Conclusion Logic
+    let conclusionHtml = '<div class="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6"><h3 class="font-bold text-blue-800 mb-2 flex items-center"><i class="fas fa-robot mr-2"></i> Analisis AI Otomatis</h3><ul class="list-disc pl-5 text-sm text-blue-900 space-y-1">';
+    
+    const chartLabels = records.map((r, i) => `Data ${i+1}`);
+    const chartDatasets = [];
+
+    numericalFields.forEach((field, index) => {
+      let values = records.map(r => parseFloat(r[field.id])).filter(v => !isNaN(v));
+      if (values.length > 0) {
+        let max = Math.max(...values);
+        let min = Math.min(...values);
+        let sum = values.reduce((a, b) => a + b, 0);
+        let avg = (sum / values.length).toFixed(2);
+        
+        conclusionHtml += `<li><b>${field.label}</b>: Rata-rata bernilai <b>${avg}</b>, tertinggi <b>${max}</b>, terendah <b>${min}</b>.</li>`;
+        
+        const colors = ['rgba(59, 130, 246, 0.7)', 'rgba(16, 185, 129, 0.7)', 'rgba(245, 158, 11, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)'];
+        
+        chartDatasets.push({
+          label: field.label,
+          data: values,
+          backgroundColor: colors[index % colors.length],
+          borderColor: colors[index % colors.length].replace('0.7', '1'),
+          borderWidth: 1
+        });
+      }
+    });
+    
+    conclusionHtml += '</ul><p class="text-xs text-blue-600 mt-2 italic">*Kesimpulan dihasilkan secara dinamis berdasarkan perhitungan statistik observasi di atas.</p></div>';
+
+    // Chart Canvas
+    const chartsHtml = `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+        <div class="border border-gray-100 rounded-xl p-3 shadow-sm bg-gray-50">
+           <h4 class="text-xs font-bold text-gray-500 uppercase text-center mb-2">Grafik Perbandingan</h4>
+           <div style="position: relative; height:200px; width:100%"><canvas id="analyticsBarChart"></canvas></div>
+        </div>
+        <div class="border border-gray-100 rounded-xl p-3 shadow-sm bg-gray-50">
+           <h4 class="text-xs font-bold text-gray-500 uppercase text-center mb-2">Distribusi Komposisi</h4>
+           <div style="position: relative; height:200px; width:100%"><canvas id="analyticsPieChart"></canvas></div>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = conclusionHtml + chartsHtml;
+
+    // Render Charts
+    setTimeout(() => {
+      if (window.Chart && chartDatasets.length > 0) {
+        if (window.analyticsBarChartInstance) window.analyticsBarChartInstance.destroy();
+        if (window.analyticsPieChartInstance) window.analyticsPieChartInstance.destroy();
+
+        const ctxBar = document.getElementById('analyticsBarChart');
+        if (ctxBar) {
+          window.analyticsBarChartInstance = new window.Chart(ctxBar, {
+            type: 'bar',
+            data: { labels: chartLabels, datasets: chartDatasets },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+
+        const ctxPie = document.getElementById('analyticsPieChart');
+        if (ctxPie) {
+          const pieColors = chartLabels.map((_, i) => `hsl(${(i * 360) / chartLabels.length}, 70%, 60%)`);
+          window.analyticsPieChartInstance = new window.Chart(ctxPie, {
+            type: 'pie',
+            data: { 
+              labels: chartLabels, 
+              datasets: [{
+                label: chartDatasets[0].label,
+                data: chartDatasets[0].data,
+                backgroundColor: pieColors
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+      }
+    }, 100);
   }
 
   function addVariable(event) {
