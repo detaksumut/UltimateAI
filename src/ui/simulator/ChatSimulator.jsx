@@ -154,10 +154,10 @@ export default function ChatSimulator() {
   };
 
   return (
-    <div className="flex h-screen bg-blue-950 text-white font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#0B0F19] text-white font-sans overflow-hidden">
       
       {/* LEFT SIDEBAR */}
-      <div className="w-[260px] bg-blue-900 border-r border-blue-800 flex flex-col shrink-0">
+      <div className="w-[260px] bg-[#151B2B] border-r border-[#1E293B] flex flex-col shrink-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-16 h-16 flex items-center justify-center shrink-0">
             <img src="/logo-ultimateAI-transparent.png" alt="UltimateAI Logo" className="w-16 h-16 object-contain drop-shadow-md" />
@@ -195,19 +195,19 @@ export default function ChatSimulator() {
               <MessageSquare className="w-4 h-4" />
               <span>Chat</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Folder className="w-4 h-4 text-amber-500" />
               <span>My Projects</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Star className="w-4 h-4 text-yellow-500" />
               <span>Favorites</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Clock className="w-4 h-4 text-blue-300" />
               <span>Recent</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Package className="w-4 h-4 text-rose-400" />
               <span>My Products</span>
             </div>
@@ -219,15 +219,15 @@ export default function ChatSimulator() {
 
           {/* Section 2 */}
           <div className="space-y-1 text-sm font-medium text-blue-300 flex-1">
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Info className="w-4 h-4" />
               <span>Cara UltimateAI Berpikir</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Settings className="w-4 h-4" />
               <span>Settings</span>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-blue-900 hover:text-white cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <HelpCircle className="w-4 h-4 text-rose-500" />
               <span>Help</span>
             </div>
@@ -237,10 +237,10 @@ export default function ChatSimulator() {
       </div>
 
       {/* MIDDLE: CHAT & PIPELINE */}
-      <div className="flex-1 flex flex-col min-w-0 bg-blue-950">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
         
         {/* Topbar */}
-        <div className="h-16 border-b border-blue-800 bg-blue-900 flex items-center justify-end px-6 gap-4">
+        <div className="h-16 border-b border-[#1E293B] bg-[#151B2B] flex items-center justify-end px-6 gap-4">
           <Bell className="w-5 h-5 text-blue-300 cursor-pointer hover:text-white" />
           <div className="flex items-center gap-3 cursor-pointer">
             <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center text-blue-300 shrink-0">
@@ -257,18 +257,18 @@ export default function ChatSimulator() {
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-8 overflow-hidden">
           
           {/* Pipeline Stepper */}
-          <div className="bg-blue-900 border border-blue-800 rounded-2xl p-6 mb-8 flex items-center justify-between shrink-0 relative shadow-sm">
+          <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-6 mb-8 flex items-center justify-between shrink-0 relative shadow-sm">
             {/* Connecting line */}
             <div className="absolute left-[40px] right-[40px] top-1/2 -translate-y-1/2 h-0.5 bg-neutral-100 -z-10"></div>
             
             {pipelineSteps.map((step, idx) => {
               const status = getStepStatus(step.id);
               return (
-                <div key={idx} className="flex flex-col items-center gap-2 bg-blue-900 px-2">
+                <div key={idx} className="flex flex-col items-center gap-2 bg-[#151B2B] px-2">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
                     status === 'active' ? 'border-indigo-600 bg-indigo-500/10 text-indigo-400' :
                     status === 'completed' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' :
-                    'border-blue-800 bg-blue-900 text-blue-300'
+                    'border-[#1E293B] bg-[#151B2B] text-blue-300'
                   }`}>
                     {status === 'completed' ? <CheckCircle2 className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                   </div>
@@ -301,7 +301,7 @@ export default function ChatSimulator() {
                 )}
                 <div className={`max-w-[80%] rounded-2xl p-5 shadow-sm ${
                   msg.role === 'user' 
-                    ? 'bg-blue-900 border border-blue-800 text-white rounded-tr-none'
+                    ? 'bg-[#151B2B] border border-[#1E293B] text-white rounded-tr-none'
                     : 'bg-indigo-500/100/10 border border-indigo-500/20 text-white rounded-tl-none'
                 }`}>
                   {msg.role === 'user' ? (
@@ -317,7 +317,7 @@ export default function ChatSimulator() {
                               key={i}
                               onClick={() => handleOptionClick(opt)}
                               disabled={isProcessing}
-                              className="px-4 py-3 bg-blue-900 border border-indigo-500/20 text-indigo-400 rounded-xl text-sm font-semibold hover:bg-indigo-500/10 hover:border-indigo-200 transition text-left shadow-sm disabled:opacity-50"
+                              className="px-4 py-3 bg-[#151B2B] border border-indigo-500/20 text-indigo-400 rounded-xl text-sm font-semibold hover:bg-indigo-500/10 hover:border-indigo-200 transition text-left shadow-sm disabled:opacity-50"
                             >
                               {opt}
                             </button>
@@ -332,8 +332,8 @@ export default function ChatSimulator() {
                       )}
 
                       {msg.type === 'proposal' && msg.proposal && (
-                        <div className="mt-4 bg-blue-950 border border-blue-800 rounded-xl overflow-hidden">
-                          <div className="bg-blue-900 px-4 py-3 border-b border-blue-800 flex justify-between items-center">
+                        <div className="mt-4 bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden">
+                          <div className="bg-[#151B2B] px-4 py-3 border-b border-[#1E293B] flex justify-between items-center">
                             <div className="flex items-center gap-2 text-sm font-bold text-white">
                               <ClipboardList className="w-4 h-4 text-indigo-400" />
                               Requirement Draft v{msg.proposal.version || '1.0'}
@@ -380,7 +380,7 @@ export default function ChatSimulator() {
                               <h4 className="text-blue-300 mb-2 text-[10px] uppercase tracking-wider font-bold">Fitur Kunci</h4>
                               <ul className="space-y-2">
                                 {msg.proposal.features?.map((f, i) => (
-                                  <li key={i} className="flex items-start gap-2 bg-blue-800/50 p-2 rounded-lg border border-blue-800">
+                                  <li key={i} className="flex items-start gap-2 bg-blue-800/50 p-2 rounded-lg border border-[#1E293B]">
                                     <Check className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
                                     <div>
                                       <div className="text-[13px] font-semibold text-white">{typeof f === 'string' ? f : f.name}</div>
@@ -408,7 +408,7 @@ export default function ChatSimulator() {
                                         if (isSelected) setSelectedRecommendations(prev => prev.filter(id => id !== i));
                                         else setSelectedRecommendations(prev => [...prev, i]);
                                       }}
-                                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-black border-blue-800 hover:border-neutral-600'}`}
+                                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-black border-[#1E293B] hover:border-neutral-600'}`}
                                     >
                                       <div className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-neutral-600'}`}>
                                         {isSelected && <Check className="w-3 h-3 text-white" />}
@@ -441,7 +441,7 @@ export default function ChatSimulator() {
                           
                           {/* ACTION BUTTONS */}
                           {idx === messages.length - 1 && !isProcessing && !revisionMode && (
-                            <div className="bg-blue-900 p-4 border-t border-blue-800 flex gap-3">
+                            <div className="bg-[#151B2B] p-4 border-t border-[#1E293B] flex gap-3">
                               <button 
                                 onClick={() => {
                                   let agreeText = "Saya setuju, silakan lanjut buatkan aplikasinya.";
@@ -460,7 +460,7 @@ export default function ChatSimulator() {
                               </button>
                               <button 
                                 onClick={() => setRevisionMode(true)}
-                                className="flex-1 bg-blue-800 hover:bg-neutral-700 text-white border border-blue-700 py-2.5 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
+                                className="flex-1 bg-blue-800 hover:bg-neutral-700 text-white border border-[#334155] py-2.5 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
                               >
                                 <Edit3 className="w-4 h-4" /> 💬 Tambah / Ubah
                               </button>
@@ -469,7 +469,7 @@ export default function ChatSimulator() {
                           
                           {/* REVISION FORM */}
                           {idx === messages.length - 1 && revisionMode && (
-                            <div className="bg-blue-900 p-4 border-t border-blue-800 border-l-2 border-l-indigo-500">
+                            <div className="bg-[#151B2B] p-4 border-t border-[#1E293B] border-l-2 border-l-indigo-500">
                               <div className="flex justify-between items-center mb-3">
                                 <h4 className="text-sm font-bold text-white">Apa yang ingin diubah?</h4>
                                 <button onClick={() => { setRevisionMode(false); setRevisionType(''); }} className="text-neutral-500 hover:text-white"><X className="w-4 h-4" /></button>
@@ -481,7 +481,7 @@ export default function ChatSimulator() {
                                     <button 
                                       key={opt}
                                       onClick={() => setRevisionType(opt)}
-                                      className="px-3 py-2 bg-blue-800 border border-blue-700 rounded-lg text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition text-left flex items-center"
+                                      className="px-3 py-2 bg-blue-800 border border-[#334155] rounded-lg text-xs font-medium text-neutral-300 hover:bg-neutral-700 hover:text-white transition text-left flex items-center"
                                     >
                                       <span className="w-1.5 h-1.5 rounded-full border border-neutral-500 mr-2 shrink-0"></span>
                                       {opt}
@@ -495,7 +495,7 @@ export default function ChatSimulator() {
                                     autoFocus
                                     type="text" 
                                     placeholder="Masukkan detail tambahan..." 
-                                    className="w-full bg-black border border-blue-700 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                                    className="w-full bg-black border border-[#334155] rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter' && e.target.value.trim()) {
                                         handleOptionClick(`Revisi pada bagian [${revisionType}]: ${e.target.value}`);
@@ -526,7 +526,7 @@ export default function ChatSimulator() {
 
           {/* Input Area */}
           <div className="mt-6 pt-4">
-            <form onSubmit={handleSubmit} className="relative shadow-sm rounded-2xl bg-blue-900 border border-blue-800 flex items-center p-2">
+            <form onSubmit={handleSubmit} className="relative shadow-sm rounded-2xl bg-[#151B2B] border border-[#1E293B] flex items-center p-2">
               <button type="button" className="p-3 text-blue-300 hover:text-blue-300">
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -552,14 +552,14 @@ export default function ChatSimulator() {
       </div>
 
       {/* RIGHT SIDEBAR: SIMULATOR & INFO */}
-      <div className="w-[400px] bg-blue-900 border-l border-blue-800 flex flex-col shrink-0 overflow-y-auto">
+      <div className="w-[400px] bg-[#151B2B] border-l border-[#1E293B] flex flex-col shrink-0 overflow-y-auto">
         
         {/* Simulator Section */}
         <div className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-white tracking-wider">SIMULATOR</h3>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-blue-300 bg-blue-900 border border-blue-800 px-2 py-1 rounded-md">iPhone 15</span>
+              <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">iPhone 15</span>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse"></div> Online
               </div>
@@ -570,7 +570,7 @@ export default function ChatSimulator() {
           <div className="relative mx-auto w-[340px] h-[680px] bg-black rounded-[40px] shadow-2xl border-[10px] border-neutral-900 shrink-0 flex flex-col overflow-hidden">
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[100px] h-[30px] bg-black rounded-full z-30"></div>
             
-            <div className="flex-1 bg-blue-900 relative">
+            <div className="flex-1 bg-[#151B2B] relative">
               
               {/* Draft Watermark */}
               {messages.length > 0 && messages[messages.length - 1].type === 'proposal' && !simulatorHtml && (
@@ -590,7 +590,7 @@ export default function ChatSimulator() {
                   title="Simulator"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-blue-900 text-blue-300 p-6 text-center">
+                <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center">
                   <Smartphone className="w-12 h-12 mb-4 opacity-50" />
                   <p className="text-sm font-medium">Aplikasi belum dibuat. Silakan deskripsikan kebutuhan Anda di panel obrolan.</p>
                 </div>
@@ -601,7 +601,7 @@ export default function ChatSimulator() {
 
         {/* Project Info Section */}
         <div className="p-6">
-          <div className="bg-blue-900 border border-blue-800 rounded-2xl p-5 shadow-sm">
+          <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-5 shadow-sm">
             <h3 className="text-xs font-bold text-white tracking-wider mb-4">INFORMASI PROYEK</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
