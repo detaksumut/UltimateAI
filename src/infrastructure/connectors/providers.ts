@@ -74,26 +74,46 @@ export class DirectFallbackProvider extends BaseProvider {
 
                 if (geminiKeys.length === 0) throw new Error("No valid GEMINI_API_KEY found in .env");
                 
-                // Multi-Key Load Balancer (Random Picker)
-                const geminiKey = geminiKeys[Math.floor(Math.random() * geminiKeys.length)];
+                const fallbackModels = ['gemini-flash-latest', 'gemini-pro', 'gemini-2.5-flash'];
+                let lastError = null;
                 
-                console.log(`[GEMINI NATIVE] Routing directly to Google API (Load Balancer active: ${geminiKeys.length} keys)...`);
-                const modelName = 'gemini-flash-latest';
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: (request.systemPrompt || '') + "\n\n---\n\n" + request.prompt }] }],
-                        generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
-                    })
-                });
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`Google API Error (${response.status}): ${errorBody}`);
+                console.log(`[GEMINI NATIVE] Initiating robust internal failover (Keys: ${geminiKeys.length}, Models: ${fallbackModels.length})...`);
+                
+                for (const geminiKey of geminiKeys) {
+                    for (const modelName of fallbackModels) {
+                        try {
+                            console.log(`[GEMINI NATIVE] Attempting model ${modelName}...`);
+                            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ parts: [{ text: (request.systemPrompt || '') + "\n\n---\n\n" + request.prompt }] }],
+                                    generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
+                                })
+                            });
+
+                            if (!response.ok) {
+                                const errorBody = await response.text();
+                                lastError = new Error(`Google API Error (${response.status}): ${errorBody}`);
+                                
+                                // Catch 429 (Rate Limit), 503 (Overloaded), 404 (Model not found)
+                                if ([429, 503, 500, 404, 502].includes(response.status)) {
+                                    console.warn(`[GEMINI NATIVE] Warning: ${response.status} on ${modelName}. Trying next fallback...`);
+                                    continue; 
+                                }
+                                throw lastError; 
+                            }
+                            
+                            const json = await response.json();
+                            const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                            return { requestId: request.id, provider: 'GEMINI_NATIVE', content: content, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, latencyMs: 1000 };
+                        } catch (err: any) {
+                            lastError = err;
+                        }
+                    }
                 }
-                const json = await response.json();
-                const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                return { requestId: request.id, provider: 'GEMINI_NATIVE', content: content, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, latencyMs: 1000 };
+                
+                throw new Error(`All Gemini keys and fallback models exhausted. Last error: ${lastError?.message}`);
             }
 
             // --- NATIVE OPENAI COMPATIBLE ROUTES (GROQ, DEEPSEEK) ---
