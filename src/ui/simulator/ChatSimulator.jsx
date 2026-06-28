@@ -630,7 +630,7 @@ export default function ChatSimulator() {
             <div className="flex items-center gap-2">
               <button onClick={() => setShowSimulatorMobile(false)} className="lg:hidden px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-md text-xs font-semibold text-white mr-2">Kembali</button>
               <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">
-                {activeMode === 'APK' ? 'iPhone 15' : activeMode === 'Video' ? '16:9 HD' : '1:1 Square'}
+                {activeMode === 'APK' ? 'iPhone 15' : activeMode === 'Video' ? '16:9 HD' : '9:16 Portrait'}
               </span>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse"></div> Online
@@ -687,10 +687,10 @@ export default function ChatSimulator() {
           )}
 
           {activeMode === 'Image' && (
-            <div className="relative mx-auto w-[340px] h-[340px] mt-10 bg-[#0B0F19] rounded-sm shadow-2xl border-8 border-white/5 shrink-0 flex flex-col overflow-hidden">
+            <div className="relative mx-auto w-[340px] h-[604px] mt-4 bg-[#0B0F19] rounded-sm shadow-2xl border-8 border-white/5 shrink-0 flex flex-col overflow-hidden">
               <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center border border-dashed border-[#1E293B] m-2">
                 <Image className="w-12 h-12 mb-4 opacity-50" />
-                <p className="text-sm font-medium">Kanvas kosong. Deskripsikan gambar yang ingin Anda buat.</p>
+                <p className="text-sm font-medium">Kanvas kosong (Rasio 9:16). Deskripsikan gambar yang ingin Anda buat.</p>
               </div>
             </div>
           )}
