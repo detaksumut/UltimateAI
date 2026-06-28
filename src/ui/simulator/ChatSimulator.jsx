@@ -101,7 +101,18 @@ export default function ChatSimulator() {
   };
 
   const handleInstallApp = () => {
-    alert("Simulasi: Mengaktifkan mode WebAPK. Di HP sungguhan, Chrome akan memunculkan popup 'Add to Homescreen' untuk menginstal aplikasi ini secara langsung ke layar utama layaknya aplikasi Native.");
+    // Download file langsung ke laptop sesuai permintaan pengguna
+    if (!simulatorHtml) return;
+    const blob = new Blob([simulatorHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Aplikasi-UltimateAI.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
     setBuildStatus('idle'); // reset
   };
 
