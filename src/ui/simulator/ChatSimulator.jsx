@@ -21,6 +21,7 @@ export default function ChatSimulator() {
   const [revisionMode, setRevisionMode] = useState(false);
   const [revisionType, setRevisionType] = useState('');
   const [selectedRecommendations, setSelectedRecommendations] = useState([]);
+  const [attachedImage, setAttachedImage] = useState(null);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -74,16 +75,24 @@ export default function ChatSimulator() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target.result;
-      const fileContext = `\n[Dokumen Terlampir: ${file.name}]\n${content}\n`;
-      setInput(prev => prev + fileContext);
-    };
-    reader.onerror = () => {
-      alert("Gagal membaca file.");
-    };
-    reader.readAsText(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setAttachedImage({
+          name: file.name,
+          dataUrl: event.target.result
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target.result;
+        const fileContext = `\n[Dokumen Terlampir: ${file.name}]\n${content}\n`;
+        setInput(prev => prev + fileContext);
+      };
+      reader.readAsText(file);
+    }
     
     // Reset input so the same file can be selected again
     e.target.value = null;
@@ -242,7 +251,12 @@ export default function ChatSimulator() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const text = input;
+    let text = input;
+    if (attachedImage) {
+      text += `\n[Gambar Terlampir: ${attachedImage.name}]`;
+      setAttachedImage(null);
+    }
+    if (!text.trim()) return;
     setInput('');
     await sendMessage(text);
   };
@@ -634,19 +648,31 @@ export default function ChatSimulator() {
 
           {/* Input Area */}
           <div className="mt-6 pt-4">
+            {attachedImage && (
+              <div className="mb-2 relative inline-block group">
+                <img src={attachedImage.dataUrl} alt="Attachment" className="h-16 w-16 object-cover rounded-lg border-2 border-indigo-500/50 shadow-lg" />
+                <button 
+                  type="button" 
+                  onClick={() => setAttachedImage(null)} 
+                  className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-md transition-transform transform scale-90 group-hover:scale-100"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <input 
               type="file" 
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="hidden"
-              accept=".txt,.csv,.md,.json,.js,.jsx,.ts,.tsx,.html,.css"
+              accept="image/*,.txt,.csv,.md,.json,.js,.jsx,.ts,.tsx,.html,.css"
             />
             <form onSubmit={handleSubmit} className="relative shadow-sm rounded-2xl bg-[#151B2B] border border-[#1E293B] flex items-center p-2">
               <button 
                 type="button" 
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="p-3 text-blue-300 hover:text-white transition-colors"
-                title="Unggah Dokumen (Teks/CSV)"
+                title="Unggah File / Gambar"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
