@@ -50,9 +50,85 @@ app.post('/api/magic', async (req: Request, res: Response) => {
   };
 
   try {
+    const { messages, mode } = req.body;
+    const activeMode = mode || 'APK';
     const latestMessage = messages[messages.length - 1].content;
-    console.log(`\n[API Magic Stream] Received user message: "${latestMessage}"`);
+    console.log(`\n[API Magic Stream] Received user message: "${latestMessage}" (Mode: ${activeMode})`);
     
+    // --- INTERCEPT IMAGE / VIDEO MODES ---
+    if (activeMode === 'Image' || activeMode === 'Video') {
+       sendEvent('progress', { step: 'Requirement', message: `Memproses permintaan ${activeMode}...` });
+       await new Promise(r => setTimeout(r, 1000));
+       sendEvent('progress', { step: 'Generation', message: `Merender Visual AI...` });
+       
+       const prompt = encodeURIComponent(latestMessage);
+       const imageUrl = activeMode === 'Image' 
+         ? `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1920&nologo=true`
+         : `https://image.pollinations.ai/prompt/${prompt}?width=1920&height=1080&nologo=true`;
+       
+       let finalHtml = '';
+       if (activeMode === 'Image') {
+         finalHtml = `
+           <div style="width:100%; height:100%; background:black; display:flex; justify-content:center; align-items:center;">
+             <img src="${imageUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" />
+           </div>
+         `;
+       } else {
+         finalHtml = `
+           <style>
+             @keyframes kenburns {
+               0% { transform: scale(1) translate(0, 0); }
+               50% { transform: scale(1.15) translate(-2%, 2%); filter: contrast(1.1) brightness(1.1); }
+               100% { transform: scale(1) translate(0, 0); }
+             }
+             @keyframes snowfall {
+               0% { background-position: 0px 0px, 0px 0px, 0px 0px; }
+               100% { background-position: 500px 1000px, 400px 400px, 300px 300px; }
+             }
+             .video-container {
+               width: 100%; height: 100%; overflow: hidden; position: relative; background: #000;
+             }
+             .video-img {
+               width: 100%; height: 100%; object-fit: cover;
+               animation: kenburns 30s ease-in-out infinite alternate;
+             }
+             .particles {
+               position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+               background-image: 
+                 radial-gradient(4px 4px at 100px 50px, #fff, transparent), 
+                 radial-gradient(6px 6px at 200px 150px, #fff, transparent), 
+                 radial-gradient(3px 3px at 300px 250px, #fff, transparent);
+               background-size: 550px 550px, 350px 350px, 250px 250px;
+               animation: snowfall 15s linear infinite;
+               opacity: 0.4; pointer-events: none;
+             }
+             .cinematic-bars {
+               position: absolute; top:0; left:0; width:100%; height:100%;
+               background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.8) 100%);
+               pointer-events: none;
+             }
+             .play-indicator {
+               position: absolute; bottom: 15px; left: 15px; color: rgba(255,255,255,0.7);
+               font-family: sans-serif; font-size: 10px; display: flex; align-items: center; gap: 6px;
+             }
+             .red-dot { width: 6px; height: 6px; background: red; border-radius: 50%; animation: pulse 1s infinite; }
+             @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+           </style>
+           <div class="video-container">
+             <img src="${imageUrl}" class="video-img" crossorigin="anonymous" />
+             <div class="particles"></div>
+             <div class="cinematic-bars"></div>
+             <div class="play-indicator"><div class="red-dot"></div> AI SIMULATED VIDEO</div>
+           </div>
+         `;
+       }
+       
+       sendEvent('progress', { step: 'Delivery', message: 'Selesai.' });
+       sendEvent('asset', { html: finalHtml });
+       return res.end();
+    }
+    // --- END INTERCEPT ---
+
     // 1. Clarification & Requirement Gathering
     sendEvent('progress', { step: 'Requirement', message: 'Menganalisis Kebutuhan...' });
     const clarification = await clarificationEngine.analyzeRequirements(messages);

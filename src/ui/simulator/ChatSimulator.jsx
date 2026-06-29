@@ -100,20 +100,43 @@ export default function ChatSimulator() {
     setTimeout(() => { setBuildStatus('done'); setBuildProgress(100); setBuildMessage('Build Complete!'); }, 7000);
   };
 
-  const handleInstallApp = () => {
-    // Download file langsung ke laptop sesuai permintaan pengguna
+  const handleInstallApp = async () => {
     if (!simulatorHtml) return;
-    const blob = new Blob([simulatorHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Aplikasi-UltimateAI.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
     
-    setBuildStatus('idle'); // reset
+    try {
+      setBuildStatus('building');
+      setBuildMessage('Menyimpan ke Laptop...');
+      setBuildProgress(50);
+      
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const API_URL = isLocal 
+        ? 'http://localhost:3001/api/save-file' 
+        : 'https://ultimateai-production.up.railway.app/api/save-file';
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ htmlContent: simulatorHtml })
+      });
+      
+      const data = await response.json();
+      
+      setBuildProgress(100);
+      setBuildMessage('Tersimpan!');
+      
+      setTimeout(() => {
+        if (data.success) {
+          alert(`Sukses! Aplikasi berhasil disimpan langsung ke dalam laptop Anda di folder:\n${data.filePath}`);
+        } else {
+          alert(`Gagal menyimpan file: ${data.error}`);
+        }
+        setBuildStatus('idle'); // reset
+      }, 500);
+
+    } catch (error) {
+      alert(`Terjadi kesalahan saat menyimpan file: ${error.message}`);
+      setBuildStatus('idle'); // reset
+    }
   };
 
   const sendMessage = async (text) => {
@@ -133,7 +156,7 @@ export default function ChatSimulator() {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages })
+        body: JSON.stringify({ messages: newMessages, mode: activeMode })
       });
 
       const reader = response.body.getReader();
@@ -735,10 +758,14 @@ export default function ChatSimulator() {
 
           {activeMode === 'Video' && (
             <div className="relative mx-auto w-[340px] h-[191px] mt-20 bg-black rounded-xl shadow-2xl border border-neutral-800 shrink-0 flex flex-col overflow-hidden group">
-              <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center">
-                <Play className="w-12 h-12 mb-4 opacity-50" />
-                <p className="text-xs font-medium">Video belum dibuat. Silakan deskripsikan video yang Anda inginkan.</p>
-              </div>
+              {simulatorHtml ? (
+                <iframe srcDoc={simulatorHtml} className="w-full h-full border-0 bg-black overflow-hidden pointer-events-none" sandbox="allow-scripts allow-same-origin" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center">
+                  <Play className="w-12 h-12 mb-4 opacity-50" />
+                  <p className="text-xs font-medium">Video belum dibuat. Silakan deskripsikan video yang Anda inginkan.</p>
+                </div>
+              )}
               
               {/* Fake Video Controls */}
               <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-50 group-hover:opacity-100 transition-opacity flex items-center gap-3">
@@ -750,10 +777,14 @@ export default function ChatSimulator() {
 
           {activeMode === 'Image' && (
             <div className="relative mx-auto w-[340px] h-[604px] mt-4 bg-[#0B0F19] rounded-sm shadow-2xl border-8 border-white/5 shrink-0 flex flex-col overflow-hidden">
-              <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center border border-dashed border-[#1E293B] m-2">
-                <Image className="w-12 h-12 mb-4 opacity-50" />
-                <p className="text-sm font-medium">Kanvas kosong (Rasio 9:16). Deskripsikan gambar yang ingin Anda buat.</p>
-              </div>
+              {simulatorHtml ? (
+                <iframe srcDoc={simulatorHtml} className="w-full h-full border-0 bg-[#0B0F19] overflow-hidden" sandbox="allow-scripts allow-same-origin" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center border border-dashed border-[#1E293B] m-2">
+                  <Image className="w-12 h-12 mb-4 opacity-50" />
+                  <p className="text-sm font-medium">Kanvas kosong (Rasio 9:16). Deskripsikan gambar yang ingin Anda buat.</p>
+                </div>
+              )}
             </div>
           )}
           
