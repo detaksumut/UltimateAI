@@ -30,12 +30,24 @@ export class ClarificationEngine {
             CONVERSATION_HISTORY: formattedHistory
         });
 
-        const response = await this.router.routeTask({
-            id: `clarify-${Date.now()}`,
-            prompt: "Analyze the conversation history based on your instructions.",
-            systemPrompt: systemPrompt,
-            requiredCapability: 'REASONING'
-        });
+        let response;
+        try {
+            response = await this.router.routeTask({
+                id: `clarify-${Date.now()}`,
+                prompt: "Analyze the conversation history based on your instructions.",
+                systemPrompt: systemPrompt,
+                requiredCapability: 'REASONING'
+            });
+        } catch (routeError: any) {
+            console.error('[ClarificationEngine] Router failed (e.g. 503 High Demand):', routeError.message);
+            // Graceful fallback to prevent app crash
+            return {
+                level: 1,
+                message: 'Melanjutkan proses (Mode Offline/Fallback)...',
+                inferredRequirements: formattedHistory,
+                options: null
+            };
+        }
 
         try {
             const parsed = this.outputParser.parseJson<any>(response.content);
