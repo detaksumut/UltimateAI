@@ -50,10 +50,10 @@ app.post('/api/magic', async (req: Request, res: Response) => {
   };
 
   try {
-    const { messages, mode } = req.body;
+    const { messages, mode, attachedImage } = req.body;
     const activeMode = mode || 'APK';
     const latestMessage = messages[messages.length - 1].content;
-    console.log(`\n[API Magic Stream] Received user message: "${latestMessage}" (Mode: ${activeMode})`);
+    console.log(`\n[API Magic Stream] Received user message: "${latestMessage.substring(0, 50)}..." (Mode: ${activeMode})`);
     
     // --- INTERCEPT IMAGE / VIDEO MODES ---
     if (activeMode === 'Image' || activeMode === 'Video') {
@@ -61,10 +61,17 @@ app.post('/api/magic', async (req: Request, res: Response) => {
        await new Promise(r => setTimeout(r, 1000));
        sendEvent('progress', { step: 'Generation', message: `Merender Visual AI...` });
        
-       const prompt = encodeURIComponent(latestMessage);
-       const imageUrl = activeMode === 'Image' 
-         ? `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1920&nologo=true`
-         : `https://image.pollinations.ai/prompt/${prompt}?width=1920&height=1080&nologo=true`;
+       const prompt = encodeURIComponent(latestMessage.replace(/\[Gambar Terlampir:.*?\]/g, '').trim());
+       
+       let imageUrl = '';
+       if (attachedImage) {
+         imageUrl = attachedImage; // Use the user's uploaded image directly!
+       } else {
+         // Fallback to text-to-image generator
+         imageUrl = activeMode === 'Image' 
+           ? `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1920&nologo=true`
+           : `https://image.pollinations.ai/prompt/${prompt}?width=1920&height=1080&nologo=true`;
+       }
        
        let finalHtml = '';
        if (activeMode === 'Image') {

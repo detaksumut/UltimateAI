@@ -148,10 +148,12 @@ export default function ChatSimulator() {
     }
   };
 
-  const sendMessage = async (text) => {
-    if (!text.trim() || isProcessing) return;
+  const sendMessage = async (newText, attachedImageData = null) => {
+    if (!newText.trim()) return;
 
-    const newMessages = [...messages, { role: 'user', content: text }];
+    const userMsg = { role: 'user', content: newText };
+    const newMessages = [...messages, userMsg];
+    
     setMessages(newMessages);
     setIsProcessing(true);
     setActiveStep('Requirement');
@@ -162,10 +164,19 @@ export default function ChatSimulator() {
         ? 'http://localhost:3001/api/magic' 
         : 'https://ultimateai-production.up.railway.app/api/magic';
 
+      const payload = { 
+        messages: newMessages, 
+        mode: activeMode 
+      };
+      
+      if (attachedImageData) {
+        payload.attachedImage = attachedImageData;
+      }
+
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, mode: activeMode })
+        body: JSON.stringify(payload)
       });
 
       const reader = response.body.getReader();
@@ -252,13 +263,17 @@ export default function ChatSimulator() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     let text = input;
+    let imageData = null;
+    
     if (attachedImage) {
       text += `\n[Gambar Terlampir: ${attachedImage.name}]`;
+      imageData = attachedImage.dataUrl;
       setAttachedImage(null);
     }
+    
     if (!text.trim()) return;
     setInput('');
-    await sendMessage(text);
+    await sendMessage(text, imageData);
   };
 
   const handleOptionClick = async (optText) => {
