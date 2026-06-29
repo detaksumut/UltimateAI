@@ -178,6 +178,10 @@ export default function ChatSimulator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
+      if (!response.ok) {
+        throw new Error(`Koneksi Gagal (${response.status}): Ukuran file mungkin terlalu besar.`);
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
