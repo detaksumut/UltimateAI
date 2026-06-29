@@ -99,75 +99,134 @@ app.post('/api/magic', async (req: Request, res: Response) => {
            
            try {
                const heygenHeaders = {
-                   'Authorization': `Bearer ${process.env.HEYGEN_API_KEY}`,
+                   'x-api-key': process.env.HEYGEN_API_KEY,
                    'Content-Type': 'application/json'
                };
                
-               // 2a. Upload Asset (Fake it for now to avoid multipart complexity in raw Node, or try real?)
-               // Actually, for robust integration without external form-data libraries, we'll try a direct video generation approach if HeyGen allows base64 (it usually doesn't).
-               // Let's use a standard Avatar ID as fallback if asset upload fails.
-               let avatarId = "josh_lite3_20230714"; // Default HeyGen avatar
+               // We will use standard Node.js fetch (v18+) with FormData
+               const base64Data = attachedImage.split(',')[1];
+               const buffer = Buffer.from(base64Data, 'base64');
+               const blob = new Blob([buffer], { type: 'image/jpeg' });
+               const formData = new FormData();
+               formData.append('file', blob, 'image.jpg');
                
-               // Simulating HeyGen Render for this prototype due to missing exact avatar_id from image.
-               // A true HeyGen pipeline requires multipart form data for the image, which requires busboy/form-data.
-               // We will use the generated script in our Cinematic Simulation but display the text, as writing a perfect multipart form-data request manually is flaky.
-               // WAIT: Let's actually use the simulated player but inject the Vision script as subtitles to prove it works!
+               sendEvent('progress', { step: 'Generation', message: 'Mengunggah gambar ke HeyGen (Asset API)...' });
+               const assetRes = await fetch('https://api.heygen.com/v3/assets', {
+                   method: 'POST',
+                   headers: { 'x-api-key': process.env.HEYGEN_API_KEY },
+                   body: formData
+               });
+               const assetData = await assetRes.json();
+               const assetId = assetData.data?.asset_id;
                
-               // Since real HeyGen requires multipart upload and polling, we'll render the CSS simulation with the script!
-               heygenVideoUrl = imageUrl;
+               let avatarId = "josh_lite3_20230714"; // Fallback
+               if (assetId) {
+                   sendEvent('progress', { step: 'Generation', message: 'Membuat Photo Avatar...' });
+                   const avatarRes = await fetch('https://api.heygen.com/v3/avatars', {
+                       method: 'POST',
+                       headers: heygenHeaders,
+                       body: JSON.stringify({ type: "photo", file: { type: "asset_id", asset_id: assetId } })
+                   });
+                   const avatarData = await avatarRes.json();
+                   if (avatarData.data?.avatar_id) {
+                       avatarId = avatarData.data.avatar_id;
+                   }
+               }
+               
+               sendEvent('progress', { step: 'Generation', message: 'Merender Video (Bisa memakan waktu 1-2 menit)...' });
+               const genRes = await fetch('https://api.heygen.com/v2/video/generate', {
+                   method: 'POST',
+                   headers: heygenHeaders,
+                   body: JSON.stringify({
+                       video_inputs: [{
+                           character: { type: "talking_photo", talking_photo_id: avatarId },
+                           voice: { type: "text", input_text: scriptText, voice_id: "0f5eb08f7f2b4c1fb3a1f87964dfb3cd" }
+                       }],
+                       dimension: { width: 720, height: 1280 }
+                   })
+               });
+               const genData = await genRes.json();
+               const videoId = genData.data?.video_id;
+               
+               if (videoId) {
+                   // Polling for video completion
+                   for (let i = 0; i < 20; i++) {
+                       await new Promise(r => setTimeout(r, 6000));
+                       sendEvent('progress', { step: 'Generation', message: `Menunggu render video... (${(i+1)*6}s)` });
+                       const statusRes = await fetch(`https://api.heygen.com/v1/video_status.get?video_id=${videoId}`, {
+                           headers: { 'x-api-key': process.env.HEYGEN_API_KEY }
+                       });
+                       const statusData = await statusRes.json();
+                       if (statusData.data?.status === 'completed') {
+                           heygenVideoUrl = statusData.data.video_url;
+                           break;
+                       } else if (statusData.data?.status === 'failed') {
+                           console.error("HeyGen Video Failed:", statusData);
+                           break;
+                       }
+                   }
+               }
            } catch (e) {
                console.error("HeyGen API Error:", e);
            }
 
-           finalHtml = `
-           <style>
-             body { margin: 0; padding: 0; background: black; font-family: sans-serif; user-select: none; }
-             @keyframes kenburns {
-               0% { transform: scale(1) translate(0, 0); }
-               50% { transform: scale(1.1) translate(-1%, 1%); filter: contrast(1.05) brightness(1.1); }
-               100% { transform: scale(1) translate(0, 0); }
-             }
-             @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
-             .video-container { width: 100vw; height: 100vh; overflow: hidden; position: relative; cursor: pointer; }
-             .video-img { width: 100%; height: 100%; object-fit: cover; animation: kenburns 15s ease-in-out infinite alternate; }
-             .subtitle { 
-                 position: absolute; bottom: 80px; left: 5%; right: 5%; 
-                 text-align: center; color: white; font-size: 16px; font-weight: bold; 
-                 text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-                 background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;
-             }
-             .controls {
-               position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px; box-sizing: border-box;
-               background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-               display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity 0.3s;
-             }
-             .video-container:hover .controls { opacity: 1; }
-             .play-btn { width: 24px; height: 24px; background: transparent; border: none; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; outline: none; }
-             .progress-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; }
-             .progress-bar { height: 100%; background: #6366f1; width: 0%; animation: progress 15s linear forwards; }
-             .paused .video-img, .paused .progress-bar { animation-play-state: paused !important; }
-           </style>
-           <div class="video-container" id="player" onclick="togglePlay()">
-             <img src="${imageUrl}" class="video-img" crossorigin="anonymous" />
-             <div class="subtitle">"${scriptText}"</div>
-             <div class="controls" onclick="event.stopPropagation(); togglePlay()">
-               <button class="play-btn" id="playBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg></button>
-               <div class="progress-bg"><div class="progress-bar"></div></div>
-             </div>
-           </div>
-           <script>
-             let isPlaying = true;
-             const player = document.getElementById('player');
-             const playBtn = document.getElementById('playBtn');
-             const pauseIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>';
-             const playIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>';
-             function togglePlay() {
-               isPlaying = !isPlaying;
-               if (isPlaying) { player.classList.remove('paused'); playBtn.innerHTML = pauseIcon; } 
-               else { player.classList.add('paused'); playBtn.innerHTML = playIcon; }
-             }
-           </script>
-           `;
+           if (heygenVideoUrl) {
+               finalHtml = `
+               <style>body{margin:0;padding:0;background:black;}</style>
+               <video src="${heygenVideoUrl}" controls autoplay loop style="width:100vw; height:100vh; object-fit:contain;"></video>
+               `;
+           } else {
+               // Fallback to simulated cinematic mode if HeyGen failed
+               finalHtml = `
+               <style>
+                 body { margin: 0; padding: 0; background: black; font-family: sans-serif; user-select: none; }
+                 @keyframes kenburns {
+                   0% { transform: scale(1) translate(0, 0); }
+                   50% { transform: scale(1.1) translate(-1%, 1%); filter: contrast(1.05) brightness(1.1); }
+                   100% { transform: scale(1) translate(0, 0); }
+                 }
+                 @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
+                 .video-container { width: 100vw; height: 100vh; overflow: hidden; position: relative; cursor: pointer; }
+                 .video-img { width: 100%; height: 100%; object-fit: cover; animation: kenburns 15s ease-in-out infinite alternate; }
+                 .subtitle { 
+                     position: absolute; bottom: 80px; left: 5%; right: 5%; 
+                     text-align: center; color: white; font-size: 16px; font-weight: bold; 
+                     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+                     background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;
+                 }
+                 .controls {
+                   position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px; box-sizing: border-box;
+                   background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+                   display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity 0.3s;
+                 }
+                 .video-container:hover .controls { opacity: 1; }
+                 .play-btn { width: 24px; height: 24px; background: transparent; border: none; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; outline: none; }
+                 .progress-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; }
+                 .progress-bar { height: 100%; background: #6366f1; width: 0%; animation: progress 15s linear forwards; }
+                 .paused .video-img, .paused .progress-bar { animation-play-state: paused !important; }
+               </style>
+               <div class="video-container" id="player" onclick="togglePlay()">
+                 <img src="${imageUrl}" class="video-img" crossorigin="anonymous" />
+                 <div class="subtitle">"${scriptText}"</div>
+                 <div class="controls" onclick="event.stopPropagation(); togglePlay()">
+                   <button class="play-btn" id="playBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg></button>
+                   <div class="progress-bg"><div class="progress-bar"></div></div>
+                 </div>
+               </div>
+               <script>
+                 let isPlaying = true;
+                 const player = document.getElementById('player');
+                 const playBtn = document.getElementById('playBtn');
+                 const pauseIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>';
+                 const playIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>';
+                 function togglePlay() {
+                   isPlaying = !isPlaying;
+                   if (isPlaying) { player.classList.remove('paused'); playBtn.innerHTML = pauseIcon; } 
+                   else { player.classList.add('paused'); playBtn.innerHTML = playIcon; }
+                 }
+               </script>
+               `;
+           }
        } 
        // ─── IMAGE MODE & TEXT-TO-IMAGE FALLBACK ───
        else {
