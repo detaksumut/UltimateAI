@@ -327,10 +327,6 @@ export default function ChatSimulator() {
               <Smartphone className={`w-4 h-4 ${activeMode !== 'APK' && 'text-blue-300'}`} />
               <span>Create APK</span>
             </div>
-            <div onClick={() => setActiveMode('Video')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Video' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
-              <Play className={`w-4 h-4 ${activeMode !== 'Video' && 'text-amber-500'}`} />
-              <span>Create Video</span>
-            </div>
             <div onClick={() => setActiveMode('Image')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Image' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
               <Image className={`w-4 h-4 ${activeMode !== 'Image' && 'text-yellow-500'}`} />
               <span>Create Image</span>
