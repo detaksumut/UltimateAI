@@ -804,19 +804,13 @@ export default function ChatSimulator() {
           {activeMode === 'Video' && (
             <div className="relative mx-auto w-[340px] h-[191px] mt-20 bg-black rounded-xl shadow-2xl border border-neutral-800 shrink-0 flex flex-col overflow-hidden group">
               {simulatorHtml ? (
-                <iframe srcDoc={simulatorHtml} className="w-full h-full border-0 bg-black overflow-hidden pointer-events-none" sandbox="allow-scripts allow-same-origin" />
+                <iframe srcDoc={simulatorHtml} className="w-full h-full border-0 bg-black overflow-hidden" sandbox="allow-scripts allow-same-origin" />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-[#151B2B] text-blue-300 p-6 text-center">
                   <Play className="w-12 h-12 mb-4 opacity-50" />
                   <p className="text-xs font-medium">Video belum dibuat. Silakan deskripsikan video yang Anda inginkan.</p>
                 </div>
               )}
-              
-              {/* Fake Video Controls */}
-              <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent opacity-50 group-hover:opacity-100 transition-opacity flex items-center gap-3">
-                <Play className="w-4 h-4 text-white" />
-                <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"><div className="w-0 h-full bg-indigo-500"></div></div>
-              </div>
             </div>
           )}
 

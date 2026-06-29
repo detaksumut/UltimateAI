@@ -84,6 +84,7 @@ app.post('/api/magic', async (req: Request, res: Response) => {
        } else {
          finalHtml = `
            <style>
+             body { margin: 0; padding: 0; background: black; font-family: sans-serif; user-select: none; }
              @keyframes kenburns {
                0% { transform: scale(1) translate(0, 0); }
                50% { transform: scale(1.15) translate(-2%, 2%); filter: contrast(1.1) brightness(1.1); }
@@ -93,8 +94,12 @@ app.post('/api/magic', async (req: Request, res: Response) => {
                0% { background-position: 0px 0px, 0px 0px, 0px 0px; }
                100% { background-position: 500px 1000px, 400px 400px, 300px 300px; }
              }
+             @keyframes progress {
+               0% { width: 0%; }
+               100% { width: 100%; }
+             }
              .video-container {
-               width: 100%; height: 100%; overflow: hidden; position: relative; background: #000;
+               width: 100vw; height: 100vh; overflow: hidden; position: relative; cursor: pointer;
              }
              .video-img {
                width: 100%; height: 100%; object-fit: cover;
@@ -110,24 +115,57 @@ app.post('/api/magic', async (req: Request, res: Response) => {
                animation: snowfall 15s linear infinite;
                opacity: 0.4; pointer-events: none;
              }
-             .cinematic-bars {
-               position: absolute; top:0; left:0; width:100%; height:100%;
-               background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.8) 100%);
-               pointer-events: none;
+             .controls {
+               position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px; box-sizing: border-box;
+               background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+               display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity 0.3s;
              }
-             .play-indicator {
-               position: absolute; bottom: 15px; left: 15px; color: rgba(255,255,255,0.7);
-               font-family: sans-serif; font-size: 10px; display: flex; align-items: center; gap: 6px;
+             .video-container:hover .controls { opacity: 1; }
+             .play-btn {
+               width: 24px; height: 24px; background: transparent; border: none; color: white; cursor: pointer;
+               display: flex; justify-content: center; align-items: center; padding: 0; outline: none;
              }
-             .red-dot { width: 6px; height: 6px; background: red; border-radius: 50%; animation: pulse 1s infinite; }
-             @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+             .progress-bg {
+               flex: 1; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden;
+             }
+             .progress-bar {
+               height: 100%; background: #6366f1; width: 0%;
+               animation: progress 30s linear forwards;
+             }
+             .paused .video-img, .paused .particles, .paused .progress-bar {
+               animation-play-state: paused !important;
+             }
            </style>
-           <div class="video-container">
+           <div class="video-container" id="player" onclick="togglePlay()">
              <img src="${imageUrl}" class="video-img" crossorigin="anonymous" />
              <div class="particles"></div>
-             <div class="cinematic-bars"></div>
-             <div class="play-indicator"><div class="red-dot"></div> AI SIMULATED VIDEO</div>
+             
+             <div class="controls" onclick="event.stopPropagation(); togglePlay()">
+               <button class="play-btn" id="playBtn">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>
+               </button>
+               <div class="progress-bg"><div class="progress-bar"></div></div>
+             </div>
            </div>
+           <script>
+             let isPlaying = true;
+             const player = document.getElementById('player');
+             const playBtn = document.getElementById('playBtn');
+             
+             const pauseIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>';
+             const playIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>';
+             
+             function togglePlay() {
+               isPlaying = !isPlaying;
+               if (isPlaying) {
+                 player.classList.remove('paused');
+                 playBtn.innerHTML = pauseIcon;
+               } else {
+                 player.classList.add('paused');
+                 playBtn.innerHTML = playIcon;
+               }
+             }
+           </script>
          `;
        }
        
