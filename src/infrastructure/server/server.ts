@@ -71,7 +71,7 @@ app.post('/api/magic', async (req: Request, res: Response) => {
            let scriptText = "Halo, selamat datang di layanan kami."; // Fallback
            try {
                const base64Data = attachedImage.split(',')[1];
-               const geminiResponse = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=\${process.env.GEMINI_API_KEY_1}\`, {
+               const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY_1}`, {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify({
@@ -91,7 +91,7 @@ app.post('/api/magic', async (req: Request, res: Response) => {
                console.error("Vision AI Error:", e);
            }
            
-           sendEvent('progress', { step: 'Generation', message: \`Menyusun Naskah: "\${scriptText}"\` });
+           sendEvent('progress', { step: 'Generation', message: `Menyusun Naskah: "${scriptText}"` });
            
            // 2. HeyGen API Integration
            sendEvent('progress', { step: 'Generation', message: 'Terhubung ke HeyGen API untuk merender Talking Head (Estimasi 30-60 detik)...' });
@@ -99,7 +99,7 @@ app.post('/api/magic', async (req: Request, res: Response) => {
            
            try {
                const heygenHeaders = {
-                   'Authorization': \`Bearer \${process.env.HEYGEN_API_KEY}\`,
+                   'Authorization': `Bearer ${process.env.HEYGEN_API_KEY}`,
                    'Content-Type': 'application/json'
                };
                
@@ -119,7 +119,7 @@ app.post('/api/magic', async (req: Request, res: Response) => {
                console.error("HeyGen API Error:", e);
            }
 
-           finalHtml = \`
+           finalHtml = `
            <style>
              body { margin: 0; padding: 0; background: black; font-family: sans-serif; user-select: none; }
              @keyframes kenburns {
@@ -148,8 +148,8 @@ app.post('/api/magic', async (req: Request, res: Response) => {
              .paused .video-img, .paused .progress-bar { animation-play-state: paused !important; }
            </style>
            <div class="video-container" id="player" onclick="togglePlay()">
-             <img src="\${imageUrl}" class="video-img" crossorigin="anonymous" />
-             <div class="subtitle">"\${scriptText}"</div>
+             <img src="${imageUrl}" class="video-img" crossorigin="anonymous" />
+             <div class="subtitle">"${scriptText}"</div>
              <div class="controls" onclick="event.stopPropagation(); togglePlay()">
                <button class="play-btn" id="playBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg></button>
                <div class="progress-bg"><div class="progress-bar"></div></div>
@@ -167,33 +167,33 @@ app.post('/api/magic', async (req: Request, res: Response) => {
                else { player.classList.add('paused'); playBtn.innerHTML = playIcon; }
              }
            </script>
-           \`;
+           `;
        } 
        // ─── IMAGE MODE & TEXT-TO-IMAGE FALLBACK ───
        else {
            const prompt = encodeURIComponent(latestMessage.replace(/\[Gambar Terlampir:.*?\]/g, '').trim());
            if (!imageUrl) {
                imageUrl = activeMode === 'Image' 
-                 ? \`https://image.pollinations.ai/prompt/\${prompt}?width=1080&height=1920&nologo=true\`
-                 : \`https://image.pollinations.ai/prompt/\${prompt}?width=1920&height=1080&nologo=true\`;
+                 ? `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1920&nologo=true`
+                 : `https://image.pollinations.ai/prompt/${prompt}?width=1920&height=1080&nologo=true`;
            }
            
            if (activeMode === 'Image') {
-             finalHtml = \`
+             finalHtml = `
                <div style="width:100%; height:100%; background:black; display:flex; justify-content:center; align-items:center;">
-                 <img src="\${imageUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" />
+                 <img src="${imageUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" />
                </div>
-             \`;
+             `;
            } else {
              // Fallback Video UI
-             finalHtml = \`
+             finalHtml = `
                <style>
                  body { margin: 0; padding: 0; background: black; overflow: hidden; }
                  .video-img { width: 100vw; height: 100vh; object-fit: cover; animation: kenburns 30s ease-in-out infinite alternate; }
                  @keyframes kenburns { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
                </style>
-               <img src="\${imageUrl}" class="video-img" />
-             \`;
+               <img src="${imageUrl}" class="video-img" />
+             `;
            }
        }
        
