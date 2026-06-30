@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "1.0",
+  "hash": "ae0f8fc73673d59fde452da92da80c6e88e8216d1c41eb670a10c588b13e3f23",
+  "symbols": [
+    {
+      "kind": "unknown",
+      "name": "IKnowledgeProjector"
+    },
+    {
+      "kind": "unknown",
+      "name": "IKnowledgeReconstructor"
+    },
+    {
+      "kind": "unknown",
+      "name": "IKnowledgeStore"
+    },
+    {
+      "kind": "unknown",
+      "name": "InMemoryKnowledgeStore"
+    },
+    {
+      "kind": "unknown",
+      "name": "IPendingReferenceRegistry"
+    },
+    {
+      "kind": "unknown",
+      "name": "ISemanticNavigator"
+    },
+    {
+      "kind": "unknown",
+      "name": "IStructuralNavigator"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeAnchor"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeEdge"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeEvent"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeGraph"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeIdentity"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeIngestionEngine"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeMetadata"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeNode"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeNodeType"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgePath"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeProjection"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeProjectionLayer"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeProjectionResult"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeProjectionType"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeRelationType"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeSnapshot"
+    },
+    {
+      "kind": "unknown",
+      "name": "KnowledgeTimeline"
+    },
+    {
+      "kind": "unknown",
+      "name": "LocalFileKnowledgeStore"
+    },
+    {
+      "kind": "unknown",
+      "name": "NavigationContext"
+    },
+    {
+      "kind": "unknown",
+      "name": "NavigationMetrics"
+    },
+    {
+      "kind": "unknown",
+      "name": "NavigationMode"
+    },
+    {
+      "kind": "unknown",
+      "name": "NavigationResult"
+    },
+    {
+      "kind": "unknown",
+      "name": "NavigationWarning"
+    },
+    {
+      "kind": "unknown",
+      "name": "PendingReferenceRegistry"
+    },
+    {
+      "kind": "unknown",
+      "name": "ProjectionContext"
+    },
+    {
+      "kind": "unknown",
+      "name": "ProjectionDescriptor"
+    },
+    {
+      "kind": "unknown",
+      "name": "ProjectorMetadata"
+    },
+    {
+      "kind": "unknown",
+      "name": "ProjectorResolver"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionMetrics"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionMode"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionPolicy"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionRequest"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionResult"
+    },
+    {
+      "kind": "unknown",
+      "name": "ReconstructionWarning"
+    },
+    {
+      "kind": "unknown",
+      "name": "TraversalStrategy"
+    }
+  ]
+}
