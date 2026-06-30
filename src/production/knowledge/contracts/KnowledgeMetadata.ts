@@ -6,6 +6,8 @@
  * the graph to specific implementation details.
  */
 export interface KnowledgeMetadata {
+  readonly creatorCapability?: string;
+  readonly traceId?: string;
   /** Array of semantic labels (e.g., ["HighLatency", "CriticalPath"]) */
   readonly labels?: readonly string[];
   

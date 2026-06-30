@@ -50,7 +50,8 @@ export class KnowledgeIngestionEngine {
         id: artifactNodeId,
         nodeType: KnowledgeNodeType.ARTIFACT_NODE,
         version: 1,
-        createdAt: now
+        createdAt: now,
+        correlationId: artifact.trace.traceId
       },
       artifactId: artifact.identity.id,
       contentHash: artifact.identity.contentHash,
@@ -93,7 +94,8 @@ export class KnowledgeIngestionEngine {
             id: capabilityNodeId,
             nodeType: KnowledgeNodeType.CAPABILITY_NODE,
             version: 1,
-            createdAt: now
+            createdAt: now,
+            correlationId: artifact.trace.traceId
           },
           artifactId: "",
           contentHash: "",
@@ -121,7 +123,8 @@ export class KnowledgeIngestionEngine {
             id: traceNodeId,
             nodeType: KnowledgeNodeType.CONTEXT_NODE,
             version: 1,
-            createdAt: now
+            createdAt: now,
+            correlationId: artifact.trace.traceId
           },
           artifactId: "",
           contentHash: "",
