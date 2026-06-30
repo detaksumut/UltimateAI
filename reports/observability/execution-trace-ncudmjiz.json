@@ -1,0 +1,305 @@
+{
+  "traceId": "trace-ncudmjiz",
+  "timestamp": 1782777501888,
+  "health": [
+    {
+      "runtimeId": "planning-v1",
+      "status": "READY",
+      "averageDurationMs": 22,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "reasoning-v1",
+      "status": "READY",
+      "averageDurationMs": 30,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "execution-v1",
+      "status": "READY",
+      "averageDurationMs": 31,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "knowledge-v1",
+      "status": "READY",
+      "averageDurationMs": 31,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "learning-v1",
+      "status": "READY",
+      "averageDurationMs": 20,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "evolution-v1",
+      "status": "READY",
+      "averageDurationMs": 33,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "SUCCESS",
+      "healthStatus": "Healthy"
+    },
+    {
+      "runtimeId": "delivery-v1",
+      "status": "RUNNING",
+      "averageDurationMs": 0,
+      "successRate": 1,
+      "failureCount": 0,
+      "lastExecutionStatus": "UNKNOWN",
+      "healthStatus": "Healthy"
+    }
+  ],
+  "metrics": [
+    {
+      "runtimeId": "planning-v1",
+      "executionCount": 1,
+      "maxDurationMs": 22,
+      "artifactsProduced": 1,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "reasoning-v1",
+      "executionCount": 2,
+      "maxDurationMs": 34,
+      "artifactsProduced": 2,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "execution-v1",
+      "executionCount": 1,
+      "maxDurationMs": 31,
+      "artifactsProduced": 1,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "knowledge-v1",
+      "executionCount": 1,
+      "maxDurationMs": 31,
+      "artifactsProduced": 1,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "learning-v1",
+      "executionCount": 1,
+      "maxDurationMs": 20,
+      "artifactsProduced": 1,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "evolution-v1",
+      "executionCount": 1,
+      "maxDurationMs": 33,
+      "artifactsProduced": 1,
+      "timeouts": 0
+    },
+    {
+      "runtimeId": "delivery-v1",
+      "executionCount": 1,
+      "maxDurationMs": 0,
+      "artifactsProduced": 0,
+      "timeouts": 0
+    }
+  ],
+  "timeline": {
+    "traceId": "trace-ncudmjiz",
+    "nodes": [
+      {
+        "id": "tel-1782777501657-v4niw",
+        "type": "Runtime",
+        "label": "planning-v1 (STARTING)",
+        "timestamp": 1782777501657,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501681-sbtru",
+        "type": "Runtime",
+        "label": "planning-v1 (COMPLETED)",
+        "timestamp": 1782777501681,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501681-i1dwx",
+        "type": "Runtime",
+        "label": "reasoning-v1 (STARTING)",
+        "timestamp": 1782777501681,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501707-ryhnj",
+        "type": "Runtime",
+        "label": "reasoning-v1 (COMPLETED)",
+        "timestamp": 1782777501707,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501707-5o06a",
+        "type": "Runtime",
+        "label": "execution-v1 (STARTING)",
+        "timestamp": 1782777501707,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501738-u5p6f",
+        "type": "Runtime",
+        "label": "execution-v1 (COMPLETED)",
+        "timestamp": 1782777501738,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501738-je0ym",
+        "type": "Runtime",
+        "label": "knowledge-v1 (STARTING)",
+        "timestamp": 1782777501738,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501769-0v621",
+        "type": "Runtime",
+        "label": "knowledge-v1 (COMPLETED)",
+        "timestamp": 1782777501769,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501769-z4dq9",
+        "type": "Runtime",
+        "label": "learning-v1 (STARTING)",
+        "timestamp": 1782777501769,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501789-112ol",
+        "type": "Runtime",
+        "label": "learning-v1 (COMPLETED)",
+        "timestamp": 1782777501789,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501789-mfs0t",
+        "type": "Runtime",
+        "label": "evolution-v1 (STARTING)",
+        "timestamp": 1782777501789,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501823-lb1ct",
+        "type": "Runtime",
+        "label": "evolution-v1 (COMPLETED)",
+        "timestamp": 1782777501823,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501823-oh4t3",
+        "type": "Runtime",
+        "label": "reasoning-v1 (STARTING)",
+        "timestamp": 1782777501823,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      },
+      {
+        "id": "tel-1782777501857-h1tqa",
+        "type": "Runtime",
+        "label": "reasoning-v1 (COMPLETED)",
+        "timestamp": 1782777501857,
+        "metadata": {
+          "phase": "COMPLETED",
+          "sequenceNumber": 2
+        }
+      },
+      {
+        "id": "tel-1782777501857-tb6ez",
+        "type": "Runtime",
+        "label": "delivery-v1 (STARTING)",
+        "timestamp": 1782777501857,
+        "metadata": {
+          "phase": "STARTING",
+          "sequenceNumber": 1
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "tel-1782777501657-v4niw",
+        "to": "tel-1782777501681-sbtru"
+      },
+      {
+        "from": "tel-1782777501681-i1dwx",
+        "to": "tel-1782777501707-ryhnj"
+      },
+      {
+        "from": "tel-1782777501707-5o06a",
+        "to": "tel-1782777501738-u5p6f"
+      },
+      {
+        "from": "tel-1782777501738-je0ym",
+        "to": "tel-1782777501769-0v621"
+      },
+      {
+        "from": "tel-1782777501769-z4dq9",
+        "to": "tel-1782777501789-112ol"
+      },
+      {
+        "from": "tel-1782777501789-mfs0t",
+        "to": "tel-1782777501823-lb1ct"
+      },
+      {
+        "from": "tel-1782777501823-oh4t3",
+        "to": "tel-1782777501857-h1tqa"
+      }
+    ]
+  }
+}

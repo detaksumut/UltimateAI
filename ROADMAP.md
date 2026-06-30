@@ -11,6 +11,30 @@ Dokumen ini berisi daftar visi dan rencana pengembangan tingkat lanjut untuk eko
 
 ---
 
+## 🚀 Future Roadmap: Autonomous Intelligence Ecosystem
+
+✅ **Milestone 6: Intelligence Engine (Decision Runtime)**
+- 🔒 **LOCKED**: Complete end-to-end Orchestration pipeline containing Reasoning, Planning, Validation, Critic, Reflection, and Repair Engines, regulated by strict Decision Runtime principles.
+
+🚀 **Milestone 7: Decision Knowledge Graph**
+- Transforming the flat Decision Ledger (`TraceableArtifact`s) into a multi-dimensional Knowledge Graph.
+- Tracking causes, consequences, execution outcomes, and cross-session insights.
+- Enabling Auditability, Replay, and Explainability.
+
+🚀 **Milestone 8: Learning Engine**
+- Implementing self-improvement capabilities.
+- Learning from the Decision Knowledge Graph and Execution Memory to improve future Planning and Reasoning.
+
+🚀 **Milestone 9: Optimization Engine**
+- Autonomous fine-tuning of Execution graphs.
+- Balancing latency, cost, and structural efficiency based on user priorities.
+
+🚀 **Milestone 10: Consensus Engine**
+- Aggregating multi-provider or multi-strategy results.
+- Synthesizing the highest-confidence execution path from competing knowledge sources.
+
+---
+
 ## 🌌 Visi Masa Depan (Future Pipeline)
 
 ### 1. Modul "AI Talking Head" (Pembuat Konten Otomatis)

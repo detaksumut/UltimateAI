@@ -83,11 +83,24 @@ export class DirectFallbackProvider extends BaseProvider {
                     for (const modelName of fallbackModels) {
                         try {
                             console.log(`[GEMINI NATIVE] Attempting model ${modelName}...`);
+                            
+                            const parts: any[] = [{ text: (request.systemPrompt || '') + "\n\n---\n\n" + request.prompt }];
+                            if (request.image) {
+                                // Extract base64 data, removing data:image/...;base64, if present
+                                const base64Data = request.image.includes('base64,') ? request.image.split('base64,')[1] : request.image;
+                                parts.push({
+                                    inlineData: {
+                                        mimeType: "image/jpeg",
+                                        data: base64Data
+                                    }
+                                });
+                            }
+
                             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    contents: [{ parts: [{ text: (request.systemPrompt || '') + "\n\n---\n\n" + request.prompt }] }],
+                                    contents: [{ parts: parts }],
                                     generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
                                 })
                             });

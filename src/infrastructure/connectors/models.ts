@@ -9,6 +9,7 @@ export interface AIRequest {
     readonly requiredCapability: TaskCapability;
     readonly maxTokens?: number;
     readonly temperature?: number;
+    readonly image?: string; // base64 string
 }
 
 export interface AIResponse {

@@ -3,7 +3,7 @@ import {
   Target, Lightbulb, FileText, Database, Brain, ClipboardList, Smartphone, Play, Send,
   Home, Folder, Image, History, Settings, HelpCircle, User, Bell, ChevronDown, CheckCircle2,
   Paperclip, Plus, ArrowRight, MessageSquare, Star, Clock, Package, Info,
-  Check, Edit3, X, Menu
+  Check, Edit3, X, Menu, Layout
 } from 'lucide-react';
 
 export default function ChatSimulator() {
@@ -325,11 +325,19 @@ export default function ChatSimulator() {
           <div className="space-y-1 text-sm font-medium text-blue-300">
             <div onClick={() => setActiveMode('APK')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'APK' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
               <Smartphone className={`w-4 h-4 ${activeMode !== 'APK' && 'text-blue-300'}`} />
-              <span>Create APK</span>
+              <span>Create APK Research</span>
+            </div>
+            <div onClick={() => setActiveMode('Plagiarism')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Plagiarism' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
+              <Smartphone className={`w-4 h-4 ${activeMode !== 'Plagiarism' && 'text-blue-300'}`} />
+              <span>Create APK Plagiarism</span>
             </div>
             <div onClick={() => setActiveMode('Image')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Image' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
               <Image className={`w-4 h-4 ${activeMode !== 'Image' && 'text-yellow-500'}`} />
               <span>Create Image</span>
+            </div>
+            <div onClick={() => setActiveMode('Flyer')} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors ${activeMode === 'Flyer' ? 'bg-indigo-500/10 text-indigo-400 font-semibold' : 'hover:bg-[#151B2B] hover:text-white'}`}>
+              <Layout className={`w-4 h-4 ${activeMode !== 'Flyer' && 'text-fuchsia-400'}`} />
+              <span>Flyer Studio</span>
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-[#151B2B] hover:text-white cursor-pointer transition-colors">
               <Clock className="w-4 h-4 text-blue-300" />
@@ -361,14 +369,19 @@ export default function ChatSimulator() {
             </div>
           </div>
           
+          <div className="mt-auto pt-6 px-4 pb-4 flex justify-center">
+            <img src="/aladin.png" alt="Aladin" className="w-48 h-auto object-contain drop-shadow-2xl" />
+          </div>
         </div>
       </div>
 
       {/* MIDDLE: CHAT & PIPELINE */}
-      <div className={`${showSimulatorMobile ? 'hidden' : 'flex'} lg:flex flex-1 flex-col min-w-0 bg-[#0B0F19]`}>
+      <div className={`${showSimulatorMobile ? 'hidden' : 'flex'} lg:flex flex-1 flex-col min-w-0 bg-[#0B0F19] relative overflow-hidden`}>
+        {/* Faint Genie Background */}
+        <div className="absolute inset-0 z-0 pointer-events-none" style={{ backgroundImage: "url('/genie-bg.png')", backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundSize: '120%', opacity: 0.15 }}></div>
         
         {/* Topbar */}
-        <div className="h-16 border-b border-[#1E293B] bg-[#151B2B] flex items-center justify-between lg:justify-end px-4 md:px-6 gap-4 shrink-0">
+        <div className="h-16 border-b border-[#1E293B] bg-[#151B2B] flex items-center justify-between lg:justify-end px-4 md:px-6 gap-4 shrink-0 relative z-10">
           <div className="flex gap-3 items-center">
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-white"><Menu className="w-6 h-6"/></button>
             <button onClick={() => setShowSimulatorMobile(true)} className="lg:hidden px-3 py-1.5 bg-indigo-600 rounded-md text-xs font-semibold text-white">
@@ -390,7 +403,7 @@ export default function ChatSimulator() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 md:p-8 overflow-hidden">
+        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 md:p-8 overflow-hidden relative z-10">
           
           {/* Pipeline Stepper */}
           <div className="bg-[#151B2B] border border-[#1E293B] rounded-2xl p-4 md:p-6 mb-4 md:mb-8 flex items-center justify-between shrink-0 relative shadow-sm overflow-x-auto">
@@ -719,12 +732,12 @@ export default function ChatSimulator() {
         <div className="p-6 pb-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-bold text-white tracking-wider">
-              {activeMode === 'APK' ? 'SIMULATOR' : activeMode === 'Video' ? 'VIDEO PLAYER' : 'CANVAS'}
+              {(activeMode === 'APK' || activeMode === 'Plagiarism' || activeMode === 'Flyer') ? 'SIMULATOR' : activeMode === 'Video' ? 'VIDEO PLAYER' : 'CANVAS'}
             </h3>
             <div className="flex items-center gap-2">
               <button onClick={() => setShowSimulatorMobile(false)} className="lg:hidden px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-md text-xs font-semibold text-white mr-2">Kembali</button>
               <span className="text-xs text-blue-300 bg-[#151B2B] border border-[#1E293B] px-2 py-1 rounded-md">
-                {activeMode === 'APK' ? 'iPhone 15' : activeMode === 'Video' ? '16:9 HD' : '9:16 Portrait'}
+                {(activeMode === 'APK' || activeMode === 'Plagiarism' || activeMode === 'Flyer') ? 'iPhone 15' : activeMode === 'Video' ? '16:9 HD' : '9:16 Portrait'}
               </span>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-medium">
                 <div className="w-2 h-2 rounded-full bg-emerald-500/100 animate-pulse"></div> Online
@@ -733,7 +746,7 @@ export default function ChatSimulator() {
           </div>
 
           {/* Dynamic Frames */}
-          {activeMode === 'APK' && (
+          {(activeMode === 'APK' || activeMode === 'Plagiarism' || activeMode === 'Flyer') && (
             <div className="relative mx-auto w-[340px] h-[680px] bg-black rounded-[40px] shadow-2xl border-[10px] border-neutral-900 shrink-0 flex flex-col overflow-hidden">
               <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[100px] h-[30px] bg-black rounded-full z-30"></div>
               

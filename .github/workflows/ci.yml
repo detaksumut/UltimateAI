@@ -1,0 +1,40 @@
+name: UltimateAI Architecture Compliance CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  architecture-guardrails:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: 1. Architecture Compliance (ESLint Boundaries)
+      run: npx eslint src/production/
+      
+    - name: 2. Architecture Compliance (Circular Dependencies)
+      run: npx dependency-cruiser src/production/ --config .dependency-cruiser.js
+      
+    - name: 3. Architecture Compliance (AST Tests)
+      run: npx jest src/tests/architecture/
+      
+    - name: 4. Type Check
+      run: npx tsc --noEmit
+      
+    - name: 5. Integration Tests
+      run: npx tsx src/production/kernel/KernelIntegrationTest.ts
+      
+    - name: 6. Build
+      run: npm run build

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Penelitian Kelapa Sawit Terpadu - UltimateAI</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts (Plus Jakarta Sans) -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+  </style>
+<style>html { font-size: 13px !important; }</style></head>
+<body class="pb-24 bg-gradient-to-br from-slate-50 via-emerald-50/20 to-slate-100 min-h-screen">
+  <!-- SCRIPT WAJIB DI ATAS AGAR TIDAK TERPOTONG AI -->
+  <script>
+    // WAJIB: Tentukan variabel dasar dan parameter ukur sesuai topik penelitian.
+    window.APP_VARIABLES = [
+      { id: 'blok_lahan', label: 'Kode Blok Lahan', type: 'text' },
+      { id: 'varietas_sawit', label: 'Varietas Kelapa Sawit', type: 'text' },
+      { id: 'tahun_tanam', label: 'Tahun Tanam', type: 'number' },
+      { id: 'kepadatan_tanaman', label: 'Kepadatan (Pokok/Ha)', type: 'number' }
+    ];
+    window.APP_PARAMETERS = [
+      { id: 'tinggi_tanaman', label: 'Tinggi Tanaman (meter)', type: 'number' },
+      { id: 'jumlah_pelepah', label: 'Jumlah Pelepah Aktif', type: 'number' },
+      { id: 'berat_tandan', label: 'Rata-rata Berat Tandan (kg)', type: 'number' },
+      { id: 'kadar_nitrogen', label: 'Kadar Nitrogen Daun (%)', type: 'number' },
+      { id: 'kelembaban_tanah', label: 'Kelembaban Tanah (%)', type: 'number' }
+    ];
+  </script>
+  <script src="/simulator-core.js"></script>
+
+  <!-- TAB BERANDA (HERO LANDING PAGE) -->
+  <div id="tab-home" class="tab-content" style="display: block;">
+     <!-- HERO SECTION (STATIS) -->
+     <div class="flex flex-col items-center justify-start bg-[#050B14] pt-12 pb-6 relative overflow-hidden">
+         <!-- Decorative Background Glow -->
+         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none opacity-20">
+             <div class="absolute top-[-10%] left-[10%] w-[300px] h-[300px] rounded-full bg-emerald-500 blur-[120px]"></div>
+             <div class="absolute bottom-[10%] right-[10%] w-[250px] h-[250px] rounded-full bg-teal-500 blur-[100px]"></div>
+         </div>
+         
+         <!-- LOGO TRANSPARAN DI ATAS -->
+         <img src="/logo-ultimateAI-transparent.png" alt="UltimateAI Logo" class="h-12 md:h-16 mb-2 object-contain z-10">
+         <!-- GAMBAR HERO -->
+         <img src="/heroultimateai.png" alt="UltimateAI Hero" class="w-full max-w-5xl h-auto object-contain z-10 px-4">
+     </div>
+     
+     <!-- PENJELASAN RISET (DINAMIS - GANTI OLEH AI) -->
+     <div class="p-6 md:p-10 max-w-5xl mx-auto text-center">
+        <!-- GANTI TEKS INI SESUAI JUDUL PENELITIAN -->
+        <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-700 to-teal-900 mb-6 tracking-tight leading-tight">
+           Sistem Penelitian & Optimalisasi Produktivitas Tanaman Sawit Terpadu
+        </h1>
+        
+        <!-- GANTI TEKS INI DENGAN PENJELASAN METODE & TUJUAN -->
+        <div class="bg-white/80 backdrop-blur-lg p-6 md:p-10 rounded-3xl shadow-2xl border border-emerald-100/50 text-left space-y-8">
+           <div>
+              <h2 class="font-bold text-2xl mb-4 text-emerald-900 border-b border-emerald-100 pb-3 flex items-center gap-3">
+                 <i class="fa-solid fa-seedling text-emerald-600"></i> Executive Summary
+              </h2>
+              <p class="text-base md:text-lg text-slate-700 leading-relaxed">
+                 Aplikasi Penelitian Tanaman Sawit Terpadu ini dirancang khusus untuk memfasilitasi riset agronomi modern berskala enterprise. Melalui integrasi pengumpulan data parameter biofisik, analisis nutrisi pelepah, dan pemantauan hasil panen secara real-time, sistem ini bertujuan untuk mengidentifikasi korelasi antara varietas bibit, manajemen pemupukan, dan produktivitas Tandan Buah Segar (TBS).
+              </p>
+           </div>
+
+           <!-- Grid of Research Pillars -->
+           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              <div class="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 transition-all hover:shadow-md">
+                 <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl mb-4 shadow-md shadow-emerald-200">
+                    <i class="fa-solid fa-chart-line"></i>
+                 </div>
+                 <h3 class="font-bold text-lg text-slate-800 mb-2">Presisi Agronomi</h3>
+                 <p class="text-sm text-slate-600">Pemantauan pertumbuhan vegetatif dan generatif tanaman sawit secara akurat per blok lahan.</p>
+              </div>
+              <div class="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100/50 transition-all hover:shadow-md">
+                 <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl mb-4 shadow-md shadow-amber-200">
+                    <i class="fa-solid fa-flask-vial"></i>
+                 </div>
+                 <h3 class="font-bold text-lg text-slate-800 mb-2">Analisis Nutrisi</h3>
+                 <p class="text-sm text-slate-600">Evaluasi status hara makro dan mikro daun untuk rekomendasi pemupukan presisi.</p>
+              </div>
+              <div class="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/50 transition-all hover:shadow-md">
+                 <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl mb-4 shadow-md shadow-blue-200">
+                    <i class="fa-solid fa-shield-halved"></i>
+                 </div>
+                 <h3 class="font-bold text-lg text-slate-800 mb-2">Proteksi Tanaman</h3>
+                 <p class="text-sm text-slate-600">Deteksi dini serangan hama penyakit (Ganoderma, Ulat Api) untuk meminimalkan kerugian.</p>
+              </div>
+           </div>
+
+           <!-- Methodology Section -->
+           <div class="pt-4">
+              <h2 class="font-bold text-xl mb-4 text-emerald-900 border-b border-emerald-100 pb-3 flex items-center gap-3">
+                 <i class="fa-solid fa-gears text-emerald-600"></i> Metodologi Penelitian
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div class="flex gap-4">
+                    <div class="text-emerald-600 text-lg font-bold">01.</div>
+                    <div>
+                       <h4 class="font-semibold text-slate-800 mb-1">Stratified Random Sampling</h4>
+                       <p class="text-sm text-slate-600">Pengambilan sampel tanaman uji berdasarkan zonasi topografi dan kelas kesuburan tanah.</p>
+                    </div>
+                 </div>
+                 <div class="flex gap-4">
+                    <div class="text-emerald-600 text-lg font-bold">02.</div>
+                    <div>
+                       <h4 class="font-semibold text-slate-800 mb-1">Korelasi Multivariat</h4>
+                       <p class="text-sm text-slate-600">Analisis statistik untuk menghubungkan parameter iklim, kadar air tanah, dan produktivitas TBS.</p>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+     </div>
+  </div>
+  
+  <!-- TAB INPUT -->
+  <div id="tab-input" class="tab-content p-5 pt-10 bg-[#f4f7fb] min-h-screen pb-24" style="display: none;"></div>
+  
+  <!-- TAB SETUP -->
+  <div id="tab-setup" class="tab-content p-6 pt-12" style="display: none;"></div>
+  
+  <!-- TAB DATA -->
+  <div id="tab-data" class="tab-content p-6 pt-12 overflow-x-auto min-h-screen pb-24" style="display: none;"></div>
+</body>
+</html>

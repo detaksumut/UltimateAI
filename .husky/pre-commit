@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "=== UltimateAI Architecture Guardrails ==="
+echo "1. Running ESLint (Boundary Checks)..."
+npx lint-staged || exit 1
+
+echo "2. Running Architecture Compliance Tests (AST)..."
+npx jest src/tests/architecture/ || {
+  echo "❌ Architecture Compliance Failed. Please review the Architecture Compliance Guide."
+  exit 1
+}
+
+echo "✅ Constitution Enforced Successfully."

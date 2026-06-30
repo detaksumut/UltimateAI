@@ -1,0 +1,8 @@
+export enum RuntimeTelemetryPhase {
+  QUEUED = "QUEUED",
+  STARTING = "STARTING",
+  RUNNING = "RUNNING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+  CANCELLED = "CANCELLED"
+}
