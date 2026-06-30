@@ -2,9 +2,9 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 console.log('[Server] Starting up with fresh cache v18...');
 
-import * as express from 'express';
+import express from 'express';
 import { Request, Response } from 'express';
-import * as cors from 'cors';
+import cors from 'cors';
 import * as fs from 'fs';
 import * as path from 'path';
 
