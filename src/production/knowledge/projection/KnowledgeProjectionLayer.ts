@@ -51,7 +51,7 @@ export class KnowledgeProjectionLayer {
    */
   private validateProjection(projection: KnowledgeProjection): string[] {
     const warnings: string[] = [];
-    const nodeIds = new Set(projection.nodes.map(n => n.identity.nodeId));
+    const nodeIds = new Set(projection.nodes.map(n => n.identity.id));
     
     // Check nodes
     if (nodeIds.size !== projection.nodes.length) {
@@ -72,10 +72,10 @@ export class KnowledgeProjectionLayer {
       }
       // 3. Self-loop
       if (edge.sourceNodeId === edge.targetNodeId) {
-        warnings.push(`Self-loop detected on nodeId ${edge.sourceNodeId} (relation: ${edge.relation})`);
+        warnings.push(`Self-loop detected on nodeId ${edge.sourceNodeId} (relation: ${edge.relationType})`);
       }
       // 4. Duplicate Edge
-      const sig = `${edge.sourceNodeId}->${edge.targetNodeId}:${edge.relation}`;
+      const sig = `${edge.sourceNodeId}->${edge.targetNodeId}:${edge.relationType}`;
       if (edgeSignatures.has(sig)) {
         warnings.push(`Duplicate edge detected: ${sig}`);
       }
