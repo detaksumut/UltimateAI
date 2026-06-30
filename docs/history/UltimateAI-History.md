@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Status:** Living Document  
 **Document Type:** Engineering Chronicle  
-**Last Updated:** Sprint 2 Milestone 1
+**Last Updated:** Milestone 3 Phase 2 — Post Phase 2 Runtime Fix
 
 ---
 
@@ -332,7 +332,131 @@ Belum ada perubahan perilaku runtime.
 
 ---
 
+
+# Milestone 3
+## Knowledge API Freeze
+
+Milestone 3 difokuskan pada validasi dan pembekuan Knowledge Public API sebelum pengembangan lebih lanjut.
+
+Filosofi utama:
+
+> "Validate before build. Document before commit. Freeze before expand."
+
+### Phase 1 — Compiler Stabilization
+
+Aktivitas:
+
+- Menghilangkan seluruh TypeScript compiler error aktif.
+- Mengkonfigurasi `tsconfig.json` agar menyertakan hanya file production.
+- Mendokumentasikan baseline error (14 error yang diketahui bukan blocker).
+- CI pipeline dijalankan dan dikonfirmasi hijau.
+
+Output:
+
+- `TypeScriptErrorBaseline.md`
+- `Phase1Completion.md`
+
+Status: **LOCKED**
+
+---
+
+### Phase 2 — Contract Validation & API Freeze
+
+Phase 2 sepenuhnya bersifat validasi — tidak ada fitur baru, tidak ada script baru selain yang sudah direncanakan.
+
+Aktivitas:
+
+- **P2-01** — Contract Audit: Seluruh 18 interface publik diaudit dari `src/production/knowledge/index.ts`.
+- **P2-02** — Public API Entry Point: Semua export terverifikasi berasal dari satu entry point.
+- **P2-03** — Dependency Validation: Dependency Cruiser dan ESLint boundary dijalankan. Tidak ada architectural violation.
+- **P2-04** — Contract Coverage Matrix: Seluruh 18 interface dipetakan ke test coverage. 16 interface PASS (≥80%), 2 PARTIAL (terdokumentasi di TechnicalDebt).
+- **P2-05** — API Freeze Candidate: Snapshot deterministik (`KnowledgeApiSnapshot.json`) dibuat dengan hash SHA-256. Diff report menunjukkan 0 breaking changes.
+
+Technical Debt yang didokumentasikan:
+
+- `TD-003` — Deferred interface coverage
+- `TD-007` — Deferred interface coverage
+- `TD-008` — API Snapshot classification limitation (re-export tidak terklasifikasi)
+
+Working Agreement yang dipatuhi:
+
+- Documentation First (tidak ada commit tanpa artefak selesai)
+- One Task = One Review = One Approval = One Commit
+- No placeholder values remain
+- No scope creep
+
+Output:
+
+- `ContractAuditReport.md`
+- `TechnicalDebt.md`
+- `DependencyValidationReport.md`
+- `ContractCoverageMatrix.md`
+- `KnowledgeApiSnapshot.json`
+- `KnowledgeApiFreezeCandidate.md`
+- `PublicApiDiffReport.md`
+- `Phase2Completion.md`
+- `Phase2Approval.md`
+
+Status: **LOCKED**
+
+---
+
+### Post Phase 2 — Runtime Fix
+
+Setelah Phase 2 di-commit dan di-push, Railway production deployment crash dengan error:
+
+```
+TypeError: express is not a function
+    at <anonymous> (/app/src/infrastructure/server/server.ts:22:13)
+```
+
+**Root Cause:**
+
+`server.ts` menggunakan namespace import:
+
+```typescript
+import * as express from 'express';
+import * as cors from 'cors';
+```
+
+Pada Node.js v22 dengan ESM loader, pola `import * as` menghasilkan module namespace object, bukan callable function. Commit sebelumnya berhasil di-deploy karena Railway menggunakan cached build. Commit Phase 2 (dokumentasi saja) mentrigger fresh build yang mengekspos masalah ini.
+
+**Mengapa CI tidak menangkap ini:**
+
+Architecture guardrails dan TypeScript compiler tidak mendeteksi ESM/CJS interop issue ini karena:
+- `esModuleInterop: true` di tsconfig membuat TypeScript menerima kedua pola.
+- Test suite tidak menjalankan actual server runtime.
+- Railway menjalankan Node.js v22 native ESM, berbeda dari environment lokal.
+
+**Resolution:**
+
+Ubah ke default import:
+
+```typescript
+import express from 'express';
+import cors from 'cors';
+```
+
+**Pelajaran:**
+
+CI hijau tidak selalu berarti deployment hijau. Runtime regression pada ESM/CJS boundary harus diverifikasi di environment deployment, bukan hanya di CI.
+
+**Verification:**
+
+| Gate | Status |
+|------|--------|
+| GitHub Actions | ✅ PASS |
+| Architecture Guardrails | ✅ PASS |
+| Railway Deployment | ✅ PASS |
+| Production Runtime | ✅ PASS |
+
+**Commit:** `0b2280b`  
+**Status:** Closed
+
+---
+
 # Roadmap
+
 
 Sprint 2
 
