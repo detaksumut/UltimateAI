@@ -106,6 +106,7 @@ export async function runMockIntegrationFlow() {
 
 import { fileURLToPath } from 'url';
 
-if (process.argv[1] === fileURLToPath(new Function('return import.meta.url')())) {
+// @ts-ignore
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   runMockIntegrationFlow().catch(console.error);
 }
