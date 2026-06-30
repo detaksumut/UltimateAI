@@ -1,0 +1,11 @@
+{
+  "milestone": "3",
+  "description": "Knowledge Certification",
+  "tests": [
+    "ReferentialIntegrityTest",
+    "ReverseTraversalTest",
+    "DuplicateProtectionTest",
+    "InvariantReachabilityTest",
+    "LargeGraphTest"
+  ]
+}

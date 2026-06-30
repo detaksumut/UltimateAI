@@ -1,0 +1,26 @@
+{
+  "suite": "InvariantReachabilityTest",
+  "status": "PASS",
+  "durationMs": 52,
+  "metrics": {
+    "cycleDetected1": false,
+    "cycleDetected2": true,
+    "reachabilityPlanningCount": 3,
+    "reachabilityTraceCount": 1
+  },
+  "evidence": [
+    {
+      "cycleDetected1": false,
+      "cycleDetected2": true,
+      "planningNodes": [
+        "kn-a-v1",
+        "kn-b-v1",
+        "kn-c-v1"
+      ],
+      "traceNodes": [
+        "kn-c-v1"
+      ],
+      "errors": []
+    }
+  ]
+}

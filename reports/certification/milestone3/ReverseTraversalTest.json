@@ -1,0 +1,23 @@
+{
+  "suite": "ReverseTraversalTest",
+  "status": "PASS",
+  "durationMs": 54,
+  "metrics": {
+    "pathLength": 3
+  },
+  "evidence": [
+    {
+      "upwardPath": [
+        "kn-child-c-v1",
+        "kn-parent-b-v1",
+        "kn-grandparent-a-v1"
+      ],
+      "downwardPath": [
+        "kn-grandparent-a-v1",
+        "kn-parent-b-v1",
+        "kn-child-c-v1"
+      ],
+      "errors": []
+    }
+  ]
+}

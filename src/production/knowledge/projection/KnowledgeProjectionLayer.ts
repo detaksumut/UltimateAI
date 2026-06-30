@@ -5,6 +5,7 @@ import { ProjectorResolver } from "./ProjectorResolver";
 import { ProjectionContext } from "./ProjectionContext";
 import { KnowledgeProjectionResult } from "./KnowledgeProjectionResult";
 import { KnowledgeProjection } from "./KnowledgeProjection";
+import { IClock } from "../../contracts/clock/IClock";
 
 /**
  * Orchestrator of the Knowledge Projection process.
@@ -12,10 +13,13 @@ import { KnowledgeProjection } from "./KnowledgeProjection";
  * validates the projection, and returns the result.
  */
 export class KnowledgeProjectionLayer {
-  constructor(private readonly resolver: ProjectorResolver) {}
+  constructor(
+    private readonly resolver: ProjectorResolver,
+    private readonly clock: IClock
+  ) {}
 
   public projectArtifact(artifact: TraceableArtifact, context: ProjectionContext): KnowledgeProjectionResult {
-    const startTime = Date.now();
+    const startTime = this.clock.now();
     
     // 1. Resolve stateless projector
     const projector = this.resolver.resolve(artifact);
@@ -35,7 +39,7 @@ export class KnowledgeProjectionLayer {
         projectorVersion: projector.metadata.version
       },
       metrics: {
-        durationMs: Date.now() - startTime
+        durationMs: this.clock.now() - startTime
       },
       warnings
     };

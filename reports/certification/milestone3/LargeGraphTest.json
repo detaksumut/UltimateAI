@@ -1,0 +1,48 @@
+{
+  "suite": "LargeGraphTest",
+  "status": "FAIL",
+  "durationMs": 16386,
+  "metrics": {
+    "total10kNodes": 20001,
+    "total10kEdges": 29999,
+    "memoryUsedMB": 23,
+    "invariantCheckMs": 33,
+    "traversalMs": 14793
+  },
+  "evidence": [
+    {
+      "size": 100,
+      "nodesCount": 201,
+      "edgesCount": 299,
+      "memoryMB": 0,
+      "generationMs": 66,
+      "invariantCheckMs": 2,
+      "traversalMs": 2,
+      "traversalPathLength": 99,
+      "cycleDetected": false
+    },
+    {
+      "size": 1000,
+      "nodesCount": 2001,
+      "edgesCount": 2999,
+      "memoryMB": 4,
+      "generationMs": 148,
+      "invariantCheckMs": 3,
+      "traversalMs": 88,
+      "traversalPathLength": 999,
+      "cycleDetected": false
+    },
+    {
+      "size": 10000,
+      "nodesCount": 20001,
+      "edgesCount": 29999,
+      "memoryMB": 23,
+      "generationMs": 1251,
+      "invariantCheckMs": 33,
+      "traversalMs": 14793,
+      "traversalPathLength": 9999,
+      "cycleDetected": false
+    }
+  ],
+  "error": "Performance or cycle detection invariants failed."
+}

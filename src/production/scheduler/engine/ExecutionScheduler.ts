@@ -6,6 +6,7 @@ import { CancellationToken } from "../contracts/CancellationToken";
 import { IRuntimeCoordinator } from "../../runtime/coordinator/RuntimeCoordinator";
 import { IRuntimeEventBus } from "../../runtime/events/RuntimeEventBus";
 import { SchedulerEvent } from "../contracts/SchedulerEvent";
+import { RuntimeCapability } from "../../runtime/contracts/RuntimeCapability";
 
 export class ExecutionScheduler {
   private readyQueue: ExecutionUnit[] = [];
@@ -223,9 +224,9 @@ export class ExecutionScheduler {
       unitId: unit.id,
       newState: unit.state,
       timestamp: Date.now(),
-      payload: extraPayload
+      payload: extraPayload || unit
     };
-    this.eventBus.publish(type, evt);
+    this.eventBus.publish(evt as any);
   }
 
   public getSnapshot(): SchedulerSnapshot {

@@ -1,0 +1,29 @@
+{
+  "suite": "DuplicateProtectionTest",
+  "status": "PASS",
+  "durationMs": 3126,
+  "metrics": {
+    "totalNodes": 5,
+    "totalEdges": 5,
+    "pendingCount": 0
+  },
+  "evidence": [
+    {
+      "nodes": [
+        "kn-child-y-v1",
+        "cap-PLANNING",
+        "trace-t-child-y",
+        "kn-parent-x-v1",
+        "trace-t-parent-x"
+      ],
+      "edges": [
+        "edge-kn-child-y-v1-gen-cap-PLANNING",
+        "edge-kn-child-y-v1-bel-trace-t-child-y",
+        "edge-kn-parent-x-v1-gen-cap-PLANNING",
+        "edge-kn-parent-x-v1-bel-trace-t-parent-x",
+        "edge-parent-x-to-kn-child-y-v1"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,5 +1,4 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+
 
 echo "=== UltimateAI Architecture Guardrails ==="
 echo "1. Running ESLint (Boundary Checks)..."

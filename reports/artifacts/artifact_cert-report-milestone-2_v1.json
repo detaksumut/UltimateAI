@@ -1,0 +1,215 @@
+{
+  "identity": {
+    "id": "cert-report-milestone-2",
+    "type": "CERTIFICATION_REPORT",
+    "version": 1,
+    "timestamp": 1782801306339,
+    "contentHash": "9dd27cc46f164d76821dfec5e722e490c3cea0eeb9dce6b482fe49d6ff340e93"
+  },
+  "status": "FINAL",
+  "trace": {
+    "traceId": "cert-trace-certification-2026-1782801306339"
+  },
+  "lineage": {
+    "parentIds": [],
+    "derivedArtifactIds": []
+  },
+  "provenance": {
+    "creatorCapability": "CERTIFICATION_RUNNER"
+  },
+  "metadata": {
+    "createdAt": 1782801306339,
+    "updatedAt": 1782801306339,
+    "labels": [
+      "certification",
+      "milestone-2"
+    ],
+    "tags": {
+      "milestone": "2",
+      "seed": "certification-2026",
+      "status": "PASS"
+    },
+    "custom": {}
+  },
+  "payload": [
+    {
+      "suite": "ExecutionStressTest",
+      "status": "PASS",
+      "durationMs": 6150,
+      "metrics": {
+        "started": 100,
+        "completed": 100,
+        "failed": 0
+      },
+      "evidence": [
+        {
+          "timestamp": 1782801303051,
+          "totalUnits": 16,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 16,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 1
+          }
+        }
+      ]
+    },
+    {
+      "suite": "FairnessTest",
+      "status": "PASS",
+      "durationMs": 200,
+      "metrics": {
+        "totalCompleted": 11
+      },
+      "evidence": [
+        {
+          "timestamp": 1782801303268,
+          "totalUnits": 11,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 11,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    },
+    {
+      "suite": "DeadlockTest",
+      "status": "PASS",
+      "durationMs": 62,
+      "metrics": {},
+      "evidence": [
+        {
+          "timestamp": 1782801303332,
+          "totalUnits": 4,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 4,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    },
+    {
+      "suite": "CancellationTest",
+      "status": "PASS",
+      "durationMs": 14,
+      "metrics": {},
+      "evidence": [
+        {
+          "timestamp": 1782801303347,
+          "totalUnits": 1,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 0,
+            "FAILED": 0,
+            "CANCELLED": 1
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    },
+    {
+      "suite": "ResumeTest",
+      "status": "PASS",
+      "durationMs": 62,
+      "metrics": {},
+      "evidence": [
+        {
+          "timestamp": 1782801303411,
+          "totalUnits": 1,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 1,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    },
+    {
+      "suite": "DeterministicReplayTest",
+      "status": "PASS",
+      "durationMs": 57,
+      "metrics": {},
+      "evidence": [
+        {
+          "timestamp": 1782801303469,
+          "totalUnits": 2,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 2,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    },
+    {
+      "suite": "ExecutionIsolationTest",
+      "status": "PASS",
+      "durationMs": 61,
+      "metrics": {
+        "eventsA": 1,
+        "eventsB": 1
+      },
+      "evidence": []
+    },
+    {
+      "suite": "LongRunningStabilityTest",
+      "status": "PASS",
+      "durationMs": 2801,
+      "metrics": {
+        "completed": 50
+      },
+      "evidence": [
+        {
+          "timestamp": 1782801306334,
+          "totalUnits": 50,
+          "states": {
+            "READY": 0,
+            "WAITING": 0,
+            "RUNNING": 0,
+            "COMPLETED": 50,
+            "FAILED": 0,
+            "CANCELLED": 0
+          },
+          "activeRuntimes": {
+            "PLANNING": 0
+          }
+        }
+      ]
+    }
+  ]
+}

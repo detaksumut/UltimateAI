@@ -1,0 +1,35 @@
+{
+  "status": "FAIL",
+  "checks": {
+    "architectureBoundary": "PASS",
+    "publicApi": "PASS",
+    "determinism": "FAIL",
+    "compositionRoot": "PASS",
+    "vendorLeakage": "PASS",
+    "barrelIntegrity": "PASS",
+    "circularDependency": "PASS"
+  },
+  "violations": {
+    "architectureBoundary": [],
+    "determinism": [
+      {
+        "file": "D:\\Users\\ultimateai\\src\\production\\knowledge\\contracts\\IClock.ts",
+        "pattern": "Date\\.now\\s*\\(",
+        "layer": "domain"
+      },
+      {
+        "file": "D:\\Users\\ultimateai\\src\\production\\knowledge\\contracts\\IClock.ts",
+        "pattern": "new\\s+Date\\s*\\(",
+        "layer": "domain"
+      }
+    ],
+    "compositionRoot": [],
+    "vendorLeakage": [],
+    "barrelIntegrity": [],
+    "circularDependency": []
+  },
+  "publicApi": {
+    "contractsExports": [],
+    "domainExports": []
+  }
+}

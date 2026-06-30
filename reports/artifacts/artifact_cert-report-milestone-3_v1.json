@@ -1,0 +1,224 @@
+{
+  "identity": {
+    "id": "cert-report-milestone-3",
+    "type": "CERTIFICATION_REPORT",
+    "version": 1,
+    "timestamp": 1782801975975,
+    "contentHash": "03b46f5fd3944535a9beb07d6b2b17b46434fde6d7402760057421da15627db0"
+  },
+  "status": "FINAL",
+  "trace": {
+    "traceId": "cert-trace-knowledge-seed-2026-1782801975975"
+  },
+  "lineage": {
+    "parentIds": [],
+    "derivedArtifactIds": []
+  },
+  "provenance": {
+    "creatorCapability": "CERTIFICATION_RUNNER"
+  },
+  "metadata": {
+    "createdAt": 1782801975975,
+    "updatedAt": 1782801975975,
+    "labels": [
+      "certification",
+      "milestone-3"
+    ],
+    "tags": {
+      "milestone": "3",
+      "seed": "knowledge-seed-2026",
+      "status": "FAIL"
+    },
+    "custom": {}
+  },
+  "payload": [
+    {
+      "suite": "ReferentialIntegrityTest",
+      "status": "PASS",
+      "durationMs": 57,
+      "metrics": {
+        "scenario1Nodes": 5,
+        "scenario1Edges": 5,
+        "scenario2Nodes": 5,
+        "scenario2Edges": 5,
+        "brokenEdgesCount": 0
+      },
+      "evidence": [
+        {
+          "scenario1": {
+            "nodes": [
+              "kn-parent-a-v1",
+              "cap-PLANNING",
+              "trace-t-parent-a",
+              "kn-child-b-v1",
+              "trace-t-child-b"
+            ],
+            "edges": [
+              "edge-kn-parent-a-v1-gen-cap-PLANNING",
+              "edge-kn-parent-a-v1-bel-trace-t-parent-a",
+              "edge-parent-a-to-kn-child-b-v1",
+              "edge-kn-child-b-v1-gen-cap-PLANNING",
+              "edge-kn-child-b-v1-bel-trace-t-child-b"
+            ]
+          },
+          "scenario2Mid": {
+            "nodes": [
+              "kn-child-b-v1",
+              "cap-PLANNING",
+              "trace-t-child-b"
+            ],
+            "edges": [
+              "edge-kn-child-b-v1-gen-cap-PLANNING",
+              "edge-kn-child-b-v1-bel-trace-t-child-b"
+            ],
+            "pendingCount": 1
+          },
+          "scenario2Final": {
+            "nodes": [
+              "kn-child-b-v1",
+              "cap-PLANNING",
+              "trace-t-child-b",
+              "kn-parent-a-v1",
+              "trace-t-parent-a"
+            ],
+            "edges": [
+              "edge-kn-child-b-v1-gen-cap-PLANNING",
+              "edge-kn-child-b-v1-bel-trace-t-child-b",
+              "edge-kn-parent-a-v1-gen-cap-PLANNING",
+              "edge-kn-parent-a-v1-bel-trace-t-parent-a",
+              "edge-parent-a-to-kn-child-b-v1"
+            ],
+            "pendingCount": 0
+          },
+          "checks": []
+        }
+      ]
+    },
+    {
+      "suite": "ReverseTraversalTest",
+      "status": "PASS",
+      "durationMs": 54,
+      "metrics": {
+        "pathLength": 3
+      },
+      "evidence": [
+        {
+          "upwardPath": [
+            "kn-child-c-v1",
+            "kn-parent-b-v1",
+            "kn-grandparent-a-v1"
+          ],
+          "downwardPath": [
+            "kn-grandparent-a-v1",
+            "kn-parent-b-v1",
+            "kn-child-c-v1"
+          ],
+          "errors": []
+        }
+      ]
+    },
+    {
+      "suite": "DuplicateProtectionTest",
+      "status": "PASS",
+      "durationMs": 3126,
+      "metrics": {
+        "totalNodes": 5,
+        "totalEdges": 5,
+        "pendingCount": 0
+      },
+      "evidence": [
+        {
+          "nodes": [
+            "kn-child-y-v1",
+            "cap-PLANNING",
+            "trace-t-child-y",
+            "kn-parent-x-v1",
+            "trace-t-parent-x"
+          ],
+          "edges": [
+            "edge-kn-child-y-v1-gen-cap-PLANNING",
+            "edge-kn-child-y-v1-bel-trace-t-child-y",
+            "edge-kn-parent-x-v1-gen-cap-PLANNING",
+            "edge-kn-parent-x-v1-bel-trace-t-parent-x",
+            "edge-parent-x-to-kn-child-y-v1"
+          ],
+          "errors": []
+        }
+      ]
+    },
+    {
+      "suite": "InvariantReachabilityTest",
+      "status": "PASS",
+      "durationMs": 52,
+      "metrics": {
+        "cycleDetected1": false,
+        "cycleDetected2": true,
+        "reachabilityPlanningCount": 3,
+        "reachabilityTraceCount": 1
+      },
+      "evidence": [
+        {
+          "cycleDetected1": false,
+          "cycleDetected2": true,
+          "planningNodes": [
+            "kn-a-v1",
+            "kn-b-v1",
+            "kn-c-v1"
+          ],
+          "traceNodes": [
+            "kn-c-v1"
+          ],
+          "errors": []
+        }
+      ]
+    },
+    {
+      "suite": "LargeGraphTest",
+      "status": "FAIL",
+      "durationMs": 16386,
+      "metrics": {
+        "total10kNodes": 20001,
+        "total10kEdges": 29999,
+        "memoryUsedMB": 23,
+        "invariantCheckMs": 33,
+        "traversalMs": 14793
+      },
+      "evidence": [
+        {
+          "size": 100,
+          "nodesCount": 201,
+          "edgesCount": 299,
+          "memoryMB": 0,
+          "generationMs": 66,
+          "invariantCheckMs": 2,
+          "traversalMs": 2,
+          "traversalPathLength": 99,
+          "cycleDetected": false
+        },
+        {
+          "size": 1000,
+          "nodesCount": 2001,
+          "edgesCount": 2999,
+          "memoryMB": 4,
+          "generationMs": 148,
+          "invariantCheckMs": 3,
+          "traversalMs": 88,
+          "traversalPathLength": 999,
+          "cycleDetected": false
+        },
+        {
+          "size": 10000,
+          "nodesCount": 20001,
+          "edgesCount": 29999,
+          "memoryMB": 23,
+          "generationMs": 1251,
+          "invariantCheckMs": 33,
+          "traversalMs": 14793,
+          "traversalPathLength": 9999,
+          "cycleDetected": false
+        }
+      ],
+      "error": "Performance or cycle detection invariants failed."
+    }
+  ]
+}

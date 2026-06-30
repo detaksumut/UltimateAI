@@ -1,0 +1,27 @@
+{
+  "suite": "ExecutionStressTest",
+  "status": "PASS",
+  "durationMs": 6150,
+  "metrics": {
+    "started": 100,
+    "completed": 100,
+    "failed": 0
+  },
+  "evidence": [
+    {
+      "timestamp": 1782801303051,
+      "totalUnits": 16,
+      "states": {
+        "READY": 0,
+        "WAITING": 0,
+        "RUNNING": 0,
+        "COMPLETED": 16,
+        "FAILED": 0,
+        "CANCELLED": 0
+      },
+      "activeRuntimes": {
+        "PLANNING": 1
+      }
+    }
+  ]
+}

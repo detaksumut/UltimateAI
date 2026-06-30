@@ -104,7 +104,8 @@ export async function runMockIntegrationFlow() {
   console.log("=== End-to-End Flow Complete ===");
 }
 
-// Run the verification if executed directly (e.g. npx ts-node MockRuntime.ts)
-if (require.main === module) {
+import { fileURLToPath } from 'url';
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   runMockIntegrationFlow().catch(console.error);
 }

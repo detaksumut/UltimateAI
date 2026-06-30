@@ -1,0 +1,10 @@
+{
+  "suite": "ExecutionIsolationTest",
+  "status": "PASS",
+  "durationMs": 61,
+  "metrics": {
+    "eventsA": 1,
+    "eventsB": 1
+  },
+  "evidence": []
+}

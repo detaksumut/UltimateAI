@@ -1,0 +1,14 @@
+{
+  "milestone": "2",
+  "description": "Execution Certification",
+  "tests": [
+    "ExecutionStressTest",
+    "FairnessTest",
+    "DeadlockTest",
+    "CancellationTest",
+    "ResumeTest",
+    "DeterministicReplayTest",
+    "ExecutionIsolationTest",
+    "LongRunningStabilityTest"
+  ]
+}

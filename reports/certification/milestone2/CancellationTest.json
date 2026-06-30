@@ -1,0 +1,23 @@
+{
+  "suite": "CancellationTest",
+  "status": "PASS",
+  "durationMs": 14,
+  "metrics": {},
+  "evidence": [
+    {
+      "timestamp": 1782801303347,
+      "totalUnits": 1,
+      "states": {
+        "READY": 0,
+        "WAITING": 0,
+        "RUNNING": 0,
+        "COMPLETED": 0,
+        "FAILED": 0,
+        "CANCELLED": 1
+      },
+      "activeRuntimes": {
+        "PLANNING": 0
+      }
+    }
+  ]
+}

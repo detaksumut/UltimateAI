@@ -1,0 +1,62 @@
+{
+  "suite": "ReferentialIntegrityTest",
+  "status": "PASS",
+  "durationMs": 57,
+  "metrics": {
+    "scenario1Nodes": 5,
+    "scenario1Edges": 5,
+    "scenario2Nodes": 5,
+    "scenario2Edges": 5,
+    "brokenEdgesCount": 0
+  },
+  "evidence": [
+    {
+      "scenario1": {
+        "nodes": [
+          "kn-parent-a-v1",
+          "cap-PLANNING",
+          "trace-t-parent-a",
+          "kn-child-b-v1",
+          "trace-t-child-b"
+        ],
+        "edges": [
+          "edge-kn-parent-a-v1-gen-cap-PLANNING",
+          "edge-kn-parent-a-v1-bel-trace-t-parent-a",
+          "edge-parent-a-to-kn-child-b-v1",
+          "edge-kn-child-b-v1-gen-cap-PLANNING",
+          "edge-kn-child-b-v1-bel-trace-t-child-b"
+        ]
+      },
+      "scenario2Mid": {
+        "nodes": [
+          "kn-child-b-v1",
+          "cap-PLANNING",
+          "trace-t-child-b"
+        ],
+        "edges": [
+          "edge-kn-child-b-v1-gen-cap-PLANNING",
+          "edge-kn-child-b-v1-bel-trace-t-child-b"
+        ],
+        "pendingCount": 1
+      },
+      "scenario2Final": {
+        "nodes": [
+          "kn-child-b-v1",
+          "cap-PLANNING",
+          "trace-t-child-b",
+          "kn-parent-a-v1",
+          "trace-t-parent-a"
+        ],
+        "edges": [
+          "edge-kn-child-b-v1-gen-cap-PLANNING",
+          "edge-kn-child-b-v1-bel-trace-t-child-b",
+          "edge-kn-parent-a-v1-gen-cap-PLANNING",
+          "edge-kn-parent-a-v1-bel-trace-t-parent-a",
+          "edge-parent-a-to-kn-child-b-v1"
+        ],
+        "pendingCount": 0
+      },
+      "checks": []
+    }
+  ]
+}

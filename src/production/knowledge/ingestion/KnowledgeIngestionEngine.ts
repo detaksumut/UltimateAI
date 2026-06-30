@@ -5,12 +5,16 @@ import { KnowledgeNode } from "../contracts/KnowledgeNode";
 import { KnowledgeEdge } from "../contracts/KnowledgeEdge";
 import { KnowledgeNodeType } from "../contracts/KnowledgeNodeType";
 import { KnowledgeRelationType } from "../contracts/KnowledgeRelationType";
+import { IClock } from "../../contracts/clock/IClock";
+import { IPendingReferenceRegistry } from "../contracts/IPendingReferenceRegistry";
 
 export class KnowledgeIngestionEngine {
   constructor(
     private readonly eventBus: IRuntimeEventBus,
     private readonly artifactRepo: ArtifactRepository,
-    private readonly knowledgeStore: IKnowledgeStore
+    private readonly knowledgeStore: IKnowledgeStore,
+    private readonly clock: IClock,
+    public readonly pendingRegistry: IPendingReferenceRegistry
   ) {
     this.register();
   }
@@ -38,7 +42,7 @@ export class KnowledgeIngestionEngine {
     const existing = await this.knowledgeStore.getNode(artifactNodeId);
     if (existing) return; // Already ingested
 
-    const now = Date.now();
+    const now = this.clock.now();
 
     // 2. Create the Artifact Node
     const node: KnowledgeNode = {
@@ -59,19 +63,23 @@ export class KnowledgeIngestionEngine {
 
     // 3. Create Edges for Lineage (DERIVED_FROM)
     for (const parentId of artifact.lineage.parentIds) {
-      // Find the parent's latest node ID. For simplicity here, we assume we link to the latest known node for that artifact ID.
-      // In a robust system, the parentIds in lineage should probably include versions.
-      // But for this demonstration, we'll just link to the logical artifact ID.
-      
+      const parentNodeId = `kn-${parentId}-v1`;
       const edge: KnowledgeEdge = {
         id: `edge-${parentId}-to-${artifactNodeId}`,
         relationType: KnowledgeRelationType.DERIVED_FROM,
         sourceNodeId: artifactNodeId, // This artifact is derived FROM parent
-        targetNodeId: `kn-${parentId}-v1`, // Assuming v1 for simplicity, ideally we'd query the graph
+        targetNodeId: parentNodeId,
         confidence: 1.0,
         createdAt: now
       };
-      await this.knowledgeStore.saveEdge(edge);
+      
+      const parentNode = await this.knowledgeStore.getNode(parentNodeId);
+      if (parentNode) {
+        await this.knowledgeStore.saveEdge(edge);
+      } else {
+        this.pendingRegistry.register(edge);
+        console.log(`[KnowledgeIngestion] Parent node ${parentNodeId} not found. Registered pending edge: ${edge.id}`);
+      }
     }
 
     // 4. Create Edges for Provenance (GENERATED_BY)
@@ -129,6 +137,13 @@ export class KnowledgeIngestionEngine {
         confidence: 1.0,
         createdAt: now
       });
+    }
+
+    // 6. Resolve pending edges waiting for this newly ingested node ID
+    const pendingEdges = this.pendingRegistry.getAndClear(artifactNodeId);
+    for (const pendingEdge of pendingEdges) {
+      await this.knowledgeStore.saveEdge(pendingEdge);
+      console.log(`[KnowledgeIngestion] Promoted pending edge: ${pendingEdge.id} since target ${artifactNodeId} was ingested.`);
     }
     
     console.log(`[KnowledgeIngestion] Ingested Artifact ${artifact.identity.id} -> Node ${artifactNodeId}`);

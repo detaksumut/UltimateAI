@@ -1,0 +1,23 @@
+{
+  "suite": "ResumeTest",
+  "status": "PASS",
+  "durationMs": 62,
+  "metrics": {},
+  "evidence": [
+    {
+      "timestamp": 1782801303411,
+      "totalUnits": 1,
+      "states": {
+        "READY": 0,
+        "WAITING": 0,
+        "RUNNING": 0,
+        "COMPLETED": 1,
+        "FAILED": 0,
+        "CANCELLED": 0
+      },
+      "activeRuntimes": {
+        "PLANNING": 0
+      }
+    }
+  ]
+}
