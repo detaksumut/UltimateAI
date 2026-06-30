@@ -1,6 +1,6 @@
 import { Job } from "../contracts/Job";
 import { TaskBuilder } from "./TaskBuilder";
-import { RuntimeCapability } from "../../../runtime/contracts/RuntimeCapability";
+import { RuntimeCapability } from "../../runtime/contracts/RuntimeCapability";
 
 export class JobBuilder {
   private job: Job;

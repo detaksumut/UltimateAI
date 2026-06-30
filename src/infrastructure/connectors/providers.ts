@@ -119,7 +119,7 @@ export class DirectFallbackProvider extends BaseProvider {
                             
                             const json = await response.json();
                             const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                            return { requestId: request.id, provider: 'GEMINI_NATIVE', content: content, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, latencyMs: 1000 };
+                            return { requestId: request.id, provider: 'GEMINI', content: content, usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, latencyMs: 1000 };
                         } catch (err: any) {
                             lastError = err;
                         }
@@ -139,15 +139,15 @@ export class DirectFallbackProvider extends BaseProvider {
                     nativeKey = process.env.GROQ_API_KEY || '';
                     if (!nativeKey || nativeKey.length < 10) throw new Error("GROQ_API_KEY is missing or invalid in .env");
                     nativeUrl = 'https://api.groq.com/openai/v1/chat/completions';
-                    nativeModel = 'llama-3.1-8b-instant';
-                } else if (this.type === 'DEEPSEEK') {
+                    nativeModel = 'llama3-8b-8192';
+                } else {
                     nativeKey = process.env.DEEPSEEK_API_KEY || '';
                     if (!nativeKey || nativeKey.length < 10) throw new Error("DEEPSEEK_API_KEY is missing or invalid in .env");
-                    nativeUrl = 'https://api.deepseek.com/chat/completions';
-                    nativeModel = 'deepseek-coder';
+                    nativeUrl = 'https://api.deepseek.com/v1/chat/completions';
+                    nativeModel = 'deepseek-chat';
                 }
                 
-                console.log(`[${this.type} NATIVE] Routing directly to Native API...`);
+                console.log(`[${this.type} NATIVE] Routing directly to compatible endpoint...`);
                 const response = await fetch(nativeUrl, {
                     method: 'POST',
                     headers: {
@@ -160,16 +160,17 @@ export class DirectFallbackProvider extends BaseProvider {
                             { role: 'system', content: typeof request.systemPrompt === 'string' ? request.systemPrompt : JSON.stringify(request.systemPrompt || '') },
                             { role: 'user', content: typeof request.prompt === 'string' ? request.prompt : JSON.stringify(request.prompt || '') }
                         ],
+                        max_tokens: 4000,
                         temperature: 0.3
                     })
                 });
                 if (!response.ok) {
                     const errorBody = await response.text();
-                    throw new Error(`Native API Error (${response.status}): ${errorBody}`);
+                    throw new Error(`${this.type} API Error (${response.status}): ${errorBody}`);
                 }
                 const json = await response.json();
                 const content = json.choices?.[0]?.message?.content || '';
-                return { requestId: request.id, provider: `${this.type}_NATIVE`, content: content, usage: { promptTokens: json.usage?.prompt_tokens || 0, completionTokens: json.usage?.completion_tokens || 0, totalTokens: json.usage?.total_tokens || 0 }, latencyMs: 1000 };
+                return { requestId: request.id, provider: this.type, content: content, usage: { promptTokens: json.usage?.prompt_tokens || 0, completionTokens: json.usage?.completion_tokens || 0, totalTokens: json.usage?.total_tokens || 0 }, latencyMs: 1000 };
             }
 
             // --- NATIVE ANTHROPIC ROUTE ---
@@ -201,7 +202,7 @@ export class DirectFallbackProvider extends BaseProvider {
                 }
                 const json = await response.json();
                 const content = json.content?.[0]?.text || '';
-                return { requestId: request.id, provider: 'ANTHROPIC_NATIVE', content: content, usage: { promptTokens: json.usage?.input_tokens || 0, completionTokens: json.usage?.output_tokens || 0, totalTokens: 0 }, latencyMs: 1000 };
+                return { requestId: request.id, provider: 'ANTHROPIC', content: content, usage: { promptTokens: json.usage?.input_tokens || 0, completionTokens: json.usage?.output_tokens || 0, totalTokens: 0 }, latencyMs: 1000 };
             }
 
             throw new Error(`Unsupported AI Provider Type for Direct Fallback: ${this.type}`);

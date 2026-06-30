@@ -1,5 +1,5 @@
 import { Task } from "../contracts/Task";
-import { RuntimeCapability } from "../../../runtime/contracts/RuntimeCapability";
+import { RuntimeCapability } from "../../runtime/contracts/RuntimeCapability";
 
 export class TaskBuilder {
   private task: Task;

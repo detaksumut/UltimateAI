@@ -26,7 +26,9 @@ export class ArtifactRepository {
     
     this.eventBus.publish({
       eventId: `art-evt-${Date.now()}`,
-      traceId: artifact.trace.traceId,
+      correlationId: artifact.trace.traceId,
+      executionId: "",
+      runtimeId: "artifact-repo",
       eventType: "ArtifactStored",
       timestamp: Date.now(),
       payload: { artifactId: artifact.identity.id, version: artifact.identity.version }
@@ -38,7 +40,9 @@ export class ArtifactRepository {
     if (artifact) {
       this.eventBus.publish({
         eventId: `art-evt-${Date.now()}`,
-        traceId: artifact.trace.traceId,
+        correlationId: artifact.trace.traceId,
+        executionId: "",
+        runtimeId: "artifact-repo",
         eventType: "ArtifactRetrieved",
         timestamp: Date.now(),
         payload: { artifactId: artifact.identity.id, version: artifact.identity.version }

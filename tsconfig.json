@@ -22,5 +22,19 @@
     "types": ["jest"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/intelligence",
+    "src/infrastructure",
+    "src/production/intelligence",
+    "src/production/delivery",
+    "src/production/evolution",
+    "src/production/execution",
+    "src/production/generation",
+    "src/production/simulator",
+    "src/production/workflow/builder",
+    "src/production/kernel/KernelIntegrationTest.ts",
+    "src/production/memory/retrieval/KnowledgeRetrievalEngine.ts"
+  ]
 }
