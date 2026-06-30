@@ -8,6 +8,7 @@ import { CheckpointManager } from "../../../production/reliability/checkpoint/Ch
 import { FailureClassifier } from "../../../production/reliability/classification/FailureClassifier";
 import { CircuitBreakerRegistry } from "../../../production/reliability/registry/CircuitBreakerRegistry";
 import { WorkflowEngine } from "../../../production/workflow/engine/WorkflowEngine";
+import { Workflow } from "../../../production/workflow/contracts/Workflow";
 
 export class TestEnvironment {
   public eventBus: RuntimeEventBusImpl;
@@ -18,7 +19,7 @@ export class TestEnvironment {
 
   constructor() {
     this.eventBus = new RuntimeEventBusImpl();
-    this.resourceManager = new ResourceManager(10); // Generous global limit for tests
+    this.resourceManager = new ResourceManager(); // Generous global limit for tests
     const dispatchStrategy = new PriorityDispatchStrategy();
 
     // Mock dependencies
@@ -28,7 +29,7 @@ export class TestEnvironment {
     // For certification testing, we construct the real interceptor but point it at the mock runtime
     const checkpointManager = new CheckpointManager();
     const failureClassifier = new FailureClassifier();
-    const circuitBreaker = new CircuitBreakerRegistry(this.eventBus);
+    const circuitBreaker = new CircuitBreakerRegistry();
     
     // We are simulating the coordinator passing capability requests directly to the mock runtime
     const mockCoordinator = {
@@ -65,10 +66,11 @@ export class TestEnvironment {
       stages: [
         {
           id: "s1",
+          name: "s1",
           jobs: [
             {
               id: "j1",
-              dependencies: [],
+              name: "j1",
               tasks: [{ id: "t1", name: "t1", capability, dependencies: [] }]
             }
           ]
@@ -80,6 +82,7 @@ export class TestEnvironment {
   async runWorkflow(workflow: Workflow, traceId: string): Promise<void> {
     return this.workflowEngine.execute(workflow, { 
       traceId, 
+      workflowId: workflow.metadata.id,
       runtimeContext: {
         trace: { traceId, requestId: traceId, correlationId: traceId, sessionId: traceId },
         timestamp: Date.now()

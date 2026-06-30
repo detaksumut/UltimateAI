@@ -5,12 +5,21 @@ import { InMemoryKnowledgeStore } from "../../../production/knowledge/store/InMe
 import { KnowledgeIngestionEngine } from "../../../production/knowledge/ingestion/KnowledgeIngestionEngine";
 import { IArtifact, ArtifactType, ArtifactStatus } from "../../../production/artifact/contracts/IArtifact";
 
+import { SystemClock } from "../../../infrastructure/clock/SystemClock";
+import { PendingReferenceRegistry } from "../../../production/knowledge/ingestion/PendingReferenceRegistry";
+
 export class KnowledgeTestEnvironment {
   public eventBus = new RuntimeEventBusImpl();
   public artifactStore = new InMemoryArtifactStore();
   public artifactRepo = new ArtifactRepository(this.artifactStore, this.eventBus);
   public knowledgeStore = new InMemoryKnowledgeStore();
-  public ingestionEngine = new KnowledgeIngestionEngine(this.eventBus, this.artifactRepo, this.knowledgeStore);
+  public ingestionEngine = new KnowledgeIngestionEngine(
+    this.eventBus,
+    this.artifactRepo,
+    this.knowledgeStore,
+    new SystemClock(),
+    new PendingReferenceRegistry()
+  );
 
   public createDummyArtifact(id: string, parentIds: string[] = []): IArtifact {
     return {
