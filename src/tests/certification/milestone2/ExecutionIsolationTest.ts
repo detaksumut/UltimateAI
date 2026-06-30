@@ -18,8 +18,8 @@ export default class ExecutionIsolationTest implements ICertificationSuite {
     let eventsB = 0;
     
     env.eventBus.subscribe("TaskStarted", (evt) => {
-      if (evt.traceId === "trace-A") eventsA++;
-      if (evt.traceId === "trace-B") eventsB++;
+      if (evt.correlationId === "trace-A") eventsA++;
+      if (evt.correlationId === "trace-B") eventsB++;
     });
 
     await Promise.all([

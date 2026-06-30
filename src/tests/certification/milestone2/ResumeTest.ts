@@ -16,7 +16,8 @@ export default class ResumeTest implements ICertificationSuite {
       stages: [
         {
           id: "stage-1",
-          jobs: [{ id: "job-A", tasks: [{ id: "task-A", name: "tA", capability: RuntimeCapability.PLANNING, dependencies: [] }], dependencies: [] }]
+          name: "stage-1",
+          jobs: [{ id: "job-A", name: "job-A", tasks: [{ id: "task-A", name: "tA", capability: RuntimeCapability.PLANNING, dependencies: [] }] }]
         }
       ]
     };

@@ -17,11 +17,12 @@ export default class DeadlockTest implements ICertificationSuite {
       stages: [
         {
           id: "stage-1",
+          name: "stage-1",
           jobs: [
-            { id: "job-A", tasks: [{ id: "task-A", name: "tA", capability: RuntimeCapability.PLANNING, dependencies: [] }], dependencies: [] },
-            { id: "job-B1", tasks: [{ id: "task-B1", name: "tB1", capability: RuntimeCapability.REASONING, dependencies: [] }], dependencies: ["job-A"] },
-            { id: "job-B2", tasks: [{ id: "task-B2", name: "tB2", capability: RuntimeCapability.REASONING, dependencies: [] }], dependencies: ["job-A"] },
-            { id: "job-C", tasks: [{ id: "task-C", name: "tC", capability: RuntimeCapability.EXECUTION, dependencies: [] }], dependencies: ["job-B1", "job-B2"] }
+            { id: "job-A", name: "job-A", tasks: [{ id: "task-A", name: "tA", capability: RuntimeCapability.PLANNING, dependencies: [] }] },
+            { id: "job-B1", name: "job-B1", tasks: [{ id: "task-B1", name: "tB1", capability: RuntimeCapability.REASONING, dependencies: [] }] },
+            { id: "job-B2", name: "job-B2", tasks: [{ id: "task-B2", name: "tB2", capability: RuntimeCapability.REASONING, dependencies: [] }] },
+            { id: "job-C", name: "job-C", tasks: [{ id: "task-C", name: "tC", capability: RuntimeCapability.EXECUTION, dependencies: [] }] }
           ]
         }
       ]

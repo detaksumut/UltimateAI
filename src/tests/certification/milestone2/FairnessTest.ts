@@ -13,7 +13,7 @@ export default class FairnessTest implements ICertificationSuite {
     // Let's modify the jobs to make it large
     largeWorkflow.stages[0].jobs = Array.from({ length: 10 }).map((_, i) => ({
       id: `job-L-${i}`,
-      dependencies: [],
+      name: `job-L-${i}`,
       tasks: [{ id: `task-L-${i}`, name: `tL${i}`, capability: RuntimeCapability.PLANNING, dependencies: [] }]
     }));
 
