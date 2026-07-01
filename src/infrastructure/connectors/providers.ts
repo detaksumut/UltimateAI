@@ -74,7 +74,7 @@ export class DirectFallbackProvider extends BaseProvider {
 
                 if (geminiKeys.length === 0) throw new Error("No valid GEMINI_API_KEY found in .env");
                 
-                const fallbackModels = ['gemini-flash-latest', 'gemini-pro', 'gemini-2.5-flash'];
+                const fallbackModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'];
                 let lastError = null;
                 
                 console.log(`[GEMINI NATIVE] Initiating robust internal failover (Keys: ${geminiKeys.length}, Models: ${fallbackModels.length})...`);
