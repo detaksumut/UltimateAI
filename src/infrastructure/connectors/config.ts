@@ -2,11 +2,11 @@ import { AIProviderType, TaskCapability, RouterConfig } from './models';
 
 // Capability Mapping to determine which fallback to use if 9Route fails
 export const CapabilityRouterMap: Record<TaskCapability, ReadonlyArray<AIProviderType>> = {
-    REASONING: ['OPENAI', 'GROQ', 'ANTHROPIC', 'GEMINI'],
-    FAST_INFERENCE: ['GROQ', 'GEMINI', 'MISTRAL', 'OPENAI'],
-    CODING: ['DEEPSEEK', 'OPENAI', 'ANTHROPIC', 'GEMINI'],
-    EMBEDDING: ['COHERE', 'OPENAI'],
-    WEB_SEARCH: ['TAVILY']
+    REASONING:      ['ANTHROPIC', 'GROQ', 'DEEPSEEK', 'GEMINI'],
+    FAST_INFERENCE: ['GROQ', 'DEEPSEEK', 'ANTHROPIC', 'GEMINI'],
+    CODING:         ['DEEPSEEK', 'ANTHROPIC', 'GROQ', 'GEMINI'],
+    EMBEDDING:      ['COHERE'],
+    WEB_SEARCH:     ['TAVILY']
 };
 
 export const DefaultRouterConfig: RouterConfig = {
