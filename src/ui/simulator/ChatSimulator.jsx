@@ -288,7 +288,7 @@ export default function ChatSimulator() {
     <div className="flex h-screen bg-[#0B0F19] text-white font-sans overflow-hidden">
       
       {/* LEFT SIDEBAR */}
-      <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex fixed md:static inset-y-0 left-0 z-50 w-[260px] bg-[#151B2B] border-r border-[#1E293B] flex-col shrink-0 transition-transform duration-300`}>
+      <div className={`${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex fixed md:static inset-y-0 left-0 z-50 w-[300px] bg-[#151B2B] border-r border-[#1E293B] flex-col shrink-0 transition-transform duration-300`}>
         <button onClick={() => setIsMobileMenuOpen(false)} className="absolute top-4 right-4 md:hidden text-gray-400"><X className="w-6 h-6"/></button>
         <div className="p-6 flex items-center gap-3">
           <div className="w-16 h-16 flex items-center justify-center shrink-0">
@@ -369,8 +369,26 @@ export default function ChatSimulator() {
             </div>
           </div>
           
-          <div className="mt-auto pt-6 px-4 pb-4 flex justify-center">
-            <img src="/aladin.png" alt="Aladin" className="w-48 h-auto object-contain drop-shadow-2xl" />
+          <div 
+            className="mt-auto flex justify-center relative overflow-hidden"
+            style={{
+              backgroundImage: "url('/baghdad-night.png')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center bottom',
+              backgroundRepeat: 'no-repeat',
+              borderRadius: '12px 12px 0 0',
+              margin: '0 8px',
+            }}
+          >
+            {/* gradient overlay top agar menyatu dengan sidebar */}
+            <div style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0,
+              height: '40px',
+              background: 'linear-gradient(to bottom, #151B2B, transparent)',
+              zIndex: 1,
+            }} />
+            <img src="/aladin.png" alt="Aladin" style={{ width: '280px', height: 'auto', position: 'relative', zIndex: 2 }} className="object-contain drop-shadow-2xl" />
           </div>
         </div>
       </div>
