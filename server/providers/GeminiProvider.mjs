@@ -17,7 +17,7 @@ export class GeminiProvider extends BaseProvider {
     return Boolean(this.apiKey && this.apiKey.trim().length > 10);
   }
 
-  async sendChat({ messages, stream = false, model = 'gemini-2.0-flash', temperature = 0.7 }, onChunk = null) {
+  async sendChat({ messages, stream = false, model = 'gemini-2.5-flash', temperature = 0.7 }, onChunk = null) {
     if (!this.isConfigured()) {
       throw new Error('Gemini API key is not configured in server environment.');
     }

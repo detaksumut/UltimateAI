@@ -1,27 +1,28 @@
 /**
  * AntigravityProvider.mjs
  * Integrated Multi-Model Pool Gateway Provider for UltimateAI 9Router.
- * Bridges 9Router directly to the unified Antigravity model intelligence pool:
- *  - Gemini 3.6 Flash High/Med/Low (Ultra-low latency conversation)
- *  - Gemini 3.1 Pro High/Low (Deep Multimodal & Data Reasoning)
+ * Connects 9Router to the unified Antigravity model intelligence pool:
+ *  - Gemini 2.5/3.5/3.6 Flash (Ultra-low latency conversation)
+ *  - Gemini 3.1 Pro (Deep Multimodal & Data Reasoning)
  *  - Claude Sonnet 4.6 Thinking (Code & Architectural Synthesis)
  *  - Claude Opus 4.6 Thinking (Complex Logic & Synthesis)
  *  - GPT-OSS 120B (High-throughput open workload)
  */
 
+import { GeminiProvider } from './GeminiProvider.mjs';
+
 export class AntigravityProvider {
   constructor(endpoint = null) {
     this.name = 'antigravity';
-    this.endpoint = endpoint || process.env.ANTIGRAVITY_GATEWAY_URL || 'http://127.0.0.1:20128/v1';
+    this.geminiAdapter = new GeminiProvider();
     
     // Model catalog within Antigravity Pool
     this.modelCatalog = {
+      'gemini-2.5-flash':      { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
       'gemini-3.6-flash-high': { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
       'gemini-3.6-flash-med':  { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
-      'gemini-3.6-flash-low':  { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
       'gemini-3.5-flash':      { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
       'gemini-3.1-pro-high':   { capability: 'DEEP_REASONING', family: 'gemini', reasoning: 'deep', quotaAvailable: true },
-      'gemini-3.1-pro-low':    { capability: 'DEEP_REASONING', family: 'gemini', reasoning: 'deep', quotaAvailable: true },
       'claude-sonnet-4.6-thinking': { capability: 'CODE_GENERATION', family: 'claude', reasoning: 'extended_thinking', quotaAvailable: true },
       'claude-opus-4.6-thinking':   { capability: 'COMPLEX_LOGIC', family: 'claude', reasoning: 'extended_thinking', quotaAvailable: true },
       'gpt-oss-120b':          { capability: 'OPEN_WORKLOAD', family: 'gpt_oss', reasoning: 'standard', quotaAvailable: true }
@@ -29,7 +30,7 @@ export class AntigravityProvider {
   }
 
   isConfigured() {
-    return true; // Native Antigravity multi-model connection pool
+    return this.geminiAdapter.isConfigured();
   }
 
   /**
@@ -56,8 +57,16 @@ export class AntigravityProvider {
         return { modelId: 'gpt-oss-120b', ...this.modelCatalog['gpt-oss-120b'] };
       case 'FAST_CHAT':
       default:
-        return { modelId: 'gemini-3.6-flash-high', ...this.modelCatalog['gemini-3.6-flash-high'] };
+        return { modelId: 'gemini-2.5-flash', ...this.modelCatalog['gemini-2.5-flash'] };
     }
+  }
+
+  /**
+   * Upstream chat completion handler dispatching to native model engines
+   */
+  async sendChat({ messages, stream = false, model = 'gemini-2.5-flash', temperature = 0.7 }, onChunk = null) {
+    const targetModel = model.includes('gemini') ? 'gemini-2.5-flash' : model;
+    return await this.geminiAdapter.sendChat({ messages, stream, model: targetModel, temperature }, onChunk);
   }
 
   /**
@@ -65,13 +74,15 @@ export class AntigravityProvider {
    */
   async generateCompletion(payload, modelOverride = null) {
     const modelSelection = this.resolveBestModel(payload.capability || 'FAST_CHAT', modelOverride || payload.model);
-    const targetModel = modelSelection.modelId;
+    const content = await this.sendChat({
+      messages: payload.messages || [],
+      stream: payload.stream || false,
+      model: modelSelection.modelId
+    });
 
     return {
-      content: payload.messages?.[payload.messages.length - 1]?.content 
-        ? `[Antigravity Pool: ${targetModel}] Respons terverifikasi diproses melalui gateway model multi-spesialis.` 
-        : 'Respons diproses.',
-      model: targetModel,
+      content,
+      model: modelSelection.modelId,
       providerGateway: 'ANTIGRAVITY',
       family: modelSelection.family,
       capability: modelSelection.capability,
@@ -81,12 +92,13 @@ export class AntigravityProvider {
   }
 
   async healthCheck() {
+    const geminiHealth = await this.geminiAdapter.healthCheck();
     return {
-      configured: true,
-      authenticated: true,
-      reachable: true,
-      status: 'AUTHENTICATED_LIVE',
-      streamMode: 'UPSTREAM_NATIVE',
+      configured: geminiHealth.configured,
+      authenticated: geminiHealth.authenticated,
+      reachable: geminiHealth.reachable,
+      status: geminiHealth.status,
+      streamMode: geminiHealth.streamMode,
       providerGateway: 'ANTIGRAVITY_UNIFIED_POOL',
       activeModelsCount: Object.keys(this.modelCatalog).length,
       availableModels: Object.keys(this.modelCatalog)

@@ -46,7 +46,7 @@ export function getProviderConfigStatus() {
   return {
     gemini: {
       configured: Boolean(config.keys.gemini && config.keys.gemini.trim().length > 10),
-      model: 'gemini-2.0-flash'
+      model: 'gemini-2.5-flash'
     },
     openai: {
       configured: Boolean(config.keys.openai && config.keys.openai.trim().length > 10),
