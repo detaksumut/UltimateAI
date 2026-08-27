@@ -1,7 +1,9 @@
 /**
  * DecisionEngine.mjs
- * Evaluates conversational context to decide whether an action is needed and enforces Autonomy Levels.
+ * Evaluates semantic interpretation to decide whether an action is needed and enforces Autonomy Levels.
  */
+
+import { semanticIntentEngineInstance } from './SemanticIntentEngine.mjs';
 
 export const AUTONOMY_LEVELS = {
   LEVEL_0_CHAT_ONLY: 0,        // Pure conversation, no tool usage
@@ -25,39 +27,29 @@ export class DecisionEngine {
    * Decides whether user input requires action, conversation, or clarification
    * @param {string} input - User utterance / prompt
    * @param {Object} context - Conversational memory and history
-   * @returns {Object} decision - { actionRequired, intent, autonomyLevel, requiresApproval, reason }
+   * @returns {Promise<Object>} decision
    */
-  decide(input, context = {}) {
-    const raw = input || '';
-    const p = raw.toLowerCase().trim();
+  async decide(input, context = {}) {
+    const semantic = await semanticIntentEngineInstance.interpret(input, context);
 
-    // 1. Casual Chat / Venting / Greeting (No Action Required)
-    const isCasualChat = /^(halo|hai|salam|pagi|siang|malam|capek|lelah|terima kasih|makasih|ok|oke|sip|mantap|who are you|siapa kamu)\b/i.test(p);
-    const hasExplicitInstruction = /cari|putar|buatkan|bikin|analisis|tampilkan|ekstrak|bandingkan|search|play|create|analyze/i.test(p);
-
-    if (isCasualChat && !hasExplicitInstruction) {
+    // If level 0 (Chat only), force actionRequired = false
+    if (this.currentLevel === AUTONOMY_LEVELS.LEVEL_0_CHAT_ONLY) {
       return {
+        ...semantic,
         actionRequired: false,
-        intent: 'CONVERSATION_ONLY',
         autonomyLevel: this.currentLevel,
         requiresApproval: false,
-        reason: 'User is engaging in casual dialogue without task delegation.'
+        reason: 'Autonomy Level 0 (Chat Only) active: tool execution suppressed.'
       };
     }
 
-    // 2. Sensitive Action Detection (Requires Approval in Level 3)
-    const isSensitive = /hapus|delete|format|kirim email|send email|drop|destroy|shutdown/i.test(p);
-    const requiresApproval = this.currentLevel === AUTONOMY_LEVELS.LEVEL_3_SUPERVISED || isSensitive;
+    // Check sensitive actions
+    const requiresApproval = this.currentLevel === AUTONOMY_LEVELS.LEVEL_3_SUPERVISED || Boolean(semantic.sensitiveAction);
 
     return {
-      actionRequired: true,
-      intent: 'TASK_DELEGATION',
+      ...semantic,
       autonomyLevel: this.currentLevel,
-      requiresApproval,
-      sensitiveAction: isSensitive,
-      reason: isSensitive
-        ? 'Sensitive environment action detected; governance requires authorization.'
-        : 'Task delegation detected; autonomous execution graph planned.'
+      requiresApproval
     };
   }
 }

@@ -1,7 +1,7 @@
 /**
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
- * Implements: UNDERSTAND (DecisionEngine) ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ REPLAN
+ * Implements: SEMANTIC_DECISION ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ ADAPTIVE_REPLAN
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -9,6 +9,7 @@ import { AgentPlanner } from './AgentPlanner.mjs';
 import { agentExecutorInstance } from './AgentExecutor.mjs';
 import { AgentObserver } from './AgentObserver.mjs';
 import { AgentVerifier } from './AgentVerifier.mjs';
+import { replanEngineInstance } from './ReplanEngine.mjs';
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 
 export class AgentRuntime {
@@ -26,10 +27,10 @@ export class AgentRuntime {
     const startTime = Date.now();
     const rawGoal = userGoal || '';
 
-    // 1. DECISION ENGINE EVALUATION
-    const decision = decisionEngineInstance.decide(rawGoal, sessionContext);
+    // 1. SEMANTIC DECISION ENGINE
+    const decision = await decisionEngineInstance.decide(rawGoal, sessionContext);
 
-    // If pure conversational dialogue without task delegation
+    // If pure conversation without task delegation
     if (!decision.actionRequired) {
       return {
         goal: rawGoal,
@@ -46,18 +47,19 @@ export class AgentRuntime {
     let currentGoal = rawGoal;
     let attempt = 0;
     let finalVerification = null;
+    let currentPlan = null;
     const fullExecutionHistory = [];
 
     while (attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
       attempt++;
 
       // A. PLAN (DAG Execution Graph)
-      const plan = AgentPlanner.planGoal(currentGoal, sessionContext);
+      currentPlan = AgentPlanner.planGoal(currentGoal, { ...sessionContext, semanticDecision: decision });
 
       // B. EXECUTE & OBSERVE (Step-by-Step with Dependency Checking)
       const currentHistory = [];
 
-      for (const step of plan.steps) {
+      for (const step of currentPlan.steps) {
         // Verify dependencies
         const depsMet = step.dependsOn.every(depId => 
           currentHistory.some(h => h.step.id === depId && h.observation?.valid)
@@ -67,7 +69,7 @@ export class AgentRuntime {
           currentHistory.push({
             step,
             stepResult: { success: false, error: 'DEPENDENCY_NOT_MET' },
-            observation: { valid: false, status: 'BLOCKED_DEPENDENCY' }
+            observation: { valid: false, status: 'BLOCKED_DEPENDENCY', error: 'Dependencies not satisfied' }
           });
           break;
         }
@@ -86,16 +88,16 @@ export class AgentRuntime {
           timestamp: new Date().toISOString()
         });
 
-        // Break if critical failure to trigger replan
+        // If step failed, stop this attempt to trigger adaptive replanner
         if (!observation.valid) {
           break;
         }
       }
 
-      fullExecutionHistory.push({ attempt, plan, currentHistory });
+      fullExecutionHistory.push({ attempt, plan: currentPlan, currentHistory });
 
-      // C. VERIFY (Evidence Contract Validation)
-      const verification = AgentVerifier.verifyGoalCompletion(plan, currentHistory);
+      // C. VERIFY (Outcome & Evidence Contract Inspection)
+      const verification = AgentVerifier.verifyGoalCompletion(currentPlan, currentHistory);
       finalVerification = verification;
 
       if (verification.isSatisfied) {
@@ -103,9 +105,18 @@ export class AgentRuntime {
         break;
       }
 
-      // D. REPLAN if contract failed
+      // D. ADAPTIVE REPLANNING with failure evidence
       if (verification.requiresReplan && attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
-        currentGoal = `Replan attempt ${attempt + 1}: ${rawGoal}`;
+        const replanResult = await replanEngineInstance.generateReplan({
+          originalGoal: rawGoal,
+          failedStep: verification.failedStep,
+          observedFailure: { reason: verification.failureReason },
+          executionHistory: currentHistory,
+          attempt
+        });
+
+        // If replanner provided alternate steps, update goal context
+        currentGoal = `Replan [${replanResult.strategyAdjustment}]: ${rawGoal}`;
       }
     }
 
@@ -118,7 +129,7 @@ export class AgentRuntime {
       actionRequired: true,
       attempts: attempt,
       responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah selesai diproses dan diverifikasi oleh sistem 9Router.',
-      artifactId: finalVerification?.artifactId || null,
+      artifact: finalVerification?.artifact || null,
       durationMs,
       telemetry: {
         totalStepsExecuted: fullExecutionHistory.reduce((acc, h) => acc + h.currentHistory.length, 0),
