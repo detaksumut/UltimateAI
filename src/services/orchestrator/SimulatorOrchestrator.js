@@ -92,15 +92,22 @@ export class SimulatorOrchestrator {
         if (onTranscript) onTranscript(t, isFinal);
       },
       onFinalTranscript: (finalText) => {
-        this.avatar.dispatch({ type: AVATAR_EVENTS.INPUT_COMPLETED });
-        if (onFinalTranscript) onFinalTranscript(finalText);
-        this.executeUserPrompt(finalText, { isVoiceTrigger: true });
+        if (finalText && finalText.trim()) {
+          this.avatar.dispatch({ type: AVATAR_EVENTS.INPUT_COMPLETED });
+          if (onFinalTranscript) {
+            onFinalTranscript(finalText.trim());
+          } else {
+            this.executeUserPrompt(finalText.trim(), { isVoiceTrigger: true });
+          }
+        } else {
+          this.avatar.dispatch({ type: AVATAR_EVENTS.RESET });
+        }
       },
       onError: () => {
         this.avatar.dispatch({ type: AVATAR_EVENTS.RESET });
       },
       onEnd: () => {
-        // Safe end check
+        // Handled cleanly
       }
     });
   }
