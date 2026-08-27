@@ -29,13 +29,21 @@ export default function MobileSimulatorHUD({
 
   // Detect dynamic media requirements from user query
   const lowerQuery = lastUserMessage.toLowerCase();
-  const isVideoQuery = lowerQuery.includes('video') || lowerQuery.includes('youtube') || lowerQuery.includes('lagu') || lowerQuery.includes('musik') || lowerQuery.includes('putar');
+  const isNewsQuery = lowerQuery.includes('berita') || lowerQuery.includes('demo') || lowerQuery.includes('dpr') || lowerQuery.includes('politik') || lowerQuery.includes('terkini') || lowerQuery.includes('hari ini') || lowerQuery.includes('peristiwa');
+  const isMusicQuery = lowerQuery.includes('lagu') || lowerQuery.includes('dj') || lowerQuery.includes('musik') || lowerQuery.includes('song') || lowerQuery.includes('remix') || lowerQuery.includes('heaven');
+  const isVideoQuery = isNewsQuery || isMusicQuery || lowerQuery.includes('video') || lowerQuery.includes('youtube') || lowerQuery.includes('putar');
   const isImageQuery = lowerQuery.includes('gambar') || lowerQuery.includes('foto') || lowerQuery.includes('image') || lowerQuery.includes('visual');
   const isDataQuery = lowerQuery.includes('data') || lowerQuery.includes('tabel') || lowerQuery.includes('grafik') || lowerQuery.includes('chart') || lowerQuery.includes('statistik');
 
-  // Auto switch tab if specific media is requested
+  // Auto switch tab and stream source if specific media is requested
   useEffect(() => {
-    if (isVideoQuery || isImageQuery || isDataQuery) {
+    if (isNewsQuery) {
+      setSelectedVideoId('fJ9rUzIMcZQ'); // Kompas TV Official Live News
+      setCurrentTab('MEDIA');
+    } else if (isMusicQuery) {
+      setSelectedVideoId('vr0qNXmkUJ8'); // Avicii / DJ Heaven
+      setCurrentTab('MEDIA');
+    } else if (isVideoQuery || isImageQuery || isDataQuery) {
       setCurrentTab('MEDIA');
     }
   }, [lastUserMessage]);
@@ -209,6 +217,7 @@ export default function MobileSimulatorHUD({
 
               {/* 1. VIDEO PLAYER CARD */}
               {/* 1. VIDEO PLAYER CARD */}
+              {/* 1. VIDEO PLAYER CARD (DYNAMIC NEWS / MUSIC / TECH) */}
               {(activeMediaType === 'ALL' || activeMediaType === 'VIDEO') && (
                 <div className="bg-slate-900/90 rounded-2xl p-3 border border-red-500/30 shadow-md">
                   <div className="flex items-center justify-between mb-2">
@@ -217,47 +226,88 @@ export default function MobileSimulatorHUD({
                         <Film className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white tracking-wide">YOUTUBE DJ & MEDIA PLAYER</div>
-                        <div className="text-[8px] text-red-400">Stream Embed HD Live</div>
+                        <div className="text-xs font-bold text-white tracking-wide">
+                          {isNewsQuery ? 'YOUTUBE LIVE NEWS BROADCAST' : 'YOUTUBE MEDIA & MUSIC PLAYER'}
+                        </div>
+                        <div className="text-[8px] text-red-400">
+                          {isNewsQuery ? 'Liputan Siaran Langsung Nasional' : 'Stream Embed HD Live'}
+                        </div>
                       </div>
                     </div>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold">
-                      HD 1080p
+                      {isNewsQuery ? '🔴 LIVE' : 'HD 1080p'}
                     </span>
                   </div>
 
-                  {/* Track Selection Chips */}
+                  {/* Dynamic Stream Category Chips */}
                   <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[9px]">
-                    <button
-                      onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
-                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                        selectedVideoId === 'vr0qNXmkUJ8'
-                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      🎧 Avicii - Heaven
-                    </button>
-                    <button
-                      onClick={() => setSelectedVideoId('LjhCEhWiKXk')}
-                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                        selectedVideoId === 'LjhCEhWiKXk'
-                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      🔥 DJ Sammy - Heaven
-                    </button>
-                    <button
-                      onClick={() => setSelectedVideoId('bM7SZ5SBzyY')}
-                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                        selectedVideoId === 'bM7SZ5SBzyY'
-                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      ⚡ NCS Electro Mix
-                    </button>
+                    {isNewsQuery ? (
+                      <>
+                        <button
+                          onClick={() => setSelectedVideoId('fJ9rUzIMcZQ')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === 'fJ9rUzIMcZQ'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          🔴 Kompas TV Live
+                        </button>
+                        <button
+                          onClick={() => setSelectedVideoId('fI3_0F4oK30')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === 'fI3_0F4oK30'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          🔴 CNN Indonesia Live
+                        </button>
+                        <button
+                          onClick={() => setSelectedVideoId('_L2-64m8W28')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === '_L2-64m8W28'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          🔴 TVOne News
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === 'vr0qNXmkUJ8'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          🎧 Avicii - Heaven
+                        </button>
+                        <button
+                          onClick={() => setSelectedVideoId('LjhCEhWiKXk')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === 'LjhCEhWiKXk'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          🔥 DJ Sammy - Heaven
+                        </button>
+                        <button
+                          onClick={() => setSelectedVideoId('60ItHLz5WEA')}
+                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                            selectedVideoId === '60ItHLz5WEA'
+                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          ⚡ Alan Walker - Faded
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {/* Verified 100% Public YouTube Player */}
@@ -272,9 +322,11 @@ export default function MobileSimulatorHUD({
                   </div>
 
                   <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
-                    <span className="text-red-400 font-bold truncate">🎵 Track: {selectedVideoId === 'vr0qNXmkUJ8' ? 'Avicii - Heaven' : selectedVideoId === 'LjhCEhWiKXk' ? 'DJ Sammy - Heaven (Club Mix)' : 'Electro EDM Mix'}</span>
+                    <span className="text-red-400 font-bold truncate">
+                      {isNewsQuery ? '📺 Siaran Langsung Berita Nasional' : `🎵 Audio Track: ${selectedVideoId}`}
+                    </span>
                     <a
-                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'dj heaven official video')}`}
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'berita demo dpr ri hari ini')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 hover:border-cyan-500"

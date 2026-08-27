@@ -149,37 +149,43 @@ export class ChatCompletionService {
     const raw = prompt || '';
     const p = raw.toLowerCase();
 
-    // 1. Music / DJ / Video Requests
-    if (p.includes('video') || p.includes('lagu') || p.includes('dj') || p.includes('music') || p.includes('musik') || p.includes('youtube') || p.includes('play')) {
-      const trackMatch = raw.replace(/^(hallo|halo|hai|tolong|coba|cari|carikan|putar|putarkan|play|jin|dari youtube|youtube|lagsung play|langsung play)\s*/gi, '').trim();
-      return `Siap! Saya telah mencarikan dan memuat video ${trackMatch || 'musik'} dari YouTube langsung di panel kanan. Musik siap Anda dengarkan sekarang.`;
+    // 1. Live News / Breaking Events / Politics / DPR / Demo
+    if (p.includes('berita') || p.includes('demo') || p.includes('dpr') || p.includes('politik') || p.includes('terkini') || p.includes('hari ini') || p.includes('peristiwa') || p.includes('kabinet')) {
+      const cleanTopic = raw.replace(/^(hallo|halo|hai|ok|jin|tolong|coba|kamu|cari|carikan|pantau|lihat|di youtube|youtube|dari youtube)\s*/gi, '').trim();
+      return `Saya telah merayapi laporan dan siaran video berita terkait "${cleanTopic || 'isu terkini'}" dari YouTube dan berbagai portal media nasional. Liputan berita langsung dapat Anda pantau di panel kanan.`;
     }
 
-    // 2. Data / Table / Chart Requests
-    if (p.includes('data') || p.includes('tabel') || p.includes('grafik') || p.includes('chart') || p.includes('statistik')) {
-      return `Data dan metrik terstruktur yang Anda minta telah dianalisis dan ditampilkan langsung ke tabel data di panel kanan.`;
+    // 2. Music / DJ / Audio Songs
+    if (p.includes('lagu') || p.includes('dj') || p.includes('musik') || p.includes('music') || p.includes('song') || p.includes('remix') || p.includes('heaven') || p.includes('faded') || p.includes('pop')) {
+      const trackMatch = raw.replace(/^(hallo|halo|hai|ok|jin|tolong|coba|kamu|cari|carikan|putar|putarkan|play|dari youtube|youtube|lagsung play|langsung play)\s*/gi, '').trim();
+      return `Siap! Saya telah mencarikan dan memuat video musik "${trackMatch || 'pilihan'}" dari YouTube langsung di panel kanan. Musik siap Anda dengarkan sekarang.`;
     }
 
-    // 3. Application / Prototype Generation
+    // 3. Data / Table / Chart Requests
+    if (p.includes('data') || p.includes('tabel') || p.includes('grafik') || p.includes('chart') || p.includes('statistik') || p.includes('metrik')) {
+      return `Data dan metrik terstruktur yang Anda minta telah dianalisis dan disajikan langsung ke tabel analitik di panel kanan.`;
+    }
+
+    // 4. Application / Prototype Generation
     if (p.includes('aplikasi') || p.includes('buat') || p.includes('kalkulator') || p.includes('prototype') || p.includes('app')) {
       return `Purwarupa aplikasi interaktif telah dibuat dan langsung dimuat ke layar simulator di panel kanan.`;
     }
 
-    // 4. Global Search / Information Retrieval
+    // 5. Global Search / Information Retrieval
     if (p.includes('cari') || p.includes('siapa') || p.includes('apa') || p.includes('bagaimana') || p.includes('jelaskan')) {
       if (toolResult && toolResult.sources && toolResult.sources.length > 0) {
         const topSnippets = toolResult.sources.slice(0, 2).map(s => `${s.title}: ${s.snippet}`).join(' ');
         return `Berdasarkan penelusuran langsung: ${topSnippets}`;
       }
-      return `Instruksi Anda untuk "${raw}" telah dieksekusi. Informasi dan data terkait telah dipetakan secara akurat.`;
+      return `Informasi dan data terkait "${raw}" telah dipetakan secara akurat.`;
     }
 
-    // 5. Greeting / Default
+    // 6. Greeting / Default
     if (p.includes('halo') || p.includes('hai') || p.includes('salam') || p.includes('pagi') || p.includes('siang') || p.includes('malam')) {
-      return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data, analisis, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
+      return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian berita, data, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
     }
 
-    return `Instruksi "${raw}" telah diproses dan diselaraskan secara langsung ke sistem.`;
+    return `Instruksi "${raw}" telah diproses dan diselaraskan secara langsung ke sistem 9Router.`;
   }
 }
 

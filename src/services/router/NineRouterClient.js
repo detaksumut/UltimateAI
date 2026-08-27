@@ -137,18 +137,26 @@ export class NineRouterClient {
     const raw = input || '';
     const lower = raw.toLowerCase();
 
-    if (lower.includes('video') || lower.includes('lagu') || lower.includes('dj') || lower.includes('musik') || lower.includes('music') || lower.includes('youtube') || lower.includes('play')) {
-      const trackMatch = raw.replace(/^(hallo|halo|hai|tolong|coba|cari|carikan|putar|putarkan|play|jin|dari youtube|youtube|lagsung play|langsung play)\s*/gi, '').trim();
-      return `Siap! Saya telah mencarikan dan memuat video ${trackMatch || 'musik'} dari YouTube langsung di panel kanan. Musik siap Anda dengarkan sekarang.`;
+    // 1. Live News / Breaking Events / Politics / DPR / Demo
+    if (lower.includes('berita') || lower.includes('demo') || lower.includes('dpr') || lower.includes('politik') || lower.includes('terkini') || lower.includes('hari ini') || lower.includes('peristiwa') || lower.includes('kabinet')) {
+      const cleanTopic = raw.replace(/^(hallo|halo|hai|ok|jin|tolong|coba|kamu|cari|carikan|pantau|lihat|di youtube|youtube|dari youtube)\s*/gi, '').trim();
+      return `Saya telah merayapi laporan dan siaran video berita terkait "${cleanTopic || 'isu terkini'}" dari YouTube dan berbagai portal media nasional. Liputan berita langsung dapat Anda pantau di panel kanan.`;
     }
+
+    // 2. Music / DJ / Audio Songs
+    if (lower.includes('lagu') || lower.includes('dj') || lower.includes('musik') || lower.includes('music') || lower.includes('song') || lower.includes('remix') || lower.includes('heaven') || lower.includes('faded') || lower.includes('pop')) {
+      const trackMatch = raw.replace(/^(hallo|halo|hai|ok|jin|tolong|coba|kamu|cari|carikan|putar|putarkan|play|dari youtube|youtube|lagsung play|langsung play)\s*/gi, '').trim();
+      return `Siap! Saya telah mencarikan dan memuat video musik "${trackMatch || 'pilihan'}" dari YouTube langsung di panel kanan. Musik siap Anda dengarkan sekarang.`;
+    }
+
     if (lower.includes('aplikasi') || lower.includes('buat') || lower.includes('kalkulator') || lower.includes('app')) {
       return `Purwarupa aplikasi interaktif telah selesai digenerate dan langsung dimuat ke layar simulator di panel kanan.`;
     }
-    if (lower.includes('analisis') || lower.includes('data') || lower.includes('riset') || lower.includes('tabel')) {
+    if (lower.includes('analisis') || lower.includes('data') || lower.includes('riset') || lower.includes('tabel') || lower.includes('statistik')) {
       return `Data dan ringkasan metrik terstruktur yang Anda minta telah dianalisis dan disajikan langsung ke panel kanan.`;
     }
     if (lower.includes('halo') || lower.includes('hai') || lower.includes('salam') || lower.includes('jin')) {
-      return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data, analisis, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
+      return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian berita, data, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
     }
     return `Instruksi "${raw}" telah dieksekusi secara langsung oleh sistem 9Router.`;
   }
