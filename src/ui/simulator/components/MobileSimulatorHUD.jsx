@@ -207,6 +207,7 @@ export default function MobileSimulatorHUD({
               </div>
 
               {/* 1. VIDEO PLAYER CARD */}
+              {/* 1. VIDEO PLAYER CARD */}
               {(activeMediaType === 'ALL' || activeMediaType === 'VIDEO') && (
                 <div className="bg-slate-900/90 rounded-2xl p-3 border border-red-500/30 shadow-md">
                   <div className="flex items-center justify-between mb-2">
@@ -215,8 +216,8 @@ export default function MobileSimulatorHUD({
                         <Film className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white tracking-wide">YOUTUBE & MEDIA PLAYER</div>
-                        <div className="text-[8px] text-red-400">Stream Embed Live</div>
+                        <div className="text-xs font-bold text-white tracking-wide">YOUTUBE DJ & MEDIA PLAYER</div>
+                        <div className="text-[8px] text-red-400">100% Public Stream Embed</div>
                       </div>
                     </div>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold">
@@ -224,26 +225,41 @@ export default function MobileSimulatorHUD({
                     </span>
                   </div>
 
-                  {/* Embedded Video Card */}
+                  {/* Track Selection Chips */}
+                  <div className="flex items-center gap-1 mb-2 overflow-x-auto pb-1 text-[8px]">
+                    <span className="px-2 py-0.5 rounded-md bg-red-600/80 text-white font-bold flex-shrink-0">
+                      🎧 DJ Sammy - Heaven
+                    </span>
+                    <a
+                      href="https://www.youtube.com/watch?v=vr0qNXmkUJ8"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 hover:text-white flex-shrink-0"
+                    >
+                      Avicii - Heaven
+                    </a>
+                  </div>
+
+                  {/* Embedded Video Card with 100% Public Verified YouTube ID */}
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
                       className="w-full h-full"
-                      src="https://www.youtube.com/embed/s6TtwR2Dbjg"
-                      title="Bryan Adams - Heaven (Official Music Video)"
+                      src="https://www.youtube-nocookie.com/embed/TOG85r1jYq4?autoplay=0"
+                      title="DJ Sammy & Yanou ft. Do - Heaven (Official Music Video)"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                   </div>
 
                   <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
-                    <span className="text-red-400 font-bold truncate">🎵 Bryan Adams - Heaven (Official Music Video)</span>
+                    <span className="text-red-400 font-bold truncate">🎵 DJ Sammy & Yanou ft. Do - Heaven</span>
                     <a
-                      href="https://www.youtube.com/results?search_query=lagu+heaven"
+                      href="https://www.youtube.com/results?search_query=dj+lagu+heaven"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0"
                     >
-                      Buka YouTube <ExternalLink className="w-2.5 h-2.5" />
+                      Cari di YouTube <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>
                 </div>

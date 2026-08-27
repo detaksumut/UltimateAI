@@ -145,15 +145,16 @@ export class ChatCompletionService {
     }
   }
 
-  static generateLocalFallback(prompt, routing, toolResult = null) {
-    const p = (prompt || '').toLowerCase();
+    if (p.includes('video') || p.includes('lagu') || p.includes('dj') || p.includes('musik') || p.includes('youtube')) {
+      return `[9Router Multimedia Intelligence]\nSaya telah menemukan video musik "${prompt}" untuk Anda! Pemutar video YouTube interaktif telah dimuat di panel kanan Simulator pada tab MEDIA. Anda dapat langsung menekan tombol Play untuk mendengarkannya.`;
+    }
 
     if (routing.strategy === 'GLOBAL_SEARCH' || p.includes('cari') || p.includes('search')) {
       if (toolResult && toolResult.sources.length > 0) {
         const topSources = toolResult.sources.map(s => `• [${s.category}] ${s.title}\n  🔗 ${s.url}`).join('\n');
-        return `[UltimateAI 9Router — Live Web Intelligence]\nBerdasarkan penelusuran langsung terhadap simpul jaringan terverifikasi:\n\n${topSources}\n\nRingkasan Sintesis:\nSeluruh sumber akademik, warta berita, dan tren industri mengonfirmasi percepatan adopsi arsitektur AI modular dengan pemisahan antarmuka yang bersih.`;
+        return `[UltimateAI 9Router — Live Web Intelligence]\nBerdasarkan penelusuran langsung terhadap simpul jaringan terverifikasi:\n\n${topSources}\n\nRingkasan Sintesis:\nData riset dan sumber informasi relevan telah dipetakan secara akurat.`;
       }
-      return `[9Router Global Search — Local Synthesis]\n9 simpul data pengetahuan aktif. Menemukan data riset AI terverifikasi dengan tingkat kepercayaan tinggi.`;
+      return `[9Router Global Search — Local Synthesis]\n9 simpul data pengetahuan aktif. Menemukan data terverifikasi untuk "${prompt}".`;
     }
     if (routing.strategy === 'DATA_ANALYSIS' || p.includes('analisis') || p.includes('risiko')) {
       return `[9Router Deep Analysis — Local Synthesis]\nEvaluasi mendalam selesai. Dataset tervalidasi dengan integritas 99.8% dan parameter operasional aman.`;

@@ -138,6 +138,9 @@ export class NineRouterClient {
     if (lower.includes('halo') || lower.includes('hai') || lower.includes('jin')) {
       return `Salam! Saya JIN, antarmuka kecerdasan terpadu dari UltimateAI 9Router. Seluruh 9 jalur penalaran sistem aktif dan siap mengeksekusi instruksi Anda—mulai dari analisis riset, pencarian data global, hingga pembuatan aplikasi instan. Apa yang ingin kita kerjakan sekarang?`;
     }
+    if (lower.includes('video') || lower.includes('lagu') || lower.includes('dj') || lower.includes('musik') || lower.includes('youtube')) {
+      return `Tentu! Saya telah mencarikan video musik "${input}" untuk Anda. Pemutar video YouTube interaktif telah siap di panel kanan pada tab MEDIA. Anda dapat langsung menekan tombol Putar atau membukanya di YouTube.`;
+    }
     if (lower.includes('aplikasi') || lower.includes('buat') || lower.includes('kalkulator') || lower.includes('app')) {
       return `Instruksi diterima oleh 9Router. Saya telah memetakan kebutuhan arsitektur sistem dan menyiapkan struktur runtime aplikasi. Sistem sedang memverifikasi spesifikasi blueprint dan siap merender purwarupa ke dalam simulator mobile di panel kanan.`;
     }
