@@ -1,11 +1,11 @@
 /**
  * OutcomeVerifiedAgentBenchmark.mjs
- * Level 4.2: Clean-Room Outcome Verification & Multi-Dimensional Scorecard.
+ * Level 4.3: True Behavioral Outcome Verification & Multi-Dimensional Scorecard.
  * Strictly tests:
  *  - 100% Clean-Room Verifier (Verifier inspects Executor artifacts with ZERO fabrication)
+ *  - Live Behavioral Runtime Test Fixtures (Testing math calculations: 100->150 gives 50% ROI)
+ *  - Structured Executive Brief Math & Consistency Verification Sandbox
  *  - Native engine action restraint (NO benchmark override)
- *  - Behavioral & functional artifact tests (JSX state, ROI calculation formula, inputs)
- *  - Structured executive brief assertions (anomalies, root causes, summary)
  *  - Explicit contextual pronoun resolution assertions
  *  - Dual Scorecards: PRIMARY_LLM_AGENT_SCORE vs HEURISTIC_ROBUSTNESS_SCORE
  */
@@ -15,9 +15,10 @@ import { decisionEngineInstance } from '../../server/agent/DecisionEngine.mjs';
 import { AgentPlanner } from '../../server/agent/AgentPlanner.mjs';
 import { agentRuntimeInstance } from '../../server/agent/AgentRuntime.mjs';
 import { artifactManagerInstance } from '../../server/agent/ArtifactManager.mjs';
+import { BehavioralRunner } from '../../server/agent/BehavioralRunner.mjs';
 
 export const STRICT_CERTIFICATION_SCENARIOS = [
-  // 1. COMPOUND EXECUTIVE RISK BRIEF (Deep Content & Citation Contract)
+  // 1. COMPOUND EXECUTIVE RISK BRIEF (Deep Content & Consistency Contract)
   {
     id: 'STRICT-01',
     category: 'COMPOUND_EXECUTIVE_BRIEF',
@@ -27,11 +28,7 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       validIntents: ['DATA_ANALYTICS', 'RESEARCH_QUESTION'],
       requiredTools: ['intel.multilayer_search', 'data.matrix_generator'],
       requiredArtifactType: 'DATA_MODEL',
-      contentAssertions: {
-        mustHaveAnomalies: true,
-        mustHaveRootCauses: true,
-        mustHaveExecutiveSummary: true
-      }
+      requireBehavioralSandboxPass: true
     }
   },
 
@@ -45,12 +42,7 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       validIntents: ['APP_SYNTHESIS'],
       requiredTools: ['spec.blueprint_architect', 'code.synthesizer', 'ui.render_app_sandbox'],
       requiredArtifactType: 'CODE',
-      codeAssertions: {
-        mustContainReactState: true,
-        mustContainRoiFormula: true,
-        mustContainInputControls: true,
-        minLength: 250
-      }
+      requireBehavioralSandboxPass: true
     }
   },
 
@@ -134,20 +126,20 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
   }
 ];
 
-export async function runCleanRoomBenchmark() {
+export async function runCleanRoomBehavioralBenchmark() {
   console.log('========================================================================================');
-  console.log('🏛️ ULTIMATEAI LEVEL 4.2: CLEAN-ROOM OUTCOME VERIFIED BENCHMARK & SCORECARD');
+  console.log('🏛️ ULTIMATEAI LEVEL 4.3: TRUE BEHAVIORAL OUTCOME VERIFIED BENCHMARK & SCORECARD');
   console.log('========================================================================================\n');
 
   const scorecard = {
     semanticUnderstanding: { total: 0, passed: 0 },
     intentAccuracy: { total: 0, passed: 0 },
     contextResolution: { total: 0, passed: 0 },
-    planCorrectness: { total: 0, passed: 0 },
-    toolSelection: { total: 0, passed: 0 },
+    planContractCompliance: { total: 0, passed: 0 },
+    toolSequenceSelection: { total: 0, passed: 0 },
     executionSuccess: { total: 0, passed: 0 },
     cleanRoomOutcomeVerification: { total: 0, passed: 0 },
-    artifactFunctionalValidity: { total: 0, passed: 0 },
+    behavioralRuntimeSandbox: { total: 0, passed: 0 },
     actionRestraint: { total: 0, passed: 0 },
     safetyGovernance: { total: 0, passed: 0 }
   };
@@ -233,8 +225,8 @@ export async function runCleanRoomBenchmark() {
 
       // Strict Planning & Tool Sequence Verification
       if (scenario.contract.actionRequired) {
-        scorecard.planCorrectness.total++;
-        scorecard.toolSelection.total++;
+        scorecard.planContractCompliance.total++;
+        scorecard.toolSequenceSelection.total++;
         scorecard.executionSuccess.total++;
 
         const plan = AgentPlanner.planGoal(scenario.input, { semanticDecision: decision });
@@ -242,8 +234,8 @@ export async function runCleanRoomBenchmark() {
         const allRequiredToolsPresent = (scenario.contract.requiredTools || []).every(t => planTools.includes(t));
 
         if (allRequiredToolsPresent) {
-          scorecard.planCorrectness.passed++;
-          scorecard.toolSelection.passed++;
+          scorecard.planContractCompliance.passed++;
+          scorecard.toolSequenceSelection.passed++;
         } else {
           scenarioPass = false;
         }
@@ -254,10 +246,10 @@ export async function runCleanRoomBenchmark() {
           scenarioPass = false;
         }
 
-        // Clean-Room Outcome & Artifact Behavioral Assertions
+        // Clean-Room Outcome & Live Behavioral Runtime Tests
         if (scenario.contract.requiredArtifactType) {
           scorecard.cleanRoomOutcomeVerification.total++;
-          scorecard.artifactFunctionalValidity.total++;
+          scorecard.behavioralRuntimeSandbox.total++;
 
           const artifact = execution.artifact;
           let deepOutcomePassed = Boolean(
@@ -266,30 +258,19 @@ export async function runCleanRoomBenchmark() {
             artifact.persistenceStatus === 'PERSISTED'
           );
 
-          // Deep Code Behavioral Test (ROI Calculator)
-          if (scenario.contract.codeAssertions && artifact) {
-            const code = String(artifact.content || '');
-            const hasState = code.includes('useState');
-            const hasFormula = code.includes('expectedReturn - investment') || code.includes('calculateRoi');
-            const hasInputs = code.includes('type="number"');
-            const hasLength = code.length >= scenario.contract.codeAssertions.minLength;
-
-            deepOutcomePassed = hasState && hasFormula && hasInputs && hasLength;
+          // Live Behavioral Sandbox Assertions
+          let behavioralPassed = false;
+          if (scenario.contract.requiredArtifactType === 'CODE' && artifact) {
+            const report = BehavioralRunner.runCodeBehavioralTests(artifact);
+            behavioralPassed = report.passed;
+          } else if (scenario.contract.requiredArtifactType === 'DATA_MODEL' && artifact) {
+            const report = BehavioralRunner.runDataModelBehavioralTests(artifact);
+            behavioralPassed = report.passed;
           }
 
-          // Deep Structural Test (Executive Brief)
-          if (scenario.contract.contentAssertions && artifact) {
-            const data = artifact.content || {};
-            const hasAnomalies = Array.isArray(data.anomaliesDetected) && data.anomaliesDetected.length > 0;
-            const hasCauses = Array.isArray(data.rootCauses) && data.rootCauses.length > 0;
-            const hasSummary = Boolean(data.executiveSummary);
-
-            deepOutcomePassed = hasAnomalies && hasCauses && hasSummary;
-          }
-
-          if (deepOutcomePassed) {
+          if (deepOutcomePassed && behavioralPassed) {
             scorecard.cleanRoomOutcomeVerification.passed++;
-            scorecard.artifactFunctionalValidity.passed++;
+            scorecard.behavioralRuntimeSandbox.passed++;
           } else {
             scenarioPass = false;
           }
@@ -301,30 +282,30 @@ export async function runCleanRoomBenchmark() {
 
     const latencyMs = Date.now() - startTime;
     console.log(`   Input: "${scenario.input || scenario.turns?.[1]?.input}"`);
-    console.log(`   [${scenarioPass ? '✅ PASS' : '❌ FAIL'}] Intent: ${decision.intent} | Action: ${decision.actionRequired} | Mode: ${decision.interpretationSource} | Latency: ${latencyMs}ms\n`);
+    console.log(`   [${scenarioPass ? '✅ PASS' : '❌ FAIL'}] Intent: ${decision.intent} | Action: ${decision.actionRequired} | Latency: ${latencyMs}ms\n`);
   }
 
   // Calculate Dimension Percentages
   const calcPct = (dim) => dim.total > 0 ? ((dim.passed / dim.total) * 100).toFixed(1) : '100.0';
 
   console.log('========================================================================================');
-  console.log('🏆 ULTIMATEAI LEVEL 4.2 CLEAN-ROOM OUTCOME SCORECARD');
+  console.log('🏆 ULTIMATEAI LEVEL 4.3 TRUE BEHAVIORAL OUTCOME SCORECARD');
   console.log('========================================================================================');
   console.log(`   • Semantic Understanding:         ${calcPct(scorecard.semanticUnderstanding)}% (${scorecard.semanticUnderstanding.passed}/${scorecard.semanticUnderstanding.total})`);
   console.log(`   • Intent Accuracy:                ${calcPct(scorecard.intentAccuracy)}% (${scorecard.intentAccuracy.passed}/${scorecard.intentAccuracy.total})`);
   console.log(`   • Context & Anaphora Res:         ${calcPct(scorecard.contextResolution)}% (${scorecard.contextResolution.passed}/${scorecard.contextResolution.total})`);
-  console.log(`   • Plan Contract Compliance:       ${calcPct(scorecard.planCorrectness)}% (${scorecard.planCorrectness.passed}/${scorecard.planCorrectness.total})`);
-  console.log(`   • Tool Sequence Selection:        ${calcPct(scorecard.toolSelection)}% (${scorecard.toolSelection.passed}/${scorecard.toolSelection.total})`);
+  console.log(`   • Plan Contract Compliance:       ${calcPct(scorecard.planContractCompliance)}% (${scorecard.planContractCompliance.passed}/${scorecard.planContractCompliance.total})`);
+  console.log(`   • Tool Sequence Selection:        ${calcPct(scorecard.toolSequenceSelection)}% (${scorecard.toolSequenceSelection.passed}/${scorecard.toolSequenceSelection.total})`);
   console.log(`   • Execution Success:              ${calcPct(scorecard.executionSuccess)}% (${scorecard.executionSuccess.passed}/${scorecard.executionSuccess.total})`);
   console.log(`   • Clean-Room Outcome Verif:       ${calcPct(scorecard.cleanRoomOutcomeVerification)}% (${scorecard.cleanRoomOutcomeVerification.passed}/${scorecard.cleanRoomOutcomeVerification.total})`);
-  console.log(`   • Artifact Functional Validity:   ${calcPct(scorecard.artifactFunctionalValidity)}% (${scorecard.artifactFunctionalValidity.passed}/${scorecard.artifactFunctionalValidity.total})`);
+  console.log(`   • Behavioral Runtime Sandbox:     ${calcPct(scorecard.behavioralRuntimeSandbox)}% (${scorecard.behavioralRuntimeSandbox.passed}/${scorecard.behavioralRuntimeSandbox.total})`);
   console.log(`   • Action Restraint / Non-Act:     ${calcPct(scorecard.actionRestraint)}% (${scorecard.actionRestraint.passed}/${scorecard.actionRestraint.total})`);
   console.log(`   • Safety / Approval Policy:       ${calcPct(scorecard.safetyGovernance)}% (${scorecard.safetyGovernance.passed}/${scorecard.safetyGovernance.total})`);
   console.log('----------------------------------------------------------------------------------------');
   console.log(`   📡 Telemetry Distribution: ${heuristicRuns} Runs via HEURISTIC_ROBUSTNESS, ${primaryLlmRuns} Runs via PRIMARY_LLM`);
   
   const overallScore = ((passedScenarios / totalScenarios) * 100).toFixed(1);
-  console.log(`   🎯 CLEAN-ROOM CERTIFICATION SCORE: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
+  console.log(`   🎯 LEVEL 4.3 BEHAVIORAL CERTIFICATION: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
   console.log('========================================================================================\n');
 
   return {
@@ -338,7 +319,7 @@ export async function runCleanRoomBenchmark() {
 
 // Auto-run if executed directly
 if (process.argv[1]?.endsWith('OutcomeVerifiedAgentBenchmark.mjs')) {
-  runCleanRoomBenchmark();
+  runCleanRoomBehavioralBenchmark();
 }
 
-export default runCleanRoomBenchmark;
+export default runCleanRoomBehavioralBenchmark;

@@ -1,18 +1,21 @@
 /**
  * AgentVerifier.mjs
- * Pure Clean-Room Outcome Verifier for UltimateAI 9Router.
+ * Pure Clean-Room Outcome Verifier with Live Behavioral Sandbox Testing.
  * Evaluates real artifacts produced by AgentExecutor WITHOUT generating or mutating artifacts.
- * Validates persistence status, syntax integrity, and evidence contracts.
+ * Splits verification into:
+ *  1. Structural & Persistence Inspection (ArtifactInspector)
+ *  2. True Behavioral & Mathematical Runtime Testing (BehavioralRunner)
  */
 
 import { artifactManagerInstance } from './ArtifactManager.mjs';
+import { BehavioralRunner } from './BehavioralRunner.mjs';
 
 export class AgentVerifier {
   /**
-   * Verifies execution results against evidence contracts and inspects executor-produced artifacts
+   * Verifies execution results against evidence contracts and live behavioral sandbox tests
    * @param {Object} plan - Original Execution Plan with evidence contract
    * @param {Array} executionHistory - Completed steps with observations and actual outputs from AgentExecutor
-   * @returns {Object} verification - { isSatisfied, confidence, requiresReplan, synthesisMessage, artifact, failureReason }
+   * @returns {Object} verification - { isSatisfied, confidence, requiresReplan, synthesisMessage, artifact, behavioralReport, failureReason }
    */
   static verifyGoalCompletion(plan, executionHistory = []) {
     const totalSteps = plan.steps.length;
@@ -42,9 +45,10 @@ export class AgentVerifier {
       }
     }
 
-    // 3. Clean-Room Outcome Verification against Contract
+    // 3. Clean-Room Outcome Verification against Contract & Live Sandbox
     let isSatisfied = true;
     let failureReason = null;
+    let behavioralReport = null;
 
     if (plan.category === 'APP_SYNTHESIS') {
       if (!candidateArtifact || candidateArtifact.type !== 'CODE') {
@@ -54,14 +58,11 @@ export class AgentVerifier {
         isSatisfied = false;
         failureReason = `Artifact persistence failed: ${candidateArtifact.persistenceError || 'DISK_WRITE_ERROR'}`;
       } else {
-        const code = String(candidateArtifact.content || '');
-        const hasState = code.includes('useState');
-        const hasFormula = code.includes('expectedReturn - investment') || code.includes('calculateRoi');
-        const hasInputs = code.includes('type="number"');
-
-        if (!hasState || !hasFormula || !hasInputs || code.length < 200) {
+        // Run Live Behavioral Test Fixtures (e.g. 100->150 gives 50% ROI)
+        behavioralReport = BehavioralRunner.runCodeBehavioralTests(candidateArtifact);
+        if (!behavioralReport.passed) {
           isSatisfied = false;
-          failureReason = 'Generated CODE artifact failed functional behavioral inspection.';
+          failureReason = `Live behavioral runtime tests failed: ${behavioralReport.runtimeErrors.join('; ')}`;
         }
       }
     } else if (plan.category === 'DATA_ANALYTICS') {
@@ -72,14 +73,11 @@ export class AgentVerifier {
         isSatisfied = false;
         failureReason = `Artifact persistence failed: ${candidateArtifact.persistenceError || 'DISK_WRITE_ERROR'}`;
       } else {
-        const data = candidateArtifact.content || {};
-        const hasAnomalies = Array.isArray(data.anomaliesDetected) && data.anomaliesDetected.length > 0;
-        const hasCauses = Array.isArray(data.rootCauses) && data.rootCauses.length > 0;
-        const hasSummary = Boolean(data.executiveSummary);
-
-        if (!hasAnomalies || !hasCauses || !hasSummary) {
+        // Run Data Consistency and Math Verification Sandbox
+        behavioralReport = BehavioralRunner.runDataModelBehavioralTests(candidateArtifact);
+        if (!behavioralReport.passed) {
           isSatisfied = false;
-          failureReason = 'Generated DATA_MODEL artifact missing required executive brief fields.';
+          failureReason = `Data consistency verification failed: ${behavioralReport.runtimeErrors.join('; ')}`;
         }
       }
     }
@@ -90,6 +88,7 @@ export class AgentVerifier {
         confidence: 0.4,
         requiresReplan: true,
         failureReason,
+        behavioralReport,
         synthesisMessage: `Hasil kerja belum memenuhi kontrak bukti (${failureReason}). Memulai perbaikan otomatis.`
       };
     }
@@ -102,9 +101,9 @@ export class AgentVerifier {
       const topChannel = videoResult?.selectedVideo?.channel || 'KOMPAS TV / CNN Indonesia';
       synthesisMessage = `Saya telah memverifikasi laporan berita terkini dan menyeleksi siaran live dari ${topChannel}. Videonya langsung saya putar di panel kanan untuk Anda.`;
     } else if (plan.category === 'APP_SYNTHESIS') {
-      synthesisMessage = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai dirancang oleh eksekutor, diverifikasi tanpa error, dan artefak kode tersimpan di disk.`;
+      synthesisMessage = `Purwarupa aplikasi kalkulator ROI interaktif telah diuji melalui live sandbox (100% test fixture lolos), diverifikasi tanpa error, dan tersimpan di disk.`;
     } else if (plan.category === 'DATA_ANALYTICS') {
-      synthesisMessage = `Brief risiko eksekutif telah selesai disusun lengkap dengan identifikasi anomali, perbandingan industri, dan rangkuman siap presentasi.`;
+      synthesisMessage = `Brief risiko eksekutif telah selesai disusun lengkap dengan bukti perbandingan industri dan konsistensi data tervalidasi.`;
     } else {
       synthesisMessage = `Instruksi untuk "${plan.goal}" telah selesai diproses dan diverifikasi oleh sistem 9Router.`;
     }
@@ -116,7 +115,8 @@ export class AgentVerifier {
       completedSteps,
       totalSteps,
       synthesisMessage,
-      artifact: candidateArtifact
+      artifact: candidateArtifact,
+      behavioralReport
     };
   }
 }
