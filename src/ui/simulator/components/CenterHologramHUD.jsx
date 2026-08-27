@@ -1,11 +1,16 @@
 import React from 'react';
-import { Bell, Settings, Download, Cpu, ShieldCheck } from 'lucide-react';
+import { Bell, Settings, Download, Cpu, ShieldCheck, Volume2 } from 'lucide-react';
 import StatusCards from './StatusCards.jsx';
 import LiveHologramAvatar from './LiveHologramAvatar.jsx';
+import { textToSpeechInstance } from '../../../services/voice/TextToSpeech.js';
 
 export default function CenterHologramHUD({ avatarState, audioMetrics, onSettingsClick, onNotificationClick, onOpenCertDashboard }) {
   const isSpeaking = avatarState === 'SPEAKING';
   const { spectrum = [] } = audioMetrics || {};
+
+  const handleTestAudio = () => {
+    textToSpeechInstance.testVoiceAudio();
+  };
 
   return (
     <div className="relative flex-1 h-full flex flex-col items-center justify-between px-6 pt-3 pb-0 select-none overflow-hidden">
@@ -33,11 +38,21 @@ export default function CenterHologramHUD({ avatarState, audioMetrics, onSetting
         </div>
 
         {/* Right: Top Controls & Direct Download Button */}
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+          {/* Test Suara Audio Speaker Button */}
+          <button
+            onClick={handleTestAudio}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-950/50 hover:bg-purple-900/70 border border-purple-500/40 text-purple-300 text-[10px] sm:text-[11px] font-mono font-bold shadow-[0_0_12px_rgba(168,85,247,0.2)] transition-all hover:scale-105"
+            title="Klik untuk menguji speaker suara JIN secara langsung"
+          >
+            <Volume2 className="w-3 h-3 text-purple-400" />
+            <span>TEST SUARA</span>
+          </button>
+
           {/* Live System Status Diagnostic Button */}
           <button
             onClick={onOpenCertDashboard}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/50 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono font-bold shadow-[0_0_12px_rgba(0,229,255,0.2)] transition-all hover:scale-105"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-950/50 hover:bg-cyan-900/70 border border-cyan-500/40 text-cyan-300 text-[10px] sm:text-[11px] font-mono font-bold shadow-[0_0_12px_rgba(0,229,255,0.2)] transition-all hover:scale-105"
             title="Buka Diagnostic Live Certification Dashboard"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>

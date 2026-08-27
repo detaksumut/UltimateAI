@@ -100,7 +100,8 @@ export class ConversationSessionController {
    * Check if a callback belongs to the current active session
    */
   isCurrentSession(sessionId) {
-    return Boolean(this.activeSession && this.activeSession.id === sessionId && this.activeSession.isActive);
+    if (!sessionId) return true;
+    return Boolean(!this.activeSession || (this.activeSession.id === sessionId && this.activeSession.isActive));
   }
 
   getActiveSessionId() {
