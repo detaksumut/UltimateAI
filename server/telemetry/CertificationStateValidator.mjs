@@ -2,10 +2,11 @@
  * CertificationStateValidator.mjs
  * State Machine Guard & Integrity Rule Validator for 9Router Certification.
  * Enforces:
- *  1. Single-Session Coherence across all 4 Acceptance Gates
- *  2. Successor Session Causal Linkage without cross-session event pollution
- *  3. Strict Temporal Ordering (Mic ➔ Router ➔ TTS ➔ Barge-In)
- *  4. Monotonic Deterministic Verdict Derivation (Zero manual status override)
+ *  1. Mandatory Single-Session Coherence across all 4 Acceptance Gates
+ *  2. Successor Session Causal Existence Verification (No phantom successor IDs)
+ *  3. Cross-Session Event Pollution Prevention
+ *  4. Event-Level & Gate-Level Strict Temporal Ordering
+ *  5. Monotonic Deterministic Verdict Derivation (Zero manual status override)
  */
 
 import { PROVIDER_STATUS, RUNTIME_CERTIFICATION, FINAL_VERDICT, STREAM_MODE } from './CanonicalVocabulary.mjs';
@@ -27,7 +28,7 @@ export class CertificationStateValidator {
     const inconsistencies = [];
     const blockingConditions = [];
 
-    // --- RULE 1: MANDATORY SESSION ID ---
+    // --- RULE 1: MANDATORY ROOT SESSION ID ---
     if (!sessionId || typeof sessionId !== 'string' || !sessionId.trim()) {
       inconsistencies.push({
         rule: 'RULE_1_MISSING_SESSION_ID',
@@ -42,7 +43,7 @@ export class CertificationStateValidator {
       bargeIn = null
     } = gates;
 
-    // --- RULE 2: SINGLE-SESSION COHERENCE & METADATA PROVENANCE ---
+    // --- RULE 2: MANDATORY GATE-LEVEL SESSION COHERENCE & METADATA PROVENANCE ---
     const gateEntries = [
       { name: 'gate1_router', data: router },
       { name: 'gate2_microphone', data: microphone },
@@ -52,10 +53,11 @@ export class CertificationStateValidator {
 
     for (const { name, data } of gateEntries) {
       if (data) {
-        if (data.sessionId && data.sessionId !== sessionId) {
+        // Mandatory sessionId presence and match
+        if (!data.sessionId || data.sessionId !== sessionId) {
           inconsistencies.push({
             rule: 'RULE_2_SESSION_ID_MISMATCH',
-            message: `Gate "${name}" belongs to session "${data.sessionId}", which contradicts target session "${sessionId}". Cross-session blending is prohibited.`
+            message: `Gate "${name}" must have sessionId matching root session "${sessionId}". Got "${data.sessionId || 'UNDEFINED'}".`
           });
         }
         if (!data.timestamp || !data.provenance) {
@@ -67,7 +69,7 @@ export class CertificationStateValidator {
       }
     }
 
-    // --- RULE 3: SUCCESSOR SESSION CAUSAL LINKAGE ---
+    // --- RULE 3: SUCCESSOR SESSION CAUSAL EXISTENCE VERIFICATION ---
     if (bargeIn) {
       if (bargeIn.sessionInvalidated && !bargeIn.successorSessionId) {
         inconsistencies.push({
@@ -81,33 +83,65 @@ export class CertificationStateValidator {
           message: 'Successor session ID cannot be identical to the invalidated parent session ID.'
         });
       }
+      // Check that successorSessionId physically exists in successorSessions list
+      if (bargeIn.successorSessionId && bargeIn.successorSessionId !== sessionId) {
+        const isSuccessorPresent = Array.isArray(successorSessions) && successorSessions.some(s => 
+          s === bargeIn.successorSessionId || s?.sessionId === bargeIn.successorSessionId
+        );
+        if (!isSuccessorPresent) {
+          inconsistencies.push({
+            rule: 'RULE_3_SUCCESSOR_SESSION_NOT_FOUND',
+            message: `Successor session "${bargeIn.successorSessionId}" not found in verified successorSessions registry. Phantom successor IDs are prohibited.`
+          });
+        }
+      }
     }
 
-    // --- RULE 4: TEMPORAL ORDER VERIFICATION (Mic <= Router <= TTS <= Barge-In) ---
+    // --- RULE 4: CROSS-SESSION EVENT POLLUTION CHECK & EVENT TIMELINE VALIDATION ---
+    if (Array.isArray(events) && events.length > 0) {
+      for (let i = 0; i < events.length; i++) {
+        const evt = events[i];
+        if (evt.sessionId && evt.sessionId !== sessionId && evt.type !== 'SUCCESSOR_SESSION_CREATED') {
+          inconsistencies.push({
+            rule: 'RULE_4_EVENT_SESSION_POLLUTION',
+            message: `Event "${evt.type || evt.name || i}" carries sessionId "${evt.sessionId}" instead of parent session "${sessionId}". Cross-session event pollution is prohibited.`
+          });
+        }
+        if (i > 0 && events[i - 1]?.timestamp && evt?.timestamp && events[i - 1].timestamp > evt.timestamp) {
+          inconsistencies.push({
+            rule: 'RULE_4_EVENT_TIMELINE_ANOMALY',
+            message: `Event timeline inverted between "${events[i - 1].type || i - 1}" (${events[i - 1].timestamp}) and "${evt.type || i}" (${evt.timestamp}).`
+          });
+        }
+      }
+    }
+
+    // --- RULE 5: GATE-LEVEL STRICT TEMPORAL ORDERING ---
     if (microphone?.timestamp && router?.timestamp && microphone.timestamp > router.timestamp) {
       inconsistencies.push({
-        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        rule: 'RULE_5_TEMPORAL_ORDER_ANOMALY',
         message: `Microphone event timestamp (${microphone.timestamp}) is after router event timestamp (${router.timestamp}). Causality violated.`
       });
     }
 
     if (router?.timestamp && tts?.timestamp && router.timestamp > tts.timestamp) {
       inconsistencies.push({
-        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        rule: 'RULE_5_TEMPORAL_ORDER_ANOMALY',
         message: `Router event timestamp (${router.timestamp}) is after TTS event timestamp (${tts.timestamp}). Causality violated.`
       });
     }
 
     if (tts?.timestamp && bargeIn?.timestamp && tts.timestamp > bargeIn.timestamp) {
       inconsistencies.push({
-        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        rule: 'RULE_5_TEMPORAL_ORDER_ANOMALY',
         message: `TTS event timestamp (${tts.timestamp}) is after Barge-in event timestamp (${bargeIn.timestamp}). Causality violated.`
       });
     }
 
-    // --- RULE 5: INDIVIDUAL GATE VERIFICATION ---
+    // --- RULE 6: INDIVIDUAL GATE VERIFICATION ---
     const isRouterPass = Boolean(
       router &&
+      router.sessionId === sessionId &&
       router.transport === 'NINE_ROUTER_PROXY' &&
       router.fallbackUsed === false &&
       router.actualProvider &&
@@ -116,6 +150,7 @@ export class CertificationStateValidator {
 
     const isMicPass = Boolean(
       microphone &&
+      microphone.sessionId === sessionId &&
       microphone.permission === 'GRANTED' &&
       microphone.speechActivityDetected === true &&
       microphone.transcriptReceived === true
@@ -123,12 +158,14 @@ export class CertificationStateValidator {
 
     const isTtsPass = Boolean(
       tts &&
+      tts.sessionId === sessionId &&
       tts.actualProvider &&
       tts.playbackStarted === true
     );
 
     const isBargeInPass = Boolean(
       bargeIn &&
+      bargeIn.sessionId === sessionId &&
       bargeIn.detected === true &&
       bargeIn.ttsCancelled === true &&
       bargeIn.llmAborted === true &&
@@ -143,7 +180,7 @@ export class CertificationStateValidator {
     if (!isTtsPass) blockingConditions.push('TTS_GATE_PENDING');
     if (!isBargeInPass) blockingConditions.push('BARGE_IN_GATE_PENDING');
 
-    // --- RULE 6: MONOTONIC DETERMINISTIC VERDICT DERIVATION ---
+    // --- RULE 7: MONOTONIC DETERMINISTIC VERDICT DERIVATION ---
     let verdict = FINAL_VERDICT.CERTIFICATION_PENDING;
 
     if (inconsistencies.length > 0) {
