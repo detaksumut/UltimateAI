@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862618180-cd5rx",
+  "name": "analytics_goal-1787862617821",
+  "currentVersion": 1,
+  "latestHash": "afab338e1023acaaef30f296cfb57bc855b6d80f4ddbda8993ec81a212eb2940",
+  "lastUpdated": "2026-08-27T20:30:18.182Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "afab338e1023acaaef30f296cfb57bc855b6d80f4ddbda8993ec81a212eb2940",
+      "timestamp": "2026-08-27T20:30:18.182Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

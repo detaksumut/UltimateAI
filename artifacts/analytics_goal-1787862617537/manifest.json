@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862617676-lpi80",
+  "name": "analytics_goal-1787862617537",
+  "currentVersion": 1,
+  "latestHash": "e699e39e15fe862ec6537ffb62ce7f80b1fec7c1dd01c513fb4173c70b3f2c28",
+  "lastUpdated": "2026-08-27T20:30:17.678Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "e699e39e15fe862ec6537ffb62ce7f80b1fec7c1dd01c513fb4173c70b3f2c28",
+      "timestamp": "2026-08-27T20:30:17.678Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

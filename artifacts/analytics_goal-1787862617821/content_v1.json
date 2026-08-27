@@ -1,0 +1,22 @@
+[
+  {
+    "parameter": "Query Target",
+    "metric": "Saya sedang berpikir mau mencari data AI tren 2026. Tapi jangan lakukan apa-apa dulu, saya hanya mencatat ide.",
+    "status": "PROCESSED"
+  },
+  {
+    "parameter": "Multi-Layer Nodes",
+    "metric": "2 Simpul Aktif",
+    "status": "VERIFIED"
+  },
+  {
+    "parameter": "Response Latency",
+    "metric": "345 ms",
+    "status": "OPTIMAL"
+  },
+  {
+    "parameter": "Data Integrity",
+    "metric": "99.8 %",
+    "status": "VALIDATED"
+  }
+]
