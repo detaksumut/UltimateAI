@@ -1,8 +1,7 @@
 /**
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
- * Embodies JIN Natural Persona: Generates natural conversational responses
- * directly from executed deliverables and contextual dialogue rather than static templates.
+ * Integrates JINResponseEngine for Phase 7 Evidence-Grounded Conversational Synthesis.
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -11,59 +10,12 @@ import { agentExecutorInstance } from './AgentExecutor.mjs';
 import { AgentObserver } from './AgentObserver.mjs';
 import { AgentVerifier } from './AgentVerifier.mjs';
 import { replanEngineInstance } from './ReplanEngine.mjs';
+import { jinResponseEngineInstance } from './JINResponseEngine.mjs';
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 
 export class AgentRuntime {
   constructor() {
     this.sessionGoalHistory = [];
-  }
-
-  /**
-   * Generates a context-aware natural conversation response for JIN
-   */
-  generateNaturalConversationalResponse(rawGoal, decision) {
-    const p = rawGoal.toLowerCase();
-
-    if (/capek|lelah|letih|pusing|lemas|istirahat/i.test(p)) {
-      return `Saya mengerti, hari yang padat memang sangat menguras energi. Istirahatlah sejenak, saya tetap berjaga di sini kapan pun Anda membutuhkan bantuan data atau pembuatan aplikasi.`;
-    }
-
-    if (/^(halo|hai|salam|pagi|siang|malam)\b/i.test(p)) {
-      return `Halo! Senang bisa mendampingi Anda kembali. Ada data yang perlu kita gali, berita yang ingin dipantau, atau aplikasi yang ingin kita bangun bersama?`;
-    }
-
-    if (/jangan lakukan apa-apa|hanya mencatat|cuma ide|nanti saja/i.test(p)) {
-      return `Siap, ide Anda sudah saya catat dalam memori percakapan. Saya tidak akan menjalankan aksi apa pun sampai Anda memberi instruksi lebih lanjut.`;
-    }
-
-    return `Saya mendengar Anda. Katakan saja apa yang sedang Anda rencanakan, dan saya siap membantu mengorkestrasikannya.`;
-  }
-
-  /**
-   * Generates context-aware natural task completion synthesis for JIN based on actual outcomes
-   */
-  generateNaturalTaskSynthesis(plan, verification, artifact, executionHistory) {
-    if (plan.category === 'DATA_ANALYTICS') {
-      const data = artifact?.content || {};
-      const anomalyCount = (data.anomaliesDetected || []).length;
-      return `Saya sudah memeriksa datanya secara mendalam. Terlihat ada ${anomalyCount > 0 ? anomalyCount + ' anomali signifikan' : 'pola menarik'} pada angka pertumbuhan jika dibandingkan dengan benchmark industri. Ringkasan eksekutif dan analisis penyebabnya sudah saya susun di panel artefak.`;
-    }
-
-    if (plan.category === 'APP_SYNTHESIS') {
-      return `Purwarupa aplikasi kalkulator ROI interaktif telah selesai saya bangun dan lolos pengujian runtime. Anda bisa langsung mencoba memasukkan nilai investasi dan memverifikasi perhitungannya secara interaktif di layar.`;
-    }
-
-    if (plan.category === 'LIVE_NEWS') {
-      const videoResult = executionHistory.find(h => h.step.tool === 'media.video_resolver')?.stepResult?.result;
-      const topChannel = videoResult?.selectedVideo?.channel || 'siaran terpercaya';
-      return `Saya telah menelusuri siaran berita terkini dan menyeleksi liputan dari ${topChannel}. Videonya langsung saya putar di layar untuk Anda.`;
-    }
-
-    if (plan.category === 'MEDIA_PLAYBACK') {
-      return `Media yang Anda minta sudah saya siapkan dan langsung diputar di panel media.`;
-    }
-
-    return `Pekerjaan untuk "${plan.goal}" telah selesai saya laksanakan dan diverifikasi secara utuh.`;
   }
 
   /**
@@ -82,7 +34,12 @@ export class AgentRuntime {
 
     // If pure conversation without task delegation
     if (!decision.actionRequired) {
-      const responseMessage = this.generateNaturalConversationalResponse(rawGoal, decision);
+      const responsePayload = await jinResponseEngineInstance.generateResponse({
+        userUtterance: rawGoal,
+        conversationContext: sessionContext,
+        decision
+      });
+
       return {
         goal: rawGoal,
         success: true,
@@ -105,7 +62,10 @@ export class AgentRuntime {
           transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
         },
         fallbackUsed: decision.fallbackUsed,
-        responseMessage,
+        responseMessage: responsePayload.naturalVoiceSpeech,
+        detailedDisplay: responsePayload.detailedTextDisplay,
+        claims: responsePayload.claims,
+        evidenceRefs: responsePayload.evidenceRefs,
         durationMs: Date.now() - startTime
       };
     }
@@ -204,13 +164,21 @@ export class AgentRuntime {
 
     const durationMs = Date.now() - startTime;
 
-    // Generate Natural Conversational Synthesis based on Actual Outcome
-    const naturalResponse = this.generateNaturalTaskSynthesis(
-      currentPlan,
-      finalVerification,
-      finalVerification?.artifact,
-      fullExecutionHistory[0]?.currentHistory || []
-    );
+    // 3. JIN RESPONSE INTELLIGENCE (Synthesize Evidence-Grounded Speech & Display)
+    const responsePayload = await jinResponseEngineInstance.generateResponse({
+      userUtterance: rawGoal,
+      conversationContext: sessionContext,
+      decision,
+      executionHistory: fullExecutionHistory[0]?.currentHistory || [],
+      artifact: finalVerification?.artifact,
+      verification: finalVerification,
+      provenance: {
+        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+        planningEngine: 'deterministic_semantic_dag_planner',
+        executionTools: [...new Set(executionToolsUsed)],
+        transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
+      }
+    });
 
     const summary = {
       goal: rawGoal,
@@ -218,7 +186,10 @@ export class AgentRuntime {
       confidence: finalVerification?.confidence || 0.95,
       actionRequired: true,
       attempts: attempt,
-      responseMessage: naturalResponse,
+      responseMessage: responsePayload.naturalVoiceSpeech,
+      detailedDisplay: responsePayload.detailedTextDisplay,
+      claims: responsePayload.claims,
+      evidenceRefs: responsePayload.evidenceRefs,
       artifact: finalVerification?.artifact || null,
       provenance: {
         semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
