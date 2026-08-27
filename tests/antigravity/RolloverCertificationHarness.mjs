@@ -60,7 +60,8 @@ async function runRolloverCertification() {
         responseId: `resp-ag-test-${Date.now()}`,
         actualModel: modelId,
         actualConnectionId: connection.id,
-        transport: 'ANTIGRAVITY'
+        upstreamEndpoint: 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent',
+        transportClass: 'ANTIGRAVITY_CLOUD_CODE'
       };
     }
   };
@@ -81,9 +82,11 @@ async function runRolloverCertification() {
   assert.strictEqual(res1.accountAlias, 'antigravity-01', 'Test 1 Failed: Expected Alias antigravity-01');
   assert.strictEqual(res1.model, 'gemini-3.6-flash-high', 'Test 1 Failed: Model mismatch');
   assert.strictEqual(res1.actualModel, 'gemini-3.6-flash-high', 'Test 1 Failed: Actual model must match selected model');
+  assert.strictEqual(res1.transportClass, 'ANTIGRAVITY_CLOUD_CODE', 'Test 1 Failed: Transport class must be ANTIGRAVITY_CLOUD_CODE');
+  assert.strictEqual(res1.upstreamEndpoint, 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent', 'Test 1 Failed: Upstream endpoint mismatch');
   assert(res1.responseId && res1.responseId.startsWith('resp-ag-test-'), 'Test 1 Failed: Response ID must exist');
   assert.strictEqual(res1.rollover.occurred, false, 'Test 1 Failed: Rollover should not occur when healthy');
-  console.log('  -> PASS: AG-01 handled request with triple assertion verification.\n');
+  console.log('  -> PASS: AG-01 handled request with full transport class & endpoint attestation.\n');
 
   // -------------------------------------------------------------
   // [TEST 2] AG-01 Rate Limit -> Rollover to AG-02

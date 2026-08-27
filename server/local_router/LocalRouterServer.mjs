@@ -139,9 +139,13 @@ export function createLocalRouterServer() {
               provenance: {
                 providerGateway: 'ANTIGRAVITY',
                 connectionId: result.connectionId,
+                actualConnectionId: result.actualConnectionId,
                 accountAlias: result.accountAlias,
-                model: result.model,
-                transport: result.transport,
+                requestedModel: model,
+                actualModel: result.actualModel,
+                upstreamEndpoint: result.upstreamEndpoint,
+                transportClass: result.transportClass,
+                responseId: result.responseId,
                 fallbackUsed: false,
                 rollover: result.rollover
               }

@@ -5,14 +5,14 @@
  */
 
 import { antigravityConnectionSelectorInstance } from './AntigravityConnectionSelector.mjs';
-import { antigravityTransportInstance } from './AntigravityTransport.mjs';
+import { antigravityCloudCodeTransportInstance } from './AntigravityCloudCodeTransport.mjs';
 import { antigravityQuotaTrackerInstance } from './AntigravityQuotaTracker.mjs';
 import { antigravityConnectionStoreInstance } from './AntigravityConnectionStore.mjs';
 
 export class AntigravityProvider {
   constructor(
     selector = antigravityConnectionSelectorInstance,
-    transport = antigravityTransportInstance,
+    transport = antigravityCloudCodeTransportInstance,
     quotaTracker = antigravityQuotaTrackerInstance,
     store = antigravityConnectionStoreInstance
   ) {
@@ -57,6 +57,8 @@ export class AntigravityProvider {
           accountAlias: selection.accountAlias,
           model: selection.modelId,
           actualModel: transportResult?.actualModel || selection.modelId,
+          upstreamEndpoint: transportResult?.upstreamEndpoint || 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent',
+          transportClass: transportResult?.transportClass || 'ANTIGRAVITY_CLOUD_CODE',
           rollover: selection.rollover,
           transport: 'ANTIGRAVITY'
         };
