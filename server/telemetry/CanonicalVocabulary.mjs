@@ -18,7 +18,8 @@ export const RUNTIME_CERTIFICATION = {
   NOT_TESTED: 'NOT_TESTED',                       // Component not yet probed
   HARNESS_VERIFIED: 'HARNESS_VERIFIED',           // Verified in automated harness/stress test
   LIVE_NETWORK_VERIFIED: 'LIVE_NETWORK_VERIFIED', // Verified with live network queries (e.g. WebSearch)
-  REAL_WORLD_VERIFIED: 'REAL_WORLD_VERIFIED',     // Verified with real host devices & physical human input
+  HOST_RUNTIME_VERIFIED: 'HOST_RUNTIME_VERIFIED', // Verified on active host runtime gateway
+  REAL_WORLD_VERIFIED: 'REAL_WORLD_VERIFIED',     // Verified with real host devices, coherent session & physical human input
   FAILED: 'FAILED'                                // Runtime execution failed
 };
 
@@ -26,6 +27,7 @@ export const RUNTIME_CERTIFICATION = {
 export const FINAL_VERDICT = {
   NOT_CERTIFIED: 'NOT_CERTIFIED',
   CONDITIONAL_CERTIFIED: 'CONDITIONAL_CERTIFIED', // Architecture & Harness Verified, Host Evidence Pending
+  CERTIFICATION_PENDING: 'CERTIFICATION_PENDING', // Host empirical session in progress or incomplete
   PRODUCTION_CERTIFIED: 'PRODUCTION_CERTIFIED',   // 100% Real-World Verified across all mandatory pillars
   CERTIFICATION_FAILED: 'CERTIFICATION_FAILED'
 };
