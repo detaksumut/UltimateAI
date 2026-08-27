@@ -2,7 +2,8 @@
  * ClaimValidator.mjs
  * Evidence-First Fact Extractor & Proposition Validator.
  * Extracts candidate facts directly from verified evidence, validates predicates,
- * and produces strict ApprovedFacts where every proposition is mathematically grounded.
+ * and produces strict ApprovedFacts with explicit status segregation:
+ * ALL_PROPOSITIONS_VALID | PARTIAL_FACTS_AVAILABLE | NO_APPROVED_FACTS.
  */
 
 import { EvidenceResolver } from './EvidenceResolver.mjs';
@@ -12,7 +13,7 @@ export class ClaimValidator {
    * Extracts and validates facts directly from evidence context
    * @param {Array} candidatePropositions - [{ factKey, claim, evidenceRef, predicate: { field, equals, notEmpty, minLength } }]
    * @param {Object} context - { artifact, executionHistory, verification, provenance }
-   * @returns {Object} { approvedFacts: Array, approvedClaims: Array, rejectedPropositions: Array, isValid: boolean }
+   * @returns {Object} { approvedFacts: Array, approvedClaims: Array, rejectedPropositions: Array, validationStatus: string, allPropositionsValid: boolean, hasApprovedFacts: boolean }
    */
   static validatePropositions(candidatePropositions = [], context = {}) {
     const approvedFacts = [];
@@ -83,11 +84,23 @@ export class ClaimValidator {
       approvedClaims.push(prop.claim);
     }
 
+    const hasApprovedFacts = approvedFacts.length > 0;
+    const allPropositionsValid = hasApprovedFacts && rejectedPropositions.length === 0;
+
+    let validationStatus = 'NO_APPROVED_FACTS';
+    if (allPropositionsValid) {
+      validationStatus = 'ALL_PROPOSITIONS_VALID';
+    } else if (hasApprovedFacts) {
+      validationStatus = 'PARTIAL_FACTS_AVAILABLE';
+    }
+
     return {
       approvedFacts,
       approvedClaims,
       rejectedPropositions,
-      isValid: approvedFacts.length > 0
+      validationStatus,
+      allPropositionsValid,
+      hasApprovedFacts
     };
   }
 }
