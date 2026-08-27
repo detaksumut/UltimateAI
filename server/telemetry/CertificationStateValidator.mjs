@@ -4,14 +4,15 @@
  * Enforces:
  *  1. Single-Session Coherence across all 4 Acceptance Gates
  *  2. Successor Session Causal Linkage without cross-session event pollution
- *  3. Monotonic Deterministic Verdict Derivation (Zero manual status override)
+ *  3. Strict Temporal Ordering (Mic ➔ Router ➔ TTS ➔ Barge-In)
+ *  4. Monotonic Deterministic Verdict Derivation (Zero manual status override)
  */
 
 import { PROVIDER_STATUS, RUNTIME_CERTIFICATION, FINAL_VERDICT, STREAM_MODE } from './CanonicalVocabulary.mjs';
 
 export class CertificationStateValidator {
   /**
-   * Evaluates a host empirical session with strict single-session coherence and monotonic derivation
+   * Evaluates a host empirical session with strict single-session coherence, temporal order, and monotonic derivation
    * @param {Object} sessionBundle - { sessionId, gates: { router, microphone, tts, bargeIn }, events: [], successorSessions: [] }
    * @returns {Object} { isValid: boolean, verdict: string, sessionId: string, gates: Object, blockingConditions: Array, inconsistencies: Array }
    */
@@ -41,7 +42,7 @@ export class CertificationStateValidator {
       bargeIn = null
     } = gates;
 
-    // --- RULE 2: SINGLE-SESSION COHERENCE ACROSS ALL 4 GATES ---
+    // --- RULE 2: SINGLE-SESSION COHERENCE & METADATA PROVENANCE ---
     const gateEntries = [
       { name: 'gate1_router', data: router },
       { name: 'gate2_microphone', data: microphone },
@@ -82,7 +83,29 @@ export class CertificationStateValidator {
       }
     }
 
-    // --- RULE 4: INDIVIDUAL GATE VERIFICATION ---
+    // --- RULE 4: TEMPORAL ORDER VERIFICATION (Mic <= Router <= TTS <= Barge-In) ---
+    if (microphone?.timestamp && router?.timestamp && microphone.timestamp > router.timestamp) {
+      inconsistencies.push({
+        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        message: `Microphone event timestamp (${microphone.timestamp}) is after router event timestamp (${router.timestamp}). Causality violated.`
+      });
+    }
+
+    if (router?.timestamp && tts?.timestamp && router.timestamp > tts.timestamp) {
+      inconsistencies.push({
+        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        message: `Router event timestamp (${router.timestamp}) is after TTS event timestamp (${tts.timestamp}). Causality violated.`
+      });
+    }
+
+    if (tts?.timestamp && bargeIn?.timestamp && tts.timestamp > bargeIn.timestamp) {
+      inconsistencies.push({
+        rule: 'RULE_4_TEMPORAL_ORDER_ANOMALY',
+        message: `TTS event timestamp (${tts.timestamp}) is after Barge-in event timestamp (${bargeIn.timestamp}). Causality violated.`
+      });
+    }
+
+    // --- RULE 5: INDIVIDUAL GATE VERIFICATION ---
     const isRouterPass = Boolean(
       router &&
       router.transport === 'NINE_ROUTER_PROXY' &&
@@ -120,7 +143,7 @@ export class CertificationStateValidator {
     if (!isTtsPass) blockingConditions.push('TTS_GATE_PENDING');
     if (!isBargeInPass) blockingConditions.push('BARGE_IN_GATE_PENDING');
 
-    // --- RULE 5: MONOTONIC DETERMINISTIC VERDICT DERIVATION ---
+    // --- RULE 6: MONOTONIC DETERMINISTIC VERDICT DERIVATION ---
     let verdict = FINAL_VERDICT.CERTIFICATION_PENDING;
 
     if (inconsistencies.length > 0) {
