@@ -3,18 +3,18 @@
     "id": "ag-01",
     "connectionId": "ag-01",
     "accountAlias": "antigravity-01",
-    "label": "Account 1",
+    "label": "Antigravity Account 01",
     "provider": "ANTIGRAVITY",
     "authType": "oauth",
     "isActive": true,
     "priority": 1,
     "projectId": "",
-    "expiresAt": null,
-    "testStatus": "INITIALIZED",
+    "expiresAt": "2026-08-27T23:53:08.293Z",
+    "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "b2a979a91f35fd2452ba90ab:8fbf1ddd26907c030ec37ca150b3c995:1cca6afab9643cab0ba3465f42573b321237f0101a59fb592450a945285796af562114be04f3b4c17444a4d52bc4090d00",
-    "encryptedRefreshToken": "277433c8e1d6f0a7e3610bbf:447a166e38c857fd63d0289ce4f1b47e:bde19f64c088438c9bb68920a145b3d9e640",
-    "updatedAt": "2026-08-27T22:50:38.460Z"
+    "encryptedAccessToken": "51894351e0727a035ce21d9c:e73b6c4d8d690c9ba42502044e693816:d4eafdfa6f92a3014201cd35631f558a96876dc709bf74cf03c5028106",
+    "encryptedRefreshToken": "e374743ab388cf95901437a9:5e183d91a4adbfd53d9b5a7f53d48544:a11fb70146889c3438434ae60486852c295ec800cec75bbc82d7386e2e51",
+    "updatedAt": "2026-08-27T22:53:08.297Z"
   },
   {
     "id": "ag-02",
@@ -26,12 +26,12 @@
     "isActive": true,
     "priority": 2,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.295Z",
+    "expiresAt": "2026-08-27T23:53:08.301Z",
     "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "6d4509c1145bdc0910a7fee6:776ac2526f220a544992a5498ed9c9d4:abd18fece44648768d84e3a31c199c91441539fa42d598a8e10fcd0390",
-    "encryptedRefreshToken": "24163e03ab95f638a5cc545c:551c431ab6ff472e41291af35dd6d2c5:298a878847145b1ceae8724cd73848a2e3f0ab81b75f57470af786e92c7a",
-    "updatedAt": "2026-08-27T22:50:23.296Z"
+    "encryptedAccessToken": "529e072c6ca35fdad9d12374:e41d29887ed4dc3b59374347fff4423f:7e4f486fcfb46618aecff4a867bd803afc6f34eba10e230262009df422",
+    "encryptedRefreshToken": "9416b9aa307beff47b79e3d7:d35fb512f1a5142be27990ccb3547cd6:fe66d1fd2d1b14b6ed3ee4fa5d69b16f627d82db94539fd79b5e32a6fe35",
+    "updatedAt": "2026-08-27T22:53:08.302Z"
   },
   {
     "id": "ag-03",
@@ -43,12 +43,12 @@
     "isActive": true,
     "priority": 1,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.350Z",
+    "expiresAt": "2026-08-27T23:53:08.335Z",
     "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "5bdda475b6577d521214fb86:40652d4afc5db0dee0603a0563007537:a641eca164fab36e81e4638585e07e53cc0a76bb0ca9",
-    "encryptedRefreshToken": "811e6d7c99757175211d9911:8e16f8d4ee2c003f1a294dc855dff312:859a4dae07b3be48794fd7deac889a07aae8876254771b81eb5a965c346b",
-    "updatedAt": "2026-08-27T22:50:23.352Z"
+    "encryptedAccessToken": "07452e28573f17fdb93901df:e4665e6bca21eb7e1871c6687369c738:34893fbe068cc899f0f0cdbe5a6dcb0738785ec97a65",
+    "encryptedRefreshToken": "efafee64b448372abd700ded:551b9e6d7ff3e1dbc2df5a0c68ee31c1:a8fa48882e62724d1603c22e2b1ff61fafffad0facb62a456098746e8bea",
+    "updatedAt": "2026-08-27T22:53:08.336Z"
   },
   {
     "id": "ag-04",
@@ -60,12 +60,12 @@
     "isActive": true,
     "priority": 4,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.307Z",
+    "expiresAt": "2026-08-27T23:53:08.308Z",
     "testStatus": "DEGRADED",
-    "cooldownUntil": "2026-08-27T22:52:23.355Z",
-    "encryptedAccessToken": "ed4d5d69cff4345aed5d2388:eb0b0b0f27459db482de229f4bd9c8c0:3359912d9434e266a7e8b6e60df88432ad9b071990a5d6665bdcc2055b",
-    "encryptedRefreshToken": "7a2c1abe7315e8138f089c75:7833e6789b340560d2ac6af8f740843a:f60a56de0f91400d4e268b2b7ace886a4b6635bc8bf0f1d39afd246cf98f",
-    "updatedAt": "2026-08-27T22:50:23.357Z"
+    "cooldownUntil": "2026-08-27T22:55:08.339Z",
+    "encryptedAccessToken": "e2c308be311118a55d365ae8:b5e615b71dff08b1c6f0d31a6dff6d2c:bb907d7988ef91aaf1d8f4004a3bb4aa29dadc664800148264172cca12",
+    "encryptedRefreshToken": "e078ee8d460d72d694758134:3960f43b96a29e283cf5d38ec911fb45:a984051cc150a1f7f0ed03f3499f351e3f095f02e6c72bdd5c6fe3c37fd3",
+    "updatedAt": "2026-08-27T22:53:08.341Z"
   },
   {
     "id": "ag-05",
@@ -77,12 +77,12 @@
     "isActive": true,
     "priority": 5,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.313Z",
+    "expiresAt": "2026-08-27T23:53:08.311Z",
     "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "27bf3f3eb341730f54e1a29a:7b52d996e49e23aeced384e01a705e65:a520939b3f957dcbd480e7386ad409efeaaf553f3da61d61300546c0ce",
-    "encryptedRefreshToken": "41c89483e5b4ee37b2792a82:ccd4a475b94bd9bc7a301e521aebd12d:d68b9d1b5343646e7a03ee3852f89284c3102c263ff0c321e3915b585d1b",
-    "updatedAt": "2026-08-27T22:50:23.316Z"
+    "encryptedAccessToken": "772327842cc5f420b77f2f03:214c36f70bab67262498ba8c374f52c0:9b5e28324aceb5189ee5620f38c49e3a8958bb4c14973cec2261214054",
+    "encryptedRefreshToken": "44bbb8aedb7e43573c95442e:1a8390c1a5706ddffb956cf0009ba9b4:b00f562f8fc3ce5433ef454d0142ad4330d97cb8c09b04928de8ff90dd93",
+    "updatedAt": "2026-08-27T22:53:08.313Z"
   },
   {
     "id": "ag-06",
@@ -94,12 +94,12 @@
     "isActive": true,
     "priority": 6,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.320Z",
+    "expiresAt": "2026-08-27T23:53:08.316Z",
     "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "d63a1f4447251cb7f2bedb26:ab2785283971e0801d6fa1de3822443d:3cda79d100bc090aa435b31e9c6fd1d9ea23310cc30febb9156d7e3fd0",
-    "encryptedRefreshToken": "f5aa075532488a1940881bbe:0102f39d0c09a513b639e4dfacd6facd:017aeec1c22ab8191d3cf6141469b6b6f8102fc67a4dcba6b1a4350501b4",
-    "updatedAt": "2026-08-27T22:50:23.322Z"
+    "encryptedAccessToken": "33fba6facef748af95783bcc:c3e86bdf223b7c7ccf84db3d895ad7c2:c46b0a6437d98a6a37b413375719d7424345638fdf0eeb650a34470705",
+    "encryptedRefreshToken": "afd1155cc2583819426a98cf:34c64b7b3645626b55260e88fec5e3c4:34235f5154ff14bea9d997d4dee6f9956903ba7bea4730488a197a285a01",
+    "updatedAt": "2026-08-27T22:53:08.317Z"
   },
   {
     "id": "ag-07",
@@ -111,11 +111,11 @@
     "isActive": true,
     "priority": 7,
     "projectId": "",
-    "expiresAt": "2026-08-27T23:50:23.325Z",
+    "expiresAt": "2026-08-27T23:53:08.319Z",
     "testStatus": "ACTIVE",
     "cooldownUntil": null,
-    "encryptedAccessToken": "1f733a56dadbd3dafb56fe28:923b200bbfe57a3537da5992db877177:664219e532674bb9fbdfab7fe4d7d92f755ff262d481696200694cea03",
-    "encryptedRefreshToken": "ccb7ef9acd7642acf12c7a86:852631a0d898c975e10dcbbf40d9c6a0:d5f61d5cb2dfb71569f598db86b22481c3765c3f8dcb60d1f22fd5928b79",
-    "updatedAt": "2026-08-27T22:50:23.327Z"
+    "encryptedAccessToken": "312d8d970ceccf3c0c111187:cfe7f6335530fbbbdbdf22d4a023c1cc:9afc63cd318833b28e2f3989bb30c13c480d92f4afc2191edd5b93bb1d",
+    "encryptedRefreshToken": "a81f743cdece1f96ba1b16eb:35f4ff57c8f77f4eb08aabea613ec6fd:5479f0846b9e39ec030e0a35270e27b02f9ff5ee14d324c1c39edcb9f0db",
+    "updatedAt": "2026-08-27T22:53:08.321Z"
   }
 ]

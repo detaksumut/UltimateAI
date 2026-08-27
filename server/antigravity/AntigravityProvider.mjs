@@ -41,7 +41,7 @@ export class AntigravityProvider {
       const selection = this.selector.selectConnection(capability, model === 'auto' ? null : model);
 
       try {
-        const content = await this.transport.executeChat({
+        const transportResult = await this.transport.executeChat({
           connection: selection.connection,
           modelId: selection.modelId,
           messages,
@@ -50,10 +50,13 @@ export class AntigravityProvider {
         }, onChunk);
 
         return {
-          content,
+          content: typeof transportResult === 'object' ? transportResult.content : transportResult,
+          responseId: transportResult?.responseId || `resp-${Date.now()}`,
           connectionId: selection.connectionId,
+          actualConnectionId: transportResult?.actualConnectionId || selection.connectionId,
           accountAlias: selection.accountAlias,
           model: selection.modelId,
+          actualModel: transportResult?.actualModel || selection.modelId,
           rollover: selection.rollover,
           transport: 'ANTIGRAVITY'
         };
