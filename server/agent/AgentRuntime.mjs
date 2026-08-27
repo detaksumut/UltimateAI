@@ -1,7 +1,7 @@
 /**
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
- * Integrates JINResponseEngine for Phase 7 Evidence-Grounded Conversational Synthesis.
+ * Integrates JINResponseEngine with Claim-to-Evidence Grounding & Fail-Closed Support.
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -38,7 +38,7 @@ export class AgentRuntime {
         userUtterance: rawGoal,
         conversationContext: sessionContext,
         decision
-      });
+      }, options);
 
       return {
         goal: rawGoal,
@@ -47,6 +47,7 @@ export class AgentRuntime {
         actionRequired: false,
         intent: decision.intent,
         interpretationSource: decision.interpretationSource,
+        responseSource: responsePayload.responseSource,
         transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
         provenance: {
           semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
@@ -164,7 +165,7 @@ export class AgentRuntime {
 
     const durationMs = Date.now() - startTime;
 
-    // 3. JIN RESPONSE INTELLIGENCE (Synthesize Evidence-Grounded Speech & Display)
+    // 3. JIN RESPONSE INTELLIGENCE (Synthesize Evidence-Bound Speech & Display)
     const responsePayload = await jinResponseEngineInstance.generateResponse({
       userUtterance: rawGoal,
       conversationContext: sessionContext,
@@ -178,7 +179,7 @@ export class AgentRuntime {
         executionTools: [...new Set(executionToolsUsed)],
         transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
       }
-    });
+    }, options);
 
     const summary = {
       goal: rawGoal,
@@ -190,6 +191,7 @@ export class AgentRuntime {
       detailedDisplay: responsePayload.detailedTextDisplay,
       claims: responsePayload.claims,
       evidenceRefs: responsePayload.evidenceRefs,
+      responseSource: responsePayload.responseSource,
       artifact: finalVerification?.artifact || null,
       provenance: {
         semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
