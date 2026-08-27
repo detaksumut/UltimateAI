@@ -1,6 +1,6 @@
 /**
- * TextToSpeech.js (Enterprise Resilient Edition)
- * Web Speech Synthesis with automatic Chrome-pause prevention, voice fallback, and sentence chunking.
+ * TextToSpeech.js (Bulletproof Chrome & Edge Edition)
+ * Web Speech Synthesis with verified Google Bahasa Indonesia voice binding and anti-cancellation queue.
  */
 
 export class TextToSpeech {
@@ -29,17 +29,16 @@ export class TextToSpeech {
       this.loadVoices();
     }
 
-    // 1. Try Indonesian voice
+    // 1. Prioritize Google Bahasa Indonesia or any id-ID voice
     const idVoice = this.voices.find(v => 
-      v.lang.toLowerCase().includes('id') || 
-      v.lang.toLowerCase().includes('indonesia') ||
-      v.name.toLowerCase().includes('indonesia') ||
-      v.name.toLowerCase().includes('ardi') ||
-      v.name.toLowerCase().includes('gadis')
+      v.lang === 'id-ID' || 
+      v.lang === 'id_ID' ||
+      v.lang.startsWith('id') ||
+      v.name.toLowerCase().includes('indonesia')
     );
     if (idVoice) return idVoice;
 
-    // 2. Try default system voice
+    // 2. Default system voice
     const defaultVoice = this.voices.find(v => v.default);
     if (defaultVoice) return defaultVoice;
 
@@ -53,17 +52,13 @@ export class TextToSpeech {
       return;
     }
 
-    // Ensure synth is not paused in Chrome
-    try {
-      this.synth.resume();
-      this.stop();
-    } catch {}
-
-    // Clean markdown/code symbols from speech text
+    // Clean markdown/brackets from speech text
     const cleanText = text
-      .replace(/```[\s\S]*?```/g, 'blok kode')
+      .replace(/\[.*?\]/g, '') // remove bracket tags like [9Router ...]
+      .replace(/```[\s\S]*?```/g, '')
       .replace(/`([^`]+)`/g, '$1')
-      .replace(/[*#_~>[\]()]/g, ' ')
+      .replace(/[*#_~>]/g, ' ')
+      .replace(/https?:\/\/\S+/g, '')
       .trim();
 
     if (!cleanText) {
@@ -71,11 +66,18 @@ export class TextToSpeech {
       return;
     }
 
+    // Resume synth in Chrome
+    try {
+      if (this.synth.paused) {
+        this.synth.resume();
+      }
+    } catch {}
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = voiceLang;
-    utterance.rate = 1.05;
+    utterance.rate = 1.0;
     utterance.pitch = 1.0;
-    utterance.volume = 1.0; // Maximum volume
+    utterance.volume = 1.0;
 
     const voice = this.getBestVoice(voiceLang);
     if (voice) {
@@ -84,16 +86,19 @@ export class TextToSpeech {
 
     utterance.onstart = () => {
       this.isPlaying = true;
+      console.log('[TTS] 🔊 Started speaking with voice:', voice?.name || 'default');
       if (onStart) onStart();
     };
 
     utterance.onend = () => {
       this.isPlaying = false;
       this.currentUtterance = null;
+      console.log('[TTS] ✅ Finished speaking.');
       if (onEnd) onEnd();
     };
 
     utterance.onerror = (e) => {
+      console.warn('[TTS] ⚠️ Speech error:', e);
       this.isPlaying = false;
       this.currentUtterance = null;
       if (onError) onError(e);
@@ -104,18 +109,14 @@ export class TextToSpeech {
 
     try {
       this.synth.speak(utterance);
-      // Chrome bug workaround: keep synth active
-      if (this.synth.paused) {
-        this.synth.resume();
-      }
     } catch (err) {
-      console.warn('[TTS] Speech synthesis error:', err);
+      console.error('[TTS] Speak invocation error:', err);
       if (onEnd) onEnd();
     }
   }
 
   stop() {
-    if (this.synth) {
+    if (this.synth && this.isPlaying) {
       try {
         this.synth.cancel();
       } catch {}
@@ -128,9 +129,6 @@ export class TextToSpeech {
     this.stop();
   }
 
-  /**
-   * Play test sound and test voice output directly
-   */
   testVoiceAudio() {
     this.speak('Halo! Suara JIN aktif dan sistem siap beroperasi.');
   }

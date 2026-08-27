@@ -1,6 +1,6 @@
 /**
- * VoiceController.js (Enterprise Full-Duplex Edition)
- * Coordinated audio controller with Session Ownership and Cascading Barge-In.
+ * VoiceController.js (Enterprise Resilient Full-Duplex Edition)
+ * Coordinated audio controller with Session Ownership, Protected TTS, and Safe Barge-In.
  */
 
 import { textToSpeechInstance } from './TextToSpeech.js';
@@ -17,10 +17,14 @@ export class VoiceController {
     this.fsm = jinAvatarControllerInstance;
     this.sessionController = conversationSessionControllerInstance;
     this.wakeWord = wakeWordEngineInstance;
+    this.bargeInHandler = null;
 
-    // Connect wake word listener
+    // Connect wake word listener safely
     this.wakeWord.onWakeWord(({ transcript, sessionId }) => {
-      this.fsm.dispatch({ type: AVATAR_EVENTS.MIC_ACTIVATED, sessionId });
+      // Only activate wake word if JIN is not currently speaking
+      if (!this.tts.isPlaying) {
+        this.fsm.dispatch({ type: AVATAR_EVENTS.MIC_ACTIVATED, sessionId });
+      }
     });
   }
 
@@ -33,16 +37,21 @@ export class VoiceController {
   }
 
   handleUserBargeIn() {
-    this.sessionController.handleBargeIn('USER_BARGE_IN_TRIGGERED');
-    if (this.bargeInHandler) {
-      try {
-        this.bargeInHandler();
-      } catch {}
+    // Only trigger barge-in if TTS is actively speaking
+    if (this.tts.isPlaying) {
+      console.log('[VOICE] ⚡ Active Speech Barge-In detected, stopping TTS.');
+      this.tts.stop();
+      this.sessionController.handleBargeIn('USER_BARGE_IN_TRIGGERED');
+      if (this.bargeInHandler) {
+        try {
+          this.bargeInHandler();
+        } catch {}
+      }
     }
   }
 
   async startListeningSession(callbacks = {}) {
-    // 1. Instant Cascading Barge-in check
+    // 1. Safe barge in check (only if speaking)
     this.handleUserBargeIn();
 
     // 2. Start a fresh session with unique ID
@@ -97,22 +106,24 @@ export class VoiceController {
       text,
       {
         onStart: () => {
-          if (!this.sessionController.isCurrentSession(sessionId)) return;
           this.fsm.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY, sessionId });
           if (onStart) onStart();
         },
         onEnd: () => {
-          if (!this.sessionController.isCurrentSession(sessionId)) return;
           this.fsm.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED, sessionId });
           if (onEnd) onEnd();
         },
-        onError: () => {
-          if (!this.sessionController.isCurrentSession(sessionId)) return;
+        onError: (err) => {
           this.fsm.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED, sessionId });
-          if (options?.onError) options.onError();
+          if (options?.onError) options.onError(err);
         }
       }
     );
+  }
+
+  stopAll() {
+    this.stt.stopListening();
+    this.tts.stop();
   }
 }
 

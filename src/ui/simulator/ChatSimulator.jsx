@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './simulator.css';
 import LeftSidebarHUD from './components/LeftSidebarHUD.jsx';
 import CenterHologramHUD from './components/CenterHologramHUD.jsx';
@@ -50,10 +50,12 @@ export default function ChatSimulator() {
   }, []);
 
   // Voice Interaction Hook with instant Barge-in
+  const handleBargeIn = useCallback(() => {
+    console.log('[CHAT] User barge-in detected! Stopping JIN speech.');
+  }, []);
+
   const { startListening, stopListening } = useVoiceEngine({
-    onBargeIn: () => {
-      console.log('User barge-in detected! Stopping JIN speech.');
-    }
+    onBargeIn: handleBargeIn
   });
 
   // Handle Text/Voice Prompts through SimulatorOrchestrator
