@@ -1,6 +1,7 @@
 /**
  * DecisionEngine.mjs
  * Evaluates semantic interpretation to decide whether an action is needed and enforces Autonomy Levels.
+ * Propagates options (failClosed, forcedModel) to SemanticIntentEngine.
  */
 
 import { semanticIntentEngineInstance } from './SemanticIntentEngine.mjs';
@@ -27,10 +28,11 @@ export class DecisionEngine {
    * Decides whether user input requires action, conversation, or clarification
    * @param {string} input - User utterance / prompt
    * @param {Object} context - Conversational memory and history
+   * @param {Object} options - { failClosed: boolean, forcedModel: string }
    * @returns {Promise<Object>} decision
    */
-  async decide(input, context = {}) {
-    const semantic = await semanticIntentEngineInstance.interpret(input, context);
+  async decide(input, context = {}, options = {}) {
+    const semantic = await semanticIntentEngineInstance.interpret(input, context, options);
 
     // If level 0 (Chat only), force actionRequired = false
     if (this.currentLevel === AUTONOMY_LEVELS.LEVEL_0_CHAT_ONLY) {

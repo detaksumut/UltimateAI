@@ -2,6 +2,7 @@
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
  * Implements: SEMANTIC_DECISION ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ ADAPTIVE_REPLAN
+ * Propagates execution & certification options end-to-end.
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -21,14 +22,15 @@ export class AgentRuntime {
    * Main Autonomous Execution Loop
    * @param {string} userGoal - User spoken/typed natural input
    * @param {Object} sessionContext - Context, previous turns, memory
+   * @param {Object} options - { failClosed: boolean, forcedModel: string }
    * @returns {Promise<Object>} executionSummary
    */
-  async runGoal(userGoal, sessionContext = {}) {
+  async runGoal(userGoal, sessionContext = {}, options = {}) {
     const startTime = Date.now();
     const rawGoal = userGoal || '';
 
-    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation)
-    const decision = await decisionEngineInstance.decide(rawGoal, sessionContext);
+    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation with Fail-Closed option)
+    const decision = await decisionEngineInstance.decide(rawGoal, sessionContext, options);
 
     // If pure conversation without task delegation
     if (!decision.actionRequired) {
@@ -39,6 +41,8 @@ export class AgentRuntime {
         actionRequired: false,
         intent: decision.intent,
         interpretationSource: decision.interpretationSource,
+        modelUsed: decision.modelUsed,
+        fallbackUsed: decision.fallbackUsed,
         responseMessage: `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data multi-layer, analisis, pemutaran media, atau pembuatan aplikasi instan secara mandiri.`,
         durationMs: Date.now() - startTime
       };
@@ -76,7 +80,8 @@ export class AgentRuntime {
 
         const stepResult = await agentExecutorInstance.executeStep(step, {
           priorHistory: currentHistory,
-          sessionContext
+          sessionContext,
+          options
         });
 
         const observation = AgentObserver.observe(step, stepResult);
@@ -133,6 +138,8 @@ export class AgentRuntime {
       responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah selesai diproses dan diverifikasi oleh sistem 9Router.',
       artifact: finalVerification?.artifact || null,
       interpretationSource: decision.interpretationSource,
+      modelUsed: decision.modelUsed,
+      fallbackUsed: decision.fallbackUsed,
       durationMs,
       telemetry: {
         totalStepsExecuted: fullExecutionHistory.reduce((acc, h) => acc + h.currentHistory.length, 0),

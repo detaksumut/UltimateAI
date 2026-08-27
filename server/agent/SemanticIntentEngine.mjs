@@ -1,7 +1,7 @@
 /**
  * SemanticIntentEngine.mjs
  * LLM-powered semantic goal and intent interpreter with strict Fail-Closed Certification Mode.
- * Strictly adheres to Zero Secret Exposure: credentials resolved via server env configuration.
+ * Supports both HTTP Proxy routing and in-process ProviderRegistry direct dispatch.
  */
 
 import { config } from '../config/env.mjs';
@@ -52,14 +52,44 @@ Analyze the user's natural language input and output STRICT valid JSON with:
   "reason": "Brief rationale for this decision"
 }`;
 
-    // 1. PRIMARY: Live LLM Semantic Interpretation via 9Router Proxy / Provider Registry
+    const model = options.forcedModel || 'gemini-3.5-flash';
+
+    // 1. PRIMARY A: In-Process Provider Direct Dispatch (if provider configured in env)
+    try {
+      const resolved = providerRegistryInstance.resolveProviderForStrategy('AGENT_SEMANTIC', model);
+      if (resolved && resolved.provider && resolved.provider.isConfigured()) {
+        const payload = {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        };
+
+        const result = await resolved.provider.generateCompletion(payload, resolved.model);
+        if (result && result.content) {
+          const parsed = JSON.parse(result.content);
+          return {
+            ...parsed,
+            interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+            modelUsed: resolved.model || model,
+            fallbackUsed: false
+          };
+        }
+      }
+    } catch (err) {
+      if (options.failClosed) {
+        throw new Error(`[FAIL_CLOSED] In-Process Primary LLM error: ${err.message}`);
+      }
+    }
+
+    // 1. PRIMARY B: HTTP 9Router Proxy Dispatch
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (this.apiKey) {
         headers['Authorization'] = `Bearer ${this.apiKey}`;
       }
-
-      const model = options.forcedModel || 'gemini-3.5-flash';
 
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
         method: 'POST',
@@ -91,16 +121,16 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       }
     } catch (err) {
       if (options.failClosed) {
-        throw new Error(`[FAIL_CLOSED] Primary LLM Semantic Interpretation failed: ${err.message}`);
+        throw new Error(`[FAIL_CLOSED] HTTP Proxy Primary LLM error: ${err.message}`);
       }
     }
 
     // If fail-closed is mandated, strictly throw error instead of falling back
     if (options.failClosed) {
-      throw new Error('[FAIL_CLOSED] Primary LLM unavailable; heuristic fallback is suppressed in Certification Mode.');
+      throw new Error('[FAIL_CLOSED] Primary LLM provider is unconfigured or unreachable; heuristic fallback is suppressed in Certification Mode.');
     }
 
-    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Used ONLY in Resilient Production Mode)
+    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Used in Resilient Offline Mode)
     const p = raw.toLowerCase();
     
     // Negative Action Restraint Check
