@@ -1,32 +1,39 @@
 /**
  * AgentPlanner.mjs
- * Generates formal DAG Execution Graphs with explicit dependencies and evidence criteria.
+ * True Semantic DAG Execution Graph Planner.
+ * Uses SemanticIntentEngine interpretation as the Single Source of Truth for planning.
  */
 
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 
 export class AgentPlanner {
   /**
-   * Constructs an execution graph with explicit dependencies and contracts
+   * Constructs an execution graph driven purely by semantic intent & constraints
    * @param {string} goal - High-level user goal
-   * @param {Object} context - Previous conversational history & memory
-   * @returns {Object} plan - { goalId, goal, graph, steps, evidenceContract }
+   * @param {Object} context - Semantic decision, entities, constraints, memory
+   * @returns {Object} plan - { goalId, goal, category, steps, evidenceContract }
    */
   static planGoal(goal, context = {}) {
     const raw = goal || '';
-    const p = raw.toLowerCase();
-    const goalId = `goal-${Date.now()}`;
+    const semantic = context.semanticDecision || {
+      intent: 'RESEARCH_QUESTION',
+      goal: raw,
+      entities: [raw],
+      toolsNeeded: ['intel.multilayer_search']
+    };
 
+    const goalId = `goal-${Date.now()}`;
+    const intent = semantic.intent || 'RESEARCH_QUESTION';
     const graph = [];
 
-    // 1. APPLICATION & RESEARCH DASHBOARD SYNTHESIS GOAL
-    if (p.includes('aplikasi') || p.includes('buat') || p.includes('kalkulator') || p.includes('prototype') || p.includes('app') || p.includes('dashboard')) {
+    // 1. APPLICATION & PROTOTYPE SYNTHESIS INTENT
+    if (intent === 'APP_SYNTHESIS') {
       graph.push({
         id: 'S1',
         action: 'ARCHITECTURAL_BLUEPRINT',
         tool: 'spec.blueprint_architect',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { concept: raw },
+        params: { concept: semantic.goal || raw, entities: semantic.entities },
         dependsOn: [],
         successCriteria: 'blueprint_schema_validated',
         evidenceContract: 'structural_spec'
@@ -36,7 +43,7 @@ export class AgentPlanner {
         action: 'CODE_SYNTHESIS',
         tool: 'code.synthesizer',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.CODE_ENGINEERING[0],
-        params: { framework: 'React' },
+        params: { framework: 'React', concept: semantic.goal || raw },
         dependsOn: ['S1'],
         successCriteria: 'code_artifact_generated',
         evidenceContract: 'jsx_code_string'
@@ -54,21 +61,21 @@ export class AgentPlanner {
 
       return {
         goalId,
-        goal: raw,
+        goal: semantic.goal || raw,
         category: 'APP_SYNTHESIS',
         steps: graph,
         evidenceContract: { requiredArtifactType: 'CODE', minSteps: 3 }
       };
     }
 
-    // 2. LIVE NEWS / BREAKING EVENT GOAL
-    if (p.includes('berita') || p.includes('demo') || p.includes('dpr') || p.includes('politik') || p.includes('terkini') || p.includes('hari ini')) {
+    // 2. LIVE NEWS / BREAKING EVENT INTENT
+    if (intent === 'LIVE_NEWS') {
       graph.push({
         id: 'S1',
         action: 'HARVEST_LIVE_NEWS',
         tool: 'intel.multilayer_search',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw, layer: 'SURFACE_WEB' },
+        params: { query: semantic.goal || raw, layer: 'SURFACE_WEB', entities: semantic.entities },
         dependsOn: [],
         successCriteria: 'sources_available',
         evidenceContract: 'verified_news_nodes'
@@ -78,7 +85,7 @@ export class AgentPlanner {
         action: 'RESOLVE_TOP_MEDIA_STREAM',
         tool: 'media.video_resolver',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw },
+        params: { query: semantic.goal || raw },
         dependsOn: ['S1'],
         successCriteria: 'video_id_resolved',
         evidenceContract: 'top_ranked_stream'
@@ -96,21 +103,53 @@ export class AgentPlanner {
 
       return {
         goalId,
-        goal: raw,
+        goal: semantic.goal || raw,
         category: 'LIVE_NEWS',
         steps: graph,
         evidenceContract: { requiredArtifactType: 'MEDIA_STREAM', minSteps: 3 }
       };
     }
 
-    // 3. STRUCTURED DATA & ANALYTICS GOAL
-    if (p.includes('data') || p.includes('tabel') || p.includes('grafik') || p.includes('statistik') || p.includes('metrik')) {
+    // 3. MULTIMEDIA / MUSIC DISPATCH INTENT
+    if (intent === 'MEDIA_PLAYBACK') {
+      graph.push({
+        id: 'S1',
+        action: 'RESOLVE_AUDIO_TRACK',
+        tool: 'media.video_resolver',
+        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+        params: { query: semantic.goal || raw },
+        dependsOn: [],
+        successCriteria: 'video_id_resolved',
+        evidenceContract: 'verified_track'
+      });
+      graph.push({
+        id: 'S2',
+        action: 'DISPATCH_MEDIA_PLAYER',
+        tool: 'ui.render_media_hud',
+        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+        params: { targetMode: 'MEDIA' },
+        dependsOn: ['S1'],
+        successCriteria: 'media_player_rendered',
+        evidenceContract: 'playback_active'
+      });
+
+      return {
+        goalId,
+        goal: semantic.goal || raw,
+        category: 'MULTIMEDIA',
+        steps: graph,
+        evidenceContract: { requiredArtifactType: 'MEDIA_PLAYER', minSteps: 2 }
+      };
+    }
+
+    // 4. STRUCTURED DATA & ANALYTICS INTENT
+    if (intent === 'DATA_ANALYTICS') {
       graph.push({
         id: 'S1',
         action: 'EXTRACT_METRIC_DATASET',
         tool: 'intel.multilayer_search',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw },
+        params: { query: semantic.goal || raw },
         dependsOn: [],
         successCriteria: 'raw_data_extracted',
         evidenceContract: 'tabular_dataset'
@@ -128,20 +167,20 @@ export class AgentPlanner {
 
       return {
         goalId,
-        goal: raw,
+        goal: semantic.goal || raw,
         category: 'DATA_ANALYTICS',
         steps: graph,
         evidenceContract: { requiredArtifactType: 'DATA_MATRIX', minSteps: 2 }
       };
     }
 
-    // 4. GENERAL RESEARCH & MULTI-LAYER KNOWLEDGE
+    // 5. DEFAULT RESEARCH & DEEP KNOWLEDGE INTENT
     graph.push({
       id: 'S1',
       action: 'DEEP_KNOWLEDGE_SEARCH',
       tool: 'intel.multilayer_search',
       specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-      params: { query: raw },
+      params: { query: semantic.goal || raw, entities: semantic.entities },
       dependsOn: [],
       successCriteria: 'knowledge_nodes_retrieved',
       evidenceContract: 'synthesized_brief'
@@ -149,7 +188,7 @@ export class AgentPlanner {
 
     return {
       goalId,
-      goal: raw,
+      goal: semantic.goal || raw,
       category: 'KNOWLEDGE_SYNTHESIS',
       steps: graph,
       evidenceContract: { requiredArtifactType: 'RESEARCH_BRIEF', minSteps: 1 }

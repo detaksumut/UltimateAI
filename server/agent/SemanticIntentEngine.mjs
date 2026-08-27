@@ -1,13 +1,15 @@
 /**
  * SemanticIntentEngine.mjs
  * LLM-powered semantic goal and intent interpreter.
- * Replaces shallow regex with deep context & entity understanding.
+ * Strictly adheres to Zero Secret Exposure: credentials resolved via server env configuration.
  */
 
+import { config } from '../config/env.mjs';
+
 export class SemanticIntentEngine {
-  constructor(proxyUrl = 'http://localhost:20128/v1', apiKey = 'sk-25619842026f00d') {
-    this.proxyUrl = proxyUrl;
-    this.apiKey = apiKey;
+  constructor(proxyUrl = null, apiKey = null) {
+    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://localhost:20128/v1';
+    this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
   }
 
   /**
@@ -19,20 +21,21 @@ export class SemanticIntentEngine {
   async interpret(input, context = {}) {
     if (!input || !input.trim()) {
       return {
-        intent: 'IDLE',
+        intent: 'CASUAL_CHAT',
         goal: '',
         actionRequired: false,
         entities: [],
         freshDataRequired: false,
         toolsNeeded: [],
         confidence: 1.0,
-        reason: 'Empty user utterance.'
+        reason: 'Empty user utterance.',
+        mode: 'STANDBY'
       };
     }
 
     const raw = input.trim();
 
-    // 1. Live LLM Semantic Interpretation via 9Router Proxy
+    // 1. PRIMARY: Live LLM Semantic Interpretation via 9Router Proxy
     try {
       const systemPrompt = `You are the Semantic Intent Engine for UltimateAI Agent.
 Analyze the user's natural language input and output STRICT valid JSON with:
@@ -47,12 +50,14 @@ Analyze the user's natural language input and output STRICT valid JSON with:
   "reason": "Brief rationale for this decision"
 }`;
 
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.apiKey) {
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        },
+        headers,
         body: JSON.stringify({
           model: 'gemini-3.5-flash',
           messages: [
@@ -72,13 +77,13 @@ Analyze the user's natural language input and output STRICT valid JSON with:
           const parsed = JSON.parse(content);
           return {
             ...parsed,
-            source: 'LLM_SEMANTIC_INTERPRETATION'
+            interpretationSource: 'PRIMARY_LLM_SEMANTIC'
           };
         }
       }
     } catch {}
 
-    // 2. High-Accuracy Heuristic Semantic Fallback (if offline)
+    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Explicitly Labeled)
     const p = raw.toLowerCase();
     const isGreeting = /^(halo|hai|salam|pagi|siang|malam|who are you|siapa kamu)\b/i.test(p);
     const hasMedia = /video|lagu|musik|dj|song|youtube|putar|play/i.test(p);
@@ -97,7 +102,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         toolsNeeded: [],
         confidence: 0.95,
         reason: 'Casual conversation without explicit task delegation.',
-        source: 'SEMANTIC_HEURISTIC_FALLBACK'
+        interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
       };
     }
 
@@ -127,8 +132,8 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       toolsNeeded,
       confidence: 0.88,
       sensitiveAction: isSensitive,
-      reason: `Interpreted intent as ${intent} requiring action.`,
-      source: 'SEMANTIC_HEURISTIC_FALLBACK'
+      reason: `Heuristic parser classified intent as ${intent}.`,
+      interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
     };
   }
 }

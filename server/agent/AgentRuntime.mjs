@@ -27,7 +27,7 @@ export class AgentRuntime {
     const startTime = Date.now();
     const rawGoal = userGoal || '';
 
-    // 1. SEMANTIC DECISION ENGINE
+    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation)
     const decision = await decisionEngineInstance.decide(rawGoal, sessionContext);
 
     // If pure conversation without task delegation
@@ -38,31 +38,31 @@ export class AgentRuntime {
         confidence: 1.0,
         actionRequired: false,
         intent: decision.intent,
+        interpretationSource: decision.interpretationSource,
         responseMessage: `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data multi-layer, analisis, pemutaran media, atau pembuatan aplikasi instan secara mandiri.`,
         durationMs: Date.now() - startTime
       };
     }
 
     // 2. AUTONOMOUS PLAN-ACT-OBSERVE-VERIFY-REPLAN LOOP
-    let currentGoal = rawGoal;
     let attempt = 0;
     let finalVerification = null;
     let currentPlan = null;
     const fullExecutionHistory = [];
 
+    // Initial Semantic Plan
+    currentPlan = AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
+
     while (attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
       attempt++;
 
-      // A. PLAN (DAG Execution Graph)
-      currentPlan = AgentPlanner.planGoal(currentGoal, { ...sessionContext, semanticDecision: decision });
-
-      // B. EXECUTE & OBSERVE (Step-by-Step with Dependency Checking)
+      // A. EXECUTE & OBSERVE (Step-by-Step with Dependency Checking)
       const currentHistory = [];
 
       for (const step of currentPlan.steps) {
         // Verify dependencies
-        const depsMet = step.dependsOn.every(depId => 
-          currentHistory.some(h => h.step.id === depId && h.observation?.valid)
+        const depsMet = (step.dependsOn || []).every(depId => 
+          currentHistory.some(h => (h.step.id === depId || h.step.stepId === depId) && h.observation?.valid)
         );
 
         if (!depsMet) {
@@ -88,7 +88,7 @@ export class AgentRuntime {
           timestamp: new Date().toISOString()
         });
 
-        // If step failed, stop this attempt to trigger adaptive replanner
+        // If step failed, break immediately to trigger adaptive replanner
         if (!observation.valid) {
           break;
         }
@@ -96,16 +96,16 @@ export class AgentRuntime {
 
       fullExecutionHistory.push({ attempt, plan: currentPlan, currentHistory });
 
-      // C. VERIFY (Outcome & Evidence Contract Inspection)
+      // B. VERIFY (Outcome & Evidence Contract Inspection)
       const verification = AgentVerifier.verifyGoalCompletion(currentPlan, currentHistory);
       finalVerification = verification;
 
       if (verification.isSatisfied) {
-        // Goal verified & achieved!
+        // Goal verified & contract met!
         break;
       }
 
-      // D. ADAPTIVE REPLANNING with failure evidence
+      // C. ADAPTIVE REPLANNING: Directly apply replacement DAG plan
       if (verification.requiresReplan && attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
         const replanResult = await replanEngineInstance.generateReplan({
           originalGoal: rawGoal,
@@ -115,8 +115,10 @@ export class AgentRuntime {
           attempt
         });
 
-        // If replanner provided alternate steps, update goal context
-        currentGoal = `Replan [${replanResult.strategyAdjustment}]: ${rawGoal}`;
+        // Directly apply replacement DAG plan for next execution cycle
+        if (replanResult && replanResult.replacementPlan) {
+          currentPlan = replanResult.replacementPlan;
+        }
       }
     }
 
@@ -130,6 +132,7 @@ export class AgentRuntime {
       attempts: attempt,
       responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah selesai diproses dan diverifikasi oleh sistem 9Router.',
       artifact: finalVerification?.artifact || null,
+      interpretationSource: decision.interpretationSource,
       durationMs,
       telemetry: {
         totalStepsExecuted: fullExecutionHistory.reduce((acc, h) => acc + h.currentHistory.length, 0),

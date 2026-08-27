@@ -1,15 +1,17 @@
 /**
  * AgentExecutor.mjs
  * Dispatches step actions to tool registry and communicates with live 9Router proxy.
+ * Adheres to Zero Secret Exposure: credentials resolved via server env configuration.
  */
 
+import { config } from '../config/env.mjs';
 import { toolRegistryInstance } from '../tools/ToolRegistry.mjs';
 import { LiveVideoResolver } from '../tools/LiveVideoResolver.mjs';
 
 export class AgentExecutor {
-  constructor(proxyUrl = 'http://localhost:20128/v1', apiKey = 'sk-25619842026f00d') {
-    this.proxyUrl = proxyUrl;
-    this.apiKey = apiKey;
+  constructor(proxyUrl = null, apiKey = null) {
+    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://localhost:20128/v1';
+    this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
   }
 
   /**
@@ -27,7 +29,7 @@ export class AgentExecutor {
       if (tool === 'intel.multilayer_search') {
         const result = await toolRegistryInstance.executeTool('intel.multilayer_search', params);
         return {
-          stepId: step.stepId,
+          stepId: step.id || step.stepId,
           success: true,
           tool,
           result,
@@ -38,7 +40,7 @@ export class AgentExecutor {
       if (tool === 'media.video_resolver') {
         const result = await LiveVideoResolver.resolveBestVideo(params.query);
         return {
-          stepId: step.stepId,
+          stepId: step.id || step.stepId,
           success: true,
           tool,
           result,
@@ -51,18 +53,20 @@ export class AgentExecutor {
         model: specialistModel || 'gemini-3.5-flash',
         messages: [
           { role: 'system', content: 'You are an autonomous specialist agent in UltimateAI 9Router.' },
-          { role: 'user', content: `Execute task: ${step.description}. Context: ${JSON.stringify(params)}` }
+          { role: 'user', content: `Execute task: ${step.action || step.name}. Context: ${JSON.stringify(params)}` }
         ],
         temperature: 0.2
       };
 
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.apiKey) {
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+
       try {
         const response = await fetch(`${this.proxyUrl}/chat/completions`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`
-          },
+          headers,
           body: JSON.stringify(modelPayload),
           signal: AbortSignal.timeout(4000)
         });
@@ -70,7 +74,7 @@ export class AgentExecutor {
         if (response.ok) {
           const data = await response.json();
           return {
-            stepId: step.stepId,
+            stepId: step.id || step.stepId,
             success: true,
             tool: '9router_specialist',
             modelUsed: specialistModel,
@@ -82,16 +86,16 @@ export class AgentExecutor {
 
       // Fallback local tool synthesis
       return {
-        stepId: step.stepId,
+        stepId: step.id || step.stepId,
         success: true,
         tool: 'local_synthesizer',
-        result: `Task ${step.name} completed successfully.`,
+        result: `Task ${step.action || step.name} completed successfully.`,
         durationMs: Date.now() - startTime
       };
 
     } catch (err) {
       return {
-        stepId: step.stepId,
+        stepId: step.id || step.stepId,
         success: false,
         error: err.message,
         durationMs: Date.now() - startTime
