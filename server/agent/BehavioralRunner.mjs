@@ -1,15 +1,16 @@
 /**
  * BehavioralRunner.mjs
- * Level 4.5: Three-Tiered Real Black-Box App Runtime & Behavioral Verifier.
- * Tier 1: Artifact Integrity & Disk Persistence
- * Tier 2: Mathematical Logic & Source Recomputation
- * Tier 3: User-Visible Black-Box DOM & State Interaction (Zero implementation-detail dependency)
+ * Level 4.5.1: Real Black-Box Runtime Execution & Behavioral Verifier.
+ * Executes the actual component logic directly from artifact source inside an isolated VM execution context,
+ * testing state transitions without internal runner calculations.
  */
+
+import vm from 'vm';
 
 export class BehavioralRunner {
   /**
-   * Tier 3: Pure Black-Box Interface & DOM Behavioral Evaluator.
-   * Interacts with the component solely through input interface and output observations.
+   * Black-Box Execution & State Interaction Evaluator.
+   * Compiles and executes the artifact's actual code directly.
    * @param {Object} artifact - Artifact containing React/JSX component
    * @returns {Object} testReport
    */
@@ -26,7 +27,7 @@ export class BehavioralRunner {
     ];
 
     try {
-      // 1. Tier 1: Component Structural & State Presence
+      // 1. Structure & Interface Validation
       const hasComponent = code.includes('export default function') || code.includes('function');
       const hasInputs = code.includes('type="number"') || code.includes('<input');
       const hasOutputDisplay = code.includes('ROI') || code.includes('%');
@@ -37,18 +38,37 @@ export class BehavioralRunner {
         testsPassed++;
       }
 
-      // 2. Tier 3: Pure Black-Box UI Simulation of Component State Transitions
-      // Simulates setting input fields and reading the resulting DOM text output
-      for (const sc of blackBoxScenarios) {
-        // Simulating the user-visible evaluation of the component
-        const inv = sc.input1;
-        const ret = sc.input2;
-        const computed = inv > 0 ? (((ret - inv) / inv) * 100).toFixed(2) + '%' : '0.00%';
+      // 2. Extract calculation logic directly from artifact code without modifying it
+      const roiMatch = code.match(/const calculateRoi\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\};/);
 
-        if (computed === sc.expectedOutput) {
-          testsPassed++;
-        } else {
-          errors.push(`Black-box DOM assertion failed: input (${inv}, ${ret}) expected ${sc.expectedOutput}, got ${computed}`);
+      if (!roiMatch || !roiMatch[1]) {
+        errors.push('Artifact missing calculateRoi component execution block');
+      } else {
+        const artifactFunctionBody = roiMatch[1];
+
+        // Execute the artifact's actual code in an isolated VM script
+        for (const sc of blackBoxScenarios) {
+          const sandbox = {
+            investment: sc.input1,
+            expectedReturn: sc.input2,
+            Number: Number
+          };
+
+          const script = new vm.Script(`
+            (() => {
+              ${artifactFunctionBody}
+            })()
+          `);
+
+          const context = vm.createContext(sandbox);
+          const actualResult = script.runInContext(context, { timeout: 500 });
+          const formattedResult = `${actualResult}%`;
+
+          if (formattedResult === sc.expectedOutput) {
+            testsPassed++;
+          } else {
+            errors.push(`Black-box DOM assertion failed: artifact evaluated to ${formattedResult}, expected ${sc.expectedOutput}`);
+          }
         }
       }
     } catch (err) {
@@ -63,7 +83,7 @@ export class BehavioralRunner {
       totalTestCases: totalTests,
       testsPassed,
       runtimeErrors: errors,
-      evaluationTier: 'TIER_3_USER_VISIBLE_DOM_BEHAVIOR',
+      evaluationTier: 'TIER_3_REAL_CODE_EXECUTION',
       timestamp: new Date().toISOString()
     };
   }
