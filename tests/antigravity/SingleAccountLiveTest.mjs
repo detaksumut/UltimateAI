@@ -1,8 +1,8 @@
 /**
  * SingleAccountLiveTest.mjs
  * Live Empirical Probe for Single Account AG-01 via Antigravity Cloud Code Transport.
- * Executes genuine HTTP/SSE stream request to test control plane onboarding and inference endpoint.
- * Non-mocked live probe.
+ * Strictly OAuth-Only (Zero fallback to GEMINI_API_KEY).
+ * Fail-Closed: If Control Plane Onboarding fails, halts immediately.
  */
 
 import { AntigravityCloudCodeTransport } from '../../server/antigravity/AntigravityCloudCodeTransport.mjs';
@@ -15,32 +15,32 @@ async function runSingleAccountLiveTest() {
 
   const store = new AntigravityConnectionStore();
   const connections = store.getAllConnections(false);
-  const ag01 = connections.find(c => c.id === 'ag-01') || {
-    id: 'ag-01',
-    accountAlias: 'antigravity-01',
-    provider: 'ANTIGRAVITY',
-    isActive: true,
-    accessToken: process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY || '',
-    projectId: process.env.GOOGLE_PROJECT_ID || ''
-  };
+  const ag01 = connections.find(c => c.id === 'ag-01' || c.connectionId === 'ag-01');
 
-  if (!ag01.accessToken) {
-    console.log('🟡 [LIVE PROBE NOTICE] No live OAuth access token currently enrolled for AG-01.');
-    console.log('   Enrol OAuth token in storage/antigravity_connections.json to execute live upstream attestation.');
+  if (!ag01 || !ag01.accessToken) {
+    console.log('🟡 [LIVE PROBE PENDING] AG-01 OAuth access token not enrolled in vault.');
+    console.log('   Status: Awaiting live OAuth token in storage/antigravity_connections.json');
+    console.log('   Strict Contract: Zero fallback to GEMINI_API_KEY environment variables.');
     return;
   }
 
   const transport = new AntigravityCloudCodeTransport();
 
-  console.log(`[PROBE 1] Testing AG-01 Control Plane Onboarding (loadCodeAssist)...`);
+  console.log(`[PROBE 1] Testing AG-01 Control Plane Onboarding (/v1internal:loadCodeAssist)...`);
+  let projectInfo = null;
   try {
-    const projectInfo = await transport.loadCodeAssist(ag01, ag01.accessToken);
-    console.log(`  -> Onboarding Result: ProjectId=${projectInfo.projectId}, Tier=${projectInfo.tier}`);
+    projectInfo = await transport.loadCodeAssist(ag01, ag01.accessToken);
+    console.log(`  -> Onboarding SUCCESS:`);
+    console.log(`     ProjectId:     ${projectInfo.projectId}`);
+    console.log(`     Tier:          ${projectInfo.tier}`);
+    console.log(`     ProjectSource: ${projectInfo.projectSource}`);
   } catch (err) {
-    console.log(`  -> Onboarding Note (Expected if non-CodeAssist token): ${err.message}`);
+    console.error(`  -> Onboarding FAILED: ${err.message}`);
+    console.error(`\n❌ [TEST FAILED] Probe 1 failed. Halting live probe (Fail-Closed Enforcement).`);
+    process.exit(1);
   }
 
-  console.log(`\n[PROBE 2] Testing Native Upstream Inference Dispatch...`);
+  console.log(`\n[PROBE 2] Testing Native Upstream Inference via /v1internal:streamGenerateContent...`);
   try {
     const result = await transport.executeChat({
       connection: ag01,
@@ -57,13 +57,15 @@ async function runSingleAccountLiveTest() {
     console.log(`     Upstream ResponseId: ${result.upstreamResponseId || 'null'}`);
     console.log(`     Local RequestId:     ${result.requestId}`);
     console.log(`     Transport Class:     ${result.transportClass}`);
-  } catch (err) {
-    console.log(`  -> Upstream Response: ${err.message}`);
-  }
 
-  console.log('\n================================================================');
-  console.log('  SINGLE ACCOUNT LIVE PROBE COMPLETED');
-  console.log('================================================================\n');
+    console.log('\n================================================================');
+    console.log('  🏆 AG-01 SINGLE ACCOUNT LIVE PROBE PASSED 100%');
+    console.log('================================================================\n');
+  } catch (err) {
+    console.error(`  -> Inference FAILED: ${err.message}`);
+    console.error(`\n❌ [TEST FAILED] Probe 2 failed.`);
+    process.exit(1);
+  }
 }
 
 runSingleAccountLiveTest().catch(console.error);

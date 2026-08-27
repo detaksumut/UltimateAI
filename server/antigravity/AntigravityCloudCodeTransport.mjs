@@ -22,17 +22,9 @@ export class AntigravityCloudCodeTransport {
 
   /**
    * Discovers and binds project state / tier via Code Assist Control Plane (/v1internal:loadCodeAssist)
-   * Strictly Fail-Closed: Never generates fallback placeholder project IDs.
+   * Strictly Fail-Closed: Differentiates UPSTREAM_PROJECT_DISCOVERED vs STORED_PROJECT_ID.
    */
   async loadCodeAssist(connection, accessToken) {
-    if (connection.projectId && connection.projectTier) {
-      return {
-        projectId: connection.projectId,
-        tier: connection.projectTier,
-        onboarded: true
-      };
-    }
-
     const endpoint = `${this.cloudCodeBaseUrl}/v1internal:loadCodeAssist`;
     try {
       const response = await fetch(endpoint, {
@@ -51,14 +43,19 @@ export class AntigravityCloudCodeTransport {
 
       if (response.ok) {
         const data = await response.json();
-        const projectId = data.projectId || connection.projectId;
+        const projectId = data.projectId;
         const tier = data.tier || 'STANDARD';
 
         if (!projectId) {
-          throw new Error('ONBOARDING_FAILED: Code Assist control plane did not return a valid upstream projectId.');
+          throw new Error('ONBOARDING_FAILED: Code Assist control plane response did not contain an upstream projectId.');
         }
 
-        return { projectId, tier, onboarded: true };
+        return {
+          projectId,
+          tier,
+          projectSource: 'UPSTREAM_PROJECT_DISCOVERED',
+          onboarded: true
+        };
       }
 
       const errText = await response.text();
@@ -68,6 +65,7 @@ export class AntigravityCloudCodeTransport {
         return {
           projectId: connection.projectId,
           tier: connection.projectTier || 'STANDARD',
+          projectSource: 'STORED_PROJECT_ID',
           onboarded: true
         };
       }
