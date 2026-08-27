@@ -240,26 +240,26 @@ export default function MobileSimulatorHUD({
                     </a>
                   </div>
 
-                  {/* Embedded Video Card with 100% Public Verified YouTube ID */}
+                  {/* Dynamic YouTube Search & Stream Player Card */}
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
                       className="w-full h-full"
-                      src="https://www.youtube-nocookie.com/embed/TOG85r1jYq4?autoplay=0"
-                      title="DJ Sammy & Yanou ft. Do - Heaven (Official Music Video)"
+                      src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(lastUserMessage || 'dj lagu heaven')}&autoplay=0`}
+                      title="YouTube Media Streamer"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                   </div>
 
                   <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
-                    <span className="text-red-400 font-bold truncate">🎵 DJ Sammy & Yanou ft. Do - Heaven</span>
+                    <span className="text-red-400 font-bold truncate">🎵 {lastUserMessage || 'DJ Lagu Heaven'}</span>
                     <a
-                      href="https://www.youtube.com/results?search_query=dj+lagu+heaven"
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'dj lagu heaven')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0"
                     >
-                      Cari di YouTube <ExternalLink className="w-2.5 h-2.5" />
+                      Buka di YouTube <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>
                 </div>

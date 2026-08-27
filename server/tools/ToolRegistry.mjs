@@ -6,6 +6,7 @@
 import { webSearchToolInstance } from './WebSearchTool.mjs';
 import { documentIntelligenceToolInstance } from './DocumentIntelligenceTool.mjs';
 import { memoryVaultToolInstance } from './MemoryVaultTool.mjs';
+import { multiLayerSearchToolInstance } from './MultiLayerSearchTool.mjs';
 
 export class ToolRegistry {
   constructor() {
@@ -13,6 +14,7 @@ export class ToolRegistry {
     this.register(webSearchToolInstance);
     this.register(documentIntelligenceToolInstance);
     this.register(memoryVaultToolInstance);
+    this.register(multiLayerSearchToolInstance);
   }
 
   register(toolInstance) {
