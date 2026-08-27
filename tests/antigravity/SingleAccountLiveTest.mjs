@@ -29,7 +29,7 @@ async function runSingleAccountLiveTest() {
   console.log(`[PROBE 1] Testing AG-01 Control Plane Onboarding (/v1internal:loadCodeAssist)...`);
   let projectInfo = null;
   try {
-    projectInfo = await transport.loadCodeAssist(ag01, ag01.accessToken);
+    projectInfo = await transport.loadCodeAssist(ag01, ag01.accessToken, { strictFreshProof: true });
     console.log(`  -> Onboarding SUCCESS:`);
     console.log(`     ProjectId:     ${projectInfo.projectId}`);
     console.log(`     Tier:          ${projectInfo.tier}`);
@@ -46,7 +46,8 @@ async function runSingleAccountLiveTest() {
       connection: ag01,
       modelId: 'gemini-3.6-flash-high',
       messages: [{ role: 'user', content: 'Ping Antigravity Cloud Code Gateway' }],
-      stream: false
+      stream: false,
+      strictFreshProof: true
     });
 
     console.log('  -> Execution SUCCESS:');

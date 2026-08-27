@@ -22,9 +22,11 @@ export class AntigravityCloudCodeTransport {
 
   /**
    * Discovers and binds project state / tier via Code Assist Control Plane (/v1internal:loadCodeAssist)
-   * Strictly Fail-Closed: Differentiates UPSTREAM_PROJECT_DISCOVERED vs STORED_PROJECT_ID.
+   * Modes:
+   *  - CERTIFICATION_MODE (strictFreshProof = true): Requires fresh UPSTREAM_PROJECT_DISCOVERED. Strictly throws on failure.
+   *  - PRODUCTION_RUNTIME (strictFreshProof = false): Allows fallback to STORED_PROJECT_ID if available.
    */
-  async loadCodeAssist(connection, accessToken) {
+  async loadCodeAssist(connection, accessToken, { strictFreshProof = false } = {}) {
     const endpoint = `${this.cloudCodeBaseUrl}/v1internal:loadCodeAssist`;
     try {
       const response = await fetch(endpoint, {
@@ -61,6 +63,10 @@ export class AntigravityCloudCodeTransport {
       const errText = await response.text();
       throw new Error(`Code Assist Onboarding Error (${response.status}): ${errText}`);
     } catch (err) {
+      if (strictFreshProof) {
+        throw new Error(`CERTIFICATION_ONBOARDING_FAILED: Fresh control plane discovery failed (${err.message}). Stored project fallback prohibited in CERTIFICATION_MODE.`);
+      }
+
       if (connection.projectId) {
         return {
           projectId: connection.projectId,
@@ -76,7 +82,7 @@ export class AntigravityCloudCodeTransport {
   /**
    * Executes authentic native Antigravity inference request via v1internal:streamGenerateContent
    */
-  async executeChat({ connection, modelId, messages, stream = false, temperature = 0.7 }, onChunk = null) {
+  async executeChat({ connection, modelId, messages, stream = false, temperature = 0.7, strictFreshProof = false }, onChunk = null) {
     // 1. Ensure Valid Token (proactive refresh)
     const tokenResult = await this.tokenManager.ensureValidToken(connection);
     if (!tokenResult.valid) {
@@ -85,8 +91,8 @@ export class AntigravityCloudCodeTransport {
 
     const accessToken = tokenResult.accessToken;
 
-    // 2. Load Code Assist Project Binding (Strict Fail-Closed)
-    const projectInfo = await this.loadCodeAssist(connection, accessToken);
+    // 2. Load Code Assist Project Binding (Strict Fail-Closed in CERTIFICATION_MODE)
+    const projectInfo = await this.loadCodeAssist(connection, accessToken, { strictFreshProof });
     const projectId = projectInfo.projectId;
     const location = connection.location || this.defaultLocation;
 

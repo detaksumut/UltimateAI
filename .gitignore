@@ -12,3 +12,7 @@ test_ui.js
 test_layout.html
 final.html
 iframe_html.txt
+
+# Secure local storage & connection vault
+storage/*.json
+!storage/.gitkeep
