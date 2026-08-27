@@ -54,15 +54,25 @@ const server = http.createServer(async (req, res) => {
 
   // 1. Basic Health Check
   if (pathname === '/health' && req.method === 'GET') {
-    const providerHealth = await providerRegistryInstance.getHealthStatus();
-    const hasAnyLive = Object.values(providerHealth).some(p => p.configured);
+    const cert = await ProviderCertification.certifyAllProviders();
+    const liveProviders = Object.entries(cert).filter(([_, p]) => p.status === 'AUTHENTICATED_LIVE');
+    const hasLive = liveProviders.length > 0;
+    const hasDegraded = Object.entries(cert).some(([_, p]) => p.status === 'DEGRADED');
+
+    let mode = 'LOCAL_SYNTHETIC';
+    if (hasLive) {
+      mode = 'LIVE_CLOUD_AI';
+    } else if (hasDegraded) {
+      mode = 'DEGRADED';
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       gateway: 'ONLINE',
-      mode: hasAnyLive ? 'LIVE_CLOUD_AI' : 'LOCAL_HEURISTIC_FALLBACK',
+      mode,
       version: '2.0.0-PROD',
       uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
+      activeLiveProviders: liveProviders.map(([name]) => name),
       registeredTools: toolRegistryInstance.listTools().map(t => t.name)
     }, null, 2));
     return;
