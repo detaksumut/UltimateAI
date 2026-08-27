@@ -1,10 +1,11 @@
 /**
  * SemanticIntentEngine.mjs
- * LLM-powered semantic goal and intent interpreter with native action restraint detection.
+ * LLM-powered semantic goal and intent interpreter with strict Fail-Closed Certification Mode.
  * Strictly adheres to Zero Secret Exposure: credentials resolved via server env configuration.
  */
 
 import { config } from '../config/env.mjs';
+import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
 
 export class SemanticIntentEngine {
   constructor(proxyUrl = null, apiKey = null) {
@@ -16,9 +17,10 @@ export class SemanticIntentEngine {
    * Interprets natural language input into a structured semantic goal
    * @param {string} input - User utterance / query
    * @param {Object} context - Conversational memory & history
+   * @param {Object} options - { failClosed: boolean, forcedModel: string }
    * @returns {Promise<Object>} semanticGoal
    */
-  async interpret(input, context = {}) {
+  async interpret(input, context = {}, options = {}) {
     if (!input || !input.trim()) {
       return {
         intent: 'CASUAL_CHAT',
@@ -29,16 +31,14 @@ export class SemanticIntentEngine {
         toolsNeeded: [],
         confidence: 1.0,
         reason: 'Empty user utterance.',
-        mode: 'STANDBY'
+        mode: 'STANDBY',
+        interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+        fallbackUsed: false
       };
     }
 
     const raw = input.trim();
-    const p = raw.toLowerCase();
-
-    // 1. PRIMARY: Live LLM Semantic Interpretation via 9Router Proxy
-    try {
-      const systemPrompt = `You are the Semantic Intent Engine for UltimateAI Agent.
+    const systemPrompt = `You are the Semantic Intent Engine for UltimateAI 9Router Agent.
 Analyze the user's natural language input and output STRICT valid JSON with:
 {
   "intent": "CASUAL_CHAT" | "LIVE_NEWS" | "MEDIA_PLAYBACK" | "DATA_ANALYTICS" | "APP_SYNTHESIS" | "RESEARCH_QUESTION" | "SENSITIVE_ENVIRONMENT",
@@ -52,16 +52,20 @@ Analyze the user's natural language input and output STRICT valid JSON with:
   "reason": "Brief rationale for this decision"
 }`;
 
+    // 1. PRIMARY: Live LLM Semantic Interpretation via 9Router Proxy / Provider Registry
+    try {
       const headers = { 'Content-Type': 'application/json' };
       if (this.apiKey) {
         headers['Authorization'] = `Bearer ${this.apiKey}`;
       }
 
+      const model = options.forcedModel || 'gemini-3.5-flash';
+
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: 'gemini-3.5-flash',
+          model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
@@ -69,7 +73,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
           temperature: 0.1,
           response_format: { type: 'json_object' }
         }),
-        signal: AbortSignal.timeout(3000)
+        signal: AbortSignal.timeout(4000)
       });
 
       if (response.ok) {
@@ -79,15 +83,27 @@ Analyze the user's natural language input and output STRICT valid JSON with:
           const parsed = JSON.parse(content);
           return {
             ...parsed,
-            interpretationSource: 'PRIMARY_LLM_SEMANTIC'
+            interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+            modelUsed: model,
+            fallbackUsed: false
           };
         }
       }
-    } catch {}
+    } catch (err) {
+      if (options.failClosed) {
+        throw new Error(`[FAIL_CLOSED] Primary LLM Semantic Interpretation failed: ${err.message}`);
+      }
+    }
 
-    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser with Native Restraint & Pronoun Resolution
+    // If fail-closed is mandated, strictly throw error instead of falling back
+    if (options.failClosed) {
+      throw new Error('[FAIL_CLOSED] Primary LLM unavailable; heuristic fallback is suppressed in Certification Mode.');
+    }
+
+    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Used ONLY in Resilient Production Mode)
+    const p = raw.toLowerCase();
     
-    // Negative Action Restraint Check (e.g. "tapi jangan lakukan apa-apa dulu", "hanya mencatat ide")
+    // Negative Action Restraint Check
     const isRestrained = /jangan lakukan apa-apa|jangan eksekusi|hanya mencatat|jangan search|jangan buat|cuma ide|nanti saja/i.test(p);
     if (isRestrained) {
       return {
@@ -99,17 +115,18 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         toolsNeeded: [],
         confidence: 0.98,
         reason: 'User explicitly instructed to refrain from taking action.',
-        interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
+        interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+        fallbackUsed: true
       };
     }
 
-    // Contextual Pronoun / Anaphora Resolution ("yang kedua", "yang tadi", "laporan itu")
+    // Contextual Pronoun / Anaphora Resolution
     let resolvedEntity = null;
     if (/yang kedua|laporan kedua|dokumen kedua/i.test(p) && context.recentTurns?.length > 0) {
       resolvedEntity = 'Laporan Audit Eksternal (B)';
     }
 
-    // Explicit Casual / Venting / Personal State Detection (No Action Required)
+    // Explicit Casual / Venting / Personal State Detection
     const isVenting = /capek|lelah|letih|pusing|lemas|istirahat|santai|ngantuk|seharian|istirahat dulu/i.test(p);
     const isGreeting = /^(halo|hai|salam|pagi|siang|malam|who are you|siapa kamu)\b/i.test(p);
     const hasExplicitInstruction = /cari|carikan|putar|putarkan|buatkan|bikin|analisis|tampilkan|ekstrak|bandingkan|search|play|create|analyze|gali/i.test(p);
@@ -124,7 +141,8 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         toolsNeeded: [],
         confidence: 0.95,
         reason: isVenting ? 'User is sharing personal state without task delegation.' : 'Casual greeting.',
-        interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
+        interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+        fallbackUsed: true
       };
     }
 
@@ -165,7 +183,8 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       confidence: 0.94,
       sensitiveAction: isSensitive,
       reason: `Heuristic parser classified intent as ${intent}.`,
-      interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
+      interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+      fallbackUsed: true
     };
   }
 }
