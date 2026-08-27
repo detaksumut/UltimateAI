@@ -1,9 +1,8 @@
 /**
  * EvidenceResolver.mjs
  * Resolves URI-like evidence references across Artifacts, Execution History, Verifier results, and Telemetry.
+ * Strict Fail-Closed Property Traversal for All Domains.
  */
-
-import { artifactManagerInstance } from './ArtifactManager.mjs';
 
 export class EvidenceResolver {
   /**
@@ -31,7 +30,6 @@ export class EvidenceResolver {
           return { resolved: false, value: null, error: 'No active artifact in context' };
         }
 
-        // Verify artifact name or content exists
         let targetData = activeArtifact.content;
         if (propPath) {
           const props = propPath.split('.');
@@ -65,6 +63,9 @@ export class EvidenceResolver {
           for (const p of props) {
             if (targetData && targetData[p] !== undefined) {
               targetData = targetData[p];
+            } else {
+              // Fail-closed: missing property in execution history immediately fails
+              return { resolved: false, value: null, error: `Property ${p} not found in execution history result` };
             }
           }
         }
@@ -78,7 +79,12 @@ export class EvidenceResolver {
         const verif = context.verification || {};
 
         if (prop === 'goal_completion_pass') {
-          return { resolved: Boolean(verif.isSatisfied), value: verif.isSatisfied, source: 'VERIFIER' };
+          // Resolved = true if verification result exists; value carries the boolean outcome
+          return {
+            resolved: verif.isSatisfied !== undefined,
+            value: Boolean(verif.isSatisfied),
+            source: 'VERIFIER'
+          };
         }
 
         if (verif[prop] !== undefined) {

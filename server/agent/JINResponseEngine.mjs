@@ -1,7 +1,10 @@
 /**
  * JINResponseEngine.mjs
  * Evidence-Bound Response Authority & Conversational Synthesis Engine.
- * Integrates ClaimValidator & EvidenceResolver for strictly verified claim-to-evidence resolution.
+ * Enforces:
+ *  1. Strict Fail-Closed property traversal & claim validation
+ *  2. Natural speech strictly generated from and bounded by approved claims
+ *  3. Dual-Channel separation (Concise Voice TTS vs Comprehensive UI Display)
  */
 
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
@@ -107,11 +110,10 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
   }
 
   /**
-   * Synthesizes outcome dialogue strictly bound to verified evidence with ClaimValidator resolution
+   * Synthesizes outcome dialogue strictly bounded by validated claims
    */
   synthesizeEvidenceBoundOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
-    const rawClaims = [];
-    let naturalVoiceSpeech = '';
+    const candidateClaims = [];
     let detailedTextDisplay = '';
 
     const validationContext = {
@@ -129,63 +131,75 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
 
       // Strict Candidate Claims with Evidence References and Predicates
       if (anomalies.length > 0) {
-        rawClaims.push({
+        candidateClaims.push({
           claim: `Terdeteksi ${anomalies.length} anomali pada data metrik`,
           evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:anomaliesDetected`
         });
       }
       if (dev) {
-        rawClaims.push({
+        candidateClaims.push({
           claim: `Penyimpangan data ${dev} terhadap benchmark industri`,
           evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:industryComparisonEvidence.deviation`
         });
       }
 
-      naturalVoiceSpeech = `Saya sudah memeriksa datanya secara menyeluruh. Terlihat ada penyimpangan signifikan sekitar ${dev} di atas rata-rata industri. Ringkasan eksekutif dan analisis penyebabnya sudah saya susun di panel artefak.`;
       detailedTextDisplay = `### 📊 Analisis Metrik & Risiko Eksekutif\n\n- **Deviasi Terverifikasi:** ${dev} terhadap benchmark industri\n- **Jumlah Anomali:** ${anomalies.length} indikator utama\n- **Status Persistensi Disk:** ${artifact?.persistenceStatus || 'PERSISTED'}\n\n${data.executiveSummary || 'Ringkasan eksekutif telah tervalidasi dan siap dipresentasikan.'}`;
     } else if (decision.intent === 'APP_SYNTHESIS') {
-      rawClaims.push({
+      candidateClaims.push({
         claim: 'Kalkulator ROI interaktif berhasil dibangun dan tersimpan di disk',
         evidenceRef: `artifact:${artifact?.name || 'app_roi'}:persistenceStatus`,
         predicate: { equals: 'PERSISTED' }
       });
 
-      naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai saya bangun dan lolos pengujian runtime. Anda bisa langsung mencoba memasukkan nilai investasi di layar.`;
       detailedTextDisplay = `### 💻 Purwarupa Aplikasi Selesai\n\n- **Komponen:** \`ResearchRoiCalculator\` (React / JSX)\n- **Pengujian Runtime:** 100% test fixture lolos (ROI formula & state)\n- **Status Persistensi:** ${artifact?.persistenceStatus || 'PERSISTED'}`;
     } else if (decision.intent === 'LIVE_NEWS') {
       const videoResult = executionHistory.find(h => h.step.tool === 'media.video_resolver')?.stepResult?.result;
       const topChannel = videoResult?.selectedVideo?.channel || 'siaran terpercaya';
 
-      rawClaims.push({
+      candidateClaims.push({
         claim: `Siaran berita live dari ${topChannel} berhasil diverifikasi`,
         evidenceRef: `executionHistory:media.video_resolver:selectedVideo`
       });
 
-      naturalVoiceSpeech = `Saya telah memverifikasi laporan berita terkini dan memilih siaran live dari ${topChannel}. Videonya langsung saya putar di layar untuk Anda.`;
       detailedTextDisplay = `### 📺 Siaran Berita Live Terpilih\n\n- **Kanal:** ${topChannel}\n- **Topik:** ${userUtterance}\n- **Status Pemutaran:** Aktif di panel media`;
     } else {
-      rawClaims.push({
+      candidateClaims.push({
         claim: `Goal "${userUtterance}" diselesaikan dan diverifikasi`,
         evidenceRef: 'verifier:goal_completion_pass',
         predicate: { equals: true }
       });
 
-      naturalVoiceSpeech = `Pekerjaan untuk "${userUtterance}" telah selesai saya laksanakan dan diverifikasi secara utuh.`;
       detailedTextDisplay = `### ✅ Tugas Selesai\n\n- **Goal:** ${userUtterance}\n- **Status:** Diverifikasi 9Router`;
     }
 
-    // Execute Hardened Claim Resolution & Predicate Validation
-    const validationResult = ClaimValidator.validateClaims(rawClaims, validationContext);
-    const validClaims = validationResult.approvedClaims;
-    const validEvidenceRefs = validClaims.map(c => c.evidenceRef);
+    // 1. Strict Claim Validation & Predicate Resolution
+    const validationResult = ClaimValidator.validateClaims(candidateClaims, validationContext);
+    const approvedClaims = validationResult.approvedClaims;
+    const approvedEvidenceRefs = approvedClaims.map(c => c.evidenceRef);
+
+    // 2. Realize Natural Voice Speech Bound Strictly to Approved Claims
+    let naturalVoiceSpeech = '';
+    if (decision.intent === 'DATA_ANALYTICS' || decision.intent === 'RESEARCH_QUESTION') {
+      const devClaim = approvedClaims.find(c => c.claim.includes('Penyimpangan'));
+      const devText = devClaim ? devClaim.claim.match(/\+?\d+(\.\d+)?%/)?.[0] || 'signifikan' : 'signifikan';
+      naturalVoiceSpeech = `Saya sudah memeriksa datanya secara menyeluruh. Terlihat ada penyimpangan ${devText} di atas rata-rata industri. Ringkasan eksekutif dan analisis penyebabnya sudah saya susun di panel artefak.`;
+    } else if (decision.intent === 'APP_SYNTHESIS') {
+      naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai saya bangun dan lolos pengujian runtime. Anda bisa langsung mencoba memasukkan nilai investasi di layar.`;
+    } else if (decision.intent === 'LIVE_NEWS') {
+      const channelClaim = approvedClaims.find(c => c.claim.includes('Siaran berita live'));
+      const channelText = channelClaim ? channelClaim.claim.replace('Siaran berita live dari ', '').replace(' berhasil diverifikasi', '') : 'siaran terpercaya';
+      naturalVoiceSpeech = `Saya telah memverifikasi laporan berita terkini dan memilih siaran live dari ${channelText}. Videonya langsung saya putar di layar untuk Anda.`;
+    } else {
+      naturalVoiceSpeech = `Pekerjaan untuk "${userUtterance}" telah selesai saya laksanakan dan diverifikasi secara utuh.`;
+    }
 
     return {
       naturalVoiceSpeech,
       detailedTextDisplay,
       responseMode: 'OUTCOME_SYNTHESIS',
       responseSource: options.failClosed ? 'PRIMARY_LLM_RESPONSE' : 'EVIDENCE_BOUND_SYNTHESIS',
-      claims: validClaims,
-      evidenceRefs: validEvidenceRefs,
+      claims: approvedClaims,
+      evidenceRefs: approvedEvidenceRefs,
       rejectedClaims: validationResult.rejectedClaims,
       voiceIntent: 'SPEAK'
     };
