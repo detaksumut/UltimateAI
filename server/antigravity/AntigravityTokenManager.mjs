@@ -25,23 +25,29 @@ export class AntigravityTokenManager {
       return { valid: false, error: 'NO_CONNECTION_PROVIDED' };
     }
 
+    let fullConn = connection;
+    if ((!fullConn.accessToken || !fullConn.refreshToken) && fullConn.id) {
+      const hydrated = this.store.getConnection(fullConn.id, true);
+      if (hydrated) fullConn = hydrated;
+    }
+
     const now = Date.now();
-    const expiresAtMs = connection.expiresAt ? new Date(connection.expiresAt).getTime() : 0;
+    const expiresAtMs = fullConn.expiresAt ? new Date(fullConn.expiresAt).getTime() : 0;
     const isExpiringSoon = !expiresAtMs || (expiresAtMs - now) < REFRESH_THRESHOLD_MS;
 
     // Token is fresh and valid
-    if (connection.accessToken && !isExpiringSoon) {
+    if (fullConn.accessToken && !isExpiringSoon) {
       return {
         valid: true,
-        accessToken: connection.accessToken,
+        accessToken: fullConn.accessToken,
         refreshed: false
       };
     }
 
     // Attempt proactive token refresh if refreshToken is available
-    if (connection.refreshToken) {
+    if (fullConn.refreshToken) {
       try {
-        const refreshResult = await this.refreshToken(connection);
+        const refreshResult = await this.refreshToken(fullConn);
         return {
           valid: true,
           accessToken: refreshResult.accessToken,

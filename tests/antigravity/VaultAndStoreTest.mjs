@@ -5,13 +5,13 @@
 
 import assert from 'assert';
 import { AntigravityVault } from '../../server/antigravity/AntigravityVault.mjs';
-import { AntigravityConnectionStore } from '../../server/antigravity/AntigravityConnectionStore.mjs';
+import { InMemoryAntigravityConnectionStore } from '../../server/antigravity/InMemoryAntigravityConnectionStore.mjs';
 
 async function runVaultAndStoreTest() {
   console.log('--- Testing AntigravityVault Encryption & Store Security ---');
 
   const vault = new AntigravityVault('test_secret_key_12345');
-  const store = new AntigravityConnectionStore(vault);
+  const store = new InMemoryAntigravityConnectionStore(vault);
 
   const rawToken = 'ya29.a0AfH6SMD_very_secret_oauth_token_xyz_998877';
   const encrypted = vault.encrypt(rawToken);
@@ -31,11 +31,16 @@ async function runVaultAndStoreTest() {
     refreshToken: 'refresh_secret_123'
   });
 
-  const publicRecord = store.getConnection('ag-01', true);
+  const publicRecord = store.getConnection('ag-01', false);
   assert.strictEqual(publicRecord.accessToken, undefined, 'Public record must not contain accessToken');
   assert.strictEqual(publicRecord.refreshToken, undefined, 'Public record must not contain refreshToken');
   assert.strictEqual(publicRecord.hasAccessToken, true, 'Public record indicates token presence safely');
   console.log('✅ ConnectionStore Zero-Secret Masking Verified.');
+
+  const hydratedRecord = store.getConnection('ag-01', true);
+  assert.strictEqual(hydratedRecord.accessToken, rawToken, 'Hydrated record must contain decrypted accessToken');
+  assert.strictEqual(hydratedRecord.refreshToken, 'refresh_secret_123', 'Hydrated record must contain decrypted refreshToken');
+  console.log('✅ ConnectionStore Secret Hydration & Decryption Verified.');
 
   console.log('🏆 All Vault & Store Tests Passed!\n');
 }

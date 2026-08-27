@@ -18,7 +18,7 @@
 
 import assert from 'assert';
 import { AntigravityVault } from '../../server/antigravity/AntigravityVault.mjs';
-import { AntigravityConnectionStore } from '../../server/antigravity/AntigravityConnectionStore.mjs';
+import { InMemoryAntigravityConnectionStore } from '../../server/antigravity/InMemoryAntigravityConnectionStore.mjs';
 import { AntigravityTokenManager } from '../../server/antigravity/AntigravityTokenManager.mjs';
 import { AntigravityQuotaTracker } from '../../server/antigravity/AntigravityQuotaTracker.mjs';
 import { AntigravityConnectionSelector } from '../../server/antigravity/AntigravityConnectionSelector.mjs';
@@ -30,7 +30,7 @@ async function runRolloverCertification() {
   console.log('================================================================\n');
 
   const vault = new AntigravityVault('test_secure_vault_key_2026');
-  const store = new AntigravityConnectionStore(vault);
+  const store = new InMemoryAntigravityConnectionStore(vault);
   const quotaTracker = new AntigravityQuotaTracker();
   const tokenManager = new AntigravityTokenManager(store);
   const selector = new AntigravityConnectionSelector(store, quotaTracker);
