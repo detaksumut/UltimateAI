@@ -2,7 +2,7 @@
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
  * Implements: SEMANTIC_DECISION ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ ADAPTIVE_REPLAN
- * Multi-Model Provenance Telemetry & Strict Transport Propagation.
+ * Telemetry Precision: Honest separation of executionTools, planningEngine, and modelInvocations.
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -42,7 +42,19 @@ export class AgentRuntime {
         intent: decision.intent,
         interpretationSource: decision.interpretationSource,
         transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
-        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+        provenance: {
+          semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+          planningEngine: 'deterministic_semantic_dag_planner',
+          executionTools: [],
+          modelInvocations: [
+            {
+              model: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+              purpose: 'semantic_intent_interpretation',
+              transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
+            }
+          ],
+          transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
+        },
         fallbackUsed: decision.fallbackUsed,
         responseMessage: `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data multi-layer, analisis, pemutaran media, atau pembuatan aplikasi instan secara mandiri.`,
         durationMs: Date.now() - startTime
@@ -54,7 +66,15 @@ export class AgentRuntime {
     let finalVerification = null;
     let currentPlan = null;
     const fullExecutionHistory = [];
-    const executionModelsUsed = [];
+    const executionToolsUsed = [];
+    const modelInvocations = [];
+
+    // Record semantic interpretation model invocation
+    modelInvocations.push({
+      model: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+      purpose: 'semantic_intent_interpretation',
+      transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
+    });
 
     // Initial Semantic Plan
     currentPlan = AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
@@ -89,7 +109,7 @@ export class AgentRuntime {
         const observation = AgentObserver.observe(step, stepResult);
 
         if (step.tool) {
-          executionModelsUsed.push(step.tool);
+          executionToolsUsed.push(step.tool);
         }
 
         currentHistory.push({
@@ -145,8 +165,9 @@ export class AgentRuntime {
       artifact: finalVerification?.artifact || null,
       provenance: {
         semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
-        planningModel: '9router.dag_synthesizer',
-        executionModels: [...new Set(executionModelsUsed)],
+        planningEngine: 'deterministic_semantic_dag_planner',
+        executionTools: [...new Set(executionToolsUsed)],
+        modelInvocations,
         transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
       },
       interpretationSource: decision.interpretationSource,
