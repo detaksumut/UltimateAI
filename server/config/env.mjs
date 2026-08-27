@@ -1,8 +1,29 @@
 /**
  * env.mjs
  * Server-Side Environment Configuration and Secret Vault.
- * Ensures secrets never leak to the client-side bundle.
+ * Auto-loads .env file if present on disk.
  */
+
+import fs from 'fs';
+import path from 'path';
+
+// Auto-load .env file if exists
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const [key, ...rest] = trimmed.split('=');
+        const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
+        if (key && !process.env[key.trim()]) {
+          process.env[key.trim()] = val;
+        }
+      }
+    });
+  }
+} catch {}
 
 export const config = {
   port: parseInt(process.env.PORT || '20128', 10),

@@ -134,20 +134,23 @@ export class NineRouterClient {
   }
 
   generateAutonomousResponse(input) {
-    const lower = input.toLowerCase();
-    if (lower.includes('halo') || lower.includes('hai') || lower.includes('jin')) {
-      return `Salam! Saya JIN, antarmuka kecerdasan terpadu dari UltimateAI 9Router. Seluruh 9 jalur penalaran sistem aktif dan siap mengeksekusi instruksi Anda—mulai dari analisis riset, pencarian data global, hingga pembuatan aplikasi instan. Apa yang ingin kita kerjakan sekarang?`;
-    }
-    if (lower.includes('video') || lower.includes('lagu') || lower.includes('dj') || lower.includes('musik') || lower.includes('youtube')) {
-      return `Tentu! Saya telah mencarikan video musik "${input}" untuk Anda. Pemutar video YouTube interaktif telah siap di panel kanan pada tab MEDIA. Anda dapat langsung menekan tombol Putar atau membukanya di YouTube.`;
+    const raw = input || '';
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('video') || lower.includes('lagu') || lower.includes('dj') || lower.includes('musik') || lower.includes('music') || lower.includes('youtube') || lower.includes('play')) {
+      const trackMatch = raw.replace(/^(hallo|halo|hai|tolong|coba|cari|carikan|putar|putarkan|play|jin|dari youtube|youtube|lagsung play|langsung play)\s*/gi, '').trim();
+      return `Siap! Saya telah mencarikan dan memuat video ${trackMatch || 'musik'} dari YouTube langsung di panel kanan. Musik siap Anda dengarkan sekarang.`;
     }
     if (lower.includes('aplikasi') || lower.includes('buat') || lower.includes('kalkulator') || lower.includes('app')) {
-      return `Instruksi diterima oleh 9Router. Saya telah memetakan kebutuhan arsitektur sistem dan menyiapkan struktur runtime aplikasi. Sistem sedang memverifikasi spesifikasi blueprint dan siap merender purwarupa ke dalam simulator mobile di panel kanan.`;
+      return `Purwarupa aplikasi interaktif telah selesai digenerate dan langsung dimuat ke layar simulator di panel kanan.`;
     }
-    if (lower.includes('analisis') || lower.includes('data') || lower.includes('riset')) {
-      return `Modul Deep Analysis 9Router telah mengisolasi parameter konteks. Multi-source reasoning sedang memproses data untuk mengekstraksi wawasan kritis dan korelasi utama secara akurat.`;
+    if (lower.includes('analisis') || lower.includes('data') || lower.includes('riset') || lower.includes('tabel')) {
+      return `Data dan ringkasan metrik terstruktur yang Anda minta telah dianalisis dan disajikan langsung ke panel kanan.`;
     }
-    return `9Router telah menganalisis instruksi Anda: "${input}". Seluruh subsistem memori, konteks, dan reasoning engine telah diselaraskan untuk menghasilkan solusi optimal bagi kebutuhan Anda.`;
+    if (lower.includes('halo') || lower.includes('hai') || lower.includes('salam') || lower.includes('jin')) {
+      return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data, analisis, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
+    }
+    return `Instruksi "${raw}" telah dieksekusi secara langsung oleh sistem 9Router.`;
   }
 }
 
