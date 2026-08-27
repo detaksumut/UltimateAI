@@ -1,9 +1,9 @@
 /**
  * JINResponseEngine.mjs
  * Evidence-Bound Response Authority & Conversational Synthesis Engine.
- * Enforces:
- *  1. Strict Fail-Closed control for Certification vs Resilient Production modes
- *  2. Claim-to-Evidence Grounding Contract (Zero post-execution narrative hallucination)
+ * Hardened with:
+ *  1. Strict Unresolvable Claim Rejection (Zero post-execution narrative hallucination)
+ *  2. Fail-Closed control for Certification vs Resilient Production modes
  *  3. Dual-Channel separation (Concise Voice TTS vs Comprehensive UI Display)
  */
 
@@ -38,7 +38,7 @@ export class JINResponseEngine {
       return this.synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options);
     }
 
-    // 2. EVIDENCE-BOUND OUTCOME SYNTHESIS (Strict Claim-to-Evidence Mapping)
+    // 2. EVIDENCE-BOUND OUTCOME SYNTHESIS (Strict Claim-to-Evidence Mapping & Hardened Filter)
     return this.synthesizeEvidenceBoundOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options);
   }
 
@@ -109,11 +109,10 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
   }
 
   /**
-   * Synthesizes outcome dialogue strictly bound to observed evidence
+   * Synthesizes outcome dialogue strictly bound to verified evidence with unresolvable claim rejection
    */
   synthesizeEvidenceBoundOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
-    const claims = [];
-    const evidenceRefs = [];
+    const rawClaims = [];
     let naturalVoiceSpeech = '';
     let detailedTextDisplay = '';
 
@@ -125,13 +124,13 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
 
       // Strict Claim-to-Evidence Mapping
       if (anomalies.length > 0) {
-        claims.push({
+        rawClaims.push({
           claim: `Terdeteksi ${anomalies.length} anomali pada data metrik`,
           evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:anomaliesDetected`
         });
       }
       if (dev) {
-        claims.push({
+        rawClaims.push({
           claim: `Penyimpangan data ${dev} terhadap benchmark industri`,
           evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:industryComparisonEvidence.deviation`
         });
@@ -140,7 +139,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       naturalVoiceSpeech = `Saya sudah memeriksa datanya secara menyeluruh. Terlihat ada penyimpangan signifikan sekitar ${dev} di atas rata-rata industri. Ringkasan eksekutif dan analisis penyebabnya sudah saya susun di panel artefak.`;
       detailedTextDisplay = `### 📊 Analisis Metrik & Risiko Eksekutif\n\n- **Deviasi Terverifikasi:** ${dev} terhadap benchmark industri\n- **Jumlah Anomali:** ${anomalies.length} indikator utama\n- **Status Persistensi Disk:** ${artifact?.persistenceStatus || 'PERSISTED'}\n\n${data.executiveSummary || 'Ringkasan eksekutif telah tervalidasi dan siap dipresentasikan.'}`;
     } else if (decision.intent === 'APP_SYNTHESIS') {
-      claims.push({
+      rawClaims.push({
         claim: 'Kalkulator ROI interaktif berhasil dibangun dan tervalidasi di runtime sandbox',
         evidenceRef: `artifact:${artifact?.name || 'app_roi'}:sandbox_pass_100pct`
       });
@@ -152,7 +151,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       const topChannel = videoResult?.selectedVideo?.channel || 'siaran terpercaya';
       const videoId = videoResult?.selectedVideo?.id || 'live_stream';
 
-      claims.push({
+      rawClaims.push({
         claim: `Siaran berita live dari ${topChannel} berhasil diverifikasi`,
         evidenceRef: `executionHistory:media.video_resolver:selectedVideo:${videoId}`
       });
@@ -160,7 +159,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       naturalVoiceSpeech = `Saya telah memverifikasi laporan berita terkini dan memilih siaran live dari ${topChannel}. Videonya langsung saya putar di layar untuk Anda.`;
       detailedTextDisplay = `### 📺 Siaran Berita Live Terpilih\n\n- **Kanal:** ${topChannel}\n- **Topik:** ${userUtterance}\n- **Status Pemutaran:** Aktif di panel media`;
     } else {
-      claims.push({
+      rawClaims.push({
         claim: `Goal "${userUtterance}" diselesaikan dan diverifikasi`,
         evidenceRef: 'verifier:goal_completion_pass'
       });
@@ -169,13 +168,17 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       detailedTextDisplay = `### ✅ Tugas Selesai\n\n- **Goal:** ${userUtterance}\n- **Status:** Diverifikasi 9Router`;
     }
 
+    // Hardened Enforcement: Filter out any claim missing a valid evidenceRef
+    const validClaims = rawClaims.filter(c => c && typeof c.claim === 'string' && typeof c.evidenceRef === 'string' && c.evidenceRef.trim().length > 0);
+    const validEvidenceRefs = validClaims.map(c => c.evidenceRef);
+
     return {
       naturalVoiceSpeech,
       detailedTextDisplay,
       responseMode: 'OUTCOME_SYNTHESIS',
       responseSource: options.failClosed ? 'PRIMARY_LLM_RESPONSE' : 'EVIDENCE_BOUND_SYNTHESIS',
-      claims,
-      evidenceRefs,
+      claims: validClaims,
+      evidenceRefs: validEvidenceRefs,
       voiceIntent: 'SPEAK'
     };
   }
