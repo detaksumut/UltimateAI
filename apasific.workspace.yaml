@@ -1,0 +1,22 @@
+workspace:
+  name: APASIFIC
+  version: 1.0
+
+product:
+  type: Academic Ecosystem Platform
+  domains:
+    - membership
+    - journal
+    - certification
+
+eaep:
+  foundation: 1.0
+
+governance:
+  constitution: PRODUCT_CONSTITUTION.md
+  principles: ENGINEERING_PRINCIPLES.md
+  baseline: ENTERPRISE_GOVERNANCE_BASELINE.md
+
+reference_assets:
+  enabled: true
+  directory: docs/reference_assets

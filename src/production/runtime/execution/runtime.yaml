@@ -1,0 +1,11 @@
+id: "ultimate.runtime.execution"
+name: "Generic Execution Runtime"
+version: "1.0.0"
+description: "Stateless domain-agnostic execution engine"
+foundation:
+  baseline: "UAI-FB-1.0"
+capabilities:
+  - "PhysicalExecution"
+dependencies: []
+contracts: []
+permissions: []

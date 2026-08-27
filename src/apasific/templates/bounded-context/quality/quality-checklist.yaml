@@ -1,0 +1,33 @@
+name: APASIFIC Quality Gate Checklist
+version: 1.0
+
+gates:
+  - id: QG-001
+    name: "Domain Purity"
+    rule: "Domain layer has no imports from application, infrastructure, api, or ui."
+    enforcement: "Static Analysis"
+
+  - id: QG-002
+    name: "Application Orchestration"
+    rule: "Handlers contain no business logic. Handlers execute exactly one Aggregate method and one Repository save."
+    enforcement: "Code Review"
+
+  - id: QG-003
+    name: "Infrastructure Abstraction"
+    rule: "All external calls (DB, Kafka, APIs) implement a port defined in the Application layer."
+    enforcement: "Static Analysis"
+
+  - id: QG-004
+    name: "API-First"
+    rule: "OpenAPI contract exists and matches API Controller definitions."
+    enforcement: "Contract Test"
+
+  - id: QG-005
+    name: "UI Decoupling"
+    rule: "React components do not import DTOs directly; they only consume ViewModels."
+    enforcement: "Static Analysis"
+
+  - id: QG-006
+    name: "Observability"
+    rule: "All command endpoints inject TraceID and CorrelationID."
+    enforcement: "Integration Test"

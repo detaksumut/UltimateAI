@@ -1,0 +1,11 @@
+id: "ultimate.runtime.dummy"
+name: "Reference Validation Runtime"
+version: "1.0.0"
+description: "Runtime minimal untuk validasi kelayakan fondasi"
+foundation:
+  baseline: "UAI-FB-1.0"
+capabilities:
+  - "ValidationDomainAnalysis"
+dependencies: []
+contracts: []
+permissions: []

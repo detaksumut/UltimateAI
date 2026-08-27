@@ -3,12 +3,12 @@
     "id": "cert-report-milestone-3",
     "type": "CERTIFICATION_REPORT",
     "version": 1,
-    "timestamp": 1782801975975,
-    "contentHash": "03b46f5fd3944535a9beb07d6b2b17b46434fde6d7402760057421da15627db0"
+    "timestamp": 1782852062783,
+    "contentHash": "9f22bdb4280b8fcc389d4fe50bbf6ac867e630556b6bb43249b2b467afd2e97e"
   },
   "status": "FINAL",
   "trace": {
-    "traceId": "cert-trace-knowledge-seed-2026-1782801975975"
+    "traceId": "cert-trace-knowledge-seed-2026-1782852062783"
   },
   "lineage": {
     "parentIds": [],
@@ -18,8 +18,8 @@
     "creatorCapability": "CERTIFICATION_RUNNER"
   },
   "metadata": {
-    "createdAt": 1782801975975,
-    "updatedAt": 1782801975975,
+    "createdAt": 1782852062783,
+    "updatedAt": 1782852062783,
     "labels": [
       "certification",
       "milestone-3"
@@ -27,7 +27,7 @@
     "tags": {
       "milestone": "3",
       "seed": "knowledge-seed-2026",
-      "status": "FAIL"
+      "status": "PASS"
     },
     "custom": {}
   },
@@ -35,7 +35,7 @@
     {
       "suite": "ReferentialIntegrityTest",
       "status": "PASS",
-      "durationMs": 57,
+      "durationMs": 58,
       "metrics": {
         "scenario1Nodes": 5,
         "scenario1Edges": 5,
@@ -97,7 +97,7 @@
     {
       "suite": "ReverseTraversalTest",
       "status": "PASS",
-      "durationMs": 54,
+      "durationMs": 44,
       "metrics": {
         "pathLength": 3
       },
@@ -120,7 +120,7 @@
     {
       "suite": "DuplicateProtectionTest",
       "status": "PASS",
-      "durationMs": 3126,
+      "durationMs": 3224,
       "metrics": {
         "totalNodes": 5,
         "totalEdges": 5,
@@ -149,7 +149,7 @@
     {
       "suite": "InvariantReachabilityTest",
       "status": "PASS",
-      "durationMs": 52,
+      "durationMs": 47,
       "metrics": {
         "cycleDetected1": false,
         "cycleDetected2": true,
@@ -174,14 +174,14 @@
     },
     {
       "suite": "LargeGraphTest",
-      "status": "FAIL",
-      "durationMs": 16386,
+      "status": "PASS",
+      "durationMs": 1495,
       "metrics": {
         "total10kNodes": 20001,
         "total10kEdges": 29999,
-        "memoryUsedMB": 23,
-        "invariantCheckMs": 33,
-        "traversalMs": 14793
+        "memoryUsedMB": 43,
+        "invariantCheckMs": 36,
+        "traversalMs": 8
       },
       "evidence": [
         {
@@ -189,9 +189,9 @@
           "nodesCount": 201,
           "edgesCount": 299,
           "memoryMB": 0,
-          "generationMs": 66,
-          "invariantCheckMs": 2,
-          "traversalMs": 2,
+          "generationMs": 59,
+          "invariantCheckMs": 0,
+          "traversalMs": 1,
           "traversalPathLength": 99,
           "cycleDetected": false
         },
@@ -200,9 +200,9 @@
           "nodesCount": 2001,
           "edgesCount": 2999,
           "memoryMB": 4,
-          "generationMs": 148,
-          "invariantCheckMs": 3,
-          "traversalMs": 88,
+          "generationMs": 114,
+          "invariantCheckMs": 4,
+          "traversalMs": 2,
           "traversalPathLength": 999,
           "cycleDetected": false
         },
@@ -210,15 +210,14 @@
           "size": 10000,
           "nodesCount": 20001,
           "edgesCount": 29999,
-          "memoryMB": 23,
-          "generationMs": 1251,
-          "invariantCheckMs": 33,
-          "traversalMs": 14793,
+          "memoryMB": 43,
+          "generationMs": 1271,
+          "invariantCheckMs": 36,
+          "traversalMs": 8,
           "traversalPathLength": 9999,
           "cycleDetected": false
         }
-      ],
-      "error": "Performance or cycle detection invariants failed."
+      ]
     }
   ]
 }

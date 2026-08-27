@@ -1,0 +1,25 @@
+{
+  "name": "apasific-bounded-context-template",
+  "version": "1.0.0",
+  "compatibility": "ECR-v1",
+  "description": "Certified Golden Reference Architecture for APASIFIC bounded contexts.",
+  "structure": {
+    "domain": "Empty Aggregate/VO/Event templates",
+    "application": "Empty CQRS Handlers, Port Interfaces, Authorization Policy",
+    "infrastructure": "Empty Kafka/DB Adapters, Event Publisher",
+    "api": "Standard Middlewares (Idempotency, Observability), Error Mappers",
+    "ui": "ViewModel mappers and strict React Hook patterns",
+    "contracts": "OpenAPI/AsyncAPI skeletons and ADR registry",
+    "tests": "Contract test skeletons",
+    "docs": "Internal bounded context documentation",
+    "ci": "Pipeline definitions",
+    "observability": "Dashboards and alert rules",
+    "quality": "Quality checklists"
+  },
+  "mandatoryArtifacts": [
+    "contracts/adrs/",
+    "api/middlewares/ObservabilityMiddleware.ts",
+    "api/middlewares/IdempotencyMiddleware.ts",
+    "application/policies/AuthorizationPolicy.ts"
+  ]
+}

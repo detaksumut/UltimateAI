@@ -1,0 +1,19 @@
+workflow:
+  id: todo-approval-valid
+  version: 1.0
+
+trigger:
+  event: todo.created
+
+states:
+  - Pending
+  - Approved
+  - Rejected
+
+transitions:
+  - from: Pending
+    action: approve
+    to: Approved
+  - from: Pending
+    action: reject
+    to: Rejected

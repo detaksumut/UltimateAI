@@ -1,7 +1,7 @@
 {
   "suite": "ReverseTraversalTest",
   "status": "PASS",
-  "durationMs": 54,
+  "durationMs": 44,
   "metrics": {
     "pathLength": 3
   },

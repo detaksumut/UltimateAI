@@ -1,0 +1,15 @@
+{
+  "testId": "TEST-R4-1787828940564",
+  "certificationId": "CERT-P46-1787828940393",
+  "timestamp": "2026-08-27T11:09:00.393Z",
+  "evidenceType": "HUMAN_INTERACTION_EVIDENCE",
+  "stages": {
+    "sttCapability": "VERIFIED_PRESENT",
+    "micPermission": "PENDING_USER_GESTURE",
+    "sessionActive": "STANDBY",
+    "transcriptReceived": "WAITING_INPUT"
+  },
+  "engine": "WebSpeechAPI / WhisperStreamingAdapter",
+  "status": "CAPABILITY_VERIFIED",
+  "humanInteractionStatus": "PENDING_HUMAN_RUNTIME_GESTURE"
+}

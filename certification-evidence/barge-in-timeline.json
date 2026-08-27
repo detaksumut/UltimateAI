@@ -1,0 +1,24 @@
+{
+  "testId": "TEST-R6-1787828940567",
+  "certificationId": "CERT-P46-1787828940393",
+  "timestamp": "2026-08-27T11:09:00.393Z",
+  "evidenceType": "HARNESS_RUNTIME_EVIDENCE",
+  "measurementMode": "APP_OBSERVED_LATENCY",
+  "humanInteraction": false,
+  "humanRuntimeStatus": "PENDING_HUMAN_RUNTIME_SESSION",
+  "oldSessionId": 101,
+  "newSessionId": 102,
+  "timelineBreakdown": {
+    "T0_userSpeechDetectedMs": 292.53,
+    "T1_bargeInTriggeredMs": 292.88,
+    "T4_cascadingAbortAndFlushMs": 293.94,
+    "T6_newSessionReadyMs": 294.21
+  },
+  "latencyDeltas": {
+    "detectionLatencyMs": 0.34,
+    "abortAndFlushLatencyMs": 1.06,
+    "sessionTransitionLatencyMs": 0.27,
+    "totalAppObservedBargeInLatencyMs": 1.67
+  },
+  "status": "APP_OBSERVED_HARNESS_VERIFIED"
+}

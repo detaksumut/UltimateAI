@@ -1,0 +1,15 @@
+states:
+  - id: state-pub-draft
+    name: Draft
+    description: "Initial draft stage."
+    is_terminal: false
+  
+  - id: state-pub-review
+    name: In Review
+    description: "Currently under peer review."
+    is_terminal: false
+
+  - id: state-pub-published
+    name: Published
+    description: "Officially published."
+    is_terminal: true

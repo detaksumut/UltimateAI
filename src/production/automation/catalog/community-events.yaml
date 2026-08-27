@@ -1,0 +1,12 @@
+events:
+  - event: community.joined
+    name: Community Joined
+    version: "1.0"
+    domain: community
+    description: "Triggered when a user joins a community."
+    payload:
+      type: object
+      properties:
+        community_id: { type: string }
+        user_id: { type: string }
+      required: [community_id, user_id]

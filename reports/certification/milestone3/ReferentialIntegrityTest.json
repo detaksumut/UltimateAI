@@ -1,7 +1,7 @@
 {
   "suite": "ReferentialIntegrityTest",
   "status": "PASS",
-  "durationMs": 57,
+  "durationMs": 58,
   "metrics": {
     "scenario1Nodes": 5,
     "scenario1Edges": 5,

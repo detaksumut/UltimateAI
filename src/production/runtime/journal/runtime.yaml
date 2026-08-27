@@ -1,0 +1,23 @@
+id: "ultimate.runtime.journal"
+name: "Journal Domain Analysis Runtime"
+version: "1.0.0"
+category: "Domain"
+foundation:
+  baseline: "UAI-FB-1.0"
+  compatibleFrom: "UAI-FB-1.0"
+  compatibleUntil: "UAI-FB-1.x"
+capabilities:
+  - "JournalDomainAnalysis"
+dependencies:
+  - id: "ultimate.runtime.knowledge"
+    version: ">=1.0"
+  - id: "ultimate.runtime.memory"
+    version: ">=1.0"
+contracts: []
+permissions:
+  - "knowledge.read"
+  - "bus.emit"
+signature:
+  publisher: "UltimateAI"
+  checksum: "sha256-signature-journal"
+  signed: true

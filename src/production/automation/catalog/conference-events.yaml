@@ -1,0 +1,24 @@
+events:
+  - event: conference.created
+    name: Conference Created
+    version: "1.0"
+    domain: conference
+    description: "Triggered when a new conference is created."
+    payload:
+      type: object
+      properties:
+        conference_id: { type: string }
+        organizer_id: { type: string }
+      required: [conference_id, organizer_id]
+
+  - event: conference.registered
+    name: Conference Registered
+    version: "1.0"
+    domain: conference
+    description: "Triggered when an attendee registers."
+    payload:
+      type: object
+      properties:
+        conference_id: { type: string }
+        attendee_id: { type: string }
+      required: [conference_id, attendee_id]

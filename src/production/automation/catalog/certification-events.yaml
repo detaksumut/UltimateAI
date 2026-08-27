@@ -1,0 +1,25 @@
+events:
+  - event: certification.issued
+    name: Certification Issued
+    version: "1.0"
+    domain: certification
+    description: "Triggered when a new certificate is generated and issued to a user."
+    payload:
+      type: object
+      properties:
+        certificate_id: { type: string }
+        user_id: { type: string }
+        course_id: { type: string }
+      required: [certificate_id, user_id]
+
+  - event: certification.revoked
+    name: Certification Revoked
+    version: "1.0"
+    domain: certification
+    description: "Triggered when a certificate is revoked due to policy violation."
+    payload:
+      type: object
+      properties:
+        certificate_id: { type: string }
+        reason: { type: string }
+      required: [certificate_id]

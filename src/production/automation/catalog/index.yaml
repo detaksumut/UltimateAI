@@ -1,0 +1,12 @@
+# UltimateAI Global Event Catalog Index
+# Single Source of Truth for all domain events.
+
+domains:
+  - journal
+  - certification
+  - membership
+  - conference
+  - research
+  - competition
+  - awards
+  - community

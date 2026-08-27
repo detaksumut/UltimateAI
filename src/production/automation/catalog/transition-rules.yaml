@@ -1,0 +1,17 @@
+rules:
+  - rule_id: tr-approval-001
+    domain: approval
+    from: Pending
+    to: Approved
+    allowed_actions: ["action-approve"]
+    required_permissions: ["role:manager", "role:admin"]
+    constraints:
+      - "payload.amount < 10000"
+
+  - rule_id: tr-approval-002
+    domain: approval
+    from: Pending
+    to: Rejected
+    allowed_actions: ["action-reject"]
+    required_permissions: ["role:manager", "role:admin"]
+    constraints: []

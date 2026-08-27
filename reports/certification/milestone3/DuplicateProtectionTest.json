@@ -1,7 +1,7 @@
 {
   "suite": "DuplicateProtectionTest",
   "status": "PASS",
-  "durationMs": 3126,
+  "durationMs": 3224,
   "metrics": {
     "totalNodes": 5,
     "totalEdges": 5,

@@ -1,0 +1,21 @@
+id: "ultimate.runtime.medical"
+name: "Medical Domain Intelligence Runtime"
+version: "1.0.0"
+category: "Domain"
+foundation:
+  baseline: "UAI-FB-1.0"
+  compatibleFrom: "UAI-FB-1.0"
+  compatibleUntil: "UAI-FB-1.x"
+capabilities:
+  - "MedicalDomainAnalysis"
+dependencies:
+  - id: "ultimate.runtime.knowledge"
+    version: ">=1.0"
+  - id: "ultimate.runtime.memory"
+    version: ">=1.0"
+contracts: []
+permissions: []
+signature:
+  publisher: "UltimateAI"
+  checksum: "sha256-signature-medical"
+  signed: true

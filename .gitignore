@@ -2,3 +2,13 @@ node_modules
 .env
 dist
 generated
+coverage
+*.zip
+download-ultimateai/
+*.log
+*.cjs
+test_handles.js
+test_ui.js
+test_layout.html
+final.html
+iframe_html.txt

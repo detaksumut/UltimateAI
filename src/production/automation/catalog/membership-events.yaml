@@ -1,0 +1,36 @@
+events:
+  - event: membership.created
+    name: Membership Created
+    version: "1.0"
+    domain: membership
+    description: "Triggered when a new user applies for membership."
+    payload:
+      type: object
+      properties:
+        membership_id: { type: string }
+        applicant_id: { type: string }
+      required: [membership_id, applicant_id]
+
+  - event: membership.approved
+    name: Membership Approved
+    version: "1.0"
+    domain: membership
+    description: "Triggered when a membership application is approved."
+    payload:
+      type: object
+      properties:
+        membership_id: { type: string }
+        approver_id: { type: string }
+      required: [membership_id]
+
+  - event: membership.suspended
+    name: Membership Suspended
+    version: "1.0"
+    domain: membership
+    description: "Triggered when a membership is suspended."
+    payload:
+      type: object
+      properties:
+        membership_id: { type: string }
+        reason: { type: string }
+      required: [membership_id]

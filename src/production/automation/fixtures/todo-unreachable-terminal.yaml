@@ -1,0 +1,21 @@
+workflow:
+  id: todo-approval-unreachable
+  version: 1.0
+
+trigger:
+  event: todo.created
+
+states:
+  - Pending
+  - Review
+  - Approved
+  - OrphanedState
+
+transitions:
+  - from: Pending
+    action: start_review
+    to: Review
+  - from: Review
+    action: approve
+    to: Approved
+  # OrphanedState is never reached from Pending, making it a semantic error

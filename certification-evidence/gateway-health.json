@@ -1,0 +1,22 @@
+{
+  "testId": "TEST-R1-1787828940398",
+  "certificationId": "CERT-P46-1787828940393",
+  "timestamp": "2026-08-27T11:09:00.393Z",
+  "evidenceType": "AUTOMATED_RUNTIME_EVIDENCE",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "nodeVersion": "v20.19.5"
+  },
+  "measurementMode": "APP_OBSERVED_PROBE",
+  "status": "PASS",
+  "port": 20128,
+  "latencyMs": 0,
+  "registeredProviders": [
+    "gemini",
+    "openai",
+    "claude",
+    "deepseek"
+  ],
+  "evidence": "GATEWAY_HEALTH_HANDSHAKE_ACTIVE"
+}

@@ -1,0 +1,14 @@
+{
+  "testId": "TEST-R5-1787828940564",
+  "certificationId": "CERT-P46-1787828940393",
+  "timestamp": "2026-08-27T11:09:00.393Z",
+  "evidenceType": "AUTOMATED_RUNTIME_EVIDENCE",
+  "requestedProvider": "EDGE_NEURAL",
+  "actualProvider": "EDGE_NEURAL",
+  "defaultVoice": "id-ID-ArdiNeural",
+  "fallbackProvider": "BROWSER_SYNTHESIS",
+  "fallbackUsed": false,
+  "audioFramesReceived": 0,
+  "playbackStarted": false,
+  "status": "HARNESS_VERIFIED"
+}

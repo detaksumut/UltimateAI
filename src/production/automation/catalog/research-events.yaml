@@ -1,0 +1,13 @@
+events:
+  - event: research.published
+    name: Research Published
+    version: "1.0"
+    domain: research
+    description: "Triggered when a research paper is officially published to the repository."
+    payload:
+      type: object
+      properties:
+        research_id: { type: string }
+        publisher_id: { type: string }
+        doi: { type: string }
+      required: [research_id]

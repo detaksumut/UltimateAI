@@ -1,0 +1,25 @@
+events:
+  - event: journal.submitted
+    name: Journal Submitted
+    version: "1.0"
+    domain: journal
+    description: "Triggered when a new journal is submitted for review."
+    payload:
+      type: object
+      properties:
+        journal_id: { type: string }
+        author_id: { type: string }
+        title: { type: string }
+      required: [journal_id, author_id]
+
+  - event: journal.accepted
+    name: Journal Accepted
+    version: "1.0"
+    domain: journal
+    description: "Triggered when a journal passes peer review and is accepted."
+    payload:
+      type: object
+      properties:
+        journal_id: { type: string }
+        reviewer_id: { type: string }
+      required: [journal_id]

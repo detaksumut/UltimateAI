@@ -1,0 +1,13 @@
+events:
+  - event: awards.nominated
+    name: Award Nominated
+    version: "1.0"
+    domain: awards
+    description: "Triggered when an entity is nominated for an award."
+    payload:
+      type: object
+      properties:
+        award_id: { type: string }
+        nominee_id: { type: string }
+        nominator_id: { type: string }
+      required: [award_id, nominee_id]

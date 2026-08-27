@@ -1,0 +1,42 @@
+{
+  "testId": "TEST-R2-1787828940400",
+  "certificationId": "CERT-P46-1787828940393",
+  "timestamp": "2026-08-27T11:09:00.393Z",
+  "evidenceType": "AUTOMATED_RUNTIME_EVIDENCE",
+  "streamMode": "LOCAL_SYNTHETIC",
+  "status": "LOCAL_HEURISTIC_FALLBACK",
+  "providers": {
+    "gemini": {
+      "status": "NOT_CONFIGURED",
+      "configured": false,
+      "authenticated": false,
+      "reachable": false,
+      "streamMode": "N/A"
+    },
+    "openai": {
+      "status": "NOT_CONFIGURED",
+      "configured": false,
+      "authenticated": false,
+      "reachable": false,
+      "streamMode": "N/A"
+    },
+    "claude": {
+      "status": "NOT_CONFIGURED",
+      "configured": false,
+      "authenticated": false,
+      "reachable": false,
+      "streamMode": "N/A"
+    },
+    "deepseek": {
+      "status": "NOT_CONFIGURED",
+      "configured": false,
+      "authenticated": false,
+      "reachable": false,
+      "streamMode": "N/A"
+    }
+  },
+  "integrity": {
+    "syntheticFallbackDetected": true,
+    "zeroSecretLeakVerified": true
+  }
+}

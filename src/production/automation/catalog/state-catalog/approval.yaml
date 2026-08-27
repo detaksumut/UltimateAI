@@ -1,0 +1,15 @@
+states:
+  - id: state-approval-pending
+    name: Pending
+    description: "Waiting for human or system approval."
+    is_terminal: false
+  
+  - id: state-approval-approved
+    name: Approved
+    description: "Request has been approved."
+    is_terminal: true
+
+  - id: state-approval-rejected
+    name: Rejected
+    description: "Request has been rejected."
+    is_terminal: true

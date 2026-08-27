@@ -1,0 +1,24 @@
+actions:
+  - id: action-approve
+    version: "1.0"
+    category: approval
+    name: Approve Request
+    requires: ["human_approval_role"]
+    produces: ["approval_timestamp", "approver_id"]
+    description: "Approves a pending request."
+
+  - id: action-reject
+    version: "1.0"
+    category: approval
+    name: Reject Request
+    requires: ["human_approval_role"]
+    produces: ["rejection_reason", "rejector_id"]
+    description: "Rejects a pending request."
+
+  - id: action-notify
+    version: "1.0"
+    category: communication
+    name: Send Notification
+    requires: ["user_id", "message"]
+    produces: ["notification_id"]
+    description: "Sends an email or push notification."

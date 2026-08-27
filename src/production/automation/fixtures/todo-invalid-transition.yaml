@@ -1,0 +1,16 @@
+workflow:
+  id: todo-approval-invalid
+  version: 1.0
+
+trigger:
+  event: todo.created
+
+states:
+  - Pending
+  - Approved
+
+transitions:
+  # Transition to non-existent state 'Rejected'
+  - from: Pending
+    action: reject
+    to: Rejected

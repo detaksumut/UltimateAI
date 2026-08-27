@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UltimateAI Studio — Control Plane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="dashboard.css"/>
+</head>
+<body>
+  <!-- ── Sidebar ────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⬡</div>
+      <div>
+        <div class="brand-name">UltimateAI</div>
+        <div class="brand-sub">Studio Control Plane</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" data-panel="generate" id="nav-generate">
+        <span class="nav-icon">⚡</span> Generate
+      </a>
+      <a class="nav-item" data-panel="requests" id="nav-requests">
+        <span class="nav-icon">📋</span> Requests
+      </a>
+      <a class="nav-item" data-panel="metrics" id="nav-metrics">
+        <span class="nav-icon">📊</span> Metrics
+      </a>
+      <a class="nav-item" data-panel="trace" id="nav-trace">
+        <span class="nav-icon">🔍</span> Trace
+      </a>
+      <a class="nav-item" data-panel="activity" id="nav-activity">
+        <span class="nav-icon">📡</span> Activity
+        <span class="live-dot" id="live-dot"></span>
+      </a>
+      <a class="nav-item" data-panel="capabilities" id="nav-capabilities">
+        <span class="nav-icon">⚙️</span> Capabilities
+      </a>
+      <a class="nav-item" data-panel="policies" id="nav-policies">
+        <span class="nav-icon">📜</span> Policies
+      </a>
+      <a class="nav-item" data-panel="health" id="nav-health">
+        <span class="nav-icon">💚</span> Health
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="health-badge" class="health-badge">—</div>
+      <div class="version-info" id="version-info">v1 · Phase H</div>
+    </div>
+  </aside>
+
+  <!-- ── Main ──────────────────────────────────────────────────── -->
+  <main class="main">
+    <!-- Generate -->
+    <section class="panel active" id="panel-generate">
+      <div class="panel-header">
+        <h1>Generate System</h1>
+        <p class="panel-desc">Describe what you want to build in natural language.</p>
+      </div>
+      <div class="card">
+        <textarea id="gen-input" class="gen-input" rows="4"
+          placeholder="e.g. Build a national OJS system with reviewer workflows, DOI, ORCID, Docker deployment..."></textarea>
+        <div class="gen-controls">
+          <select id="gen-priority" class="select-small">
+            <option value="normal">Priority: Normal</option>
+            <option value="high">Priority: High</option>
+            <option value="low">Priority: Low</option>
+          </select>
+          <label class="checkbox-label">
+            <input type="checkbox" id="gen-preview-only"/> Preview only
+          </label>
+          <button id="btn-generate" class="btn-primary">⚡ Generate</button>
+        </div>
+        <div id="gen-spinner" class="spinner hidden">
+          <div class="spin-ring"></div>
+          <span id="gen-spinner-msg">Initializing pipeline…</span>
+        </div>
+      </div>
+      <div id="gen-result" class="card result-card hidden">
+        <div class="result-header">
+          <span id="result-badge" class="badge"></span>
+          <span id="result-cert" class="mono dim"></span>
+        </div>
+        <div class="result-grid" id="result-grid"></div>
+        <div id="result-explanation" class="explanation-block"></div>
+      </div>
+    </section>
+
+    <!-- Requests -->
+    <section class="panel" id="panel-requests">
+      <div class="panel-header">
+        <h1>Requests</h1>
+        <button class="btn-ghost" id="btn-refresh-requests">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <table class="data-table" id="requests-table">
+          <thead><tr><th>Request ID</th><th>Status</th><th>Attempt</th><th>Updated</th></tr></thead>
+          <tbody id="requests-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Metrics -->
+    <section class="panel" id="panel-metrics">
+      <div class="panel-header">
+        <h1>Metrics</h1>
+        <button class="btn-ghost" id="btn-refresh-metrics">↻ Refresh</button>
+      </div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+    </section>
+
+    <!-- Trace -->
+    <section class="panel" id="panel-trace">
+      <div class="panel-header">
+        <h1>Pipeline Trace</h1>
+      </div>
+      <div class="card">
+        <div class="trace-input-row">
+          <input id="trace-id-input" class="input-field" placeholder="Enter Request ID…"/>
+          <button class="btn-primary" id="btn-load-trace">Load Trace</button>
+        </div>
+        <div id="trace-timeline" class="trace-timeline"></div>
+      </div>
+    </section>
+
+    <!-- Activity (SSE) -->
+    <section class="panel" id="panel-activity">
+      <div class="panel-header">
+        <h1>Live Activity</h1>
+        <div class="flex-row gap-sm">
+          <span class="live-indicator" id="sse-status">Connecting…</span>
+          <button class="btn-ghost btn-sm" id="btn-clear-activity">Clear</button>
+        </div>
+      </div>
+      <div class="activity-feed" id="activity-feed">
+        <div class="activity-empty">Waiting for events…</div>
+      </div>
+    </section>
+
+    <!-- Capabilities -->
+    <section class="panel" id="panel-capabilities">
+      <div class="panel-header"><h1>Generator Capabilities</h1></div>
+      <div class="card">
+        <table class="data-table" id="cap-table">
+          <thead><tr><th>Generator</th><th>Name</th><th>Produces</th><th>Patterns</th><th>Maturity</th><th>Version</th></tr></thead>
+          <tbody id="cap-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Policies -->
+    <section class="panel" id="panel-policies">
+      <div class="panel-header"><h1>Policy Version History</h1></div>
+      <div class="card">
+        <table class="data-table" id="policy-table">
+          <thead><tr><th>Policy ID</th><th>Name</th><th>Version</th><th>Effective From</th></tr></thead>
+          <tbody id="policy-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Health -->
+    <section class="panel" id="panel-health">
+      <div class="panel-header">
+        <h1>System Health</h1>
+        <button class="btn-ghost" id="btn-refresh-health">↻ Refresh</button>
+      </div>
+      <div id="health-summary" class="health-summary-bar"></div>
+      <div class="card">
+        <table class="data-table" id="health-table">
+          <thead><tr><th>Component</th><th>Status</th><th>Sprint</th><th>Detail</th></tr></thead>
+          <tbody id="health-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

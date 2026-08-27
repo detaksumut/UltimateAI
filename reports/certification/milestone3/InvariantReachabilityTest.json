@@ -1,7 +1,7 @@
 {
   "suite": "InvariantReachabilityTest",
   "status": "PASS",
-  "durationMs": 52,
+  "durationMs": 47,
   "metrics": {
     "cycleDetected1": false,
     "cycleDetected2": true,

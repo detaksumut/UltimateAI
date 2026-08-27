@@ -1,0 +1,23 @@
+id: "ultimate.runtime.legal"
+name: "Legal Domain Intelligence Runtime"
+version: "1.0.0"
+category: "Domain"
+foundation:
+  baseline: "UAI-FB-1.0"
+  compatibleFrom: "UAI-FB-1.0"
+  compatibleUntil: "UAI-FB-1.x"
+capabilities:
+  - "LegalDomainAnalysis"
+dependencies:
+  - id: "ultimate.runtime.knowledge"
+    version: ">=1.0"
+  - id: "ultimate.runtime.memory"
+    version: ">=1.0"
+permissions:
+  - "knowledge.read"
+  - "bus.emit"
+contracts: []
+signature:
+  publisher: "UltimateAI"
+  checksum: "sha256-signature-legal"
+  signed: true

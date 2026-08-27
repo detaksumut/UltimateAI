@@ -1,0 +1,12 @@
+events:
+  - event: competition.registered
+    name: Competition Registered
+    version: "1.0"
+    domain: competition
+    description: "Triggered when a participant registers for a competition."
+    payload:
+      type: object
+      properties:
+        competition_id: { type: string }
+        participant_id: { type: string }
+      required: [competition_id, participant_id]

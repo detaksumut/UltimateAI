@@ -2,31 +2,75 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* 
-  Custom Design System
-*/
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-accent: #8b5cf6;
-  --color-accent-hover: #7c3aed;
+  /* Override Tailwind v4 default indigo to APASIFIC Gold */
+  --color-indigo-50: #fdfbf6;
+  --color-indigo-100: #fbf5ea;
+  --color-indigo-200: #f4e7cd;
+  --color-indigo-300: #edd5a8;
+  --color-indigo-400: #DDBF67;
+  --color-indigo-500: #C9A84C;
+  --color-indigo-600: #b8923a;
+  --color-indigo-700: #94722c;
+  --color-indigo-800: #795b27;
+  --color-indigo-900: #644b24;
+  --color-indigo-950: #3a2a12;
+
+  /* Override Tailwind v4 default blue to APASIFIC Dark Blue & Gray */
+  --color-blue-50: #fbfbfc;
+  --color-blue-100: #f5f5f7;
+  --color-blue-200: #e7e7eb;
+  --color-blue-300: #D1D5DB;
+  --color-blue-400: #9a9da8;
+  --color-blue-500: #8888AA;
+  --color-blue-600: #6b6b85;
+  --color-blue-700: #535368;
+  --color-blue-800: #2A2A35;
+  --color-blue-900: #151520;
+  --color-blue-950: #060610;
+
+  /* Theme standard colors */
+  --color-primary: #C9A84C;
+  --color-primary-hover: #DDBF67;
+  --color-accent: #C9A84C;
+  --color-accent-hover: #DDBF67;
+}
+
+:root {
+  --bg: #060610;
+  --card-bg: rgba(15, 15, 25, 0.7);
+  --border: rgba(201, 168, 76, 0.25); /* Subtle gold */
+  --primary: #C9A84C;
+  --primary-hover: #DDBF67;
+  --accent: #C9A84C;
+  --muted: #8888AA;
 }
 
 @layer base {
   body {
-    @apply antialiased text-slate-50 bg-[#0B0F19] transition-colors duration-300;
+    @apply antialiased transition-colors duration-300;
+    background-color: var(--bg);
+    color: #D1D5DB;
   }
   .dark body {
-    @apply text-slate-50 bg-[#0B0F19];
+    background-color: var(--bg);
+    color: #D1D5DB;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    color: #FFFFFF;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-slate-200/50 shadow-sm transition-all duration-300;
+    @apply backdrop-blur-xl shadow-sm transition-all duration-300;
+    background: linear-gradient(145deg, rgba(30, 30, 45, 0.7) 0%, rgba(10, 10, 16, 0.9) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 1px 1px 1px rgba(255, 255, 255, 0.05), 0 10px 30px rgba(0,0,0,0.8);
   }
   .dark .glass-card {
-    @apply bg-slate-900/80 border-slate-700/50 shadow-none;
+    background: linear-gradient(145deg, rgba(30, 30, 45, 0.7) 0%, rgba(10, 10, 16, 0.9) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -35,7 +79,183 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-}
+  
+  /* HYPER-REALISTIC LIGHTING & GLOW INJECTIONS */
+  
+  /* 1. Bioluminescent Typography (Text Glows) */
+  .text-indigo-400 {
+    text-shadow: 0 0 12px rgba(201, 168, 76, 0.8), 0 0 25px rgba(201, 168, 76, 0.4) !important;
+    color: #FFE194 !important;
+  }
+  .text-blue-300 {
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.2) !important;
+  }
+  .text-white {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5) !important;
+  }
+  
+  /* 2. Deep Cavity Inputs & Textareas */
+  input, textarea, .bg-indigo-950\/20, .bg-\[\#0a0a0f\] {
+    background: #020204 !important; /* Extremely dark */
+    box-shadow: 
+      inset 0 4px 10px rgba(0,0,0,0.9), 
+      inset 0 1px 3px rgba(0,0,0,0.9),
+      0 1px 0 rgba(255,255,255,0.05) !important;
+    border: 1px solid #111 !important;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.3) !important;
+    transition: all 0.3s ease !important;
+  }
+  input:focus, textarea:focus {
+    border-bottom: 1px solid #C9A84C !important;
+    box-shadow: 
+      inset 0 4px 10px rgba(0,0,0,0.9),
+      0 4px 15px rgba(201, 168, 76, 0.2) !important;
+    outline: none !important;
+  }
+
+  /* 3. Primary Buttons (Solid Metallic Gold) */
+  .bg-indigo-600 {
+    background: linear-gradient(135deg, #FFF3C4 0%, #DDBF67 20%, #C9A84C 60%, #795b27 100%) !important;
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.8), 
+      inset 0 -6px 12px rgba(0, 0, 0, 0.5),
+      0 10px 30px rgba(201, 168, 76, 0.4),
+      0 2px 5px rgba(0,0,0,0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    color: #000000 !important;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    transform: perspective(100px) translateZ(2px);
+  }
+  .hover\:bg-indigo-700:hover {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFE194 20%, #DDBF67 60%, #94722c 100%) !important;
+    box-shadow: 
+      inset 0 4px 8px rgba(255, 255, 255, 0.9), 
+      inset 0 -6px 12px rgba(0, 0, 0, 0.5),
+      0 15px 40px rgba(201, 168, 76, 0.6),
+      0 5px 15px rgba(0,0,0,0.8) !important;
+    transform: translateY(-2px) perspective(100px) translateZ(4px);
+  }
+
+  /* 4. Secondary/Panel Backgrounds (Thick Smoked Glass) */
+  .bg-\[\#151B2B\], .bg-\[\#1e293b\] {
+    background: linear-gradient(160deg, rgba(40, 42, 55, 0.85) 0%, rgba(15, 15, 22, 0.95) 100%) !important;
+    box-shadow: 
+      inset 0 2px 2px rgba(255, 255, 255, 0.15), 
+      inset 1px 0 2px rgba(255, 255, 255, 0.1),
+      0 20px 50px rgba(0, 0, 0, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(20px) saturate(150%) !important;
+  }
+  
+  /* Vertical Neon Panel Dividers (Sidebars) */
+  .border-r.border-\[\#1E293B\] {
+    border-right: 1px solid #C9A84C !important;
+    box-shadow: 
+      inset 0 2px 2px rgba(255, 255, 255, 0.1),
+      inset -2px 0 10px rgba(201, 168, 76, 0.25), /* Inner Neon */
+      30px 0 150px 20px rgba(201, 168, 76, 0.25), /* Massive Light Spill to Center */
+      0 20px 50px rgba(0, 0, 0, 0.95) !important;
+  }
+  .border-l.border-\[\#1E293B\] {
+    border-left: 1px solid #C9A84C !important;
+    box-shadow: 
+      inset 0 2px 2px rgba(255, 255, 255, 0.1),
+      inset 2px 0 10px rgba(201, 168, 76, 0.25),
+      -30px 0 150px 20px rgba(201, 168, 76, 0.25), /* Massive Light Spill to Center */
+      0 20px 50px rgba(0, 0, 0, 0.95) !important;
+  }
+  
+  /* Center Canvas Ambient Light (Spilling toward Genie head) */
+  .bg-\[\#0B0F19\] {
+    box-shadow: 
+      inset 100px 0 250px -50px rgba(201, 168, 76, 0.25), /* Deep spill from left */
+      inset -100px 0 250px -50px rgba(201, 168, 76, 0.25), /* Deep spill from right */
+      inset 0 80px 200px -50px rgba(201, 168, 76, 0.15) !important; /* Top header spill */
+  }
+  
+  /* The Pipeline Stepper Container - Eclipse Glow */
+  .overflow-x-auto.rounded-2xl.bg-\[\#151B2B\] {
+    box-shadow: 
+      inset 0 2px 2px rgba(255, 255, 255, 0.15), 
+      inset 1px 0 2px rgba(255, 255, 255, 0.1),
+      0 0 80px rgba(201, 168, 76, 0.25), /* Solid Gold Backlight */
+      0 20px 50px rgba(0, 0, 0, 0.95) !important;
+    border: 1px solid #C9A84C !important;
+    border-bottom: 2px solid #000 !important;
+  }
+
+  /* Active Pipeline Step (border-indigo-600) */
+  .border-indigo-600 {
+    border-color: #C9A84C !important;
+    background: radial-gradient(circle at center, rgba(201, 168, 76, 0.25) 0%, transparent 80%) !important;
+    box-shadow: 
+      inset 0 0 10px rgba(201, 168, 76, 0.5),
+      0 0 20px rgba(201, 168, 76, 0.5) !important;
+  }
+  
+  /* 5. Sidebar/Header Backgrounds */
+  .bg-black {
+    background: linear-gradient(180deg, #101018 0%, #020204 100%) !important;
+    box-shadow: inset -2px 0 5px rgba(255, 255, 255, 0.03), 10px 0 30px rgba(0,0,0,1) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+  }
+
+  /* Top Header Bar (Topbar) - Golden Spill */
+  .h-16.bg-\[\#151B2B\] {
+    background: linear-gradient(180deg, #101018 0%, #060610 100%) !important;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.5) !important;
+    box-shadow: 
+      inset 0 -1px 2px rgba(255, 255, 255, 0.05),
+      0 10px 40px rgba(201, 168, 76, 0.15), /* Glowing spill downwards */
+      0 5px 20px rgba(0, 0, 0, 0.9) !important;
+    z-index: 50 !important;
+  }
+
+  /* User Profile Avatar (bg-blue-800 rounded-full) */
+  .bg-blue-800.rounded-full {
+    background: linear-gradient(135deg, #1A1A2A 0%, #060610 100%) !important;
+    border: 1px solid #C9A84C !important;
+    box-shadow: 
+      inset 0 0 10px rgba(201,168,76,0.3), 
+      0 0 15px rgba(201,168,76,0.2) !important;
+    color: #C9A84C !important;
+  }
+  
+  /* Global Background Spotlight Effect */
+  body {
+    background: radial-gradient(ellipse at 50% -20%, #2A2A4A 0%, #060610 50%, #000000 100%) !important;
+    background-attachment: fixed !important;
+  }
+  
+  /* Titanium Simulator Overrides (Any rounded-3rem or border-[10px]) */
+  .border-\[10px\] {
+    border: 10px solid #1c1508 !important; /* Uniform dark bronze to avoid diagonal corner glitches */
+    box-shadow: 
+      inset 0 0 30px rgba(0,0,0,0.95), /* Deep dark screen interior */
+      inset 0 0 0 2px #000, /* Black inner rim */
+      0 0 0 2px #C9A84C, /* Sharp Gold outer metallic highlight */
+      0 0 60px rgba(201, 168, 76, 0.35), /* Solid yellow/gold backlight */
+      0 0 120px rgba(201, 168, 76, 0.15), /* Extended ambient glow */
+      0 20px 50px rgba(0,0,0,0.9) !important; /* Heavy drop shadow */
+    background: linear-gradient(135deg, rgba(201,168,76,0.05) 0%, transparent 40%, rgba(0,0,0,0.8) 100%) !important;
+  }
+
+  /* Simulator Badges (iPhone 15, Online, dll) */
+  .p-6 .text-blue-300.bg-\[\#151B2B\].rounded-md {
+    background: linear-gradient(135deg, #15151f 0%, #060610 100%) !important;
+    border: 1px solid #C9A84C !important;
+    box-shadow: 0 0 15px rgba(201, 168, 76, 0.2) !important;
+    color: #C9A84C !important;
+  }
+  .p-6 .bg-emerald-500\/10.rounded-md {
+    background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.05) 100%) !important;
+    border: 1px solid rgba(16,185,129,0.5) !important;
+    box-shadow: 0 0 15px rgba(16,185,129,0.2) !important;
+  }
+}  
+
 
 header.header {
   display: flex;
@@ -87,6 +307,8 @@ textarea#prompt {
   resize: vertical;
   font-family: inherit;
   margin-bottom: 1rem;
+  background: rgba(10, 10, 20, 0.5);
+  color: #fff;
 }
 
 .param-input {
@@ -99,18 +321,21 @@ textarea#prompt {
   padding: 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
+  background: rgba(10, 10, 20, 0.5);
+  color: #fff;
 }
 .param-input button {
   background: var(--primary);
-  color: #fff;
+  color: #060610; /* Dark text for contrast on gold */
   border: none;
   border-radius: 6px;
   padding: 0.6rem 1rem;
   cursor: pointer;
   transition: background 0.2s;
+  font-weight: 600;
 }
 .param-input button:hover {
-  background: #0b5ed7;
+  background: var(--primary-hover);
 }
 
 ul.param-list {
@@ -139,7 +364,7 @@ ul.param-list li button {
 button.generate-btn {
   width: 100%;
   background: var(--accent);
-  color: #fff;
+  color: #060610; /* Dark text on gold */
   border: none;
   border-radius: 8px;
   padding: 0.8rem;
@@ -149,7 +374,7 @@ button.generate-btn {
   transition: transform 0.1s, background 0.2s;
 }
 button.generate-btn:hover {
-  background: #5a54e0;
+  background: var(--primary-hover);
 }
 button.generate-btn:active {
   transform: scale(0.98);
@@ -179,6 +404,8 @@ button.generate-btn:active {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
+  background: rgba(10, 10, 20, 0.5);
+  color: #fff;
 }
 
 .param-card .required-toggle {
@@ -209,10 +436,11 @@ button.generate-btn:active {
   top: 0.4rem;
   left: 0.4rem;
   background: var(--accent);
-  color: #fff;
+  color: #060610;
   font-size: 0.75rem;
   padding: 2px 6px;
   border-radius: 4px;
+  font-weight: bold;
 }
 
 /* Dropdown options textarea */
@@ -224,7 +452,8 @@ button.generate-btn:active {
 
 /* Summary preview styling */
 #summaryContent {
-  background: #fafafa;
+  background: rgba(10, 10, 20, 0.6);
+  color: #fff;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
@@ -250,10 +479,10 @@ button.generate-btn:active {
   height: 520px;
   margin: 0 auto;
   padding: 1rem;
-  background: #fff;
+  background: var(--card-bg);
   border: 2px solid var(--border);
   border-radius: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   position: relative;
 }
 
@@ -271,14 +500,17 @@ button.generate-btn:active {
   border: 1px solid var(--border);
   border-radius: 4px;
   font-family: inherit;
+  background: rgba(10, 10, 20, 0.5);
+  color: #fff;
 }
 .mobile-form button {
   background: var(--primary);
-  color: #fff;
+  color: #060610;
   border: none;
   border-radius: 6px;
   padding: 0.5rem;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .qr-section {
@@ -310,24 +542,22 @@ button.generate-btn:active {
   }
 }
 
-
-/* Custom Scrollbar for Dark Mode */
+/* 5. Solid Gold Sliders (Custom Scrollbar) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
+  background: #020204;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: inset 0 0 6px rgba(0,0,0,0.8);
+  border-left: 1px solid rgba(255,255,255,0.02);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border-radius: 4px;
+  background: linear-gradient(180deg, #DDBF67 0%, #94722c 100%);
+  border-radius: 6px;
+  box-shadow: inset 1px 0 2px rgba(255, 255, 255, 0.6), inset -1px 0 2px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.2);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: linear-gradient(180deg, #FFE194 0%, #C9A84C 100%);
 }
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #2a2a2a transparent;
-}
-

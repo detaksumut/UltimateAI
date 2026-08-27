@@ -2,6 +2,6 @@
 export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/tests/architecture/**/*.test.ts'],
+  testMatch: ['**/**/*.test.ts'],
   passWithNoTests: true,
 };
