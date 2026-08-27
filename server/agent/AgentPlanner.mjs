@@ -1,140 +1,159 @@
 /**
  * AgentPlanner.mjs
- * Decomposes natural goals into actionable multi-step execution graphs.
- * Maps sub-tasks to specialist models and tools.
+ * Generates formal DAG Execution Graphs with explicit dependencies and evidence criteria.
  */
 
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 
 export class AgentPlanner {
   /**
-   * Constructs an execution graph from user goal
+   * Constructs an execution graph with explicit dependencies and contracts
    * @param {string} goal - High-level user goal
    * @param {Object} context - Previous conversational history & memory
-   * @returns {Object} plan - { goalId, steps, estimatedComplexity }
+   * @returns {Object} plan - { goalId, goal, graph, steps, evidenceContract }
    */
   static planGoal(goal, context = {}) {
     const raw = goal || '';
     const p = raw.toLowerCase();
     const goalId = `goal-${Date.now()}`;
 
-    const steps = [];
+    const graph = [];
 
-    // 1. LIVE NEWS / BREAKING EVENT GOAL
-    if (p.includes('berita') || p.includes('demo') || p.includes('dpr') || p.includes('politik') || p.includes('terkini') || p.includes('hari ini')) {
-      steps.push({
-        stepId: 1,
-        name: 'MULTI_LAYER_NEWS_HARVEST',
-        tool: 'intel.multilayer_search',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw, layer: 'SURFACE_WEB' },
-        description: 'Rayapi sumber berita terkini & video streaming nasional'
-      });
-      steps.push({
-        stepId: 2,
-        name: 'AUTONOMOUS_VIDEO_RESOLUTION',
-        tool: 'media.video_resolver',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw },
-        description: 'Seleksi 1 video berita terpercaya & berstatus live'
-      });
-      steps.push({
-        stepId: 3,
-        name: 'VERIFY_AND_SYNTHESIZE_HUD',
-        tool: 'ui.render_media_hud',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { targetMode: 'MEDIA' },
-        description: 'Validasi integritas tautan berita & render ke layar simulator'
-      });
-
-      return { goalId, goal: raw, category: 'LIVE_NEWS', steps };
-    }
-
-    // 2. MULTIMEDIA / MUSIC DISPATCH GOAL
-    if (p.includes('lagu') || p.includes('dj') || p.includes('musik') || p.includes('music') || p.includes('heaven') || p.includes('putar') || p.includes('play')) {
-      steps.push({
-        stepId: 1,
-        name: 'RESOLVE_AUDIO_TRACK',
-        tool: 'media.video_resolver',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: raw },
-        description: 'Cari & validasi ID streaming audio/video resmi'
-      });
-      steps.push({
-        stepId: 2,
-        name: 'DISPATCH_MEDIA_PLAYER',
-        tool: 'ui.render_media_hud',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { targetMode: 'MEDIA' },
-        description: 'Muat pemutar audio ke tab MEDIA dan aktifkan pemutaran'
-      });
-
-      return { goalId, goal: raw, category: 'MULTIMEDIA', steps };
-    }
-
-    // 3. APPLICATION & PROTOTYPE GENERATION GOAL
+    // 1. APPLICATION & RESEARCH DASHBOARD SYNTHESIS GOAL
     if (p.includes('aplikasi') || p.includes('buat') || p.includes('kalkulator') || p.includes('prototype') || p.includes('app') || p.includes('dashboard')) {
-      steps.push({
-        stepId: 1,
-        name: 'ARCHITECTURAL_BLUEPRINT',
+      graph.push({
+        id: 'S1',
+        action: 'ARCHITECTURAL_BLUEPRINT',
         tool: 'spec.blueprint_architect',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
         params: { concept: raw },
-        description: 'Rancang spesifikasi arsitektur & komponen interaktif'
+        dependsOn: [],
+        successCriteria: 'blueprint_schema_validated',
+        evidenceContract: 'structural_spec'
       });
-      steps.push({
-        stepId: 2,
-        name: 'CODE_ENGINEERING_SYNTHESIS',
+      graph.push({
+        id: 'S2',
+        action: 'CODE_SYNTHESIS',
         tool: 'code.synthesizer',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.CODE_ENGINEERING[0],
         params: { framework: 'React' },
-        description: 'Generate kode komponen aplikasi interaktif'
+        dependsOn: ['S1'],
+        successCriteria: 'code_artifact_generated',
+        evidenceContract: 'jsx_code_string'
       });
-      steps.push({
-        stepId: 3,
-        name: 'RENDER_SANDBOX_SIMULATOR',
+      graph.push({
+        id: 'S3',
+        action: 'SANDBOX_VERIFICATION',
         tool: 'ui.render_app_sandbox',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.CODE_ENGINEERING[0],
         params: { targetMode: 'APP_PREVIEW' },
-        description: 'Muat & uji aplikasi langsung di simulator iPhone'
+        dependsOn: ['S2'],
+        successCriteria: 'no_critical_runtime_error',
+        evidenceContract: 'render_ready_flag'
       });
 
-      return { goalId, goal: raw, category: 'APP_SYNTHESIS', steps };
+      return {
+        goalId,
+        goal: raw,
+        category: 'APP_SYNTHESIS',
+        steps: graph,
+        evidenceContract: { requiredArtifactType: 'CODE', minSteps: 3 }
+      };
     }
 
-    // 4. STRUCTURED DATA & ANALYTICS GOAL
+    // 2. LIVE NEWS / BREAKING EVENT GOAL
+    if (p.includes('berita') || p.includes('demo') || p.includes('dpr') || p.includes('politik') || p.includes('terkini') || p.includes('hari ini')) {
+      graph.push({
+        id: 'S1',
+        action: 'HARVEST_LIVE_NEWS',
+        tool: 'intel.multilayer_search',
+        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+        params: { query: raw, layer: 'SURFACE_WEB' },
+        dependsOn: [],
+        successCriteria: 'sources_available',
+        evidenceContract: 'verified_news_nodes'
+      });
+      graph.push({
+        id: 'S2',
+        action: 'RESOLVE_TOP_MEDIA_STREAM',
+        tool: 'media.video_resolver',
+        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+        params: { query: raw },
+        dependsOn: ['S1'],
+        successCriteria: 'video_id_resolved',
+        evidenceContract: 'top_ranked_stream'
+      });
+      graph.push({
+        id: 'S3',
+        action: 'RENDER_LIVE_HUD',
+        tool: 'ui.render_media_hud',
+        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
+        params: { targetMode: 'MEDIA' },
+        dependsOn: ['S2'],
+        successCriteria: 'media_rendered_on_hud',
+        evidenceContract: 'hud_state_updated'
+      });
+
+      return {
+        goalId,
+        goal: raw,
+        category: 'LIVE_NEWS',
+        steps: graph,
+        evidenceContract: { requiredArtifactType: 'MEDIA_STREAM', minSteps: 3 }
+      };
+    }
+
+    // 3. STRUCTURED DATA & ANALYTICS GOAL
     if (p.includes('data') || p.includes('tabel') || p.includes('grafik') || p.includes('statistik') || p.includes('metrik')) {
-      steps.push({
-        stepId: 1,
-        name: 'EXTRACT_METRIC_DATASET',
+      graph.push({
+        id: 'S1',
+        action: 'EXTRACT_METRIC_DATASET',
         tool: 'intel.multilayer_search',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
         params: { query: raw },
-        description: 'Ekstraksi parameter data & tabel statistik'
+        dependsOn: [],
+        successCriteria: 'raw_data_extracted',
+        evidenceContract: 'tabular_dataset'
       });
-      steps.push({
-        stepId: 2,
-        name: 'STRUCTURED_MATRIX_SYNTHESIS',
+      graph.push({
+        id: 'S2',
+        action: 'STRUCTURED_MATRIX_SYNTHESIS',
         tool: 'data.matrix_generator',
         specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
         params: { targetMode: 'INSIGHTS' },
-        description: 'Sajikan matriks data analitik ke panel simulator'
+        dependsOn: ['S1'],
+        successCriteria: 'data_matrix_validated',
+        evidenceContract: 'data_matrix_artifact'
       });
 
-      return { goalId, goal: raw, category: 'DATA_ANALYTICS', steps };
+      return {
+        goalId,
+        goal: raw,
+        category: 'DATA_ANALYTICS',
+        steps: graph,
+        evidenceContract: { requiredArtifactType: 'DATA_MATRIX', minSteps: 2 }
+      };
     }
 
-    // 5. GENERAL RESEARCH & CONVERSATION GOAL
-    steps.push({
-      stepId: 1,
-      name: 'DEEP_KNOWLEDGE_SYNTHESIS',
+    // 4. GENERAL RESEARCH & MULTI-LAYER KNOWLEDGE
+    graph.push({
+      id: 'S1',
+      action: 'DEEP_KNOWLEDGE_SEARCH',
       tool: 'intel.multilayer_search',
       specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
       params: { query: raw },
-      description: 'Penelusuran multi-layer simpul pengetahuan'
+      dependsOn: [],
+      successCriteria: 'knowledge_nodes_retrieved',
+      evidenceContract: 'synthesized_brief'
     });
 
-    return { goalId, goal: raw, category: 'KNOWLEDGE_SYNTHESIS', steps };
+    return {
+      goalId,
+      goal: raw,
+      category: 'KNOWLEDGE_SYNTHESIS',
+      steps: graph,
+      evidenceContract: { requiredArtifactType: 'RESEARCH_BRIEF', minSteps: 1 }
+    };
   }
 }
 

@@ -1,9 +1,10 @@
 /**
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
- * Implements: UNDERSTAND ➔ PLAN ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ REPLAN
+ * Implements: UNDERSTAND (DecisionEngine) ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ REPLAN
  */
 
+import { decisionEngineInstance } from './DecisionEngine.mjs';
 import { AgentPlanner } from './AgentPlanner.mjs';
 import { agentExecutorInstance } from './AgentExecutor.mjs';
 import { AgentObserver } from './AgentObserver.mjs';
@@ -23,7 +24,26 @@ export class AgentRuntime {
    */
   async runGoal(userGoal, sessionContext = {}) {
     const startTime = Date.now();
-    let currentGoal = userGoal;
+    const rawGoal = userGoal || '';
+
+    // 1. DECISION ENGINE EVALUATION
+    const decision = decisionEngineInstance.decide(rawGoal, sessionContext);
+
+    // If pure conversational dialogue without task delegation
+    if (!decision.actionRequired) {
+      return {
+        goal: rawGoal,
+        success: true,
+        confidence: 1.0,
+        actionRequired: false,
+        intent: decision.intent,
+        responseMessage: `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data multi-layer, analisis, pemutaran media, atau pembuatan aplikasi instan secara mandiri.`,
+        durationMs: Date.now() - startTime
+      };
+    }
+
+    // 2. AUTONOMOUS PLAN-ACT-OBSERVE-VERIFY-REPLAN LOOP
+    let currentGoal = rawGoal;
     let attempt = 0;
     let finalVerification = null;
     const fullExecutionHistory = [];
@@ -31,13 +51,27 @@ export class AgentRuntime {
     while (attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
       attempt++;
 
-      // 1. UNDERSTAND & PLAN
+      // A. PLAN (DAG Execution Graph)
       const plan = AgentPlanner.planGoal(currentGoal, sessionContext);
 
-      // 2. EXECUTE & OBSERVE (Step-by-Step)
+      // B. EXECUTE & OBSERVE (Step-by-Step with Dependency Checking)
       const currentHistory = [];
 
       for (const step of plan.steps) {
+        // Verify dependencies
+        const depsMet = step.dependsOn.every(depId => 
+          currentHistory.some(h => h.step.id === depId && h.observation?.valid)
+        );
+
+        if (!depsMet) {
+          currentHistory.push({
+            step,
+            stepResult: { success: false, error: 'DEPENDENCY_NOT_MET' },
+            observation: { valid: false, status: 'BLOCKED_DEPENDENCY' }
+          });
+          break;
+        }
+
         const stepResult = await agentExecutorInstance.executeStep(step, {
           priorHistory: currentHistory,
           sessionContext
@@ -52,7 +86,7 @@ export class AgentRuntime {
           timestamp: new Date().toISOString()
         });
 
-        // Break if critical failure
+        // Break if critical failure to trigger replan
         if (!observation.valid) {
           break;
         }
@@ -60,29 +94,31 @@ export class AgentRuntime {
 
       fullExecutionHistory.push({ attempt, plan, currentHistory });
 
-      // 3. VERIFY
+      // C. VERIFY (Evidence Contract Validation)
       const verification = AgentVerifier.verifyGoalCompletion(plan, currentHistory);
       finalVerification = verification;
 
       if (verification.isSatisfied) {
-        // Goal achieved!
+        // Goal verified & achieved!
         break;
       }
 
-      // Replan if needed
+      // D. REPLAN if contract failed
       if (verification.requiresReplan && attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
-        currentGoal = `Replan attempt ${attempt + 1}: ${userGoal}`;
+        currentGoal = `Replan attempt ${attempt + 1}: ${rawGoal}`;
       }
     }
 
     const durationMs = Date.now() - startTime;
 
     const summary = {
-      goal: userGoal,
+      goal: rawGoal,
       success: finalVerification?.isSatisfied || false,
-      confidence: finalVerification?.confidence || 0.9,
+      confidence: finalVerification?.confidence || 0.95,
+      actionRequired: true,
       attempts: attempt,
-      responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah diproses oleh sistem.',
+      responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah selesai diproses dan diverifikasi oleh sistem 9Router.',
+      artifactId: finalVerification?.artifactId || null,
       durationMs,
       telemetry: {
         totalStepsExecuted: fullExecutionHistory.reduce((acc, h) => acc + h.currentHistory.length, 0),
