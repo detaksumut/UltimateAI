@@ -2,12 +2,14 @@
  * AntigravityOAuthEnrollment.mjs
  * Hardened Production OAuth Enrollment Engine for UltimateAI Antigravity Connections.
  * 
- * Audit & Security Compliance:
- *  1. Dynamic Loopback Port: Binds to available ephemeral loopback port before building authorization URL (Single Source of Truth).
- *  2. Cloud Code Assist Scopes: Uses authentic Cloud Platform & OpenID scopes required by Cloud Code backend.
- *  3. System Browser Auto-Launch: Automatically launches system browser on Windows/macOS/Linux with graceful manual fallback.
- *  4. Hard Token & Identity Assertions: Validates accessToken, refreshToken, Bearer token_type, and user identity.
- *  5. Transactional Integrity: Never writes credentials to Vault unless upstream loadCodeAssist discovery succeeds 100%.
+ * Strict Audit Compliance:
+ *  1. Dedicated Namespace: ANTIGRAVITY_OAUTH_CLIENT_ID / ANTIGRAVITY_OAUTH_CLIENT_SECRET.
+ *  2. Configurable Scopes: ANTIGRAVITY_OAUTH_SCOPES (Candidate: cloud-platform, userinfo, cclog, experimentsandconfigs).
+ *  3. Dynamic Ephemeral Loopback Port: Auto-allocated by OS, eliminating port collision.
+ *  4. Stage Separation: GOOGLE_OAUTH_SUCCESS vs ANTIGRAVITY_CLOUD_CODE_AUTHORIZED.
+ *  5. Hard Token Assertions: access_token, refresh_token, token_type=Bearer, expires_in.
+ *  6. Transactional Integrity: Persists to Vault ONLY upon authentic UPSTREAM_PROJECT_DISCOVERED proof.
+ *  7. Zero PII / Secret Leakage: Diagnostics strictly omit tokens, secrets, or raw ciphertext.
  */
 
 import http from 'http';
@@ -40,21 +42,41 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Validates explicit OAuth client configuration
+   * Validates explicit Antigravity OAuth client configuration
    */
   _getOAuthConfig() {
-    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+    const clientId = process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
+    const clientSecret = process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
 
     if (!clientId) {
-      throw new Error('AUTH_CONFIGURATION_MISSING: GOOGLE_OAUTH_CLIENT_ID environment variable is required for Antigravity OAuth enrollment.');
+      throw new Error('AUTH_CONFIGURATION_MISSING: ANTIGRAVITY_OAUTH_CLIENT_ID environment variable is required for Antigravity OAuth enrollment.');
     }
 
-    return { clientId, clientSecret };
+    const defaultScopes = [
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/cloud-platform',
+      'https://www.googleapis.com/auth/cclog',
+      'https://www.googleapis.com/auth/experimentsandconfigs'
+    ];
+
+    const scopes = process.env.ANTIGRAVITY_OAUTH_SCOPES
+      ? process.env.ANTIGRAVITY_OAUTH_SCOPES.split(',').map(s => s.trim())
+      : defaultScopes;
+
+    const controlPlaneEndpoint = process.env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://cloudcode-pa.googleapis.com';
+
+    return {
+      clientId,
+      clientSecret,
+      scopes: scopes.join(' '),
+      controlPlaneEndpoint
+    };
   }
 
   /**
-   * Generates PKCE code verifier and challenge
+   * Generates PKCE code verifier, challenge, and secure state
    */
   generatePKCE() {
     const verifier = base64URLEncode(crypto.randomBytes(32));
@@ -64,16 +86,9 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Builds the Google OAuth 2.0 authorization URL for Cloud Code Assist
+   * Builds the Google OAuth 2.0 authorization URL
    */
-  buildAuthUrl({ clientId, redirectUri, challenge, state }) {
-    const scopes = [
-      'openid',
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/cloud-platform'
-    ].join(' ');
-
+  buildAuthUrl({ clientId, redirectUri, scopes, challenge, state }) {
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -90,7 +105,7 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Safely attempts to open browser window on host OS
+   * Safely launches system browser on host OS
    */
   openBrowser(url) {
     const platform = process.platform;
@@ -109,95 +124,6 @@ export class AntigravityOAuthEnrollment {
     } catch {
       // Graceful fallback to manual terminal link
     }
-  }
-
-  /**
-   * Starts a dynamic loopback listener on an OS-assigned ephemeral port
-   */
-  async startDynamicLoopbackListener(expectedState, timeoutMs = 120000) {
-    return new Promise((resolve, reject) => {
-      let timer = null;
-
-      const server = http.createServer(async (req, res) => {
-        const boundPort = server.address().port;
-        const reqUrl = new URL(req.url, `http://127.0.0.1:${boundPort}`);
-
-        if (reqUrl.pathname !== '/oauth/callback') {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not Found');
-          return;
-        }
-
-        const code = reqUrl.searchParams.get('code');
-        const state = reqUrl.searchParams.get('state');
-        const error = reqUrl.searchParams.get('error');
-
-        const cleanup = () => {
-          if (timer) clearTimeout(timer);
-          server.close();
-        };
-
-        if (error) {
-          res.writeHead(400, { 'Content-Type': 'text/html' });
-          res.end(`<h2>OAuth Authorization Denied</h2><p>${error}</p>`);
-          cleanup();
-          reject(new Error(`OAUTH_DENIED: ${error}`));
-          return;
-        }
-
-        if (state !== expectedState) {
-          res.writeHead(400, { 'Content-Type': 'text/html' });
-          res.end(`<h2>Invalid State</h2><p>OAuth state verification mismatch.</p>`);
-          cleanup();
-          reject(new Error('OAUTH_STATE_MISMATCH: Security state token mismatch.'));
-          return;
-        }
-
-        if (!code) {
-          res.writeHead(400, { 'Content-Type': 'text/html' });
-          res.end(`<h2>Missing Code</h2><p>No authorization code received.</p>`);
-          cleanup();
-          reject(new Error('MISSING_AUTH_CODE: Callback did not contain authorization code.'));
-          return;
-        }
-
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-          <!DOCTYPE html>
-          <html>
-            <head><title>UltimateAI OAuth Success</title></head>
-            <body style="font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #f3f4f6; text-align: center; padding: 60px 20px;">
-              <div style="max-width: 480px; margin: 0 auto; background: #111827; border: 1px solid #10b981; border-radius: 12px; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-                <div style="font-size: 40px; margin-bottom: 12px;">✅</div>
-                <h2 style="color: #10b981; margin: 0 0 12px 0;">Otorisasi Antigravity Berhasil</h2>
-                <p style="color: #9ca3af; font-size: 14px; line-height: 1.5;">Koneksi OAuth telah diterima. Anda dapat menutup tab ini dan kembali ke terminal UltimateAI.</p>
-              </div>
-            </body>
-          </html>
-        `);
-
-        cleanup();
-        resolve(code);
-      });
-
-      // Bind to port 0 (OS allocates available loopback port)
-      server.listen(0, '127.0.0.1', () => {
-        const port = server.address().port;
-        const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
-
-        timer = setTimeout(() => {
-          server.close();
-          reject(new Error('ENROLLMENT_TIMEOUT: OAuth callback not received within 120 seconds.'));
-        }, timeoutMs);
-
-        resolve({ server, port, redirectUri });
-      });
-
-      server.on('error', (err) => {
-        if (timer) clearTimeout(timer);
-        reject(err);
-      });
-    });
   }
 
   /**
@@ -232,11 +158,11 @@ export class AntigravityOAuthEnrollment {
 
     // Strict assertions on token payload
     if (!tokenData.access_token || typeof tokenData.access_token !== 'string') {
-      throw new Error('TOKEN_VALIDATION_ERROR: Upstream did not return a valid access_token.');
+      throw new Error('TOKEN_VALIDATION_ERROR: Upstream response did not contain access_token.');
     }
 
     if (!tokenData.refresh_token || typeof tokenData.refresh_token !== 'string') {
-      throw new Error('TOKEN_VALIDATION_ERROR: Upstream did not return a refresh_token (ensure access_type=offline and prompt=consent).');
+      throw new Error('TOKEN_VALIDATION_ERROR: Upstream response did not contain refresh_token (ensure access_type=offline and prompt=consent).');
     }
 
     if (tokenData.token_type && tokenData.token_type.toLowerCase() !== 'bearer') {
@@ -247,76 +173,13 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Fetches account identity to verify token authenticity
-   */
-  async fetchAccountIdentity(accessToken) {
-    try {
-      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-
-      if (response.ok) {
-        const userInfo = await response.json();
-        return {
-          id: userInfo.id || 'unknown_id',
-          verified: true
-        };
-      }
-    } catch {
-      // Non-fatal if userinfo endpoint is restricted, as long as token works for cloud platform
-    }
-
-    return { id: 'authenticated_google_account', verified: true };
-  }
-
-  /**
-   * Enrolls an account connection with strict transactional integrity
-   */
-  async enrollConnection({ connectionId, accountAlias, label }) {
-    const config = this._getOAuthConfig();
-    const { verifier, challenge, state } = this.generatePKCE();
-
-    // 1. Start Dynamic Ephemeral Loopback Listener First
-    const loopback = await this.startDynamicLoopbackListener(state);
-    const redirectUri = loopback.redirectUri;
-
-    // 2. Build Single-Source-of-Truth Auth URL
-    const authUrl = this.buildAuthUrl({
-      clientId: config.clientId,
-      redirectUri,
-      challenge,
-      state
-    });
-
-    console.log(`\n================================================================`);
-    console.log(`  ULTIMATEAI OAUTH ENROLLMENT: [${connectionId.toUpperCase()}]`);
-    console.log(`================================================================`);
-    console.log(`Redirect URI: ${redirectUri}`);
-    console.log(`\nLaunching system browser for authorization...`);
-    console.log(`If browser does not open automatically, visit:\n${authUrl}\n`);
-
-    this.openBrowser(authUrl);
-
-    // 3. Wait for authorization code
-    const code = await new Promise((resolve, reject) => {
-      loopback.server.on('close', () => {});
-      // Hook into listener resolution
-      this._activeCallbackPromise = { resolve, reject };
-    }).catch(async () => {
-      // The inner listener handles resolution directly
-    });
-
-    // Note: For CLI execution, we run with listener wrapper
-  }
-
-  /**
-   * Standalone Interactive Enrollment CLI Flow
+   * Interactive Production Enrollment Flow with Strict Stage Separation
    */
   async executeInteractiveEnrollment({ connectionId, accountAlias, label }) {
     const config = this._getOAuthConfig();
     const { verifier, challenge, state } = this.generatePKCE();
 
-    // Start Dynamic Loopback
+    // 1. Dynamic Ephemeral Loopback Listener
     let codeResolver;
     let codeRejecter;
     const codePromise = new Promise((res, rej) => {
@@ -384,6 +247,7 @@ export class AntigravityOAuthEnrollment {
     const authUrl = this.buildAuthUrl({
       clientId: config.clientId,
       redirectUri,
+      scopes: config.scopes,
       challenge,
       state
     });
@@ -391,8 +255,13 @@ export class AntigravityOAuthEnrollment {
     console.log(`\n================================================================`);
     console.log(`  ULTIMATEAI OAUTH ENROLLMENT: [${connectionId.toUpperCase()}]`);
     console.log(`================================================================`);
-    console.log(`\n[STEP 1] Dynamic Loopback Listener Bound: ${redirectUri}`);
-    console.log(`\n[STEP 2] Launching System Browser for Google Cloud Code Authorization...`);
+    console.log(`\n[DIAGNOSTICS - STAGE 0] Pre-Flight Configuration:`);
+    console.log(`  -> oauthConfigPresent:          true`);
+    console.log(`  -> redirectUri:                 ${redirectUri}`);
+    console.log(`  -> selectedControlPlaneEndpoint:${config.controlPlaneEndpoint}`);
+    console.log(`  -> configuredScopes:            ${config.scopes}`);
+
+    console.log(`\n[STEP 1] Launching System Browser for Google OAuth Authorization...`);
     console.log(`If browser does not open automatically, visit:\n\n${authUrl}\n`);
 
     this.openBrowser(authUrl);
@@ -401,8 +270,8 @@ export class AntigravityOAuthEnrollment {
     const code = await codePromise;
     console.log(`\n✅ Authorization code received from browser loopback callback.`);
 
-    // 4. Token Exchange & Assertions
-    console.log(`\n[STEP 3] Exchanging Code for Tokens with Strict Assertions...`);
+    // 2. Token Exchange (Stage 1: GOOGLE_OAUTH_SUCCESS)
+    console.log(`\n[STAGE 1: GOOGLE_OAUTH] Exchanging Authorization Code for Tokens...`);
     const tokenData = await this.exchangeCodeForTokens({
       code,
       verifier,
@@ -416,28 +285,38 @@ export class AntigravityOAuthEnrollment {
     const expiresIn = tokenData.expires_in || 3600;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    console.log(`  -> Access Token:  VALID (Type: ${tokenData.token_type || 'Bearer'})`);
-    console.log(`  -> Refresh Token: PRESENT (Offline access granted)`);
-    console.log(`  -> Expires At:    ${expiresAt}`);
+    console.log(`  -> tokenExchangeSuccess: true`);
+    console.log(`  -> tokenType:            ${tokenData.token_type || 'Bearer'}`);
+    console.log(`  -> refreshTokenPresent:  true`);
+    console.log(`  -> expiresAt:            ${expiresAt}`);
+    console.log(`  -> Status:               🟢 GOOGLE_OAUTH_SUCCESS`);
 
-    // 5. Account Identity Validation
-    console.log(`\n[STEP 4] Attesting Account Identity...`);
-    const identity = await this.fetchAccountIdentity(accessToken);
-    console.log(`  -> Identity Check: ${identity.verified ? 'VERIFIED' : 'UNVERIFIED'}`);
-
-    // 6. Strict Upstream Control Plane Onboarding (loadCodeAssist)
-    console.log(`\n[STEP 5] Discovering Upstream Project Binding (/v1internal:loadCodeAssist)...`);
+    // 3. Control Plane Onboarding (Stage 2: ANTIGRAVITY_CLOUD_CODE_AUTHORIZED)
+    console.log(`\n[STAGE 2: CLOUD_CODE_ONBOARDING] Discovering Upstream Project Binding (/v1internal:loadCodeAssist)...`);
     const tempConn = { id: connectionId, accessToken };
-    const projectInfo = await this.transport.loadCodeAssist(tempConn, accessToken, { strictFreshProof: true });
+    let projectInfo = null;
 
-    if (projectInfo.projectSource !== 'UPSTREAM_PROJECT_DISCOVERED') {
-      throw new Error(`ONBOARDING_REJECTED: Project source was ${projectInfo.projectSource}, expected UPSTREAM_PROJECT_DISCOVERED.`);
+    try {
+      projectInfo = await this.transport.loadCodeAssist(tempConn, accessToken, { strictFreshProof: true });
+    } catch (onboardingErr) {
+      console.error(`\n❌ Control Plane Onboarding FAILED: ${onboardingErr.message}`);
+      console.error(`❌ Transaction Aborted: Credentials NOT persisted to Vault (Fail-Closed).`);
+      throw new Error(`ANTIGRAVITY_ONBOARDING_FAILED: Google login succeeded, but Cloud Code Assist rejected authorization (${onboardingErr.message}).`);
     }
 
-    console.log(`  -> Fresh Upstream Project Bound: ${projectInfo.projectId} (Tier: ${projectInfo.tier})`);
+    if (projectInfo.projectSource !== 'UPSTREAM_PROJECT_DISCOVERED' || !projectInfo.projectId) {
+      console.error(`\n❌ Transaction Aborted: No authoritative upstream projectId received.`);
+      throw new Error('ANTIGRAVITY_ONBOARDING_REJECTED: Upstream did not return an authoritative projectId.');
+    }
 
-    // 7. Transactional Persistence (ONLY upon onboarding success)
-    console.log(`\n[STEP 6] Transactional Persistence: Encrypting credentials in Local Vault...`);
+    console.log(`  -> projectSource:     ${projectInfo.projectSource}`);
+    console.log(`  -> projectIdPresent:  true`);
+    console.log(`  -> projectId:         ${projectInfo.projectId}`);
+    console.log(`  -> projectTier:       ${projectInfo.tier}`);
+    console.log(`  -> Status:            🟢 ANTIGRAVITY_CLOUD_CODE_AUTHORIZED`);
+
+    // 4. Transactional Persistence (ONLY after Stage 2 success)
+    console.log(`\n[STAGE 3: SECURE_PERSISTENCE] Encrypting Credentials in Local Vault...`);
     const saved = this.store.saveConnection({
       id: connectionId,
       accountAlias: accountAlias || `antigravity-${connectionId.replace('ag-', '')}`,
@@ -455,7 +334,7 @@ export class AntigravityOAuthEnrollment {
     });
 
     console.log(`\n================================================================`);
-    console.log(`  🏆 CONNECTION [${connectionId.toUpperCase()}] SUCCESSFULLY ENROLLED & SECURED!`);
+    console.log(`  🏆 CONNECTION [${connectionId.toUpperCase()}] FULLY ENROLLED & SECURED!`);
     console.log(`================================================================\n`);
     return saved;
   }

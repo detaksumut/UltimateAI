@@ -16,8 +16,8 @@ export class AntigravityCloudCodeTransport {
   constructor(tokenManager = antigravityTokenManagerInstance, quotaTracker = antigravityQuotaTrackerInstance) {
     this.tokenManager = tokenManager;
     this.quotaTracker = quotaTracker;
-    this.cloudCodeBaseUrl = 'https://cloudcode-pa.googleapis.com';
-    this.defaultLocation = 'us-central1';
+    this.cloudCodeBaseUrl = process.env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://cloudcode-pa.googleapis.com';
+    this.defaultLocation = process.env.ANTIGRAVITY_LOCATION || 'us-central1';
   }
 
   /**
