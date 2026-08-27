@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862502445-glttl",
+  "name": "analytics_goal-1787862502326",
+  "currentVersion": 1,
+  "latestHash": "9d9dc3bbd704e0267d0cf0fbd7d2d6b4900431662f49dc7e35d72ee29eab225a",
+  "lastUpdated": "2026-08-27T20:28:22.447Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "9d9dc3bbd704e0267d0cf0fbd7d2d6b4900431662f49dc7e35d72ee29eab225a",
+      "timestamp": "2026-08-27T20:28:22.447Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

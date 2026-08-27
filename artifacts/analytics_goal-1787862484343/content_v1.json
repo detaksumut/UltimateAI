@@ -1,0 +1,22 @@
+[
+  {
+    "parameter": "Query Target",
+    "metric": "Yang kedua kelihatannya punya kejanggalan, tolong gali lebih dalam dan ekstrak datanya.",
+    "status": "PROCESSED"
+  },
+  {
+    "parameter": "Multi-Layer Nodes",
+    "metric": "2 Simpul Aktif",
+    "status": "VERIFIED"
+  },
+  {
+    "parameter": "Response Latency",
+    "metric": "328 ms",
+    "status": "OPTIMAL"
+  },
+  {
+    "parameter": "Data Integrity",
+    "metric": "99.8 %",
+    "status": "VALIDATED"
+  }
+]

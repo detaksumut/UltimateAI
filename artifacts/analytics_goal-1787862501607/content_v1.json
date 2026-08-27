@@ -1,0 +1,22 @@
+[
+  {
+    "parameter": "Query Target",
+    "metric": "Saya sedang menyiapkan presentasi besok. Angka pertumbuhan ini kelihatannya tidak masuk akal. Tolong cari penyebabnya, bandingkan dengan kondisi industri sekarang, lalu buatkan ringkasan yang bisa langsung saya masukkan ke presentasi.",
+    "status": "PROCESSED"
+  },
+  {
+    "parameter": "Multi-Layer Nodes",
+    "metric": "2 Simpul Aktif",
+    "status": "VERIFIED"
+  },
+  {
+    "parameter": "Response Latency",
+    "metric": "409 ms",
+    "status": "OPTIMAL"
+  },
+  {
+    "parameter": "Data Integrity",
+    "metric": "99.8 %",
+    "status": "VALIDATED"
+  }
+]

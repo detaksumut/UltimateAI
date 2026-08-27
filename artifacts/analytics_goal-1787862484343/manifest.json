@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862484683-mzdd8",
+  "name": "analytics_goal-1787862484343",
+  "currentVersion": 1,
+  "latestHash": "5136674af26c18d9d2edd0838931fee465b8116d9ce306e7f4d3f3790c2a5baa",
+  "lastUpdated": "2026-08-27T20:28:04.684Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "5136674af26c18d9d2edd0838931fee465b8116d9ce306e7f4d3f3790c2a5baa",
+      "timestamp": "2026-08-27T20:28:04.684Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

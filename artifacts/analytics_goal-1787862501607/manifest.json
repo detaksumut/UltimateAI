@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862502038-gd9qa",
+  "name": "analytics_goal-1787862501607",
+  "currentVersion": 1,
+  "latestHash": "295a0dd105e707dd1a978aae86c03dbf8ae731889f88b2ad6f2d3e9746fc7867",
+  "lastUpdated": "2026-08-27T20:28:22.040Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "295a0dd105e707dd1a978aae86c03dbf8ae731889f88b2ad6f2d3e9746fc7867",
+      "timestamp": "2026-08-27T20:28:22.040Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

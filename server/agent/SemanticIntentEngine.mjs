@@ -1,6 +1,6 @@
 /**
  * SemanticIntentEngine.mjs
- * LLM-powered semantic goal and intent interpreter.
+ * LLM-powered semantic goal and intent interpreter with transparent telemetry.
  * Strictly adheres to Zero Secret Exposure: credentials resolved via server env configuration.
  */
 
@@ -105,10 +105,11 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       };
     }
 
-    const hasMedia = /video|lagu|musik|dj|song|youtube|putar|play/i.test(p);
+    const hasMedia = /video|lagu|musik|dj|song|youtube|putar/i.test(p);
     const hasNews = /berita|demo|dpr|politik|terkini|sidang/i.test(p);
-    const hasApp = /aplikasi|buatkan|bikin|dashboard|prototype|app|kalkulator|sistem/i.test(p);
-    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal/i.test(p);
+    // Precision matching for software/app synthesis: avoids over-matching "buatkan ringkasan"
+    const hasApp = /aplikasi|prototype|purwarupa|kalkulator|bikin app|buatkan app|buatkan dashboard|buatkan sistem|web app/i.test(p);
+    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal|angka pertumbuhan|kondisi industri/i.test(p);
     const isSensitive = /hapus|delete|format|destroy|drop|bersihkan seluruh/i.test(p);
 
     let intent = 'RESEARCH_QUESTION';
@@ -138,7 +139,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       entities: [raw],
       freshDataRequired: hasNews || hasData,
       toolsNeeded,
-      confidence: 0.92,
+      confidence: 0.94,
       sensitiveAction: isSensitive,
       reason: `Heuristic parser classified intent as ${intent}.`,
       interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
