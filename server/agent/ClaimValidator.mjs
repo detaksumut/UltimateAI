@@ -1,7 +1,7 @@
 /**
  * ClaimValidator.mjs
- * Validates claims against physical evidence references and predicates.
- * Strictly rejects any claim that is unresolvable or fails predicate validation.
+ * Validates candidate claims against physical evidence references and predicates.
+ * Produces structured Approved Facts for generative natural speech realization.
  */
 
 import { EvidenceResolver } from './EvidenceResolver.mjs';
@@ -9,11 +9,12 @@ import { EvidenceResolver } from './EvidenceResolver.mjs';
 export class ClaimValidator {
   /**
    * Validates a list of candidate claims against execution context and predicates
-   * @param {Array} candidateClaims - [{ claim, evidenceRef, predicate: { field, equals, notEmpty } }]
+   * @param {Array} candidateClaims - [{ factKey, claim, evidenceRef, predicate: { field, equals, notEmpty } }]
    * @param {Object} context - { artifact, executionHistory, verification, provenance }
-   * @returns {Object} { approvedClaims: Array, rejectedClaims: Array, validationSummary }
+   * @returns {Object} { approvedFacts: Array, approvedClaims: Array, rejectedClaims: Array, isValid: boolean }
    */
   static validateClaims(candidateClaims = [], context = {}) {
+    const approvedFacts = [];
     const approvedClaims = [];
     const rejectedClaims = [];
 
@@ -56,18 +57,24 @@ export class ClaimValidator {
         }
       }
 
-      // Claim is 100% verified against real resolved evidence!
-      approvedClaims.push({
+      // 3. Approved Fact Record
+      const factRecord = {
+        factKey: c.factKey || c.claim,
         claim: c.claim,
         evidenceRef: c.evidenceRef,
+        verifiedValue: resolution.value,
         verifiedSource: resolution.source
-      });
+      };
+
+      approvedFacts.push(factRecord);
+      approvedClaims.push(c.claim);
     }
 
     return {
+      approvedFacts,
       approvedClaims,
       rejectedClaims,
-      isValid: approvedClaims.length > 0 && rejectedClaims.length === 0
+      isValid: approvedFacts.length > 0 && rejectedClaims.length === 0
     };
   }
 }
