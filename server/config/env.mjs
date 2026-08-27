@@ -29,7 +29,7 @@ export const config = {
   port: parseInt(process.env.PORT || '20128', 10),
   defaultProvider: process.env.DEFAULT_PROVIDER || 'gemini',
   keys: {
-    gemini: process.env.GEMINI_API_KEY || '',
+    gemini: (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'API_KEY_GEMINI_ANDA') ? process.env.GEMINI_API_KEY : (process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY_1 || ''),
     openai: process.env.OPENAI_API_KEY || '',
     claude: process.env.ANTHROPIC_API_KEY || '',
     deepseek: process.env.DEEPSEEK_API_KEY || ''
