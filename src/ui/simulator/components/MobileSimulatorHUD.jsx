@@ -18,6 +18,7 @@ export default function MobileSimulatorHUD({
   const [selectedDevice, setSelectedDevice] = useState('iPhone 15');
   const [currentTab, setCurrentTab] = useState(activeMode);
   const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'IMAGE' | 'DATA'
+  const [selectedVideoId, setSelectedVideoId] = useState('vr0qNXmkUJ8');
 
   useEffect(() => {
     if (activeMode) setCurrentTab(activeMode);
@@ -217,7 +218,7 @@ export default function MobileSimulatorHUD({
                       </div>
                       <div>
                         <div className="text-xs font-bold text-white tracking-wide">YOUTUBE DJ & MEDIA PLAYER</div>
-                        <div className="text-[8px] text-red-400">100% Public Stream Embed</div>
+                        <div className="text-[8px] text-red-400">Stream Embed HD Live</div>
                       </div>
                     </div>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold">
@@ -226,38 +227,57 @@ export default function MobileSimulatorHUD({
                   </div>
 
                   {/* Track Selection Chips */}
-                  <div className="flex items-center gap-1 mb-2 overflow-x-auto pb-1 text-[8px]">
-                    <span className="px-2 py-0.5 rounded-md bg-red-600/80 text-white font-bold flex-shrink-0">
-                      🎧 DJ Sammy - Heaven
-                    </span>
-                    <a
-                      href="https://www.youtube.com/watch?v=vr0qNXmkUJ8"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 hover:text-white flex-shrink-0"
+                  <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[9px]">
+                    <button
+                      onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === 'vr0qNXmkUJ8'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
                     >
-                      Avicii - Heaven
-                    </a>
+                      🎧 Avicii - Heaven
+                    </button>
+                    <button
+                      onClick={() => setSelectedVideoId('LjhCEhWiKXk')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === 'LjhCEhWiKXk'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      🔥 DJ Sammy - Heaven
+                    </button>
+                    <button
+                      onClick={() => setSelectedVideoId('bM7SZ5SBzyY')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === 'bM7SZ5SBzyY'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      ⚡ NCS Electro Mix
+                    </button>
                   </div>
 
-                  {/* Dynamic YouTube Search & Stream Player Card */}
+                  {/* Verified 100% Public YouTube Player */}
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
                       className="w-full h-full"
-                      src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(lastUserMessage || 'dj lagu heaven')}&autoplay=0`}
-                      title="YouTube Media Streamer"
+                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=0`}
+                      title="YouTube Media Player"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                   </div>
 
                   <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
-                    <span className="text-red-400 font-bold truncate">🎵 {lastUserMessage || 'DJ Lagu Heaven'}</span>
+                    <span className="text-red-400 font-bold truncate">🎵 Track: {selectedVideoId === 'vr0qNXmkUJ8' ? 'Avicii - Heaven' : selectedVideoId === 'LjhCEhWiKXk' ? 'DJ Sammy - Heaven (Club Mix)' : 'Electro EDM Mix'}</span>
                     <a
-                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'dj lagu heaven')}`}
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'dj heaven official video')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0"
+                      className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 hover:border-cyan-500"
                     >
                       Buka di YouTube <ExternalLink className="w-2.5 h-2.5" />
                     </a>
