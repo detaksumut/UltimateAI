@@ -1,6 +1,7 @@
 /**
  * ArtifactManager.mjs
  * Enterprise Artifact Persistence, Versioning, Manifests, and Integrity Verification.
+ * Strictly guarantees persistence truthfulness with explicit persistenceStatus.
  */
 
 import fs from 'fs';
@@ -33,20 +34,25 @@ export class ArtifactManager {
   }
 
   /**
-   * Registers and stores a deliverable artifact with version control
+   * Registers and stores a deliverable artifact with version control & explicit persistence validation
    * @param {Object} params - { id, name, type, content, metadata, goalId }
-   * @returns {Object} artifact
+   * @returns {Object} artifact - includes persistenceStatus: 'PERSISTED' | 'PERSISTENCE_FAILED'
    */
   createArtifact({ id, name, type, content, metadata = {}, goalId = null }) {
     const artifactId = id || `art-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const safeName = (name || artifactId).replace(/[^a-zA-Z0-9_-]/g, '_');
     const artifactFolder = path.join(this.artifactsBaseDir, safeName);
 
+    let persistenceStatus = 'PERSISTED';
+    let persistenceError = null;
+
     try {
       if (!fs.existsSync(artifactFolder)) {
         fs.mkdirSync(artifactFolder, { recursive: true });
       }
     } catch (err) {
+      persistenceStatus = 'PERSISTENCE_FAILED';
+      persistenceError = err.message;
       console.error(`[ArtifactManager] Error creating folder for artifact ${safeName}:`, err);
     }
 
@@ -66,40 +72,46 @@ export class ArtifactManager {
       timestamp,
       version,
       hash,
-      renderable: Boolean(content && (typeof content === 'object' || content.length > 0))
+      renderable: Boolean(content && (typeof content === 'object' || content.length > 0)),
+      persistenceStatus,
+      persistenceError
     };
 
-    this.inMemoryArtifacts.set(artifactId, artifact);
-
     // Persist real artifact files to disk
-    try {
-      // 1. Versioned content file
-      const contentFileName = type === 'CODE' ? `App_v${version}.jsx` : `content_v${version}.json`;
-      const contentPath = path.join(artifactFolder, contentFileName);
-      const contentData = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      fs.writeFileSync(contentPath, contentData, 'utf8');
+    if (persistenceStatus === 'PERSISTED') {
+      try {
+        // 1. Versioned content file
+        const contentFileName = type === 'CODE' ? `App_v${version}.jsx` : `content_v${version}.json`;
+        const contentPath = path.join(artifactFolder, contentFileName);
+        const contentData = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+        fs.writeFileSync(contentPath, contentData, 'utf8');
 
-      // 2. Manifest file
-      const manifestPath = path.join(artifactFolder, 'manifest.json');
-      const manifestData = {
-        artifactId,
-        name: safeName,
-        currentVersion: version,
-        latestHash: hash,
-        lastUpdated: timestamp,
-        type: artifact.type,
-        history: [
-          ...(existing?.history || []),
-          { version, hash, timestamp, file: contentFileName }
-        ]
-      };
-      fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
-      artifact.manifest = manifestData;
-      artifact.contentFile = contentPath;
-    } catch (err) {
-      console.error(`[ArtifactManager] Failed to persist artifact ${safeName} to disk:`, err);
+        // 2. Manifest file
+        const manifestPath = path.join(artifactFolder, 'manifest.json');
+        const manifestData = {
+          artifactId,
+          name: safeName,
+          currentVersion: version,
+          latestHash: hash,
+          lastUpdated: timestamp,
+          type: artifact.type,
+          persistenceStatus: 'PERSISTED',
+          history: [
+            ...(existing?.manifest?.history || []),
+            { version, hash, timestamp, file: contentFileName }
+          ]
+        };
+        fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2), 'utf8');
+        artifact.manifest = manifestData;
+        artifact.contentFile = contentPath;
+      } catch (err) {
+        artifact.persistenceStatus = 'PERSISTENCE_FAILED';
+        artifact.persistenceError = err.message;
+        console.error(`[ArtifactManager] Failed to persist artifact ${safeName} to disk:`, err);
+      }
     }
 
+    this.inMemoryArtifacts.set(artifactId, artifact);
     return artifact;
   }
 
@@ -118,13 +130,17 @@ export class ArtifactManager {
   }
 
   /**
-   * Validates whether an artifact satisfies criteria
+   * Validates whether an artifact satisfies criteria and was persisted
    * @param {string} id - Artifact ID
-   * @param {Object} criteria - { minLength, requiredKeys, expectedType }
+   * @param {Object} criteria - { minLength, requiredKeys, expectedType, requirePersisted }
    */
   validateArtifact(id, criteria = {}) {
     const artifact = this.getArtifact(id);
     if (!artifact) return { valid: false, reason: 'ARTIFACT_NOT_FOUND' };
+
+    if (criteria.requirePersisted !== false && artifact.persistenceStatus !== 'PERSISTED') {
+      return { valid: false, reason: `PERSISTENCE_FAILED_${artifact.persistenceError || 'DISK_WRITE_ERROR'}` };
+    }
 
     if (criteria.expectedType && artifact.type !== criteria.expectedType) {
       return { valid: false, reason: `TYPE_MISMATCH_EXPECTED_${criteria.expectedType}` };
