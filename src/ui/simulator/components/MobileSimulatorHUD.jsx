@@ -228,9 +228,9 @@ export default function MobileSimulatorHUD({
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
                       className="w-full h-full"
-                      src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=0"
-                      title="YouTube video player"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      src="https://www.youtube.com/embed/s6TtwR2Dbjg"
+                      title="Bryan Adams - Heaven (Official Music Video)"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
                   </div>
