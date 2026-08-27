@@ -1,14 +1,24 @@
 /**
  * JINResponseEngine.mjs
  * Evidence-Bound Response Authority & Conversational Synthesis Engine.
- * Pure Fact-Driven Clause Assembly:
+ * Pure Fact-Driven Clause Assembly with Output Sanitization:
  * "NO EVIDENCE ➔ NO FACT ➔ NO CLAUSE ➔ NO SPEECH"
- * Zero factual sentence defaults across Voice and HUD channels.
+ * Dual-Channel safety: concise voice TTS and sanitized HUD display.
  */
 
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
 import { ClaimValidator } from './ClaimValidator.mjs';
 import { config } from '../config/env.mjs';
+
+function sanitizeOutput(val) {
+  if (typeof val !== 'string') return String(val ?? '');
+  return val
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export class JINResponseEngine {
   constructor(proxyUrl = null, apiKey = null) {
@@ -236,8 +246,9 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       hudLines.push('### 📊 Analisis Metrik & Risiko Eksekutif\n');
 
       if (devFact && typeof devFact.verifiedValue === 'string') {
-        voiceClauses.push(`Terdapat penyimpangan data ${devFact.verifiedValue} terhadap benchmark industri.`);
-        hudLines.push(`- **Deviasi Terverifikasi:** ${devFact.verifiedValue} terhadap benchmark industri`);
+        const safeDev = sanitizeOutput(devFact.verifiedValue);
+        voiceClauses.push(`Terdapat penyimpangan data ${safeDev} terhadap benchmark industri.`);
+        hudLines.push(`- **Deviasi Terverifikasi:** ${safeDev} terhadap benchmark industri`);
       }
 
       if (rootCausesFact) {
@@ -246,42 +257,42 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
 
       if (persistenceFact) {
         voiceClauses.push('Ringkasan eksekutif telah tersimpan di panel artefak.');
-        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+        hudLines.push(`- **Status Persistensi Disk:** ${sanitizeOutput(persistenceFact.verifiedValue)}`);
       }
 
       if (summaryFact && typeof summaryFact.verifiedValue === 'string') {
-        hudLines.push(`\n${summaryFact.verifiedValue}`);
+        hudLines.push(`\n${sanitizeOutput(summaryFact.verifiedValue)}`);
       }
     } else if (decision.intent === 'APP_SYNTHESIS') {
       const runtimePassFact = approvedFacts.find(f => f.factKey === 'runtime_test_passed');
       const persistenceFact = approvedFacts.find(f => f.factKey === 'disk_persistence');
 
-      hudLines.push('### 💻 Purwarupa Aplikasi Selesai\n');
+      hudLines.push('### 💻 Purwarupa Aplikasi\n');
       hudLines.push('- **Komponen:** `ResearchRoiCalculator` (React / JSX)');
 
       if (runtimePassFact && persistenceFact) {
         voiceClauses.push('Purwarupa aplikasi kalkulator ROI interaktif telah tersimpan di disk dan lolos pengujian runtime.');
         hudLines.push('- **Pengujian Runtime:** 100% test fixture lolos (ROI formula & state)');
-        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+        hudLines.push(`- **Status Persistensi Disk:** ${sanitizeOutput(persistenceFact.verifiedValue)}`);
       } else if (persistenceFact) {
         voiceClauses.push('Purwarupa aplikasi kalkulator ROI telah tersimpan di disk.');
-        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+        hudLines.push(`- **Status Persistensi Disk:** ${sanitizeOutput(persistenceFact.verifiedValue)}`);
       }
     } else if (decision.intent === 'LIVE_NEWS') {
       const videoFact = approvedFacts.find(f => f.factKey === 'video_verified');
       if (videoFact?.verifiedValue?.channel) {
-        const channel = videoFact.verifiedValue.channel;
+        const channel = sanitizeOutput(videoFact.verifiedValue.channel);
         voiceClauses.push(`Siaran berita live dari ${channel} telah terverifikasi dan disiapkan di panel media.`);
         hudLines.push('### 📺 Siaran Berita Live Terpilih\n');
         hudLines.push(`- **Kanal:** ${channel}`);
-        hudLines.push(`- **Topik:** ${userUtterance}`);
+        hudLines.push(`- **Topik:** ${sanitizeOutput(userUtterance)}`);
       }
     } else {
       const goalFact = approvedFacts.find(f => f.factKey === 'goal_completed');
       if (goalFact) {
-        voiceClauses.push(`Pekerjaan untuk "${userUtterance}" telah diverifikasi selesai.`);
+        voiceClauses.push(`Pekerjaan untuk "${sanitizeOutput(userUtterance)}" telah diverifikasi selesai.`);
         hudLines.push('### ✅ Tugas Selesai\n');
-        hudLines.push(`- **Goal:** ${userUtterance}`);
+        hudLines.push(`- **Goal:** ${sanitizeOutput(userUtterance)}`);
         hudLines.push('- **Status:** Diverifikasi 9Router');
       }
     }
