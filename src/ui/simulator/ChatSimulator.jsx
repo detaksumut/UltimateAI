@@ -90,14 +90,22 @@ export default function ChatSimulator() {
     }
   };
 
-  // Toggle Mic on/off
+  const [liveTranscript, setLiveTranscript] = useState('');
+
+  // Toggle Mic on/off for Natural Conversation
   const handleMicToggle = () => {
     if (isListening) {
       simulatorOrchestratorInstance.stopVoiceInput();
+      setLiveTranscript('');
     } else {
       simulatorOrchestratorInstance.startVoiceInput({
+        onTranscript: (text) => {
+          setLiveTranscript(text);
+        },
         onFinalTranscript: (text) => {
+          setLiveTranscript(text);
           handleExecutePrompt(text);
+          setTimeout(() => setLiveTranscript(''), 3500);
         }
       });
     }
@@ -124,7 +132,7 @@ export default function ChatSimulator() {
       setIsMemoryModalOpen(true);
     } else if (action === 'feed') {
       setIsActivityDrawerOpen(true);
-    } else if (action === 'control') {
+    } else if (action === 'system') {
       setIsControlModalOpen(true);
     }
   };
@@ -155,6 +163,7 @@ export default function ChatSimulator() {
             onMicClick={handleMicToggle}
             onSubmitText={handleExecutePrompt}
             spectrum={audioMetrics.spectrum}
+            liveTranscript={liveTranscript}
           />
 
           <BottomStatusToolbar
