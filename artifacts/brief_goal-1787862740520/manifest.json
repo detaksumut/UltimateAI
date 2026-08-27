@@ -1,0 +1,16 @@
+{
+  "artifactId": "art-1787862740636-negjf",
+  "name": "brief_goal-1787862740520",
+  "currentVersion": 1,
+  "latestHash": "09ff50d2b1529985bc0ffed5041ec0ad73f608ed272d39850c9ba08f64a7a4cd",
+  "lastUpdated": "2026-08-27T20:32:20.636Z",
+  "type": "DATA_MODEL",
+  "history": [
+    {
+      "version": 1,
+      "hash": "09ff50d2b1529985bc0ffed5041ec0ad73f608ed272d39850c9ba08f64a7a4cd",
+      "timestamp": "2026-08-27T20:32:20.636Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

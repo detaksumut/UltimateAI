@@ -1,0 +1,29 @@
+{
+  "title": "Executive Meeting Risk & Growth Anomaly Brief",
+  "anomaliesDetected": [
+    {
+      "metric": "Revenue Growth Q3",
+      "observed": "+48%",
+      "baseline": "+12%",
+      "riskLevel": "HIGH_DISCREPANCY"
+    },
+    {
+      "metric": "Customer Acquisition Cost",
+      "observed": "-65%",
+      "baseline": "-10%",
+      "riskLevel": "UNUSUAL_DIVERGENCE"
+    }
+  ],
+  "rootCauses": [
+    "Agresivitas diskon akhir tahun yang menekan margin operasional",
+    "Perubahan metode pengakuan pendapatan pra-audit"
+  ],
+  "industryComparisonEvidence": {
+    "sectorAverageGrowth": "+14.2%",
+    "competitorBenchmark": "Tech & E-commerce Index 2026",
+    "deviation": "+33.8% di atas rata-rata industri"
+  },
+  "executiveSummary": "Ditemukan 2 anomali signifikan pada proyeksi pertumbuhan kuartal 3. Disarankan menyajikan data margin bersih bersamaan dengan angka pertumbuhan bruto pada rapat pimpinan.",
+  "status": "ANALYSIS_COMPLETE",
+  "metricsAnalyzed": 4
+}

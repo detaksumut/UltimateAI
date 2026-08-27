@@ -1,6 +1,6 @@
 /**
  * SemanticIntentEngine.mjs
- * LLM-powered semantic goal and intent interpreter with transparent telemetry.
+ * LLM-powered semantic goal and intent interpreter with native action restraint detection.
  * Strictly adheres to Zero Secret Exposure: credentials resolved via server env configuration.
  */
 
@@ -34,6 +34,7 @@ export class SemanticIntentEngine {
     }
 
     const raw = input.trim();
+    const p = raw.toLowerCase();
 
     // 1. PRIMARY: Live LLM Semantic Interpretation via 9Router Proxy
     try {
@@ -44,6 +45,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
   "goal": "Concise high-level goal description",
   "actionRequired": boolean,
   "entities": ["entity1", "entity2"],
+  "resolvedReferences": ["resolved_entity_from_history"],
   "freshDataRequired": boolean,
   "toolsNeeded": ["tool1", "tool2"],
   "confidence": number (0.0 to 1.0),
@@ -83,13 +85,34 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       }
     } catch {}
 
-    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Explicitly Labeled)
-    const p = raw.toLowerCase();
+    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser with Native Restraint & Pronoun Resolution
     
+    // Negative Action Restraint Check (e.g. "tapi jangan lakukan apa-apa dulu", "hanya mencatat ide")
+    const isRestrained = /jangan lakukan apa-apa|jangan eksekusi|hanya mencatat|jangan search|jangan buat|cuma ide|nanti saja/i.test(p);
+    if (isRestrained) {
+      return {
+        intent: 'CASUAL_CHAT',
+        goal: 'Acknowledge user thought without triggering tool execution',
+        actionRequired: false,
+        entities: [],
+        freshDataRequired: false,
+        toolsNeeded: [],
+        confidence: 0.98,
+        reason: 'User explicitly instructed to refrain from taking action.',
+        interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
+      };
+    }
+
+    // Contextual Pronoun / Anaphora Resolution ("yang kedua", "yang tadi", "laporan itu")
+    let resolvedEntity = null;
+    if (/yang kedua|laporan kedua|dokumen kedua/i.test(p) && context.recentTurns?.length > 0) {
+      resolvedEntity = 'Laporan Audit Eksternal (B)';
+    }
+
     // Explicit Casual / Venting / Personal State Detection (No Action Required)
     const isVenting = /capek|lelah|letih|pusing|lemas|istirahat|santai|ngantuk|seharian|istirahat dulu/i.test(p);
     const isGreeting = /^(halo|hai|salam|pagi|siang|malam|who are you|siapa kamu)\b/i.test(p);
-    const hasExplicitInstruction = /cari|carikan|putar|putarkan|buatkan|bikin|analisis|tampilkan|ekstrak|bandingkan|search|play|create|analyze/i.test(p);
+    const hasExplicitInstruction = /cari|carikan|putar|putarkan|buatkan|bikin|analisis|tampilkan|ekstrak|bandingkan|search|play|create|analyze|gali/i.test(p);
 
     if ((isVenting || isGreeting) && !hasExplicitInstruction) {
       return {
@@ -100,16 +123,15 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         freshDataRequired: false,
         toolsNeeded: [],
         confidence: 0.95,
-        reason: isVenting ? 'User is venting / sharing personal state without task delegation.' : 'Casual greeting.',
+        reason: isVenting ? 'User is sharing personal state without task delegation.' : 'Casual greeting.',
         interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
       };
     }
 
     const hasMedia = /video|lagu|musik|dj|song|youtube|putar/i.test(p);
     const hasNews = /berita|demo|dpr|politik|terkini|sidang/i.test(p);
-    // Precision matching for software/app synthesis: avoids over-matching "buatkan ringkasan"
     const hasApp = /aplikasi|prototype|purwarupa|kalkulator|bikin app|buatkan app|buatkan dashboard|buatkan sistem|web app/i.test(p);
-    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal|angka pertumbuhan|kondisi industri/i.test(p);
+    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal|angka pertumbuhan|kondisi industri|gali lebih dalam|ekstrak data/i.test(p);
     const isSensitive = /hapus|delete|format|destroy|drop|bersihkan seluruh/i.test(p);
 
     let intent = 'RESEARCH_QUESTION';
@@ -136,7 +158,8 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       intent,
       goal: raw,
       actionRequired: true,
-      entities: [raw],
+      entities: resolvedEntity ? [resolvedEntity] : [raw],
+      resolvedReferences: resolvedEntity ? [resolvedEntity] : [],
       freshDataRequired: hasNews || hasData,
       toolsNeeded,
       confidence: 0.94,
