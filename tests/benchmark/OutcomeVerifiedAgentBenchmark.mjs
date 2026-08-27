@@ -1,11 +1,11 @@
 /**
  * OutcomeVerifiedAgentBenchmark.mjs
- * Level 4.4: Isolated Black-Box Behavioral Outcome Verification & Multi-Dimensional Scorecard.
- * Strictly tests:
- *  - Isolated Node.js VM execution of actual artifact component calculation functions
- *  - Mathematical recomputation of executive data models against source datasets
- *  - Zero evaluator contamination
- *  - Native action restraint & explicit pronoun resolution
+ * Level 4.5: Three-Tiered Real Black-Box Outcome Verification & Multi-Dimensional Scorecard.
+ * Validates:
+ *  - Tier 1: Artifact Integrity & Persistence
+ *  - Tier 2: Mathematical Logic & Source Recomputation
+ *  - Tier 3: User-Visible Black-Box DOM & State Interaction
+ *  - Native Action Restraint & Multi-Turn Pronoun Anaphora
  */
 
 import { semanticIntentEngineInstance } from '../../server/agent/SemanticIntentEngine.mjs';
@@ -16,7 +16,7 @@ import { artifactManagerInstance } from '../../server/agent/ArtifactManager.mjs'
 import { BehavioralRunner } from '../../server/agent/BehavioralRunner.mjs';
 
 export const STRICT_CERTIFICATION_SCENARIOS = [
-  // 1. COMPOUND EXECUTIVE RISK BRIEF (Recomputed against source data metrics)
+  // 1. COMPOUND EXECUTIVE RISK BRIEF (Tier 2: Mathematical Source Recomputation)
   {
     id: 'STRICT-01',
     category: 'COMPOUND_EXECUTIVE_BRIEF',
@@ -26,12 +26,11 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       validIntents: ['DATA_ANALYTICS', 'RESEARCH_QUESTION'],
       requiredTools: ['intel.multilayer_search', 'data.matrix_generator'],
       requiredArtifactType: 'DATA_MODEL',
-      requireSourceRecomputation: true,
       sourceData: { observed: 48.0, baseline: 12.0, sectorAverage: 14.2 }
     }
   },
 
-  // 2. INTERACTIVE ROI CALCULATOR (Executed inside isolated VM sandbox)
+  // 2. INTERACTIVE ROI CALCULATOR (Tier 3: User-Visible Black-Box DOM Interaction)
   {
     id: 'STRICT-02',
     category: 'AUTONOMOUS_APP_SYNTHESIS',
@@ -40,8 +39,7 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       actionRequired: true,
       validIntents: ['APP_SYNTHESIS'],
       requiredTools: ['spec.blueprint_architect', 'code.synthesizer', 'ui.render_app_sandbox'],
-      requiredArtifactType: 'CODE',
-      requireIsolatedVmExecution: true
+      requiredArtifactType: 'CODE'
     }
   },
 
@@ -125,9 +123,9 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
   }
 ];
 
-export async function runBlackBoxBenchmark() {
+export async function runThreeTieredBenchmark() {
   console.log('========================================================================================');
-  console.log('🏛️ ULTIMATEAI LEVEL 4.4: ISOLATED BLACK-BOX OUTCOME CERTIFICATION & SCORECARD');
+  console.log('🏛️ ULTIMATEAI LEVEL 4.5: THREE-TIERED BLACK-BOX OUTCOME CERTIFICATION SCORECARD');
   console.log('========================================================================================\n');
 
   const scorecard = {
@@ -137,8 +135,9 @@ export async function runBlackBoxBenchmark() {
     planContractCompliance: { total: 0, passed: 0 },
     toolSequenceSelection: { total: 0, passed: 0 },
     executionSuccess: { total: 0, passed: 0 },
-    cleanRoomOutcomeVerification: { total: 0, passed: 0 },
-    isolatedVmExecutionSandbox: { total: 0, passed: 0 },
+    tier1ArtifactIntegrity: { total: 0, passed: 0 },
+    tier2MathRecomputation: { total: 0, passed: 0 },
+    tier3BlackBoxDOMBehavior: { total: 0, passed: 0 },
     actionRestraint: { total: 0, passed: 0 },
     safetyGovernance: { total: 0, passed: 0 }
   };
@@ -245,32 +244,35 @@ export async function runBlackBoxBenchmark() {
           scenarioPass = false;
         }
 
-        // Clean-Room Outcome & Isolated VM Behavioral Assertions
+        // Three-Tiered Outcome Verification
         if (scenario.contract.requiredArtifactType) {
-          scorecard.cleanRoomOutcomeVerification.total++;
-          scorecard.isolatedVmExecutionSandbox.total++;
-
           const artifact = execution.artifact;
-          let deepOutcomePassed = Boolean(
+
+          // Tier 1: Artifact Integrity & Disk Persistence
+          scorecard.tier1ArtifactIntegrity.total++;
+          const tier1Passed = Boolean(
             artifact &&
             artifact.type === scenario.contract.requiredArtifactType &&
             artifact.persistenceStatus === 'PERSISTED'
           );
+          if (tier1Passed) scorecard.tier1ArtifactIntegrity.passed++;
 
-          // Execute Code in VM or Recompute Data Model
-          let blackBoxPassed = false;
+          // Tier 2 & Tier 3: Behavioral Execution
+          let behavioralPassed = false;
+
           if (scenario.contract.requiredArtifactType === 'CODE' && artifact) {
+            scorecard.tier3BlackBoxDOMBehavior.total++;
             const report = BehavioralRunner.runCodeBehavioralTests(artifact);
-            blackBoxPassed = report.passed;
+            behavioralPassed = report.passed;
+            if (behavioralPassed) scorecard.tier3BlackBoxDOMBehavior.passed++;
           } else if (scenario.contract.requiredArtifactType === 'DATA_MODEL' && artifact) {
+            scorecard.tier2MathRecomputation.total++;
             const report = BehavioralRunner.runDataModelBehavioralTests(artifact, scenario.contract.sourceData);
-            blackBoxPassed = report.passed;
+            behavioralPassed = report.passed;
+            if (behavioralPassed) scorecard.tier2MathRecomputation.passed++;
           }
 
-          if (deepOutcomePassed && blackBoxPassed) {
-            scorecard.cleanRoomOutcomeVerification.passed++;
-            scorecard.isolatedVmExecutionSandbox.passed++;
-          } else {
+          if (!tier1Passed || !behavioralPassed) {
             scenarioPass = false;
           }
         }
@@ -288,7 +290,7 @@ export async function runBlackBoxBenchmark() {
   const calcPct = (dim) => dim.total > 0 ? ((dim.passed / dim.total) * 100).toFixed(1) : '100.0';
 
   console.log('========================================================================================');
-  console.log('🏆 ULTIMATEAI LEVEL 4.4 ISOLATED BLACK-BOX OUTCOME SCORECARD');
+  console.log('🏆 ULTIMATEAI LEVEL 4.5 THREE-TIERED CERTIFICATION SCORECARD');
   console.log('========================================================================================');
   console.log(`   • Semantic Understanding:         ${calcPct(scorecard.semanticUnderstanding)}% (${scorecard.semanticUnderstanding.passed}/${scorecard.semanticUnderstanding.total})`);
   console.log(`   • Intent Accuracy:                ${calcPct(scorecard.intentAccuracy)}% (${scorecard.intentAccuracy.passed}/${scorecard.intentAccuracy.total})`);
@@ -296,15 +298,16 @@ export async function runBlackBoxBenchmark() {
   console.log(`   • Plan Contract Compliance:       ${calcPct(scorecard.planContractCompliance)}% (${scorecard.planContractCompliance.passed}/${scorecard.planContractCompliance.total})`);
   console.log(`   • Tool Sequence Selection:        ${calcPct(scorecard.toolSequenceSelection)}% (${scorecard.toolSequenceSelection.passed}/${scorecard.toolSequenceSelection.total})`);
   console.log(`   • Execution Success:              ${calcPct(scorecard.executionSuccess)}% (${scorecard.executionSuccess.passed}/${scorecard.executionSuccess.total})`);
-  console.log(`   • Clean-Room Outcome Verif:       ${calcPct(scorecard.cleanRoomOutcomeVerification)}% (${scorecard.cleanRoomOutcomeVerification.passed}/${scorecard.cleanRoomOutcomeVerification.total})`);
-  console.log(`   • Isolated VM Execution Sandbox:  ${calcPct(scorecard.isolatedVmExecutionSandbox)}% (${scorecard.isolatedVmExecutionSandbox.passed}/${scorecard.isolatedVmExecutionSandbox.total})`);
+  console.log(`   • Tier 1: Artifact Integrity:     ${calcPct(scorecard.tier1ArtifactIntegrity)}% (${scorecard.tier1ArtifactIntegrity.passed}/${scorecard.tier1ArtifactIntegrity.total})`);
+  console.log(`   • Tier 2: Math Recomputation:     ${calcPct(scorecard.tier2MathRecomputation)}% (${scorecard.tier2MathRecomputation.passed}/${scorecard.tier2MathRecomputation.total})`);
+  console.log(`   • Tier 3: Black-Box DOM Behavior: ${calcPct(scorecard.tier3BlackBoxDOMBehavior)}% (${scorecard.tier3BlackBoxDOMBehavior.passed}/${scorecard.tier3BlackBoxDOMBehavior.total})`);
   console.log(`   • Action Restraint / Non-Act:     ${calcPct(scorecard.actionRestraint)}% (${scorecard.actionRestraint.passed}/${scorecard.actionRestraint.total})`);
   console.log(`   • Safety / Approval Policy:       ${calcPct(scorecard.safetyGovernance)}% (${scorecard.safetyGovernance.passed}/${scorecard.safetyGovernance.total})`);
   console.log('----------------------------------------------------------------------------------------');
   console.log(`   📡 Telemetry Distribution: ${heuristicRuns} Runs via HEURISTIC_ROBUSTNESS, ${primaryLlmRuns} Runs via PRIMARY_LLM`);
   
   const overallScore = ((passedScenarios / totalScenarios) * 100).toFixed(1);
-  console.log(`   🎯 LEVEL 4.4 BLACK-BOX CERTIFICATION: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
+  console.log(`   🎯 THREE-TIERED CERTIFICATION SCORE: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
   console.log('========================================================================================\n');
 
   return {
@@ -318,7 +321,7 @@ export async function runBlackBoxBenchmark() {
 
 // Auto-run if executed directly
 if (process.argv[1]?.endsWith('OutcomeVerifiedAgentBenchmark.mjs')) {
-  runBlackBoxBenchmark();
+  runThreeTieredBenchmark();
 }
 
-export default runBlackBoxBenchmark;
+export default runThreeTieredBenchmark;
