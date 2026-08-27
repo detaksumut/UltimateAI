@@ -85,31 +85,39 @@ Analyze the user's natural language input and output STRICT valid JSON with:
 
     // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Explicitly Labeled)
     const p = raw.toLowerCase();
+    
+    // Explicit Casual / Venting / Personal State Detection (No Action Required)
+    const isVenting = /capek|lelah|letih|pusing|lemas|istirahat|santai|ngantuk|seharian|istirahat dulu/i.test(p);
     const isGreeting = /^(halo|hai|salam|pagi|siang|malam|who are you|siapa kamu)\b/i.test(p);
-    const hasMedia = /video|lagu|musik|dj|song|youtube|putar|play/i.test(p);
-    const hasNews = /berita|demo|dpr|politik|terkini|hari ini|kondisi pasar|isu/i.test(p);
-    const hasApp = /aplikasi|buatkan|bikin|dashboard|prototype|app|sistem/i.test(p);
-    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis/i.test(p);
-    const isSensitive = /hapus|delete|format|destroy|drop/i.test(p);
+    const hasExplicitInstruction = /cari|carikan|putar|putarkan|buatkan|bikin|analisis|tampilkan|ekstrak|bandingkan|search|play|create|analyze/i.test(p);
 
-    if (isGreeting && !hasMedia && !hasNews && !hasApp && !hasData) {
+    if ((isVenting || isGreeting) && !hasExplicitInstruction) {
       return {
         intent: 'CASUAL_CHAT',
-        goal: 'Engage in natural conversation',
+        goal: isVenting ? 'Express empathy and support' : 'Engage in natural conversation',
         actionRequired: false,
         entities: [],
         freshDataRequired: false,
         toolsNeeded: [],
         confidence: 0.95,
-        reason: 'Casual conversation without explicit task delegation.',
+        reason: isVenting ? 'User is venting / sharing personal state without task delegation.' : 'Casual greeting.',
         interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
       };
     }
 
+    const hasMedia = /video|lagu|musik|dj|song|youtube|putar|play/i.test(p);
+    const hasNews = /berita|demo|dpr|politik|terkini|sidang/i.test(p);
+    const hasApp = /aplikasi|buatkan|bikin|dashboard|prototype|app|kalkulator|sistem/i.test(p);
+    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal/i.test(p);
+    const isSensitive = /hapus|delete|format|destroy|drop|bersihkan seluruh/i.test(p);
+
     let intent = 'RESEARCH_QUESTION';
     let toolsNeeded = ['intel.multilayer_search'];
 
-    if (hasNews) {
+    if (isSensitive) {
+      intent = 'SENSITIVE_ENVIRONMENT';
+      toolsNeeded = ['system.governance'];
+    } else if (hasNews) {
       intent = 'LIVE_NEWS';
       toolsNeeded = ['intel.multilayer_search', 'media.video_resolver'];
     } else if (hasMedia) {
@@ -130,7 +138,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       entities: [raw],
       freshDataRequired: hasNews || hasData,
       toolsNeeded,
-      confidence: 0.88,
+      confidence: 0.92,
       sensitiveAction: isSensitive,
       reason: `Heuristic parser classified intent as ${intent}.`,
       interpretationSource: 'FALLBACK_HEURISTIC_PARSER'
