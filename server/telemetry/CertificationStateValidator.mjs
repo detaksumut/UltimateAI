@@ -2,9 +2,9 @@
  * CertificationStateValidator.mjs
  * State Machine Guard & Integrity Rule Validator for 9Router Certification.
  * Enforces:
- *  1. Mandatory Single-Session Coherence across all 4 Acceptance Gates
- *  2. Successor Session Causal Existence Verification (No phantom successor IDs)
- *  3. Cross-Session Event Pollution Prevention
+ *  1. Mandatory Single-Session Coherence across all 4 Acceptance Gates & Events
+ *  2. Strict Event Identity, Finite Timestamps & Provenance
+ *  3. Explicit Successor Session Creation Contract (parentSessionId ➔ successor sessionId)
  *  4. Event-Level & Gate-Level Strict Temporal Ordering
  *  5. Monotonic Deterministic Verdict Derivation (Zero manual status override)
  */
@@ -53,17 +53,22 @@ export class CertificationStateValidator {
 
     for (const { name, data } of gateEntries) {
       if (data) {
-        // Mandatory sessionId presence and match
         if (!data.sessionId || data.sessionId !== sessionId) {
           inconsistencies.push({
             rule: 'RULE_2_SESSION_ID_MISMATCH',
             message: `Gate "${name}" must have sessionId matching root session "${sessionId}". Got "${data.sessionId || 'UNDEFINED'}".`
           });
         }
-        if (!data.timestamp || !data.provenance) {
+        if (!Number.isFinite(data.timestamp)) {
+          inconsistencies.push({
+            rule: 'RULE_2_MISSING_TIMESTAMP',
+            message: `Gate "${name}" is missing mandatory finite timestamp.`
+          });
+        }
+        if (!data.provenance) {
           inconsistencies.push({
             rule: 'RULE_2_MISSING_PROVENANCE',
-            message: `Gate "${name}" is missing mandatory timestamp or provenance metadata.`
+            message: `Gate "${name}" is missing mandatory provenance metadata.`
           });
         }
       }
@@ -83,7 +88,6 @@ export class CertificationStateValidator {
           message: 'Successor session ID cannot be identical to the invalidated parent session ID.'
         });
       }
-      // Check that successorSessionId physically exists in successorSessions list
       if (bargeIn.successorSessionId && bargeIn.successorSessionId !== sessionId) {
         const isSuccessorPresent = Array.isArray(successorSessions) && successorSessions.some(s => 
           s === bargeIn.successorSessionId || s?.sessionId === bargeIn.successorSessionId
@@ -97,21 +101,67 @@ export class CertificationStateValidator {
       }
     }
 
-    // --- RULE 4: CROSS-SESSION EVENT POLLUTION CHECK & EVENT TIMELINE VALIDATION ---
+    // --- RULE 4: MANDATORY EVENT IDENTITY, TIMELINE & PROVENANCE INTEGRITY ---
     if (Array.isArray(events) && events.length > 0) {
       for (let i = 0; i < events.length; i++) {
         const evt = events[i];
-        if (evt.sessionId && evt.sessionId !== sessionId && evt.type !== 'SUCCESSOR_SESSION_CREATED') {
-          inconsistencies.push({
-            rule: 'RULE_4_EVENT_SESSION_POLLUTION',
-            message: `Event "${evt.type || evt.name || i}" carries sessionId "${evt.sessionId}" instead of parent session "${sessionId}". Cross-session event pollution is prohibited.`
-          });
+        
+        if (evt.type === 'SUCCESSOR_SESSION_CREATED') {
+          // Successor creation event contract
+          if (!evt.parentSessionId || evt.parentSessionId !== sessionId) {
+            inconsistencies.push({
+              rule: 'RULE_4_SUCCESSOR_EVENT_PARENT_MISMATCH',
+              message: `Successor event parentSessionId "${evt.parentSessionId || 'UNDEFINED'}" must match root session "${sessionId}".`
+            });
+          }
+          if (!evt.sessionId || evt.sessionId === sessionId) {
+            inconsistencies.push({
+              rule: 'RULE_4_SUCCESSOR_EVENT_INVALID_ID',
+              message: `Successor event must declare distinct new sessionId. Got "${evt.sessionId || 'UNDEFINED'}".`
+            });
+          }
+          if (!Number.isFinite(evt.timestamp)) {
+            inconsistencies.push({
+              rule: 'RULE_4_SUCCESSOR_EVENT_TIMESTAMP_MISSING',
+              message: 'Successor event is missing mandatory finite timestamp.'
+            });
+          }
+          if (!evt.provenance) {
+            inconsistencies.push({
+              rule: 'RULE_4_SUCCESSOR_EVENT_PROVENANCE_MISSING',
+              message: 'Successor event is missing mandatory provenance metadata.'
+            });
+          }
+        } else {
+          // Standard session event contract
+          if (!evt.sessionId || evt.sessionId !== sessionId) {
+            inconsistencies.push({
+              rule: 'RULE_4_EVENT_SESSION_MISMATCH',
+              message: `Event "${evt.type || evt.name || i}" must have sessionId matching parent session "${sessionId}". Got "${evt.sessionId || 'UNDEFINED'}".`
+            });
+          }
+          if (!Number.isFinite(evt.timestamp)) {
+            inconsistencies.push({
+              rule: 'RULE_4_EVENT_TIMESTAMP_MISSING',
+              message: `Event "${evt.type || evt.name || i}" is missing mandatory finite timestamp.`
+            });
+          }
+          if (!evt.provenance) {
+            inconsistencies.push({
+              rule: 'RULE_4_EVENT_PROVENANCE_MISSING',
+              message: `Event "${evt.type || evt.name || i}" is missing mandatory provenance metadata.`
+            });
+          }
         }
-        if (i > 0 && events[i - 1]?.timestamp && evt?.timestamp && events[i - 1].timestamp > evt.timestamp) {
-          inconsistencies.push({
-            rule: 'RULE_4_EVENT_TIMELINE_ANOMALY',
-            message: `Event timeline inverted between "${events[i - 1].type || i - 1}" (${events[i - 1].timestamp}) and "${evt.type || i}" (${evt.timestamp}).`
-          });
+
+        // Monotonic event-level temporal sequence check
+        if (i > 0 && Number.isFinite(events[i - 1]?.timestamp) && Number.isFinite(evt?.timestamp)) {
+          if (events[i - 1].timestamp > evt.timestamp) {
+            inconsistencies.push({
+              rule: 'RULE_4_EVENT_TIMELINE_ANOMALY',
+              message: `Event timeline inverted between "${events[i - 1].type || i - 1}" (${events[i - 1].timestamp}) and "${evt.type || i}" (${evt.timestamp}).`
+            });
+          }
         }
       }
     }
