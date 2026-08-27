@@ -119,7 +119,7 @@ export class NineRouterClient {
       for (const word of words) {
         current += (current ? ' ' : '') + word;
         onChunk(word + ' ', current);
-        await new Promise(r => setTimeout(r, 35));
+        await new Promise(r => setTimeout(r, 6));
       }
     }
 

@@ -141,7 +141,7 @@ export class ChatCompletionService {
     const words = text.split(' ');
     for (let i = 0; i < words.length; i++) {
       sseWriter.sendChunk((i === 0 ? '' : ' ') + words[i], model);
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise(r => setTimeout(r, 6));
     }
   }
 
