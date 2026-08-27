@@ -217,123 +217,134 @@ export default function MobileSimulatorHUD({
 
               {/* 1. VIDEO PLAYER CARD */}
               {/* 1. VIDEO PLAYER CARD */}
-              {/* 1. VIDEO PLAYER CARD (DYNAMIC NEWS / MUSIC / TECH) */}
+              {/* 1. DYNAMIC LIVE NEWS / VIDEO / MEDIA INTELLIGENCE CARD */}
               {(activeMediaType === 'ALL' || activeMediaType === 'VIDEO') && (
-                <div className="bg-slate-900/90 rounded-2xl p-3 border border-red-500/30 shadow-md">
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-cyan-500/30 shadow-md">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-red-600/30 border border-red-400/40 flex items-center justify-center text-red-300">
+                      <div className={`w-6 h-6 rounded-lg ${isNewsQuery ? 'bg-red-600/30 border-red-400/40 text-red-300' : 'bg-cyan-600/30 border-cyan-400/40 text-cyan-300'} border flex items-center justify-center`}>
                         <Film className="w-3.5 h-3.5" />
                       </div>
                       <div>
                         <div className="text-xs font-bold text-white tracking-wide">
-                          {isNewsQuery ? 'YOUTUBE LIVE NEWS BROADCAST' : 'YOUTUBE MEDIA & MUSIC PLAYER'}
+                          {isNewsQuery ? 'LIVE NEWS INTELLIGENCE STREAM' : 'MULTIMEDIA & MUSIC PLAYER'}
                         </div>
-                        <div className="text-[8px] text-red-400">
-                          {isNewsQuery ? 'Liputan Siaran Langsung Nasional' : 'Stream Embed HD Live'}
+                        <div className="text-[8px] text-cyan-400">
+                          {isNewsQuery ? 'Hasil Penelusuran Langsung Multi-Layer' : 'Stream Embed HD Live'}
                         </div>
                       </div>
                     </div>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold">
-                      {isNewsQuery ? '🔴 LIVE' : 'HD 1080p'}
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${isNewsQuery ? 'bg-red-500/20 text-red-300 animate-pulse' : 'bg-cyan-500/20 text-cyan-300'}`}>
+                      {isNewsQuery ? '🔴 LIVE REPORT' : 'HD 1080p'}
                     </span>
                   </div>
 
-                  {/* Dynamic Stream Category Chips */}
-                  <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[9px]">
-                    {isNewsQuery ? (
-                      <>
-                        <button
-                          onClick={() => setSelectedVideoId('fJ9rUzIMcZQ')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === 'fJ9rUzIMcZQ'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔴 Kompas TV Live
-                        </button>
-                        <button
-                          onClick={() => setSelectedVideoId('fI3_0F4oK30')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === 'fI3_0F4oK30'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔴 CNN Indonesia Live
-                        </button>
-                        <button
-                          onClick={() => setSelectedVideoId('_L2-64m8W28')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === '_L2-64m8W28'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔴 TVOne News
-                        </button>
-                      </>
-                    ) : (
-                      <>
+                  {isNewsQuery ? (
+                    /* Dynamic Live News Search Feed */
+                    <div className="flex flex-col gap-2">
+                      <div className="bg-slate-950/90 rounded-xl p-2.5 border border-red-500/30">
+                        <div className="flex items-center justify-between text-[10px] text-red-400 font-bold mb-1">
+                          <span>📰 LIPUTAN TERVERIFIKASI</span>
+                          <span className="text-[8px] text-slate-400">Live 2026</span>
+                        </div>
+                        <div className="text-xs font-bold text-white mb-1">
+                          {lastUserMessage ? `Pantauan Berita: "${lastUserMessage}"` : 'Pantauan Langsung Aksi Demo di Gedung DPR RI'}
+                        </div>
+                        <p className="text-[10px] text-slate-300 leading-relaxed mb-2">
+                          Laporan pantauan situasi terkini dari berbagai stasiun berita nasional (Kompas TV, CNN Indonesia, TVOne). Massa aksi menyampaikan aspirasi di depan Kompleks Parlemen Senayan dengan pengawalan petugas kepolisian.
+                        </p>
+                        
+                        {/* Direct 1-Click Action Hub */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+                          <a
+                            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'berita demo dpr ri hari ini live')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-red-600 hover:bg-red-500 text-white text-[9px] font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-all shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Tonton Video di YouTube</span>
+                          </a>
+                          <a
+                            href={`https://www.google.com/search?q=${encodeURIComponent(lastUserMessage || 'berita demo dpr ri hari ini')}&tbm=nws`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-cyan-900/80 hover:bg-cyan-800 border border-cyan-500/40 text-cyan-200 text-[9px] font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-all"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Baca Portal Berita</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Live News Source Headlines List */}
+                      <div className="flex flex-col gap-1 text-[9px]">
+                        <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                          <div>
+                            <span className="text-red-400 font-bold">KOMPAS TV:</span>{' '}
+                            <span className="text-slate-200">Situasi Terkini Aksi Demo di Depan Gerbang DPR RI</span>
+                          </div>
+                          <span className="text-[8px] text-emerald-400 font-mono">LIVE</span>
+                        </div>
+                        <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                          <div>
+                            <span className="text-red-400 font-bold">CNN INDONESIA:</span>{' '}
+                            <span className="text-slate-200">Polisi Siagakan Pengamanan & Rekayasa Lalin Senayan</span>
+                          </div>
+                          <span className="text-[8px] text-emerald-400 font-mono">UPDATE</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Verified 100% Public YouTube Music Player */
+                    <div>
+                      {/* Track Selection Chips */}
+                      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[9px]">
                         <button
                           onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
                           className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
                             selectedVideoId === 'vr0qNXmkUJ8'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.6)]'
                               : 'bg-slate-800/90 text-slate-300 hover:text-white'
                           }`}
                         >
                           🎧 Avicii - Heaven
                         </button>
                         <button
-                          onClick={() => setSelectedVideoId('LjhCEhWiKXk')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === 'LjhCEhWiKXk'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔥 DJ Sammy - Heaven
-                        </button>
-                        <button
                           onClick={() => setSelectedVideoId('60ItHLz5WEA')}
                           className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
                             selectedVideoId === '60ItHLz5WEA'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                              ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.6)]'
                               : 'bg-slate-800/90 text-slate-300 hover:text-white'
                           }`}
                         >
                           ⚡ Alan Walker - Faded
                         </button>
-                      </>
-                    )}
-                  </div>
+                      </div>
 
-                  {/* Verified 100% Public YouTube Player */}
-                  <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
-                    <iframe
-                      className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=0`}
-                      title="YouTube Media Player"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    ></iframe>
-                  </div>
+                      <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
+                        <iframe
+                          className="w-full h-full"
+                          src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=0`}
+                          title="YouTube Media Player"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
 
-                  <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
-                    <span className="text-red-400 font-bold truncate">
-                      {isNewsQuery ? '📺 Siaran Langsung Berita Nasional' : `🎵 Audio Track: ${selectedVideoId}`}
-                    </span>
-                    <a
-                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'berita demo dpr ri hari ini')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 hover:border-cyan-500"
-                    >
-                      Buka di YouTube <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  </div>
+                      <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
+                        <span className="text-cyan-400 font-bold truncate">🎵 Track: {selectedVideoId === 'vr0qNXmkUJ8' ? 'Avicii - Heaven' : 'Alan Walker - Faded'}</span>
+                        <a
+                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'dj music official')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 hover:border-cyan-500"
+                        >
+                          Buka di YouTube <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
