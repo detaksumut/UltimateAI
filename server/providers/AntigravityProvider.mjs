@@ -1,93 +1,79 @@
 /**
- * AntigravityProvider.mjs
- * Multi-Connection Resource Gateway Provider for 9Router.
- * Bridges 9Router to the 7 Antigravity Connections (ag-01 to ag-07) and native model engines:
- *  - Adaptive Quota Scheduling
- *  - Connection Circuit Breaking & Auto-Failover
- *  - Live Upstream Native Token Streaming
+ * AntigravityProvider.mjs (Backward-Compatibility Thin Adapter)
+ * 
+ * ARCHITECTURE CONSOLIDATION:
+ * Delegates all operations directly to the authoritative Antigravity Provider located in:
+ *   server/antigravity/AntigravityProvider.mjs
+ * 
+ * This ensures that ProviderRegistry and legacy 9Router components share the exact same
+ * single source of truth for connection selection, quota tracking, and Cloud Code transport.
  */
 
-import { GeminiProvider } from './GeminiProvider.mjs';
-import { antigravityPoolManagerInstance } from './AntigravityPoolManager.mjs';
+import { antigravityProviderInstance as coreAntigravityProvider } from '../antigravity/AntigravityProvider.mjs';
+import { antigravityModelRegistryInstance } from '../antigravity/AntigravityModelRegistry.mjs';
 
 export class AntigravityProvider {
-  constructor() {
+  constructor(coreProvider = coreAntigravityProvider, modelRegistry = antigravityModelRegistryInstance) {
     this.name = 'antigravity';
-    this.geminiAdapter = new GeminiProvider();
-    this.poolManager = antigravityPoolManagerInstance;
+    this.coreProvider = coreProvider;
+    this.modelRegistry = modelRegistry;
   }
 
   isConfigured() {
-    return this.geminiAdapter.isConfigured();
+    return this.coreProvider.isConfigured();
   }
 
   get modelCatalog() {
-    return this.poolManager.connections.get('ag-01')?.models || {};
+    return this.modelRegistry.models;
   }
 
-  /**
-   * Resolves optimal model and scheduled connection
-   */
   resolveBestModel(capability = 'FAST_CHAT', preferredModel = null) {
-    const scheduled = this.poolManager.scheduleRequest(capability, preferredModel);
+    const targetModel = preferredModel || this.modelRegistry.resolveModelForCapability(capability);
     return {
-      modelId: scheduled.modelId,
-      connectionId: scheduled.connectionId,
-      accountEmail: scheduled.accountEmail,
-      quotaRemaining: scheduled.quotaRemaining
+      modelId: targetModel,
+      capability
     };
   }
 
-  /**
-   * Upstream chat completion handler dispatching with adaptive failover across connection pools
-   */
-  async sendChat({ messages, stream = false, model = 'gemini-2.5-flash', temperature = 0.7 }, onChunk = null) {
-    const scheduled = this.poolManager.scheduleRequest('FAST_CHAT', model);
-    const targetModel = model.includes('gemini') ? 'gemini-2.5-flash' : model;
-
-    try {
-      const response = await this.geminiAdapter.sendChat(
-        { messages, stream, model: targetModel, temperature },
-        onChunk
-      );
-      this.poolManager.recordUsage(scheduled.connectionId, scheduled.modelId);
-      return response;
-    } catch (err) {
-      this.poolManager.recordFailure(scheduled.connectionId);
-      throw err;
-    }
+  async sendChat(options, onChunk = null) {
+    const result = await this.coreProvider.sendChat(options, onChunk);
+    return typeof result === 'object' && result.content !== undefined ? result.content : result;
   }
 
   async generateCompletion(payload, modelOverride = null) {
-    const scheduled = this.poolManager.scheduleRequest(payload.capability || 'FAST_CHAT', modelOverride || payload.model);
-    const content = await this.sendChat({
+    const result = await this.coreProvider.sendChat({
       messages: payload.messages || [],
       stream: payload.stream || false,
-      model: scheduled.modelId
+      model: modelOverride || payload.model || 'auto',
+      capability: payload.capability || 'FAST_CHAT',
+      temperature: payload.temperature || 0.7
     });
 
     return {
-      content,
-      model: scheduled.modelId,
-      connectionId: scheduled.connectionId,
-      accountEmail: scheduled.accountEmail,
-      providerGateway: 'ANTIGRAVITY_MULTI_POOL',
-      streamMode: 'UPSTREAM_NATIVE',
+      content: result.content,
+      model: result.model,
+      actualModel: result.actualModel,
+      connectionId: result.connectionId,
+      actualConnectionId: result.actualConnectionId,
+      accountAlias: result.accountAlias,
+      providerGateway: 'ANTIGRAVITY',
+      transport: result.transport,
+      transportClass: result.transportClass,
+      responseId: result.responseId,
       fallbackUsed: false,
-      quotaRemaining: scheduled.quotaRemaining
+      rollover: result.rollover
     };
   }
 
   async healthCheck() {
-    const geminiHealth = await this.geminiAdapter.healthCheck();
+    const coreHealth = await this.coreProvider.healthCheck();
     return {
-      configured: geminiHealth.configured,
-      authenticated: geminiHealth.authenticated,
-      reachable: geminiHealth.reachable,
-      status: geminiHealth.status,
-      streamMode: geminiHealth.streamMode,
-      providerGateway: 'ANTIGRAVITY_MULTI_POOL',
-      activeConnectionsCount: this.poolManager.connections.size,
+      configured: coreHealth.configured,
+      authenticated: coreHealth.authenticated,
+      reachable: coreHealth.reachable,
+      status: coreHealth.status,
+      providerGateway: 'ANTIGRAVITY',
+      activeConnectionsCount: coreHealth.activeConnections,
       activeModelsCount: Object.keys(this.modelCatalog).length,
       availableModels: Object.keys(this.modelCatalog)
     };

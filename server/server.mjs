@@ -92,13 +92,21 @@ const server = http.createServer(async (req, res) => {
 
   // 2B. Unified Quota & Pool State Endpoint (GET /api/quota, /api/pools)
   if ((pathname === '/api/quota' || pathname === '/api/pools' || pathname === '/api/dashboard/quota') && req.method === 'GET') {
-    const { antigravityPoolManagerInstance } = await import('./providers/AntigravityPoolManager.mjs');
+    const { antigravityConnectionStoreInstance } = await import('./antigravity/AntigravityConnectionStore.mjs');
+    const { antigravityQuotaTrackerInstance } = await import('./antigravity/AntigravityQuotaTracker.mjs');
+    
+    const connections = antigravityConnectionStoreInstance.getAllConnections(false);
+    const quotaState = antigravityQuotaTrackerInstance.getQuotaSummary();
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'ONLINE',
       timestamp: new Date().toISOString(),
-      totalConnections: antigravityPoolManagerInstance.connections.size,
-      pools: antigravityPoolManagerInstance.getQuotaSnapshot()
+      authority: 'ULTIMATEAI_LOCAL_ROUTER_V1_SSOT',
+      totalConnections: connections.length,
+      activeConnections: connections.filter(c => c.isActive !== false).length,
+      connections,
+      quota: quotaState
     }, null, 2));
     return;
   }

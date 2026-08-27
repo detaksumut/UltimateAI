@@ -104,6 +104,15 @@ export class AntigravityModelRegistry {
   static getAllModels() {
     return Object.values(ANTIGRAVITY_MODELS);
   }
+
+  get models() {
+    return ANTIGRAVITY_MODELS;
+  }
+
+  resolveModelForCapability(capability, preferredModel = null) {
+    return AntigravityModelRegistry.resolveModelByCapability(capability, preferredModel).id;
+  }
 }
 
+export const antigravityModelRegistryInstance = new AntigravityModelRegistry();
 export default AntigravityModelRegistry;
