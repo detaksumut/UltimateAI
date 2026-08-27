@@ -2,7 +2,7 @@
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
  * Implements: SEMANTIC_DECISION ➔ PLAN (DAG Graph) ➔ EXECUTE ➔ OBSERVE ➔ VERIFY ➔ ADAPTIVE_REPLAN
- * Propagates execution & certification options end-to-end.
+ * Multi-Model Provenance Telemetry & Strict Transport Propagation.
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -22,14 +22,14 @@ export class AgentRuntime {
    * Main Autonomous Execution Loop
    * @param {string} userGoal - User spoken/typed natural input
    * @param {Object} sessionContext - Context, previous turns, memory
-   * @param {Object} options - { failClosed: boolean, forcedModel: string }
+   * @param {Object} options - { failClosed: boolean, forcedModel: string, certificationTransport: 'NINE_ROUTER_PROXY' | 'DIRECT_PROVIDER' }
    * @returns {Promise<Object>} executionSummary
    */
   async runGoal(userGoal, sessionContext = {}, options = {}) {
     const startTime = Date.now();
     const rawGoal = userGoal || '';
 
-    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation with Fail-Closed option)
+    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation with Fail-Closed & Transport options)
     const decision = await decisionEngineInstance.decide(rawGoal, sessionContext, options);
 
     // If pure conversation without task delegation
@@ -41,7 +41,8 @@ export class AgentRuntime {
         actionRequired: false,
         intent: decision.intent,
         interpretationSource: decision.interpretationSource,
-        modelUsed: decision.modelUsed,
+        transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
+        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
         fallbackUsed: decision.fallbackUsed,
         responseMessage: `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian data multi-layer, analisis, pemutaran media, atau pembuatan aplikasi instan secara mandiri.`,
         durationMs: Date.now() - startTime
@@ -53,6 +54,7 @@ export class AgentRuntime {
     let finalVerification = null;
     let currentPlan = null;
     const fullExecutionHistory = [];
+    const executionModelsUsed = [];
 
     // Initial Semantic Plan
     currentPlan = AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
@@ -85,6 +87,10 @@ export class AgentRuntime {
         });
 
         const observation = AgentObserver.observe(step, stepResult);
+
+        if (step.tool) {
+          executionModelsUsed.push(step.tool);
+        }
 
         currentHistory.push({
           step,
@@ -137,8 +143,14 @@ export class AgentRuntime {
       attempts: attempt,
       responseMessage: finalVerification?.synthesisMessage || 'Instruksi telah selesai diproses dan diverifikasi oleh sistem 9Router.',
       artifact: finalVerification?.artifact || null,
+      provenance: {
+        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+        planningModel: '9router.dag_synthesizer',
+        executionModels: [...new Set(executionModelsUsed)],
+        transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
+      },
       interpretationSource: decision.interpretationSource,
-      modelUsed: decision.modelUsed,
+      transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
       fallbackUsed: decision.fallbackUsed,
       durationMs,
       telemetry: {

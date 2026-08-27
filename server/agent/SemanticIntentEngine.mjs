@@ -1,7 +1,7 @@
 /**
  * SemanticIntentEngine.mjs
- * LLM-powered semantic goal and intent interpreter with strict Fail-Closed Certification Mode.
- * Supports both HTTP Proxy routing and in-process ProviderRegistry direct dispatch.
+ * LLM-powered semantic goal and intent interpreter with strict Fail-Closed Certification Mode
+ * and explicit Transport Selection (NINE_ROUTER_PROXY vs DIRECT_PROVIDER).
  */
 
 import { config } from '../config/env.mjs';
@@ -17,7 +17,7 @@ export class SemanticIntentEngine {
    * Interprets natural language input into a structured semantic goal
    * @param {string} input - User utterance / query
    * @param {Object} context - Conversational memory & history
-   * @param {Object} options - { failClosed: boolean, forcedModel: string }
+   * @param {Object} options - { failClosed: boolean, forcedModel: string, certificationTransport: 'NINE_ROUTER_PROXY' | 'DIRECT_PROVIDER' }
    * @returns {Promise<Object>} semanticGoal
    */
   async interpret(input, context = {}, options = {}) {
@@ -33,6 +33,7 @@ export class SemanticIntentEngine {
         reason: 'Empty user utterance.',
         mode: 'STANDBY',
         interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+        transportUsed: options.certificationTransport || 'NINE_ROUTER_PROXY',
         fallbackUsed: false
       };
     }
@@ -53,84 +54,91 @@ Analyze the user's natural language input and output STRICT valid JSON with:
 }`;
 
     const model = options.forcedModel || 'gemini-3.5-flash';
+    const transport = options.certificationTransport || 'NINE_ROUTER_PROXY';
 
-    // 1. PRIMARY A: In-Process Provider Direct Dispatch (if provider configured in env)
-    try {
-      const resolved = providerRegistryInstance.resolveProviderForStrategy('AGENT_SEMANTIC', model);
-      if (resolved && resolved.provider && resolved.provider.isConfigured()) {
-        const payload = {
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' }
-        };
-
-        const result = await resolved.provider.generateCompletion(payload, resolved.model);
-        if (result && result.content) {
-          const parsed = JSON.parse(result.content);
-          return {
-            ...parsed,
-            interpretationSource: 'PRIMARY_LLM_SEMANTIC',
-            modelUsed: resolved.model || model,
-            fallbackUsed: false
-          };
+    // 1. PRIMARY: HTTP 9Router Proxy Dispatch (Standard & Verified 9Router Gateway Path)
+    if (transport === 'NINE_ROUTER_PROXY') {
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.apiKey) {
+          headers['Authorization'] = `Bearer ${this.apiKey}`;
         }
-      }
-    } catch (err) {
-      if (options.failClosed) {
-        throw new Error(`[FAIL_CLOSED] In-Process Primary LLM error: ${err.message}`);
+
+        const response = await fetch(`${this.proxyUrl}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
+            ],
+            temperature: 0.1,
+            response_format: { type: 'json_object' }
+          }),
+          signal: AbortSignal.timeout(4000)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = JSON.parse(content);
+            return {
+              ...parsed,
+              interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+              semanticModel: model,
+              transportUsed: 'NINE_ROUTER_PROXY',
+              fallbackUsed: false
+            };
+          }
+        }
+      } catch (err) {
+        if (options.failClosed) {
+          throw new Error(`[FAIL_CLOSED • NINE_ROUTER_PROXY] Gateway unreachable or rejected request: ${err.message}`);
+        }
       }
     }
 
-    // 1. PRIMARY B: HTTP 9Router Proxy Dispatch
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (this.apiKey) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-      }
-
-      const response = await fetch(`${this.proxyUrl}/chat/completions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
-          ],
-          temperature: 0.1,
-          response_format: { type: 'json_object' }
-        }),
-        signal: AbortSignal.timeout(4000)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content) {
-          const parsed = JSON.parse(content);
-          return {
-            ...parsed,
-            interpretationSource: 'PRIMARY_LLM_SEMANTIC',
-            modelUsed: model,
-            fallbackUsed: false
+    // 2. OPTIONAL DIRECT PROVIDER DISPATCH (Only if explicitly permitted via options)
+    if (transport === 'DIRECT_PROVIDER') {
+      try {
+        const resolved = providerRegistryInstance.resolveProviderForStrategy('AGENT_SEMANTIC', model);
+        if (resolved && resolved.provider && resolved.provider.isConfigured()) {
+          const payload = {
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `Input: "${raw}"\nContext: ${JSON.stringify(context.recentTurns || [])}` }
+            ],
+            temperature: 0.1,
+            response_format: { type: 'json_object' }
           };
+
+          const result = await resolved.provider.generateCompletion(payload, resolved.model);
+          if (result && result.content) {
+            const parsed = JSON.parse(result.content);
+            return {
+              ...parsed,
+              interpretationSource: 'PRIMARY_LLM_SEMANTIC',
+              semanticModel: resolved.model || model,
+              transportUsed: 'DIRECT_PROVIDER',
+              fallbackUsed: false
+            };
+          }
         }
-      }
-    } catch (err) {
-      if (options.failClosed) {
-        throw new Error(`[FAIL_CLOSED] HTTP Proxy Primary LLM error: ${err.message}`);
+      } catch (err) {
+        if (options.failClosed) {
+          throw new Error(`[FAIL_CLOSED • DIRECT_PROVIDER] Direct provider dispatch error: ${err.message}`);
+        }
       }
     }
 
     // If fail-closed is mandated, strictly throw error instead of falling back
     if (options.failClosed) {
-      throw new Error('[FAIL_CLOSED] Primary LLM provider is unconfigured or unreachable; heuristic fallback is suppressed in Certification Mode.');
+      throw new Error(`[FAIL_CLOSED] Primary LLM transport (${transport}) unavailable; fallback suppressed.`);
     }
 
-    // 2. FALLBACK: High-Accuracy Heuristic Semantic Parser (Used in Resilient Offline Mode)
+    // 3. FALLBACK: High-Accuracy Heuristic Semantic Parser (Used in Offline Mode)
     const p = raw.toLowerCase();
     
     // Negative Action Restraint Check
@@ -146,6 +154,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         confidence: 0.98,
         reason: 'User explicitly instructed to refrain from taking action.',
         interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+        transportUsed: 'LOCAL_HEURISTIC',
         fallbackUsed: true
       };
     }
@@ -172,6 +181,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
         confidence: 0.95,
         reason: isVenting ? 'User is sharing personal state without task delegation.' : 'Casual greeting.',
         interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+        transportUsed: 'LOCAL_HEURISTIC',
         fallbackUsed: true
       };
     }
@@ -214,6 +224,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       sensitiveAction: isSensitive,
       reason: `Heuristic parser classified intent as ${intent}.`,
       interpretationSource: 'FALLBACK_HEURISTIC_PARSER',
+      transportUsed: 'LOCAL_HEURISTIC',
       fallbackUsed: true
     };
   }
