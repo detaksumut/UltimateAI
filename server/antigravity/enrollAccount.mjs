@@ -12,7 +12,7 @@ async function main() {
   const enrollment = new AntigravityOAuthEnrollment();
 
   try {
-    await enrollment.enrollConnection({
+    await enrollment.executeInteractiveEnrollment({
       connectionId: targetId,
       accountAlias: alias,
       label: `Antigravity Account ${targetId.toUpperCase()}`
