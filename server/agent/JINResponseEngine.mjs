@@ -1,8 +1,9 @@
 /**
  * JINResponseEngine.mjs
  * Evidence-Bound Response Authority & Conversational Synthesis Engine.
- * Implements Strict Dual-Channel ApprovedFacts Realization:
- * Zero factual defaults; Voice Speech and UI HUD Display are 100% derived from validated ApprovedFacts.
+ * Pure Fact-Driven Clause Assembly:
+ * "NO EVIDENCE ➔ NO FACT ➔ NO CLAUSE ➔ NO SPEECH"
+ * Zero factual sentence defaults across Voice and HUD channels.
  */
 
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
@@ -37,8 +38,8 @@ export class JINResponseEngine {
       return this.synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options);
     }
 
-    // 2. PROPOSITION-LEVEL APPROVED FACTS OUTCOME SYNTHESIS
-    return this.synthesizeApprovedFactsOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options);
+    // 2. FACT-DRIVEN OUTCOME SYNTHESIS
+    return this.synthesizeFactDrivenOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options);
   }
 
   /**
@@ -110,9 +111,9 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
   }
 
   /**
-   * Synthesizes outcome dialogue strictly derived from verified Approved Facts (Zero factual defaults)
+   * Pure Fact-Driven Outcome Assembly (NO EVIDENCE ➔ NO FACT ➔ NO CLAUSE ➔ NO SPEECH)
    */
-  synthesizeApprovedFactsOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
+  synthesizeFactDrivenOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
     const candidatePropositions = [];
 
     const validationContext = {
@@ -133,7 +134,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
         predicate: { notEmpty: true }
       });
 
-      // 2. Proposition: Industry Deviation (No hardcoded defaults)
+      // 2. Proposition: Industry Deviation (Strictly from evidence, no fallback defaults)
       candidatePropositions.push({
         factKey: 'industry_deviation',
         claim: 'Penyimpangan data terhadap benchmark industri',
@@ -144,7 +145,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       // 3. Proposition: Root Causes Identified
       candidatePropositions.push({
         factKey: 'root_causes_analyzed',
-        claim: 'Analisis faktor penyebab telah diidentifikasi',
+        claim: 'Faktor penyebab telah teridentifikasi',
         evidenceRef: `artifact:${artifactName}:rootCauses`,
         predicate: { notEmpty: true }
       });
@@ -204,9 +205,27 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
     const approvedClaims = validationResult.approvedClaims;
     const approvedEvidenceRefs = approvedFacts.map(f => f.evidenceRef);
 
-    // 2. Natural Voice Speech & UI HUD Realization Strictly Derived from Approved Facts
-    let naturalVoiceSpeech = '';
-    let detailedTextDisplay = '';
+    // 2. Pure Fail-Closed Handling: If no approved facts, emit zero factual claims
+    if (!validationResult.hasApprovedFacts) {
+      return {
+        naturalVoiceSpeech: 'Saya belum memiliki bukti yang cukup untuk memastikan hasil pekerjaan ini.',
+        detailedTextDisplay: '### ⚠️ Status\nBelum ada fakta terverifikasi yang dapat ditampilkan.',
+        responseMode: 'OUTCOME_SYNTHESIS',
+        responseSource: options.failClosed ? 'PRIMARY_LLM_RESPONSE' : 'EVIDENCE_BOUND_SYNTHESIS',
+        approvedFacts: [],
+        claims: [],
+        evidenceRefs: [],
+        rejectedPropositions: validationResult.rejectedPropositions,
+        validationStatus: validationResult.validationStatus,
+        allPropositionsValid: false,
+        hasApprovedFacts: false,
+        voiceIntent: 'SPEAK'
+      };
+    }
+
+    // 3. Pure Fact-Driven Clause Assembly (Every clause maps strictly to an approved fact)
+    const voiceClauses = [];
+    const hudLines = [];
 
     if (decision.intent === 'DATA_ANALYTICS' || decision.intent === 'RESEARCH_QUESTION') {
       const devFact = approvedFacts.find(f => f.factKey === 'industry_deviation');
@@ -214,45 +233,66 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       const persistenceFact = approvedFacts.find(f => f.factKey === 'disk_persistence');
       const summaryFact = approvedFacts.find(f => f.factKey === 'executive_summary_available');
 
-      const devText = devFact ? ` ${devFact.verifiedValue}` : '';
-      const rootCauseClause = rootCausesFact ? ' serta analisis faktor penyebabnya' : '';
-      const persistenceClause = persistenceFact ? ' sudah saya susun di panel artefak.' : ' telah diverifikasi.';
+      hudLines.push('### 📊 Analisis Metrik & Risiko Eksekutif\n');
 
-      naturalVoiceSpeech = `Terlihat ada penyimpangan data${devText} di atas rata-rata industri. Ringkasan eksekutif${rootCauseClause}${persistenceClause}`;
+      if (devFact && typeof devFact.verifiedValue === 'string') {
+        voiceClauses.push(`Terdapat penyimpangan data ${devFact.verifiedValue} terhadap benchmark industri.`);
+        hudLines.push(`- **Deviasi Terverifikasi:** ${devFact.verifiedValue} terhadap benchmark industri`);
+      }
 
-      // Build HUD Display strictly from approved facts
-      const hudLines = ['### 📊 Analisis Metrik & Risiko Eksekutif\n'];
-      if (devFact) hudLines.push(`- **Deviasi Terverifikasi:** ${devFact.verifiedValue} terhadap benchmark industri`);
-      if (persistenceFact) hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
-      if (summaryFact) hudLines.push(`\n${summaryFact.verifiedValue}`);
-      detailedTextDisplay = hudLines.join('\n');
+      if (rootCausesFact) {
+        voiceClauses.push('Faktor penyebab telah teridentifikasi.');
+      }
+
+      if (persistenceFact) {
+        voiceClauses.push('Ringkasan eksekutif telah tersimpan di panel artefak.');
+        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+      }
+
+      if (summaryFact && typeof summaryFact.verifiedValue === 'string') {
+        hudLines.push(`\n${summaryFact.verifiedValue}`);
+      }
     } else if (decision.intent === 'APP_SYNTHESIS') {
       const runtimePassFact = approvedFacts.find(f => f.factKey === 'runtime_test_passed');
       const persistenceFact = approvedFacts.find(f => f.factKey === 'disk_persistence');
 
-      if (runtimePassFact && persistenceFact) {
-        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai dibangun, tersimpan di disk, dan lolos pengujian runtime.`;
-      } else if (persistenceFact) {
-        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI telah disusun dan tersimpan di disk.`;
-      } else {
-        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI telah selesai dirancang.`;
-      }
-
-      const hudLines = ['### 💻 Purwarupa Aplikasi Selesai\n'];
+      hudLines.push('### 💻 Purwarupa Aplikasi Selesai\n');
       hudLines.push('- **Komponen:** `ResearchRoiCalculator` (React / JSX)');
-      if (runtimePassFact) hudLines.push('- **Pengujian Runtime:** 100% test fixture lolos (ROI formula & state)');
-      if (persistenceFact) hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
-      detailedTextDisplay = hudLines.join('\n');
+
+      if (runtimePassFact && persistenceFact) {
+        voiceClauses.push('Purwarupa aplikasi kalkulator ROI interaktif telah tersimpan di disk dan lolos pengujian runtime.');
+        hudLines.push('- **Pengujian Runtime:** 100% test fixture lolos (ROI formula & state)');
+        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+      } else if (persistenceFact) {
+        voiceClauses.push('Purwarupa aplikasi kalkulator ROI telah tersimpan di disk.');
+        hudLines.push(`- **Status Persistensi Disk:** ${persistenceFact.verifiedValue}`);
+      }
     } else if (decision.intent === 'LIVE_NEWS') {
       const videoFact = approvedFacts.find(f => f.factKey === 'video_verified');
-      const channel = videoFact?.verifiedValue?.channel || 'siaran terpercaya';
-      naturalVoiceSpeech = `Siaran berita live dari ${channel} telah berhasil diverifikasi dan disiapkan di panel media.`;
-
-      detailedTextDisplay = `### 📺 Siaran Berita Live Terpilih\n\n- **Kanal:** ${channel}\n- **Topik:** ${userUtterance}\n- **Status Seleksi:** Diverifikasi dari sumber media resmi`;
+      if (videoFact?.verifiedValue?.channel) {
+        const channel = videoFact.verifiedValue.channel;
+        voiceClauses.push(`Siaran berita live dari ${channel} telah terverifikasi dan disiapkan di panel media.`);
+        hudLines.push('### 📺 Siaran Berita Live Terpilih\n');
+        hudLines.push(`- **Kanal:** ${channel}`);
+        hudLines.push(`- **Topik:** ${userUtterance}`);
+      }
     } else {
-      naturalVoiceSpeech = `Pekerjaan untuk "${userUtterance}" telah selesai saya laksanakan dan diverifikasi secara utuh.`;
-      detailedTextDisplay = `### ✅ Tugas Selesai\n\n- **Goal:** ${userUtterance}\n- **Status:** Diverifikasi 9Router`;
+      const goalFact = approvedFacts.find(f => f.factKey === 'goal_completed');
+      if (goalFact) {
+        voiceClauses.push(`Pekerjaan untuk "${userUtterance}" telah diverifikasi selesai.`);
+        hudLines.push('### ✅ Tugas Selesai\n');
+        hudLines.push(`- **Goal:** ${userUtterance}`);
+        hudLines.push('- **Status:** Diverifikasi 9Router');
+      }
     }
+
+    const naturalVoiceSpeech = voiceClauses.length > 0 
+      ? voiceClauses.join(' ') 
+      : 'Belum ada fakta terverifikasi yang dapat saya pastikan.';
+
+    const detailedTextDisplay = hudLines.length > 0 
+      ? hudLines.join('\n') 
+      : 'Belum ada fakta terverifikasi yang dapat ditampilkan.';
 
     return {
       naturalVoiceSpeech,
