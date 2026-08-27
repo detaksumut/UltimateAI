@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, ChevronDown, MessageSquare, Globe, Shield, 
-  Layers, AlertTriangle, CheckCircle, ExternalLink, Play
+  Layers, AlertTriangle, CheckCircle, ExternalLink, Play,
+  Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music
 } from 'lucide-react';
 import AppSandboxRenderer from './AppSandboxRenderer.jsx';
 
@@ -9,22 +10,35 @@ export default function MobileSimulatorHUD({
   messages = [],
   latestResponse,
   isProcessing,
-  activeMode = 'CONVERSATION', // 'CONVERSATION' | 'SEARCH' | 'INSIGHTS' | 'APP_PREVIEW'
+  activeMode = 'CONVERSATION', // 'CONVERSATION' | 'SEARCH' | 'MEDIA' | 'INSIGHTS' | 'APP_PREVIEW'
   onModeChange,
   generatedAppCode = null,
   liveSearchSources = []
 }) {
   const [selectedDevice, setSelectedDevice] = useState('iPhone 15');
   const [currentTab, setCurrentTab] = useState(activeMode);
+  const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'IMAGE' | 'DATA'
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeMode) setCurrentTab(activeMode);
   }, [activeMode]);
 
-  const lastAssistantMessage = messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || latestResponse || 'Halo! Saya JIN. Saya siap membantu simulasi dan orkestrasi riset Anda.';
   const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+  const lastAssistantMessage = messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || latestResponse || 'Halo! Saya JIN. Saya siap membantu simulasi, pencarian data, serta visualisasi gambar dan video.';
 
-  // Default live search nodes if none injected
+  // Detect dynamic media requirements from user query
+  const lowerQuery = lastUserMessage.toLowerCase();
+  const isVideoQuery = lowerQuery.includes('video') || lowerQuery.includes('youtube') || lowerQuery.includes('lagu') || lowerQuery.includes('musik') || lowerQuery.includes('putar');
+  const isImageQuery = lowerQuery.includes('gambar') || lowerQuery.includes('foto') || lowerQuery.includes('image') || lowerQuery.includes('visual');
+  const isDataQuery = lowerQuery.includes('data') || lowerQuery.includes('tabel') || lowerQuery.includes('grafik') || lowerQuery.includes('chart') || lowerQuery.includes('statistik');
+
+  // Auto switch tab if specific media is requested
+  useEffect(() => {
+    if (isVideoQuery || isImageQuery || isDataQuery) {
+      setCurrentTab('MEDIA');
+    }
+  }, [lastUserMessage]);
+
   const displaySources = liveSearchSources.length > 0 ? liveSearchSources : [
     { id: '1', category: 'GOVERNMENT', title: 'Kominfo AI Framework', domain: 'kominfo.go.id', url: 'https://kominfo.go.id' },
     { id: '2', category: 'ACADEMIC', title: 'ArXiv CS AI Repository', domain: 'arxiv.org', url: 'https://arxiv.org' },
@@ -43,7 +57,7 @@ export default function MobileSimulatorHUD({
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <Smartphone className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs font-mono font-bold tracking-widest text-white uppercase">SIMULATOR</span>
+          <span className="text-xs font-mono font-bold tracking-widest text-white uppercase">SIMULATOR HUD</span>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -53,7 +67,7 @@ export default function MobileSimulatorHUD({
               onChange={(e) => setSelectedDevice(e.target.value)}
               className="appearance-none bg-slate-900/90 border border-slate-700/70 px-2.5 py-1 pr-6 rounded-lg text-xs font-mono text-slate-300 focus:outline-none focus:border-cyan-400 cursor-pointer"
             >
-              <option value="iPhone 15">iPhone 15</option>
+              <option value="iPhone 15">iPhone 15 Pro</option>
               <option value="iPad Mini">iPad Mini</option>
               <option value="Galaxy S24">Galaxy S24</option>
             </select>
@@ -77,36 +91,45 @@ export default function MobileSimulatorHUD({
           </div>
         </div>
 
-        {/* Intelligence Mode Tabs */}
-        <div className="flex items-center justify-between gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mb-2 z-10 text-[10px] font-mono">
+        {/* Intelligence Mode Tabs (5 Tabs: DIALOG, MEDIA, SEARCH, INSIGHTS, APP) */}
+        <div className="flex items-center justify-between gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mb-2 z-10 text-[9px] font-mono">
           <button
             onClick={() => handleTabClick('CONVERSATION')}
             className={`flex-1 py-1 rounded-lg transition-all ${
-              currentTab === 'CONVERSATION' ? 'bg-blue-600/70 text-white font-bold' : 'text-slate-400 hover:text-white'
+              currentTab === 'CONVERSATION' ? 'bg-blue-600/80 text-white font-bold shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
           >
-            DIALOG
+            CHAT
+          </button>
+          <button
+            onClick={() => handleTabClick('MEDIA')}
+            className={`flex-1 py-1 rounded-lg transition-all flex items-center justify-center gap-1 ${
+              currentTab === 'MEDIA' ? 'bg-pink-600/80 text-white font-bold shadow-[0_0_10px_rgba(219,39,119,0.5)]' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-2.5 h-2.5 text-pink-300" />
+            MEDIA
           </button>
           <button
             onClick={() => handleTabClick('SEARCH')}
             className={`flex-1 py-1 rounded-lg transition-all ${
-              currentTab === 'SEARCH' ? 'bg-emerald-600/70 text-white font-bold' : 'text-slate-400 hover:text-white'
+              currentTab === 'SEARCH' ? 'bg-emerald-600/80 text-white font-bold shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
           >
-            SEARCH
+            WEB
           </button>
           <button
             onClick={() => handleTabClick('INSIGHTS')}
             className={`flex-1 py-1 rounded-lg transition-all ${
-              currentTab === 'INSIGHTS' ? 'bg-cyan-600/70 text-white font-bold' : 'text-slate-400 hover:text-white'
+              currentTab === 'INSIGHTS' ? 'bg-cyan-600/80 text-white font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
           >
-            INSIGHTS
+            DATA
           </button>
           <button
             onClick={() => handleTabClick('APP_PREVIEW')}
             className={`flex-1 py-1 rounded-lg transition-all ${
-              currentTab === 'APP_PREVIEW' ? 'bg-purple-600/70 text-white font-bold' : 'text-slate-400 hover:text-white'
+              currentTab === 'APP_PREVIEW' ? 'bg-purple-600/80 text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-slate-400 hover:text-white'
             }`}
           >
             APP UI
@@ -115,6 +138,7 @@ export default function MobileSimulatorHUD({
 
         {/* Phone Inner Screen Content */}
         <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-1 z-10">
+          
           {/* TAB 1: CONVERSATION */}
           {currentTab === 'CONVERSATION' && (
             <div className="space-y-3">
@@ -140,7 +164,7 @@ export default function MobileSimulatorHUD({
                     {isProcessing ? (
                       <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs py-1">
                         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                        <span>9Router reasoning in progress...</span>
+                        <span>JIN 9Router sedang memproses...</span>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{lastAssistantMessage}</p>
@@ -151,7 +175,169 @@ export default function MobileSimulatorHUD({
             </div>
           )}
 
-          {/* TAB 2: LIVE GLOBAL SEARCH (REAL CITATIONS) */}
+          {/* TAB 2: RICH MULTIMEDIA & VISUALIZATION (VIDEO, GAMBAR, DATA) */}
+          {currentTab === 'MEDIA' && (
+            <div className="space-y-3 font-mono">
+              {/* Media Sub-Filter Bar */}
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[9px]">
+                <button
+                  onClick={() => setActiveMediaType('ALL')}
+                  className={`flex-1 py-1 rounded-lg ${activeMediaType === 'ALL' ? 'bg-slate-800 text-cyan-300 font-bold' : 'text-slate-400'}`}
+                >
+                  SEMUA
+                </button>
+                <button
+                  onClick={() => setActiveMediaType('VIDEO')}
+                  className={`flex-1 py-1 rounded-lg ${activeMediaType === 'VIDEO' ? 'bg-red-950/80 border border-red-500/40 text-red-300 font-bold' : 'text-slate-400'}`}
+                >
+                  ▶ VIDEO
+                </button>
+                <button
+                  onClick={() => setActiveMediaType('IMAGE')}
+                  className={`flex-1 py-1 rounded-lg ${activeMediaType === 'IMAGE' ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold' : 'text-slate-400'}`}
+                >
+                  🖼 GAMBAR
+                </button>
+                <button
+                  onClick={() => setActiveMediaType('DATA')}
+                  className={`flex-1 py-1 rounded-lg ${activeMediaType === 'DATA' ? 'bg-purple-950/80 border border-purple-500/40 text-purple-300 font-bold' : 'text-slate-400'}`}
+                >
+                  📊 DATA
+                </button>
+              </div>
+
+              {/* 1. VIDEO PLAYER CARD */}
+              {(activeMediaType === 'ALL' || activeMediaType === 'VIDEO') && (
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-red-500/30 shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-red-600/30 border border-red-400/40 flex items-center justify-center text-red-300">
+                        <Film className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white tracking-wide">YOUTUBE & MEDIA PLAYER</div>
+                        <div className="text-[8px] text-red-400">Stream Embed Live</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold">
+                      HD 1080p
+                    </span>
+                  </div>
+
+                  {/* Embedded Video Card */}
+                  <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
+                    <iframe
+                      className="w-full h-full"
+                      src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=0"
+                      title="YouTube video player"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+
+                  <div className="mt-2 text-[10px] text-slate-300 flex items-center justify-between">
+                    <span className="text-red-400 font-bold truncate">🎵 Bryan Adams - Heaven (Official Music Video)</span>
+                    <a
+                      href="https://www.youtube.com/results?search_query=lagu+heaven"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[9px] text-cyan-400 hover:underline flex items-center gap-1 flex-shrink-0"
+                    >
+                      Buka YouTube <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. IMAGE GALLERY CARD */}
+              {(activeMediaType === 'ALL' || activeMediaType === 'IMAGE') && (
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-cyan-500/30 shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white tracking-wide">IMAGE GALLERY & ASSETS</div>
+                        <div className="text-[8px] text-cyan-400">Visual Neural Synthesis</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold">
+                      Rendered
+                    </span>
+                  </div>
+
+                  {/* Grid of Images */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative rounded-xl overflow-hidden border border-cyan-500/40 group">
+                      <img
+                        src="/genie-bg.png"
+                        alt="JIN Avatar Visual"
+                        className="w-full h-24 object-cover group-hover:scale-105 transition-all"
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 p-1 text-[8px] text-cyan-300 truncate">
+                        Hologram Neon JIN
+                      </div>
+                    </div>
+
+                    <div className="relative rounded-xl overflow-hidden border border-purple-500/40 group bg-slate-950 flex flex-col items-center justify-center p-2">
+                      <Sparkles className="w-6 h-6 text-purple-400 mb-1 animate-pulse" />
+                      <div className="text-[9px] font-bold text-purple-300 text-center">AI Gen Image</div>
+                      <div className="text-[7px] text-slate-400 text-center mt-0.5">High-Res Render</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. DATA & ANALYTICS TABLE */}
+              {(activeMediaType === 'ALL' || activeMediaType === 'DATA') && (
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-purple-500/30 shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-purple-300">
+                        <BarChart3 className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white tracking-wide">INTERACTIVE DATA MATRIX</div>
+                        <div className="text-[8px] text-purple-400">Live Structured Data</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">
+                      SQL / JSON
+                    </span>
+                  </div>
+
+                  {/* Micro Data Table */}
+                  <div className="w-full overflow-hidden rounded-xl border border-slate-800 text-[9px]">
+                    <div className="grid grid-cols-3 bg-slate-950 p-1.5 font-bold text-cyan-300 border-b border-slate-800">
+                      <div>PARAMETER</div>
+                      <div className="text-center">METRIC</div>
+                      <div className="text-right">STATUS</div>
+                    </div>
+                    <div className="divide-y divide-slate-800/60 bg-slate-900/60">
+                      <div className="grid grid-cols-3 p-1.5 text-slate-300">
+                        <div>Throughput</div>
+                        <div className="text-center font-mono text-cyan-400">980 req/s</div>
+                        <div className="text-right text-emerald-400 font-bold">OPTIMAL</div>
+                      </div>
+                      <div className="grid grid-cols-3 p-1.5 text-slate-300">
+                        <div>9Router Latency</div>
+                        <div className="text-center font-mono text-purple-400">182 ms</div>
+                        <div className="text-right text-emerald-400 font-bold">PASS</div>
+                      </div>
+                      <div className="grid grid-cols-3 p-1.5 text-slate-300">
+                        <div>Accuracy Score</div>
+                        <div className="text-center font-mono text-emerald-400">99.4 %</div>
+                        <div className="text-right text-emerald-400 font-bold">EXCELLENT</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: LIVE GLOBAL SEARCH */}
           {currentTab === 'SEARCH' && (
             <div className="space-y-2.5">
               <div className="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
@@ -195,19 +381,11 @@ export default function MobileSimulatorHUD({
                     </a>
                   ))}
                 </div>
-
-                {/* Search Radar World Map */}
-                <div className="w-full h-16 rounded-xl bg-[#030712] border border-slate-800 relative overflow-hidden flex items-center justify-center">
-                  <div className="text-[10px] font-mono text-cyan-400 z-10 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-cyan-500/40 shadow-sm">
-                    🌐 Multi-Source Crawler Active
-                  </div>
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:10px_10px] opacity-30"></div>
-                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 3: IMPORTANT INFORMATION */}
+          {/* TAB 4: CRITICAL INSIGHTS */}
           {currentTab === 'INSIGHTS' && (
             <div className="space-y-3">
               <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800">
@@ -231,22 +409,12 @@ export default function MobileSimulatorHUD({
                       Ditemukan variansi 4.2% pada parameter dataset riset yang memerlukan validasi ulang.
                     </p>
                   </div>
-
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 text-slate-200 space-y-1">
-                    <div className="font-bold text-emerald-300 text-[11px] flex items-center gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400" />
-                      <span>Arsitektur Sistem Terverifikasi</span>
-                    </div>
-                    <p className="text-[10px] text-slate-300 leading-normal">
-                      9 jalur reasoning 9Router beroperasi dalam toleransi latensi optimal &lt; 200ms.
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 4: LIVE APP PROTOTYPE SANDBOX */}
+          {/* TAB 5: LIVE APP PROTOTYPE SANDBOX */}
           {currentTab === 'APP_PREVIEW' && (
             <div className="w-full h-full min-h-[260px] rounded-2xl overflow-hidden border border-purple-500/30 shadow-inner">
               <AppSandboxRenderer appCode={generatedAppCode} />
@@ -257,10 +425,11 @@ export default function MobileSimulatorHUD({
         {/* iPhone Bottom Pagination */}
         <div className="w-full flex flex-col items-center gap-1.5 pt-2 pb-0.5 z-10">
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setCurrentTab('CONVERSATION')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'CONVERSATION' ? 'bg-cyan-400 shadow-[0_0_6px_#00e5ff] scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('SEARCH')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'SEARCH' ? 'bg-emerald-400 shadow-[0_0_6px_#10b981] scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('INSIGHTS')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'INSIGHTS' ? 'bg-cyan-400 shadow-[0_0_6px_#00e5ff] scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('APP_PREVIEW')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'APP_PREVIEW' ? 'bg-purple-400 shadow-[0_0_6px_#c084fc] scale-125' : 'bg-slate-600'}`} />
+            <button onClick={() => setCurrentTab('CONVERSATION')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'CONVERSATION' ? 'bg-blue-400 scale-125' : 'bg-slate-600'}`} />
+            <button onClick={() => setCurrentTab('MEDIA')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'MEDIA' ? 'bg-pink-400 scale-125' : 'bg-slate-600'}`} />
+            <button onClick={() => setCurrentTab('SEARCH')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'SEARCH' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`} />
+            <button onClick={() => setCurrentTab('INSIGHTS')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'INSIGHTS' ? 'bg-cyan-400 scale-125' : 'bg-slate-600'}`} />
+            <button onClick={() => setCurrentTab('APP_PREVIEW')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'APP_PREVIEW' ? 'bg-purple-400 scale-125' : 'bg-slate-600'}`} />
           </div>
           <div className="w-28 h-1 bg-slate-600 rounded-full"></div>
         </div>
