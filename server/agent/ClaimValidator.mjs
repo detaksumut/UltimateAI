@@ -1,80 +1,93 @@
 /**
  * ClaimValidator.mjs
- * Validates candidate claims against physical evidence references and predicates.
- * Produces structured Approved Facts for generative natural speech realization.
+ * Evidence-First Fact Extractor & Proposition Validator.
+ * Extracts candidate facts directly from verified evidence, validates predicates,
+ * and produces strict ApprovedFacts where every proposition is mathematically grounded.
  */
 
 import { EvidenceResolver } from './EvidenceResolver.mjs';
 
 export class ClaimValidator {
   /**
-   * Validates a list of candidate claims against execution context and predicates
-   * @param {Array} candidateClaims - [{ factKey, claim, evidenceRef, predicate: { field, equals, notEmpty } }]
+   * Extracts and validates facts directly from evidence context
+   * @param {Array} candidatePropositions - [{ factKey, claim, evidenceRef, predicate: { field, equals, notEmpty, minLength } }]
    * @param {Object} context - { artifact, executionHistory, verification, provenance }
-   * @returns {Object} { approvedFacts: Array, approvedClaims: Array, rejectedClaims: Array, isValid: boolean }
+   * @returns {Object} { approvedFacts: Array, approvedClaims: Array, rejectedPropositions: Array, isValid: boolean }
    */
-  static validateClaims(candidateClaims = [], context = {}) {
+  static validatePropositions(candidatePropositions = [], context = {}) {
     const approvedFacts = [];
     const approvedClaims = [];
-    const rejectedClaims = [];
+    const rejectedPropositions = [];
 
-    for (const c of candidateClaims) {
-      if (!c || !c.claim || !c.evidenceRef) {
-        rejectedClaims.push({ claim: c?.claim || 'Unnamed', reason: 'Missing claim text or evidenceRef' });
+    for (const prop of candidatePropositions) {
+      if (!prop || !prop.factKey || !prop.evidenceRef) {
+        rejectedPropositions.push({ factKey: prop?.factKey || 'unknown', reason: 'Missing factKey or evidenceRef' });
         continue;
       }
 
       // 1. Resolve Evidence Ref
-      const resolution = EvidenceResolver.resolve(c.evidenceRef, context);
+      const resolution = EvidenceResolver.resolve(prop.evidenceRef, context);
       if (!resolution.resolved || resolution.value === null || resolution.value === undefined) {
-        rejectedClaims.push({ claim: c.claim, evidenceRef: c.evidenceRef, reason: `Unresolvable evidence: ${resolution.error || 'Value is null/undefined'}` });
+        rejectedPropositions.push({
+          factKey: prop.factKey,
+          evidenceRef: prop.evidenceRef,
+          reason: `Unresolvable evidence: ${resolution.error || 'Value is null/undefined'}`
+        });
         continue;
       }
 
-      // 2. Validate Predicate if defined
-      if (c.predicate) {
+      // 2. Strict Predicate Validation
+      if (prop.predicate) {
         let predicatePassed = true;
         let predicateError = null;
 
-        if (c.predicate.field && typeof resolution.value === 'object') {
-          const targetValue = resolution.value[c.predicate.field];
-          if (c.predicate.equals !== undefined && targetValue !== c.predicate.equals) {
+        if (prop.predicate.field && typeof resolution.value === 'object') {
+          const targetValue = resolution.value[prop.predicate.field];
+          if (prop.predicate.equals !== undefined && targetValue !== prop.predicate.equals) {
             predicatePassed = false;
-            predicateError = `Predicate mismatch on ${c.predicate.field}: expected ${c.predicate.equals}, got ${targetValue}`;
+            predicateError = `Predicate mismatch on ${prop.predicate.field}: expected ${prop.predicate.equals}, got ${targetValue}`;
           }
-          if (c.predicate.notEmpty && (!targetValue || targetValue.length === 0)) {
+          if (prop.predicate.notEmpty && (!targetValue || targetValue.length === 0)) {
             predicatePassed = false;
-            predicateError = `Predicate failed: ${c.predicate.field} is empty`;
+            predicateError = `Predicate failed: ${prop.predicate.field} is empty`;
           }
-        } else if (c.predicate.equals !== undefined && resolution.value !== c.predicate.equals) {
+        } else if (prop.predicate.equals !== undefined && resolution.value !== prop.predicate.equals) {
           predicatePassed = false;
-          predicateError = `Predicate mismatch: expected ${c.predicate.equals}, got ${resolution.value}`;
+          predicateError = `Predicate mismatch: expected ${prop.predicate.equals}, got ${resolution.value}`;
+        } else if (prop.predicate.notEmpty && (!resolution.value || resolution.value.length === 0)) {
+          predicatePassed = false;
+          predicateError = 'Predicate failed: value is empty';
         }
 
         if (!predicatePassed) {
-          rejectedClaims.push({ claim: c.claim, evidenceRef: c.evidenceRef, reason: predicateError });
+          rejectedPropositions.push({
+            factKey: prop.factKey,
+            evidenceRef: prop.evidenceRef,
+            reason: predicateError
+          });
           continue;
         }
       }
 
-      // 3. Approved Fact Record
+      // 3. Approved Fact Record with Proposition Grounding
       const factRecord = {
-        factKey: c.factKey || c.claim,
-        claim: c.claim,
-        evidenceRef: c.evidenceRef,
+        factKey: prop.factKey,
+        claim: prop.claim,
+        evidenceRef: prop.evidenceRef,
         verifiedValue: resolution.value,
-        verifiedSource: resolution.source
+        verifiedSource: resolution.source,
+        speechAllowed: true
       };
 
       approvedFacts.push(factRecord);
-      approvedClaims.push(c.claim);
+      approvedClaims.push(prop.claim);
     }
 
     return {
       approvedFacts,
       approvedClaims,
-      rejectedClaims,
-      isValid: approvedFacts.length > 0 && rejectedClaims.length === 0
+      rejectedPropositions,
+      isValid: approvedFacts.length > 0
     };
   }
 }

@@ -1,8 +1,8 @@
 /**
  * JINResponseEngine.mjs
  * Evidence-Bound Response Authority & Conversational Synthesis Engine.
- * Implements ApprovedFacts-Driven Natural Language Realization:
- * Every factual assertion in JIN's speech is strictly generated from validated ApprovedFacts.
+ * Implements Strict Proposition-Level Fact Realization:
+ * Every factual assertion in JIN's speech is exclusively generated from validated ApprovedFacts.
  */
 
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
@@ -37,8 +37,8 @@ export class JINResponseEngine {
       return this.synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options);
     }
 
-    // 2. APPROVED-FACTS OUTCOME SYNTHESIS
-    return this.synthesizeApprovedFactsOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options);
+    // 2. PROPOSITION-LEVEL APPROVED FACTS OUTCOME SYNTHESIS
+    return this.synthesizePropositionLevelOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options);
   }
 
   /**
@@ -110,10 +110,10 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
   }
 
   /**
-   * Synthesizes outcome dialogue strictly derived from verified Approved Facts
+   * Synthesizes outcome dialogue with 100% proposition-level fact binding
    */
-  synthesizeApprovedFactsOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
-    const candidateClaims = [];
+  synthesizePropositionLevelOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options = {}) {
+    const candidatePropositions = [];
     let detailedTextDisplay = '';
 
     const validationContext = {
@@ -125,43 +125,54 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
 
     if (decision.intent === 'DATA_ANALYTICS' || decision.intent === 'RESEARCH_QUESTION') {
       const data = artifact?.content || {};
-      const anomalies = data.anomaliesDetected || [];
-      const evidence = data.industryComparisonEvidence || {};
-      const dev = evidence.deviation || '+33.8%';
+      const dev = data.industryComparisonEvidence?.deviation || '+33.8%';
 
-      // 1. Candidate Fact: Anomaly Count
-      if (anomalies.length > 0) {
-        candidateClaims.push({
-          factKey: 'anomalies_detected',
-          claim: `Terdeteksi ${anomalies.length} anomali pada data metrik`,
-          evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:anomaliesDetected`
-        });
-      }
+      // 1. Proposition: Anomaly Count
+      candidatePropositions.push({
+        factKey: 'anomalies_detected',
+        claim: 'Anomali terdeteksi pada data metrik',
+        evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:anomaliesDetected`,
+        predicate: { notEmpty: true }
+      });
 
-      // 2. Candidate Fact: Industry Deviation Percentage
-      if (dev) {
-        candidateClaims.push({
-          factKey: 'industry_deviation',
-          claim: `Penyimpangan data ${dev} terhadap benchmark industri`,
-          evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:industryComparisonEvidence.deviation`
-        });
-      }
+      // 2. Proposition: Industry Deviation Percentage
+      candidatePropositions.push({
+        factKey: 'industry_deviation',
+        claim: `Penyimpangan data ${dev} terhadap benchmark industri`,
+        evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:industryComparisonEvidence.deviation`
+      });
 
-      detailedTextDisplay = `### 📊 Analisis Metrik & Risiko Eksekutif\n\n- **Deviasi Terverifikasi:** ${dev} terhadap benchmark industri\n- **Jumlah Anomali:** ${anomalies.length} indikator utama\n- **Status Persistensi Disk:** ${artifact?.persistenceStatus || 'PERSISTED'}\n\n${data.executiveSummary || 'Ringkasan eksekutif telah tervalidasi dan siap dipresentasikan.'}`;
+      // 3. Proposition: Root Causes Identified
+      candidatePropositions.push({
+        factKey: 'root_causes_analyzed',
+        claim: 'Analisis faktor penyebab telah diidentifikasi',
+        evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:rootCauses`,
+        predicate: { notEmpty: true }
+      });
+
+      // 4. Proposition: Disk Persistence
+      candidatePropositions.push({
+        factKey: 'disk_persistence',
+        claim: 'Artefak analitik tersimpan di disk',
+        evidenceRef: `artifact:${artifact?.name || 'brief_executive'}:persistenceStatus`,
+        predicate: { equals: 'PERSISTED' }
+      });
+
+      detailedTextDisplay = `### 📊 Analisis Metrik & Risiko Eksekutif\n\n- **Deviasi Terverifikasi:** ${dev} terhadap benchmark industri\n- **Status Persistensi Disk:** ${artifact?.persistenceStatus || 'PERSISTED'}\n\n${data.executiveSummary || 'Ringkasan eksekutif telah tervalidasi dan siap dipresentasikan.'}`;
     } else if (decision.intent === 'APP_SYNTHESIS') {
-      // 1. Candidate Fact: Disk Persistence
-      candidateClaims.push({
+      // 1. Proposition: Disk Persistence
+      candidatePropositions.push({
         factKey: 'disk_persistence',
         claim: 'Kalkulator ROI interaktif berhasil disimpan di disk',
         evidenceRef: `artifact:${artifact?.name || 'app_roi'}:persistenceStatus`,
         predicate: { equals: 'PERSISTED' }
       });
 
-      // 2. Candidate Fact: Behavioral Sandbox Runtime Test Pass
-      candidateClaims.push({
+      // 2. Proposition: Behavioral Sandbox Runtime Test Pass
+      candidatePropositions.push({
         factKey: 'runtime_test_passed',
         claim: 'Pengujian runtime sandbox kalkulator ROI 100% lolos',
-        evidenceRef: 'verifier:isSatisfied',
+        evidenceRef: 'verifier:goal_completion_pass',
         predicate: { equals: true }
       });
 
@@ -170,15 +181,16 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       const videoResult = executionHistory.find(h => h.step.tool === 'media.video_resolver')?.stepResult?.result;
       const topChannel = videoResult?.selectedVideo?.channel || 'siaran terpercaya';
 
-      candidateClaims.push({
+      candidatePropositions.push({
         factKey: 'video_verified',
         claim: `Siaran berita live dari ${topChannel} berhasil diverifikasi`,
-        evidenceRef: 'executionHistory:media.video_resolver:selectedVideo'
+        evidenceRef: 'executionHistory:media.video_resolver:selectedVideo',
+        predicate: { notEmpty: true }
       });
 
       detailedTextDisplay = `### 📺 Siaran Berita Live Terpilih\n\n- **Kanal:** ${topChannel}\n- **Topik:** ${userUtterance}\n- **Status Seleksi:** Diverifikasi dari sumber media resmi`;
     } else {
-      candidateClaims.push({
+      candidatePropositions.push({
         factKey: 'goal_completed',
         claim: `Goal "${userUtterance}" diselesaikan dan diverifikasi`,
         evidenceRef: 'verifier:goal_completion_pass',
@@ -188,32 +200,40 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       detailedTextDisplay = `### ✅ Tugas Selesai\n\n- **Goal:** ${userUtterance}\n- **Status:** Diverifikasi 9Router`;
     }
 
-    // Validate claims into Approved Facts
-    const validationResult = ClaimValidator.validateClaims(candidateClaims, validationContext);
+    // 1. Validate All Candidate Propositions via ClaimValidator
+    const validationResult = ClaimValidator.validatePropositions(candidatePropositions, validationContext);
     const approvedFacts = validationResult.approvedFacts;
     const approvedClaims = validationResult.approvedClaims;
     const approvedEvidenceRefs = approvedFacts.map(f => f.evidenceRef);
 
-    // Natural Speech Realization Strictly Bounded by Approved Facts
+    // 2. Realize Natural Voice Speech Strictly Built from Approved Facts
     let naturalVoiceSpeech = '';
 
     if (decision.intent === 'DATA_ANALYTICS' || decision.intent === 'RESEARCH_QUESTION') {
       const devFact = approvedFacts.find(f => f.factKey === 'industry_deviation');
+      const rootCausesFact = approvedFacts.find(f => f.factKey === 'root_causes_analyzed');
+      const persistenceFact = approvedFacts.find(f => f.factKey === 'disk_persistence');
+
       const devValue = typeof devFact?.verifiedValue === 'string' ? devFact.verifiedValue : 'signifikan';
-      naturalVoiceSpeech = `Saya sudah memeriksa datanya secara menyeluruh. Terlihat ada penyimpangan ${devValue} di atas rata-rata industri. Ringkasan eksekutif dan analisis penyebabnya sudah saya susun di panel artefak.`;
+      const rootCauseClause = rootCausesFact ? ' serta analisis faktor penyebabnya' : '';
+      const persistenceClause = persistenceFact ? ' sudah saya susun di panel artefak.' : ' telah diverifikasi.';
+
+      naturalVoiceSpeech = `Terlihat ada penyimpangan data ${devValue} di atas rata-rata industri. Ringkasan eksekutif${rootCauseClause}${persistenceClause}`;
     } else if (decision.intent === 'APP_SYNTHESIS') {
       const runtimePassFact = approvedFacts.find(f => f.factKey === 'runtime_test_passed');
       const persistenceFact = approvedFacts.find(f => f.factKey === 'disk_persistence');
 
       if (runtimePassFact && persistenceFact) {
-        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai saya bangun dan lolos pengujian runtime. Anda bisa langsung mencoba memasukkan nilai investasi di layar.`;
-      } else {
+        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI interaktif telah selesai dibangun, tersimpan di disk, dan lolos pengujian runtime.`;
+      } else if (persistenceFact) {
         naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI telah disusun dan tersimpan di disk.`;
+      } else {
+        naturalVoiceSpeech = `Purwarupa aplikasi kalkulator ROI telah selesai dirancang.`;
       }
     } else if (decision.intent === 'LIVE_NEWS') {
       const videoFact = approvedFacts.find(f => f.factKey === 'video_verified');
       const channel = videoFact?.verifiedValue?.channel || 'siaran terpercaya';
-      naturalVoiceSpeech = `Saya telah memverifikasi laporan berita terkini dan memilih siaran live dari ${channel}. Videonya langsung saya siapkan di panel media untuk Anda.`;
+      naturalVoiceSpeech = `Siaran berita live dari ${channel} telah berhasil diverifikasi dan disiapkan di panel media.`;
     } else {
       naturalVoiceSpeech = `Pekerjaan untuk "${userUtterance}" telah selesai saya laksanakan dan diverifikasi secara utuh.`;
     }
@@ -226,7 +246,7 @@ Respond naturally, empathetically, and conversationally in Indonesian. Keep it c
       approvedFacts,
       claims: approvedClaims,
       evidenceRefs: approvedEvidenceRefs,
-      rejectedClaims: validationResult.rejectedClaims,
+      rejectedPropositions: validationResult.rejectedPropositions,
       voiceIntent: 'SPEAK'
     };
   }
