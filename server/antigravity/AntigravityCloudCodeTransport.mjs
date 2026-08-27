@@ -2,11 +2,11 @@
  * AntigravityCloudCodeTransport.mjs
  * Native Antigravity / Cloud Code Assist Upstream Transport.
  * 
- * Implements the authentic Antigravity Code Assist protocol:
- *  1. Code Assist Control Plane (loadCodeAssist onboarding -> projectId + tier)
- *  2. Native Inference Endpoint (v1internal:streamGenerateContent?alt=sse)
- *  3. Resource Model Hierarchy (projects/<projectId>/locations/<location>/publishers/google/models/<model>)
- *  4. Zero Semantic Distortion (requestedModel === actualModel, fail-closed if unsupported)
+ * Strict Audit Compliance:
+ *  1. Zero Synthetic Project IDs: Fails closed if upstream loadCodeAssist returns no valid project.
+ *  2. Separation of Request vs Upstream Response ID: Never manufactures synthetic responseId.
+ *  3. Authentic Model & Endpoint Attestation: Injects exact modelResourcePath and reads attested upstream metadata.
+ *  4. Quota SSOT: Distinguishes UPSTREAM_OBSERVED headers vs LOCAL_ACCOUNTING estimates.
  */
 
 import { antigravityTokenManagerInstance } from './AntigravityTokenManager.mjs';
@@ -21,7 +21,8 @@ export class AntigravityCloudCodeTransport {
   }
 
   /**
-   * Discovers and binds project state / tier via Code Assist Control Plane
+   * Discovers and binds project state / tier via Code Assist Control Plane (/v1internal:loadCodeAssist)
+   * Strictly Fail-Closed: Never generates fallback placeholder project IDs.
    */
   async loadCodeAssist(connection, accessToken) {
     if (connection.projectId && connection.projectTier) {
@@ -32,7 +33,7 @@ export class AntigravityCloudCodeTransport {
       };
     }
 
-    const endpoint = `${this.cloudCodeBaseUrl}/v1internal/codeassist:load`;
+    const endpoint = `${this.cloudCodeBaseUrl}/v1internal:loadCodeAssist`;
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -50,19 +51,28 @@ export class AntigravityCloudCodeTransport {
 
       if (response.ok) {
         const data = await response.json();
-        const projectId = data.projectId || connection.projectId || 'ultimateai-prod';
+        const projectId = data.projectId || connection.projectId;
         const tier = data.tier || 'STANDARD';
+
+        if (!projectId) {
+          throw new Error('ONBOARDING_FAILED: Code Assist control plane did not return a valid upstream projectId.');
+        }
+
         return { projectId, tier, onboarded: true };
       }
-    } catch {
-      // Fallback to configured project state if load API is unreachable
-    }
 
-    return {
-      projectId: connection.projectId || 'ultimateai-prod',
-      tier: 'STANDARD',
-      onboarded: Boolean(connection.projectId)
-    };
+      const errText = await response.text();
+      throw new Error(`Code Assist Onboarding Error (${response.status}): ${errText}`);
+    } catch (err) {
+      if (connection.projectId) {
+        return {
+          projectId: connection.projectId,
+          tier: connection.projectTier || 'STANDARD',
+          onboarded: true
+        };
+      }
+      throw new Error(`PROJECT_BINDING_FAILED: ${err.message}`);
+    }
   }
 
   /**
@@ -77,13 +87,13 @@ export class AntigravityCloudCodeTransport {
 
     const accessToken = tokenResult.accessToken;
 
-    // 2. Load Code Assist Project Binding
+    // 2. Load Code Assist Project Binding (Strict Fail-Closed)
     const projectInfo = await this.loadCodeAssist(connection, accessToken);
     const projectId = projectInfo.projectId;
     const location = connection.location || this.defaultLocation;
 
     // 3. Format Model Path for Cloud Code Assist
-    // projects/<projectId>/locations/<location>/publishers/google/models/<modelId>
+    // projects/<projectId>/locations/<location>/publishers/<publisher>/models/<modelId>
     const publisher = modelId.startsWith('claude') ? 'anthropic' : (modelId.startsWith('gpt-oss') ? 'openai' : 'google');
     const modelResourcePath = `projects/${projectId}/locations/${location}/publishers/${publisher}/models/${modelId}`;
 
@@ -109,7 +119,7 @@ export class AntigravityCloudCodeTransport {
     }
 
     const upstreamEndpoint = `${this.cloudCodeBaseUrl}/v1internal:streamGenerateContent?alt=sse`;
-    const responseId = `resp-ag-cc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const requestId = `req-ag-local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     const headers = {
       'Content-Type': 'application/json',
@@ -131,11 +141,13 @@ export class AntigravityCloudCodeTransport {
       throw new Error(`Antigravity CodeAssist Error (${response.status}): ${errText}`);
     }
 
+    const upstreamResponseId = response.headers.get('x-goog-request-id') || response.headers.get('request-id') || null;
     this._recordObservedHeaders(connection.id, modelId, response.headers);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let fullText = '';
+    let attestedModel = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -149,6 +161,11 @@ export class AntigravityCloudCodeTransport {
           try {
             const json = JSON.parse(line.substring(6));
             const token = json.candidates?.[0]?.content?.parts?.[0]?.text || json.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            if (json.modelVersion || json.model) {
+              attestedModel = json.modelVersion || json.model;
+            }
+
             if (token) {
               fullText += token;
               if (onChunk && stream) onChunk(token);
@@ -164,8 +181,10 @@ export class AntigravityCloudCodeTransport {
 
     return {
       content: fullText,
-      responseId,
-      actualModel: modelId, // Exact fidelity: requestedModel === actualModel
+      requestId,
+      upstreamResponseId,
+      requestedModel: modelId,
+      actualModel: attestedModel || modelId,
       actualConnectionId: connection.id,
       upstreamEndpoint,
       transportClass: 'ANTIGRAVITY_CLOUD_CODE'
