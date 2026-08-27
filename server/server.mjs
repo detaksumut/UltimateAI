@@ -90,6 +90,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 2B. Unified Quota & Pool State Endpoint (GET /api/quota, /api/pools)
+  if ((pathname === '/api/quota' || pathname === '/api/pools' || pathname === '/api/dashboard/quota') && req.method === 'GET') {
+    const { antigravityPoolManagerInstance } = await import('./providers/AntigravityPoolManager.mjs');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ONLINE',
+      timestamp: new Date().toISOString(),
+      totalConnections: antigravityPoolManagerInstance.connections.size,
+      pools: antigravityPoolManagerInstance.getQuotaSnapshot()
+    }, null, 2));
+    return;
+  }
+
   // 3. Chat Completions & Streaming Endpoint
   if ((pathname === '/v1/chat/completions' || pathname === '/api/ultimateai/v1/chat/completions') && req.method === 'POST') {
     let body = '';

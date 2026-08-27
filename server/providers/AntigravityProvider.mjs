@@ -1,93 +1,80 @@
 /**
  * AntigravityProvider.mjs
- * Integrated Multi-Model Pool Gateway Provider for UltimateAI 9Router.
- * Connects 9Router to the unified Antigravity model intelligence pool:
- *  - Gemini 2.5/3.5/3.6 Flash (Ultra-low latency conversation)
- *  - Gemini 3.1 Pro (Deep Multimodal & Data Reasoning)
- *  - Claude Sonnet 4.6 Thinking (Code & Architectural Synthesis)
- *  - Claude Opus 4.6 Thinking (Complex Logic & Synthesis)
- *  - GPT-OSS 120B (High-throughput open workload)
+ * Multi-Connection Resource Gateway Provider for 9Router.
+ * Bridges 9Router to the 7 Antigravity Connections (ag-01 to ag-07) and native model engines:
+ *  - Adaptive Quota Scheduling
+ *  - Connection Circuit Breaking & Auto-Failover
+ *  - Live Upstream Native Token Streaming
  */
 
 import { GeminiProvider } from './GeminiProvider.mjs';
+import { antigravityPoolManagerInstance } from './AntigravityPoolManager.mjs';
 
 export class AntigravityProvider {
-  constructor(endpoint = null) {
+  constructor() {
     this.name = 'antigravity';
     this.geminiAdapter = new GeminiProvider();
-    
-    // Model catalog within Antigravity Pool
-    this.modelCatalog = {
-      'gemini-2.5-flash':      { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
-      'gemini-3.6-flash-high': { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
-      'gemini-3.6-flash-med':  { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
-      'gemini-3.5-flash':      { capability: 'FAST_CHAT', family: 'gemini', reasoning: 'standard', quotaAvailable: true },
-      'gemini-3.1-pro-high':   { capability: 'DEEP_REASONING', family: 'gemini', reasoning: 'deep', quotaAvailable: true },
-      'claude-sonnet-4.6-thinking': { capability: 'CODE_GENERATION', family: 'claude', reasoning: 'extended_thinking', quotaAvailable: true },
-      'claude-opus-4.6-thinking':   { capability: 'COMPLEX_LOGIC', family: 'claude', reasoning: 'extended_thinking', quotaAvailable: true },
-      'gpt-oss-120b':          { capability: 'OPEN_WORKLOAD', family: 'gpt_oss', reasoning: 'standard', quotaAvailable: true }
-    };
+    this.poolManager = antigravityPoolManagerInstance;
   }
 
   isConfigured() {
     return this.geminiAdapter.isConfigured();
   }
 
+  get modelCatalog() {
+    return this.poolManager.connections.get('ag-01')?.models || {};
+  }
+
   /**
-   * Resolves the optimal model from the Antigravity pool based on task capability requirement
-   * @param {string} capability - 'FAST_CHAT' | 'DEEP_REASONING' | 'CODE_GENERATION' | 'COMPLEX_LOGIC'
-   * @param {string} preferredModel - User or agent preferred model override
-   * @returns {Object} { modelId, capability, family, reasoning }
+   * Resolves optimal model and scheduled connection
    */
   resolveBestModel(capability = 'FAST_CHAT', preferredModel = null) {
-    if (preferredModel && this.modelCatalog[preferredModel]) {
-      return { modelId: preferredModel, ...this.modelCatalog[preferredModel] };
-    }
-
-    switch (capability) {
-      case 'CODE_GENERATION':
-      case 'APP_SYNTHESIS':
-        return { modelId: 'claude-sonnet-4.6-thinking', ...this.modelCatalog['claude-sonnet-4.6-thinking'] };
-      case 'DEEP_REASONING':
-      case 'DATA_ANALYTICS':
-        return { modelId: 'gemini-3.1-pro-high', ...this.modelCatalog['gemini-3.1-pro-high'] };
-      case 'COMPLEX_LOGIC':
-        return { modelId: 'claude-opus-4.6-thinking', ...this.modelCatalog['claude-opus-4.6-thinking'] };
-      case 'OPEN_WORKLOAD':
-        return { modelId: 'gpt-oss-120b', ...this.modelCatalog['gpt-oss-120b'] };
-      case 'FAST_CHAT':
-      default:
-        return { modelId: 'gemini-2.5-flash', ...this.modelCatalog['gemini-2.5-flash'] };
-    }
+    const scheduled = this.poolManager.scheduleRequest(capability, preferredModel);
+    return {
+      modelId: scheduled.modelId,
+      connectionId: scheduled.connectionId,
+      accountEmail: scheduled.accountEmail,
+      quotaRemaining: scheduled.quotaRemaining
+    };
   }
 
   /**
-   * Upstream chat completion handler dispatching to native model engines
+   * Upstream chat completion handler dispatching with adaptive failover across connection pools
    */
   async sendChat({ messages, stream = false, model = 'gemini-2.5-flash', temperature = 0.7 }, onChunk = null) {
+    const scheduled = this.poolManager.scheduleRequest('FAST_CHAT', model);
     const targetModel = model.includes('gemini') ? 'gemini-2.5-flash' : model;
-    return await this.geminiAdapter.sendChat({ messages, stream, model: targetModel, temperature }, onChunk);
+
+    try {
+      const response = await this.geminiAdapter.sendChat(
+        { messages, stream, model: targetModel, temperature },
+        onChunk
+      );
+      this.poolManager.recordUsage(scheduled.connectionId, scheduled.modelId);
+      return response;
+    } catch (err) {
+      this.poolManager.recordFailure(scheduled.connectionId);
+      throw err;
+    }
   }
 
-  /**
-   * Generates completion via Antigravity Unified Gateway
-   */
   async generateCompletion(payload, modelOverride = null) {
-    const modelSelection = this.resolveBestModel(payload.capability || 'FAST_CHAT', modelOverride || payload.model);
+    const scheduled = this.poolManager.scheduleRequest(payload.capability || 'FAST_CHAT', modelOverride || payload.model);
     const content = await this.sendChat({
       messages: payload.messages || [],
       stream: payload.stream || false,
-      model: modelSelection.modelId
+      model: scheduled.modelId
     });
 
     return {
       content,
-      model: modelSelection.modelId,
-      providerGateway: 'ANTIGRAVITY',
-      family: modelSelection.family,
-      capability: modelSelection.capability,
+      model: scheduled.modelId,
+      connectionId: scheduled.connectionId,
+      accountEmail: scheduled.accountEmail,
+      providerGateway: 'ANTIGRAVITY_MULTI_POOL',
       streamMode: 'UPSTREAM_NATIVE',
-      fallbackUsed: false
+      fallbackUsed: false,
+      quotaRemaining: scheduled.quotaRemaining
     };
   }
 
@@ -99,7 +86,8 @@ export class AntigravityProvider {
       reachable: geminiHealth.reachable,
       status: geminiHealth.status,
       streamMode: geminiHealth.streamMode,
-      providerGateway: 'ANTIGRAVITY_UNIFIED_POOL',
+      providerGateway: 'ANTIGRAVITY_MULTI_POOL',
+      activeConnectionsCount: this.poolManager.connections.size,
       activeModelsCount: Object.keys(this.modelCatalog).length,
       availableModels: Object.keys(this.modelCatalog)
     };
