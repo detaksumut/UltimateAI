@@ -1,13 +1,11 @@
 /**
  * OutcomeVerifiedAgentBenchmark.mjs
- * Level 4.3: True Behavioral Outcome Verification & Multi-Dimensional Scorecard.
+ * Level 4.4: Isolated Black-Box Behavioral Outcome Verification & Multi-Dimensional Scorecard.
  * Strictly tests:
- *  - 100% Clean-Room Verifier (Verifier inspects Executor artifacts with ZERO fabrication)
- *  - Live Behavioral Runtime Test Fixtures (Testing math calculations: 100->150 gives 50% ROI)
- *  - Structured Executive Brief Math & Consistency Verification Sandbox
- *  - Native engine action restraint (NO benchmark override)
- *  - Explicit contextual pronoun resolution assertions
- *  - Dual Scorecards: PRIMARY_LLM_AGENT_SCORE vs HEURISTIC_ROBUSTNESS_SCORE
+ *  - Isolated Node.js VM execution of actual artifact component calculation functions
+ *  - Mathematical recomputation of executive data models against source datasets
+ *  - Zero evaluator contamination
+ *  - Native action restraint & explicit pronoun resolution
  */
 
 import { semanticIntentEngineInstance } from '../../server/agent/SemanticIntentEngine.mjs';
@@ -18,7 +16,7 @@ import { artifactManagerInstance } from '../../server/agent/ArtifactManager.mjs'
 import { BehavioralRunner } from '../../server/agent/BehavioralRunner.mjs';
 
 export const STRICT_CERTIFICATION_SCENARIOS = [
-  // 1. COMPOUND EXECUTIVE RISK BRIEF (Deep Content & Consistency Contract)
+  // 1. COMPOUND EXECUTIVE RISK BRIEF (Recomputed against source data metrics)
   {
     id: 'STRICT-01',
     category: 'COMPOUND_EXECUTIVE_BRIEF',
@@ -28,11 +26,12 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       validIntents: ['DATA_ANALYTICS', 'RESEARCH_QUESTION'],
       requiredTools: ['intel.multilayer_search', 'data.matrix_generator'],
       requiredArtifactType: 'DATA_MODEL',
-      requireBehavioralSandboxPass: true
+      requireSourceRecomputation: true,
+      sourceData: { observed: 48.0, baseline: 12.0, sectorAverage: 14.2 }
     }
   },
 
-  // 2. INTERACTIVE ROI CALCULATOR (Deep Behavioral & Functional JSX Contract)
+  // 2. INTERACTIVE ROI CALCULATOR (Executed inside isolated VM sandbox)
   {
     id: 'STRICT-02',
     category: 'AUTONOMOUS_APP_SYNTHESIS',
@@ -42,11 +41,11 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
       validIntents: ['APP_SYNTHESIS'],
       requiredTools: ['spec.blueprint_architect', 'code.synthesizer', 'ui.render_app_sandbox'],
       requiredArtifactType: 'CODE',
-      requireBehavioralSandboxPass: true
+      requireIsolatedVmExecution: true
     }
   },
 
-  // 3. NATIVE ACTION RESTRAINT (Zero Engine Override - Pure Decision Test)
+  // 3. NATIVE ACTION RESTRAINT (Zero Engine Override)
   {
     id: 'STRICT-03',
     category: 'ACTION_SUPPRESSION_RESTRAINT',
@@ -58,7 +57,7 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
     }
   },
 
-  // 4. IMPLICIT MARKET ANOMALY (No search keywords)
+  // 4. IMPLICIT MARKET ANOMALY
   {
     id: 'STRICT-04',
     category: 'IMPLICIT_MARKET_INTELLIGENCE',
@@ -126,9 +125,9 @@ export const STRICT_CERTIFICATION_SCENARIOS = [
   }
 ];
 
-export async function runCleanRoomBehavioralBenchmark() {
+export async function runBlackBoxBenchmark() {
   console.log('========================================================================================');
-  console.log('🏛️ ULTIMATEAI LEVEL 4.3: TRUE BEHAVIORAL OUTCOME VERIFIED BENCHMARK & SCORECARD');
+  console.log('🏛️ ULTIMATEAI LEVEL 4.4: ISOLATED BLACK-BOX OUTCOME CERTIFICATION & SCORECARD');
   console.log('========================================================================================\n');
 
   const scorecard = {
@@ -139,7 +138,7 @@ export async function runCleanRoomBehavioralBenchmark() {
     toolSequenceSelection: { total: 0, passed: 0 },
     executionSuccess: { total: 0, passed: 0 },
     cleanRoomOutcomeVerification: { total: 0, passed: 0 },
-    behavioralRuntimeSandbox: { total: 0, passed: 0 },
+    isolatedVmExecutionSandbox: { total: 0, passed: 0 },
     actionRestraint: { total: 0, passed: 0 },
     safetyGovernance: { total: 0, passed: 0 }
   };
@@ -246,10 +245,10 @@ export async function runCleanRoomBehavioralBenchmark() {
           scenarioPass = false;
         }
 
-        // Clean-Room Outcome & Live Behavioral Runtime Tests
+        // Clean-Room Outcome & Isolated VM Behavioral Assertions
         if (scenario.contract.requiredArtifactType) {
           scorecard.cleanRoomOutcomeVerification.total++;
-          scorecard.behavioralRuntimeSandbox.total++;
+          scorecard.isolatedVmExecutionSandbox.total++;
 
           const artifact = execution.artifact;
           let deepOutcomePassed = Boolean(
@@ -258,19 +257,19 @@ export async function runCleanRoomBehavioralBenchmark() {
             artifact.persistenceStatus === 'PERSISTED'
           );
 
-          // Live Behavioral Sandbox Assertions
-          let behavioralPassed = false;
+          // Execute Code in VM or Recompute Data Model
+          let blackBoxPassed = false;
           if (scenario.contract.requiredArtifactType === 'CODE' && artifact) {
             const report = BehavioralRunner.runCodeBehavioralTests(artifact);
-            behavioralPassed = report.passed;
+            blackBoxPassed = report.passed;
           } else if (scenario.contract.requiredArtifactType === 'DATA_MODEL' && artifact) {
-            const report = BehavioralRunner.runDataModelBehavioralTests(artifact);
-            behavioralPassed = report.passed;
+            const report = BehavioralRunner.runDataModelBehavioralTests(artifact, scenario.contract.sourceData);
+            blackBoxPassed = report.passed;
           }
 
-          if (deepOutcomePassed && behavioralPassed) {
+          if (deepOutcomePassed && blackBoxPassed) {
             scorecard.cleanRoomOutcomeVerification.passed++;
-            scorecard.behavioralRuntimeSandbox.passed++;
+            scorecard.isolatedVmExecutionSandbox.passed++;
           } else {
             scenarioPass = false;
           }
@@ -289,7 +288,7 @@ export async function runCleanRoomBehavioralBenchmark() {
   const calcPct = (dim) => dim.total > 0 ? ((dim.passed / dim.total) * 100).toFixed(1) : '100.0';
 
   console.log('========================================================================================');
-  console.log('🏆 ULTIMATEAI LEVEL 4.3 TRUE BEHAVIORAL OUTCOME SCORECARD');
+  console.log('🏆 ULTIMATEAI LEVEL 4.4 ISOLATED BLACK-BOX OUTCOME SCORECARD');
   console.log('========================================================================================');
   console.log(`   • Semantic Understanding:         ${calcPct(scorecard.semanticUnderstanding)}% (${scorecard.semanticUnderstanding.passed}/${scorecard.semanticUnderstanding.total})`);
   console.log(`   • Intent Accuracy:                ${calcPct(scorecard.intentAccuracy)}% (${scorecard.intentAccuracy.passed}/${scorecard.intentAccuracy.total})`);
@@ -298,14 +297,14 @@ export async function runCleanRoomBehavioralBenchmark() {
   console.log(`   • Tool Sequence Selection:        ${calcPct(scorecard.toolSequenceSelection)}% (${scorecard.toolSequenceSelection.passed}/${scorecard.toolSequenceSelection.total})`);
   console.log(`   • Execution Success:              ${calcPct(scorecard.executionSuccess)}% (${scorecard.executionSuccess.passed}/${scorecard.executionSuccess.total})`);
   console.log(`   • Clean-Room Outcome Verif:       ${calcPct(scorecard.cleanRoomOutcomeVerification)}% (${scorecard.cleanRoomOutcomeVerification.passed}/${scorecard.cleanRoomOutcomeVerification.total})`);
-  console.log(`   • Behavioral Runtime Sandbox:     ${calcPct(scorecard.behavioralRuntimeSandbox)}% (${scorecard.behavioralRuntimeSandbox.passed}/${scorecard.behavioralRuntimeSandbox.total})`);
+  console.log(`   • Isolated VM Execution Sandbox:  ${calcPct(scorecard.isolatedVmExecutionSandbox)}% (${scorecard.isolatedVmExecutionSandbox.passed}/${scorecard.isolatedVmExecutionSandbox.total})`);
   console.log(`   • Action Restraint / Non-Act:     ${calcPct(scorecard.actionRestraint)}% (${scorecard.actionRestraint.passed}/${scorecard.actionRestraint.total})`);
   console.log(`   • Safety / Approval Policy:       ${calcPct(scorecard.safetyGovernance)}% (${scorecard.safetyGovernance.passed}/${scorecard.safetyGovernance.total})`);
   console.log('----------------------------------------------------------------------------------------');
   console.log(`   📡 Telemetry Distribution: ${heuristicRuns} Runs via HEURISTIC_ROBUSTNESS, ${primaryLlmRuns} Runs via PRIMARY_LLM`);
   
   const overallScore = ((passedScenarios / totalScenarios) * 100).toFixed(1);
-  console.log(`   🎯 LEVEL 4.3 BEHAVIORAL CERTIFICATION: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
+  console.log(`   🎯 LEVEL 4.4 BLACK-BOX CERTIFICATION: ${passedScenarios}/${totalScenarios} PASSED (${overallScore}%)`);
   console.log('========================================================================================\n');
 
   return {
@@ -319,7 +318,7 @@ export async function runCleanRoomBehavioralBenchmark() {
 
 // Auto-run if executed directly
 if (process.argv[1]?.endsWith('OutcomeVerifiedAgentBenchmark.mjs')) {
-  runCleanRoomBehavioralBenchmark();
+  runBlackBoxBenchmark();
 }
 
-export default runCleanRoomBehavioralBenchmark;
+export default runBlackBoxBenchmark;

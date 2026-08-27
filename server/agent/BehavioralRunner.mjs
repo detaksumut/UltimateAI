@@ -1,21 +1,25 @@
 /**
  * BehavioralRunner.mjs
- * Level 4.3: True Behavioral Runtime Tester for UltimateAI Agent Artifacts.
- * Executes live sandbox test fixtures, evaluates mathematical calculations,
- * and verifies data consistency against input evidence.
+ * Level 4.4: Isolated Black-Box Artifact Execution & Recomputation Sandbox.
+ * Strictly executes the actual code produced by AgentExecutor and recomputes data models
+ * against source input datasets without evaluator contamination.
  */
+
+import vm from 'vm';
 
 export class BehavioralRunner {
   /**
-   * Executes live behavioral test fixtures against a CODE artifact
-   * @param {Object} artifact - Artifact containing JSX code
+   * Black-Box Execution Sandbox for React/JSX CODE Artifacts.
+   * Compiles and executes the actual component logic from artifact.content.
+   * @param {Object} artifact - Artifact containing actual generated JSX code
    * @returns {Object} testReport - { passed, runtimeErrors, testCasesPassed, totalTestCases, details }
    */
   static runCodeBehavioralTests(artifact) {
     const code = String(artifact?.content || '');
     const errors = [];
     let testsPassed = 0;
-    const testCases = [
+
+    const blackBoxTestCases = [
       { investment: 100, returnVal: 150, expectedRoi: '50.00' },
       { investment: 200, returnVal: 300, expectedRoi: '50.00' },
       { investment: 100, returnVal: 80, expectedRoi: '-20.00' },
@@ -23,88 +27,116 @@ export class BehavioralRunner {
     ];
 
     try {
-      // 1. Syntax & JSX Structure Parser Test
-      if (!code.includes('export default function') || !code.includes('return')) {
-        errors.push('Component missing export default function or return statement');
+      // 1. Structural JSX & React Hook Parser Validation
+      if (!code.includes('export default function') && !code.includes('function ResearchRoiCalculator')) {
+        errors.push('Artifact missing default component declaration');
+      }
+      if (!code.includes('useState')) {
+        errors.push('Artifact missing React interactive state hook');
       }
 
-      // 2. Extract and execute calculation logic in clean-room sandbox
-      // Dynamically extract the formula: (((return - investment) / investment) * 100)
-      const formulaFn = (investment, expectedReturn) => {
-        if (!investment || investment <= 0) return '0.00';
-        return (((expectedReturn - investment) / investment) * 100).toFixed(2);
-      };
+      // 2. Isolated VM Execution of the Artifact's Actual Calculation Function
+      // Extract the calculateRoi function body directly from the artifact code
+      const roiFuncMatch = code.match(/const calculateRoi = \(\) =>\s*\{([\s\S]*?)\};/);
 
-      for (const tc of testCases) {
-        const calculated = formulaFn(tc.investment, tc.returnVal);
-        if (calculated === tc.expectedRoi) {
-          testsPassed++;
-        } else {
-          errors.push(`Test failed for investment=${tc.investment}, return=${tc.returnVal}: expected ${tc.expectedRoi}, got ${calculated}`);
+      if (!roiFuncMatch || !roiFuncMatch[1]) {
+        errors.push('Failed to locate calculateRoi execution block in artifact source');
+      } else {
+        const extractedBody = roiFuncMatch[1];
+
+        // Execute in an isolated VM context with restricted sandbox
+        for (const tc of blackBoxTestCases) {
+          const sandbox = {
+            investment: tc.investment,
+            expectedReturn: tc.returnVal,
+            Number: Number,
+            console: { log: () => {} }
+          };
+
+          const script = new vm.Script(`
+            (() => {
+              ${extractedBody}
+            })()
+          `);
+
+          const context = vm.createContext(sandbox);
+          const actualResult = script.runInContext(context, { timeout: 500 });
+
+          if (String(actualResult) === tc.expectedRoi) {
+            testsPassed++;
+          } else {
+            errors.push(`Black-box evaluation failed for investment=${tc.investment}, return=${tc.returnVal}: expected ${tc.expectedRoi}%, got ${actualResult}%`);
+          }
         }
       }
     } catch (err) {
-      errors.push(`Runtime execution exception: ${err.message}`);
+      errors.push(`Artifact compilation / execution error: ${err.message}`);
     }
 
-    const passed = errors.length === 0 && testsPassed === testCases.length;
+    const passed = errors.length === 0 && testsPassed === blackBoxTestCases.length;
 
     return {
       passed,
-      totalTestCases: testCases.length,
+      totalTestCases: blackBoxTestCases.length,
       testsPassed,
       runtimeErrors: errors,
-      evaluationType: 'CLEAN_ROOM_BEHAVIORAL_SANDBOX',
+      evaluationType: 'BLACK_BOX_VM_EXECUTION_SANDBOX',
       timestamp: new Date().toISOString()
     };
   }
 
   /**
-   * Executes consistency and mathematical integrity tests against a DATA_MODEL artifact
+   * Recomputation & Mathematical Verification Sandbox for DATA_MODEL Artifacts.
+   * Compares the artifact's claims against mathematical recomputation from input source metrics.
    * @param {Object} artifact - Artifact containing structured data model
+   * @param {Object} sourceInput - Input metrics (observed: 48.0, baseline: 12.0, sectorAverage: 14.2)
    * @returns {Object} testReport
    */
-  static runDataModelBehavioralTests(artifact) {
+  static runDataModelBehavioralTests(artifact, sourceInput = { observed: 48.0, baseline: 12.0, sectorAverage: 14.2 }) {
     const data = artifact?.content || {};
     const errors = [];
     let testsPassed = 0;
 
     try {
-      // 1. Anomaly Deviation Consistency Check
+      // 1. Anomaly Discrepancy Recomputation
+      const expectedAnomalyDelta = (sourceInput.observed - sourceInput.baseline).toFixed(1); // +36.0%
       const anomalies = data.anomaliesDetected || [];
-      if (anomalies.length > 0) {
+      const revenueAnomaly = anomalies.find(a => a.metric.includes('Revenue Growth'));
+
+      if (revenueAnomaly && revenueAnomaly.observed === `+${sourceInput.observed}%`) {
         testsPassed++;
       } else {
-        errors.push('No anomalies detected in brief');
+        errors.push(`Anomaly observed value does not match source data (+${sourceInput.observed}%)`);
       }
 
-      // 2. Industry Benchmark Math Verification
+      // 2. Industry Benchmark Deviation Mathematical Recomputation
+      const expectedIndustryDeviation = (sourceInput.observed - sourceInput.sectorAverage).toFixed(1); // +33.8%
       const evidence = data.industryComparisonEvidence || {};
-      if (evidence.sectorAverageGrowth && evidence.deviation) {
-        // e.g. sector +14.2% vs observed +48% = +33.8%
+
+      if (evidence.deviation && evidence.deviation.includes(`+${expectedIndustryDeviation}%`)) {
         testsPassed++;
       } else {
-        errors.push('Missing industry benchmark deviation evidence');
+        errors.push(`Industry deviation recomputation mismatch: expected +${expectedIndustryDeviation}%, found ${evidence.deviation}`);
       }
 
-      // 3. Executive Summary Logical Consistency
-      if (data.executiveSummary && data.executiveSummary.length > 30) {
+      // 3. Executive Summary Presence & Grounding
+      if (data.executiveSummary && data.executiveSummary.includes('anomali') && data.executiveSummary.length > 30) {
         testsPassed++;
       } else {
-        errors.push('Executive summary is too brief or missing');
+        errors.push('Executive summary is missing anomaly grounding or too short');
       }
     } catch (err) {
-      errors.push(`Data verification exception: ${err.message}`);
+      errors.push(`Data recomputation exception: ${err.message}`);
     }
 
-    const passed = errors.length === 0 && testsPassed >= 3;
+    const passed = errors.length === 0 && testsPassed === 3;
 
     return {
       passed,
       totalTestCases: 3,
       testsPassed,
       runtimeErrors: errors,
-      evaluationType: 'DATA_CONSISTENCY_SANDBOX',
+      evaluationType: 'SOURCE_RECOMPUTATION_SANDBOX',
       timestamp: new Date().toISOString()
     };
   }
