@@ -12,6 +12,8 @@ import { ChatCompletionService } from './services/ChatCompletionService.mjs';
 import { toolRegistryInstance } from './tools/ToolRegistry.mjs';
 import { GatewayTelemetry } from './telemetry/GatewayTelemetry.mjs';
 
+import { agentRuntimeInstance } from './agent/AgentRuntime.mjs';
+
 const PORT = config.port;
 const startTime = Date.now();
 
@@ -29,6 +31,26 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+
+  // 1. Autonomous Agent Execution Endpoint (POST /api/agent/run)
+  if ((pathname === '/api/agent/run' || pathname === '/v1/agent/run') && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const goal = payload.goal || payload.prompt || '';
+        const summary = await agentRuntimeInstance.runGoal(goal, payload.context || {});
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(summary, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
 
   // 1. Basic Health Check
   if (pathname === '/health' && req.method === 'GET') {
