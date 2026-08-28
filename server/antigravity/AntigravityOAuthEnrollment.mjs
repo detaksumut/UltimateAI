@@ -56,10 +56,10 @@ export function loadPersistedOAuthConfig() {
   try {
     if (fs.existsSync(OAUTH_CONFIG_FILE)) {
       const data = JSON.parse(fs.readFileSync(OAUTH_CONFIG_FILE, 'utf8'));
-      if (data.clientId && !process.env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
+      if (data.clientId) {
         process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = data.clientId;
       }
-      if (data.clientSecret && !process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET) {
+      if (data.clientSecret) {
         process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = data.clientSecret;
       }
       return data;
