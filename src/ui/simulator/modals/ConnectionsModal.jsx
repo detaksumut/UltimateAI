@@ -144,6 +144,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Toggle gagal');
+      setErrorMsg(null);
       fetchLiveState();
     } catch (err) {
       setErrorMsg(`Toggle gagal: ${err.message}`);
@@ -155,6 +156,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     try {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Disconnect gagal');
+      setErrorMsg(null);
       fetchLiveState();
     } catch (err) {
       setErrorMsg(`Disconnect gagal: ${err.message}`);
@@ -208,9 +210,18 @@ export default function ConnectionsModal({ isOpen, onClose }) {
         </div>
 
         {errorMsg && (
-          <div className="my-2.5 px-4 py-2 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs flex items-center gap-2 font-mono">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="my-2.5 px-4 py-2 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs flex items-center justify-between gap-2 font-mono">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+            <button
+              onClick={() => setErrorMsg(null)}
+              className="p-1 hover:bg-red-900/50 rounded text-red-300 cursor-pointer"
+              title="Tutup Notifikasi"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
