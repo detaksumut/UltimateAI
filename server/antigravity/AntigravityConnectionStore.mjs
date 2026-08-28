@@ -125,8 +125,10 @@ export class AntigravityConnectionStore {
     const recordToStore = {
       id,
       connectionId: id,
-      accountAlias: connectionData.accountAlias || `antigravity-${id.replace('ag-', '')}`,
-      label: connectionData.label || `Antigravity Connection ${id}`,
+      accountAlias: connectionData.accountAlias || connectionData.email || null,
+      email: connectionData.email || connectionData.accountAlias || null,
+      userName: connectionData.userName || null,
+      label: connectionData.label || `Slot ${id.toUpperCase()}`,
       provider: 'ANTIGRAVITY',
       authType: 'oauth',
       isActive: connectionData.isActive !== false,
@@ -148,6 +150,24 @@ export class AntigravityConnectionStore {
 
     fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(records, null, 2), 'utf8');
     return this.getConnection(id);
+  }
+
+  /**
+   * Deletes a connection record by ID
+   */
+  deleteConnection(connectionId) {
+    this._ensureStorageDirectory();
+    const records = this._readRawRecords();
+    const filtered = records.filter(r => r.id !== connectionId && r.connectionId !== connectionId);
+    fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(filtered, null, 2), 'utf8');
+  }
+
+  /**
+   * Overwrites entire connections array
+   */
+  saveConnections(records) {
+    this._ensureStorageDirectory();
+    fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(records || [], null, 2), 'utf8');
   }
 
   /**

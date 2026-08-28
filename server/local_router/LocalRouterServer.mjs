@@ -212,7 +212,24 @@ export function createLocalRouterServer() {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result, null, 2));
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
+        const statusCode = err.message.includes('NOT_ENROLLED') ? 404 : 400;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message } }));
+      }
+      return;
+    }
+
+    // 8B. POST /api/antigravity/connections/:connectionId/toggle (ON/OFF)
+    const toggleMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/toggle$/);
+    if (toggleMatch && req.method === 'POST') {
+      const connectionId = toggleMatch[1];
+      try {
+        const result = await antigravityEnrollmentSessionManagerInstance.toggleConnection(connectionId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        const statusCode = err.message.includes('NOT_ENROLLED') ? 404 : 400;
+        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: { message: err.message } }));
       }
       return;

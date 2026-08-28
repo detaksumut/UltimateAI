@@ -461,16 +461,48 @@ export class AntigravityEnrollmentSessionManager {
   }
 
   /**
-   * Destructively removes credentials for a connection
+   * Toggles the active status of a connection (ON/OFF)
    */
-  async disconnectConnection(connectionId) {
+  async toggleConnection(connectionId) {
     const existing = this.store.getConnection(connectionId, false);
     if (!existing) {
-      return { connectionId, status: 'NOT_ENROLLED', message: 'Connection not found.' };
+      throw new Error(`CONNECTION_NOT_ENROLLED: '${connectionId}' has no enrolled credentials.`);
     }
 
-    this.store.deleteConnection(connectionId);
-    this.quotaTracker.recordLocalUsage(connectionId, 'gemini-3.6-flash-high'); // reset counter
+    const newActiveState = existing.isActive === false ? true : false;
+    existing.isActive = newActiveState;
+    existing.updatedAt = new Date().toISOString();
+
+    this.store.saveConnection(existing);
+    return {
+      connectionId,
+      isActive: newActiveState,
+      status: newActiveState ? (existing.testStatus || 'ENROLLED') : 'DISABLED'
+    };
+  }
+
+  /**
+   * Destructively removes credentials for a connection and clears active sessions
+   */
+  async disconnectConnection(connectionId) {
+    // Clear any active enrollment session for this slot
+    if (this.activeEnrollmentsByConnection) {
+      const activeEnrollmentId = this.activeEnrollmentsByConnection.get(connectionId);
+      if (activeEnrollmentId) {
+        const session = this.sessions.get(activeEnrollmentId);
+        if (session) {
+          this._cleanupSessionServer(session);
+          this.sessions.delete(activeEnrollmentId);
+        }
+        this.activeEnrollmentsByConnection.delete(connectionId);
+      }
+    }
+
+    const existing = this.store.getConnection(connectionId, false);
+    if (existing) {
+      this.store.deleteConnection(connectionId);
+    }
+
     return {
       connectionId,
       status: 'NOT_ENROLLED',

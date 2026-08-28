@@ -119,6 +119,17 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     }
   };
 
+  const handleToggle = async (connectionId) => {
+    try {
+      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Toggle gagal');
+      fetchLiveState();
+    } catch (err) {
+      setErrorMsg(`Toggle gagal: ${err.message}`);
+    }
+  };
+
   const handleDisconnect = async (connectionId) => {
     if (!confirm(`Hapus dan putuskan koneksi ${connectionId.toUpperCase()} dari Pool Antigravity?`)) return;
     try {
@@ -150,14 +161,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
             <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              <span>All Providers ▾</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-cyan-400" />
-              <span>All accounts ▾</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300">
-              ⏳ Expiring first
+              <span>Antigravity Pools (7 Slots)</span>
             </div>
             <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-amber-400/90 flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
@@ -199,13 +203,16 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             const modelsMap = livePoolQuota.models || {};
             const recordedModels = Object.keys(modelsMap);
             const quotaSource = livePoolQuota.source || 'NO_DATA_RECORDED';
+            const isSlotActive = slot.isActive !== false;
 
             return (
               <div
                 key={slot.connectionId}
                 className={`border rounded-2xl p-4 flex flex-col justify-between shadow-lg transition-all ${
                   isEnrolled
-                    ? 'bg-[#181b24] border-[#282d3d] hover:border-[#383f55]'
+                    ? isSlotActive
+                      ? 'bg-[#181b24] border-[#282d3d] hover:border-[#383f55]'
+                      : 'bg-[#14161f] border-amber-900/30 opacity-75'
                     : 'bg-[#12141a]/80 border-[#202430]'
                 }`}
               >
@@ -232,13 +239,13 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                           </span>
                           {isEnrolled && (
                             <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                              quotaSource === 'UPSTREAM_OBSERVED'
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : quotaSource === 'LOCAL_ACCOUNTING'
+                              !isSlotActive
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : quotaSource === 'UPSTREAM_OBSERVED'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 : 'bg-slate-800 text-slate-400'
                             }`}>
-                              {quotaSource}
+                              {!isSlotActive ? 'DISABLED (OFF)' : quotaSource}
                             </span>
                           )}
                         </div>
@@ -255,20 +262,28 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                           <button
                             onClick={() => handleRefresh(slot.connectionId)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#252a38] transition-all cursor-pointer"
-                            title="Refresh Token"
+                            title="Refresh Token & Health"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDisconnect(slot.connectionId)}
                             className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/40 transition-all cursor-pointer"
-                            title="Disconnect Account"
+                            title="Purge Credentials (Delete)"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          <div className="w-9 h-5 rounded-full bg-emerald-500/80 p-0.5 flex items-center justify-end cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                          <button
+                            onClick={() => handleToggle(slot.connectionId)}
+                            className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-all cursor-pointer ${
+                              isSlotActive
+                                ? 'bg-emerald-500 justify-end shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                                : 'bg-slate-700 justify-start'
+                            }`}
+                            title={isSlotActive ? "ON: Eligible in Scheduler" : "OFF: Excluded from Scheduler"}
+                          >
                             <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
-                          </div>
+                          </button>
                         </>
                       )}
                     </div>
