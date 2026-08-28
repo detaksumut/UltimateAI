@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Brain, Mic, MessageSquare, Globe, BarChart2, Share2, 
-  Sparkles, Database, Activity, Settings, ChevronRight, User
+  Sparkles, Database, Activity, Settings, ChevronRight, User, Zap
 } from 'lucide-react';
 
 export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick }) {
@@ -165,6 +165,19 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
             SYSTEM
           </span>
+
+          <button
+            onClick={() => { setActiveTab('connections'); onActionClick?.('connections'); }}
+            className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-all ${
+              activeTab === 'connections' ? 'bg-cyan-500/20 border border-cyan-400/40 text-white' : 'hover:bg-slate-800/50 hover:text-white'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-cyan-400" />
+            <div>
+              <div className="text-xs font-medium">CONNECTIONS</div>
+              <div className="text-[10px] text-slate-400">Antigravity OAuth (7 slots)</div>
+            </div>
+          </button>
 
           <button
             onClick={() => { setActiveTab('control_center'); onActionClick?.('control'); }}

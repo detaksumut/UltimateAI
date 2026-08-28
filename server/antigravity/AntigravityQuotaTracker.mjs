@@ -120,6 +120,10 @@ export class AntigravityQuotaTracker {
     }
     return snapshot;
   }
+
+  getQuotaSummary() {
+    return this.getQuotaSnapshot();
+  }
 }
 
 export const antigravityQuotaTrackerInstance = new AntigravityQuotaTracker();

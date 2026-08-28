@@ -12,6 +12,7 @@ import MemoryVaultExplorer from './modals/MemoryVaultExplorer.jsx';
 import ActivityFeedDrawer from './modals/ActivityFeedDrawer.jsx';
 import ControlCenterModal from './modals/ControlCenterModal.jsx';
 import LiveCertificationDashboardModal from './modals/LiveCertificationDashboardModal.jsx';
+import ConnectionsModal from './modals/ConnectionsModal.jsx';
 
 import { useJinAvatar } from '../../hooks/useJinAvatar.js';
 import { useVoiceEngine } from '../../hooks/useVoiceEngine.js';
@@ -33,6 +34,7 @@ export default function ChatSimulator() {
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
   const [isControlModalOpen, setIsControlModalOpen] = useState(false);
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
+  const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
 
   // JIN Avatar FSM Hook (Single Source of Truth)
   const { state: avatarState, isListening, isProcessing, isSpeaking } = useJinAvatar();
@@ -132,8 +134,10 @@ export default function ChatSimulator() {
       setIsMemoryModalOpen(true);
     } else if (action === 'feed') {
       setIsActivityDrawerOpen(true);
-    } else if (action === 'system') {
+    } else if (action === 'system' || action === 'control') {
       setIsControlModalOpen(true);
+    } else if (action === 'connections') {
+      setIsConnectionsModalOpen(true);
     }
   };
 
@@ -212,6 +216,11 @@ export default function ChatSimulator() {
       <LiveCertificationDashboardModal
         isOpen={isCertModalOpen}
         onClose={() => setIsCertModalOpen(false)}
+      />
+
+      <ConnectionsModal
+        isOpen={isConnectionsModalOpen}
+        onClose={() => setIsConnectionsModalOpen(false)}
       />
     </div>
   );
