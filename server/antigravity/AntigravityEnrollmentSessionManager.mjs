@@ -75,14 +75,12 @@ export class AntigravityEnrollmentSessionManager {
       const activeSession = activeEnrollmentId ? this.sessions.get(activeEnrollmentId) : null;
 
       let status = 'NOT_ENROLLED';
+      const hasTokens = Boolean(existing && (existing.hasAccessToken || existing.hasRefreshToken || existing.encryptedAccessToken || existing.encryptedRefreshToken || existing.accessToken || existing.refreshToken));
+
       if (activeSession && activeSession.state === ENROLLMENT_STATES.WAITING_FOR_AUTHORIZATION) {
         status = 'WAITING_FOR_AUTH';
-      } else if (existing) {
-        if (existing.hasAccessToken || existing.hasRefreshToken) {
-          status = existing.testStatus === 'AUTH_REFRESH_FAILED' ? 'AUTH_EXPIRED' : (existing.testStatus || 'ENROLLED');
-        } else {
-          status = 'NOT_ENROLLED';
-        }
+      } else if (existing && hasTokens) {
+        status = existing.testStatus === 'AUTH_REFRESH_FAILED' ? 'AUTH_EXPIRED' : (existing.testStatus || 'ENROLLED');
       }
 
       slots.push({
@@ -92,12 +90,12 @@ export class AntigravityEnrollmentSessionManager {
         label: existing?.label || `Antigravity Connection ${i}`,
         priority: i,
         status,
-        isEnrolled: Boolean(existing && (existing.hasAccessToken || existing.hasRefreshToken)),
+        isEnrolled: hasTokens,
         projectId: existing?.projectId ? 'BOUND' : 'UNBOUND',
         projectTier: existing?.projectTier || 'STANDARD',
         expiresAt: existing?.expiresAt || null,
-        hasAccessToken: Boolean(existing?.hasAccessToken),
-        hasRefreshToken: Boolean(existing?.hasRefreshToken),
+        hasAccessToken: hasTokens,
+        hasRefreshToken: hasTokens,
         cooldownUntil: existing?.cooldownUntil || null,
         models: Object.keys(antigravityModelRegistryInstance.models),
         quotaSummary: quotaSummary[connectionId] || { source: 'LOCAL_ACCOUNTING', remainingEstimate: 1000 }
