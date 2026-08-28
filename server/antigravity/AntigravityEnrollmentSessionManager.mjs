@@ -283,37 +283,40 @@ export class AntigravityEnrollmentSessionManager {
   }
 
   /**
-   * Allows operator to manually paste the callback URL if automatic loopback is blocked
+   * Allows operator to manually paste either the raw code or full callback URL
    */
-  async processManualCallback(enrollmentId, callbackUrlString) {
+  async processManualCallback(enrollmentId, inputString) {
     const session = this.sessions.get(enrollmentId);
     if (!session) {
       throw new Error('ENROLLMENT_SESSION_NOT_FOUND: Session does not exist or has expired.');
     }
 
-    let urlObj;
-    try {
-      urlObj = new URL(callbackUrlString);
-    } catch {
-      throw new Error('INVALID_CALLBACK_URL: Provided string is not a valid URL.');
+    const trimmed = (inputString || '').trim();
+    if (!trimmed) {
+      throw new Error('MISSING_INPUT: Harap paste Callback URL atau Authorization Code Anda.');
     }
 
-    const code = urlObj.searchParams.get('code');
-    const state = urlObj.searchParams.get('state');
-    const error = urlObj.searchParams.get('error');
+    let code = '';
 
-    if (error) {
-      this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, error);
-      throw new Error(`GOOGLE_OAUTH_AUTHORIZATION_FAILED: ${error}`);
-    }
-
-    if (state !== session.stateToken) {
-      this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, 'OAuth state verification token mismatch.');
-      throw new Error('GOOGLE_OAUTH_AUTHORIZATION_FAILED: State token mismatch.');
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const urlObj = new URL(trimmed);
+        const error = urlObj.searchParams.get('error');
+        if (error) {
+          this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, error);
+          throw new Error(`GOOGLE_OAUTH_AUTHORIZATION_FAILED: ${error}`);
+        }
+        code = urlObj.searchParams.get('code') || '';
+      } catch (err) {
+        throw new Error(`INVALID_CALLBACK_URL: ${err.message}`);
+      }
+    } else {
+      // Direct raw authorization code pasted by operator
+      code = trimmed;
     }
 
     if (!code) {
-      this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, 'No code parameter found in callback URL.');
+      this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, 'No code parameter found.');
       throw new Error('GOOGLE_OAUTH_AUTHORIZATION_FAILED: Missing code parameter.');
     }
 

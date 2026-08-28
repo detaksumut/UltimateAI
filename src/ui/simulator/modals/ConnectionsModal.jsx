@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, ExternalLink } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, ExternalLink, Copy } from 'lucide-react';
 
 const API_ENDPOINTS = [
   'http://127.0.0.1:20200',
@@ -17,6 +17,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [enrollProgress, setEnrollProgress] = useState(null);
   const [manualCallbackUrl, setManualCallbackUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const fetchSlots = async () => {
     setLoading(true);
@@ -79,6 +80,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleStartConnect = async (connectionId) => {
     try {
       setErrorMsg(null);
+      setCopied(false);
+      setManualCallbackUrl('');
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
@@ -87,29 +90,45 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
       setActiveEnrollment(data);
       setEnrollProgress({ state: data.status, connectionId });
-
-      // Instantly open the Google Account Login & Password screen
-      if (data.authUrl) {
-        window.open(data.authUrl, 'google_oauth_popup', 'width=540,height=740,top=100,left=300');
-      }
     } catch (err) {
-      setErrorMsg(`Gagal menghubungkan ${connectionId.toUpperCase()}: ${err.message}`);
+      setErrorMsg(`Gagal memulai koneksi ${connectionId.toUpperCase()}: ${err.message}`);
     }
   };
 
-  const handleManualCallbackSubmit = async () => {
-    if (!manualCallbackUrl || !activeEnrollment) return;
+  const handleCopyUrl = () => {
+    if (activeEnrollment?.authUrl) {
+      navigator.clipboard.writeText(activeEnrollment.authUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleOpenAuthUrl = () => {
+    if (activeEnrollment?.authUrl) {
+      window.open(activeEnrollment.authUrl, '_blank');
+    }
+  };
+
+  const handleManualCallbackSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!manualCallbackUrl.trim() || !activeEnrollment) {
+      setErrorMsg('Harap masukkan Callback URL atau Authorization Code terlebih dahulu.');
+      return;
+    }
     try {
+      setErrorMsg(null);
       const res = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callbackUrl: manualCallbackUrl })
+        body: JSON.stringify({ callbackUrl: manualCallbackUrl.trim() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Validasi callback gagal');
       setManualCallbackUrl('');
+      setActiveEnrollment(null);
+      fetchSlots();
     } catch (err) {
-      setErrorMsg(`Manual Callback Gagal: ${err.message}`);
+      setErrorMsg(`Submit Callback Gagal: ${err.message}`);
     }
   };
 
@@ -169,7 +188,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Pilih dan login akun Google Anda untuk tiap slot AG-01 s/d AG-07
+                Pilih dan hubungkan akun Google Anda secara manual untuk tiap slot AG-01 s/d AG-07
               </p>
             </div>
           </div>
@@ -305,95 +324,103 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           })}
         </div>
 
-        {/* Active Enrollment Modal Overlay */}
+        {/* Manual OAuth Connection Modal Overlay */}
         {activeEnrollment && (
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between z-50 border border-cyan-400/40">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md rounded-3xl p-6 flex flex-col justify-between z-50 border border-cyan-400/40 shadow-[0_0_80px_rgba(0,229,255,0.3)]">
             <div>
+              {/* Overlay Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 animate-pulse">
-                    <Zap className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                    <Zap className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold font-mono text-white">
-                      AUTHORIZING {activeEnrollment.connectionId?.toUpperCase()}
+                    <h4 className="text-base font-bold font-mono text-white">
+                      KONEKSI MANUAL SLOT {activeEnrollment.connectionId?.toUpperCase()}
                     </h4>
                     <p className="text-[11px] text-slate-400 font-mono">
-                      Status: <span className="text-amber-400 font-semibold">{enrollProgress?.state || 'WAITING_FOR_AUTHORIZATION'}</span>
+                      Buka link login di browser Anda, lalu paste URL callback atau kode otorisasi ke bawah ini.
                     </p>
                   </div>
                 </div>
 
                 <button
                   onClick={handleCancelEnrollment}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono cursor-pointer border border-slate-700"
                 >
                   Batal
                 </button>
               </div>
 
-              {/* Steps Progress Visualizer */}
-              <div className="my-4 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${enrollProgress?.oauth?.googleOAuth ? 'text-emerald-400' : 'text-slate-600'}`} />
-                  <span>1. Google Account Chooser & Otorisasi OAuth</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${enrollProgress?.oauth?.tokenExchange ? 'text-emerald-400' : 'text-slate-600'}`} />
-                  <span>2. Pertukaran Token PKCE (Access + Refresh Token)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${enrollProgress?.cloudCode?.authorized ? 'text-emerald-400' : 'text-slate-600'}`} />
-                  <span>3. Verifikasi Cloud Code Assist Control Plane (/v1internal:loadCodeAssist)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className={`w-4 h-4 ${enrollProgress?.cloudCode?.projectDiscovered ? 'text-emerald-400' : 'text-slate-600'}`} />
-                  <span>4. Upstream Project Discovery & Vault AES-256-GCM Persistence</span>
-                </div>
-              </div>
-
-              {/* Manual URL fallback */}
-              <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-2">
-                <div className="text-slate-300 font-medium font-mono">
-                  Browser telah dibuka otomatis dengan pilihan akun Google. Jika popup diblokir, buka URL berikut:
-                </div>
-                <div className="p-2 rounded bg-black/60 font-mono text-[10px] text-cyan-300 break-all select-all border border-slate-800">
-                  {activeEnrollment.authUrl}
-                </div>
-
-                <div className="pt-2">
-                  <label className="text-[11px] text-slate-400 mb-1 block font-mono">
-                    Atau paste redirect callback URL jika browser tidak redirect otomatis:
-                  </label>
+              {/* Step 1: Open Login URL */}
+              <div className="mt-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 font-mono text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-cyan-300 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-[10px] text-cyan-300 font-bold">1</span>
+                    LANGKAH 1: BUKA HALAMAN LOGIN GOOGLE
+                  </span>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={manualCallbackUrl}
-                      onChange={(e) => setManualCallbackUrl(e.target.value)}
-                      placeholder="http://127.0.0.1:port/oauth/callback?code=..."
-                      className="flex-1 bg-black/70 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
-                    />
                     <button
-                      onClick={handleManualCallbackSubmit}
-                      className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono cursor-pointer"
+                      onClick={handleCopyUrl}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono flex items-center gap-1.5 border border-slate-700 cursor-pointer"
                     >
-                      Submit Callback
+                      <Copy className="w-3.5 h-3.5 text-cyan-300" />
+                      <span>{copied ? '✅ Disalin!' : 'Copy Link'}</span>
+                    </button>
+                    <button
+                      onClick={handleOpenAuthUrl}
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,102,255,0.3)] cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Buka di Browser</span>
                     </button>
                   </div>
                 </div>
+                <div className="p-2.5 rounded-xl bg-black/70 font-mono text-[10px] text-slate-400 break-all select-all border border-slate-800/80 max-h-16 overflow-y-auto">
+                  {activeEnrollment.authUrl}
+                </div>
+              </div>
+
+              {/* Step 2: Paste Callback URL or Authorization Code */}
+              <div className="mt-3 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 font-mono text-xs">
+                <span className="font-bold text-cyan-300 flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-[10px] text-cyan-300 font-bold">2</span>
+                  LANGKAH 2: PASTE CALLBACK URL ATAU KODE OTORISASI GOOGLE
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Setelah login dan klik Izinkan di Google, salin URL dari address bar browser atau kode otorisasi, lalu tempelkan di bawah:
+                </p>
+                <form onSubmit={handleManualCallbackSubmit} className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={manualCallbackUrl}
+                    onChange={(e) => setManualCallbackUrl(e.target.value)}
+                    placeholder="http://localhost:20128/callback?code=... ATAU kode 4/0A..."
+                    className="flex-1 bg-black/80 border border-cyan-500/40 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-300"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs font-mono shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Hubungkan Akun</span>
+                  </button>
+                </form>
               </div>
             </div>
 
+            {/* Overlay Footer */}
             <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-mono text-slate-400">
               <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                Menunggu otorisasi browser...
+                <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                Mode Manual Aktif (Menunggu input Anda)
               </span>
               <button
                 onClick={handleCancelEnrollment}
-                className="px-4 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/50 cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/50 cursor-pointer font-mono text-xs"
               >
-                Cancel Authorization
+                Tutup & Batalkan
               </button>
             </div>
           </div>
