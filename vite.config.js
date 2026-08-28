@@ -199,6 +199,22 @@ function nineRouterGatewayPlugin() {
             return;
           }
 
+          // POST /api/antigravity/connections/:connectionId/toggle
+          const toggleMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/toggle$/);
+          if (toggleMatch && req.method === 'POST') {
+            try {
+              const result = await antigravityEnrollmentSessionManagerInstance.toggleConnection(toggleMatch[1]);
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify(result, null, 2));
+            } catch (err) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: { message: err.message } }));
+            }
+            return;
+          }
+
           // DELETE /api/antigravity/connections/:connectionId
           const deleteMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])$/);
           if (deleteMatch && req.method === 'DELETE') {
