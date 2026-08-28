@@ -6,8 +6,10 @@
  *  2. Real-Time VAD (Voice Activity Detection via Web Audio API)
  *  3. Speech-to-Text (STT via SpeechRecognition)
  *  4. Instant Human Barge-In (TTS cancellation on speech detection)
- *  5. Text-to-Speech (TTS with Sentence Segmentation)
+ *  5. Text-to-Speech (TTS with Sentence Segmentation, Indonesian Normalization)
  */
+
+import { indonesianTextNormalizerInstance } from './IndonesianTextNormalizer.js';
 
 export const PIPELINE_STATES = {
   IDLE: 'IDLE',
@@ -162,37 +164,63 @@ export class RealtimeVoicePipeline {
 
     this.stopTTS();
 
-    const cleanText = (text || '')
-      .replace(/\[.*?\]/g, '')
-      .replace(/```[\s\S]*?```/g, '')
-      .replace(/[*#_~`]/g, ' ')
-      .trim();
-
-    if (!cleanText) {
+    // Normalize text through IndonesianTextNormalizer before TTS
+    const normalized = indonesianTextNormalizerInstance.normalize(text || '');
+    if (!normalized.trim()) {
       if (onComplete) onComplete();
       return;
     }
+
+    // Split into natural sentence segments
+    const segments = indonesianTextNormalizerInstance.splitIntoSentences(normalized);
+    if (segments.length === 0) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    this._speakSegmentsSequentially(segments, onComplete);
+  }
+
+  _speakSegmentsSequentially(segments, onComplete) {
+    if (!segments || segments.length === 0) {
+      this.isPlayingTTS = false;
+      this._setState(PIPELINE_STATES.IDLE);
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const [current, ...rest] = segments;
 
     try {
       if (this.synth.paused) this.synth.resume();
     } catch {}
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const utterance = new SpeechSynthesisUtterance(current);
     utterance.lang = 'id-ID';
-    utterance.rate = 1.0;
+    utterance.rate = 0.90;
+    utterance.pitch = 1.08;
+    utterance.volume = 1.0;
 
     utterance.onstart = () => {
       this.isPlayingTTS = true;
-      this._setState(PIPELINE_STATES.SPEAKING, { text: cleanText });
+      this._setState(PIPELINE_STATES.SPEAKING, { text: current });
     };
 
     utterance.onend = () => {
-      this.isPlayingTTS = false;
-      this._setState(PIPELINE_STATES.IDLE);
-      if (onComplete) onComplete();
+      if (rest.length > 0) {
+        // Natural sentence pause before next segment
+        setTimeout(() => {
+          this._speakSegmentsSequentially(rest, onComplete);
+        }, 100);
+      } else {
+        this.isPlayingTTS = false;
+        this._setState(PIPELINE_STATES.IDLE);
+        if (onComplete) onComplete();
+      }
     };
 
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
+      if (e.error === 'interrupted' || e.error === 'canceled') return;
       this.isPlayingTTS = false;
       this._setState(PIPELINE_STATES.IDLE);
     };

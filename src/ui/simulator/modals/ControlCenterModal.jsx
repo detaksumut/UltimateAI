@@ -2,17 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Settings, Cpu, Globe, Shield, Check, Layers, Activity, 
   Server, Zap, RefreshCw, Power, AlertTriangle, ArrowRight, 
-  Clock, Database, Eye, Terminal, CheckCircle2, XCircle, AlertCircle
+  Clock, Database, Eye, Terminal, CheckCircle2, XCircle, AlertCircle,
+  Volume2, VolumeX
 } from 'lucide-react';
 import { RouterConfig } from '../../../services/router/RouterConfig.js';
+import { textToSpeechInstance } from '../../../services/voice/TextToSpeech.js';
 
 export default function ControlCenterModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'pools' | 'tasks' | 'events'
+  const [activeTab, setActiveTab] = useState('overview');
   const [snapshot, setSnapshot] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTaskProvenance, setSelectedTaskProvenance] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [ttsState, setTtsState] = useState({
+    voice: null, language: 'id-ID', rate: 0.90, pitch: 1.08,
+    queueLength: 0, playing: false, interrupted: false,
+    qualityTier: null, engineType: 'BROWSER_WEB_SPEECH_API', limitation: null
+  });
 
   // Fetch full Control Center snapshot from LocalRouter SSOT endpoint
   const fetchSnapshot = async () => {
@@ -33,7 +40,22 @@ export default function ControlCenterModal({ isOpen, onClose }) {
     if (isOpen) {
       fetchSnapshot();
       const interval = setInterval(fetchSnapshot, 2000);
-      return () => clearInterval(interval);
+
+      // Subscribe to TTS state updates
+      const unsubTTS = textToSpeechInstance.subscribeState((state) => {
+        setTtsState({ ...state });
+      });
+
+      // Trigger voice selection on open to populate state
+      setTimeout(() => {
+        textToSpeechInstance.selectBestVoice();
+        setTtsState({ ...textToSpeechInstance.state });
+      }, 200);
+
+      return () => {
+        clearInterval(interval);
+        unsubTTS();
+      };
     }
   }, [isOpen]);
 
@@ -247,10 +269,76 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   <span className="text-slate-600">|</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span>POOL: <b className="text-cyan-300">{overview.currentStickyPool?.toUpperCase() || 'AG-01'}</b></span>
                   <span className="text-slate-600">|</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>TTS: <b className="text-white">READY</b></span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>TTS: <b className="text-white">{ttsState.playing ? 'SPEAKING' : 'READY'}</b></span>
                   <span className="text-slate-600">|</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>BARGE-IN: <b className="text-emerald-300">ACTIVE</b></span>
                 </div>
+              </div>
+
+              {/* TTS STATUS PANEL */}
+              <div className="bg-[#0a1220] border border-violet-500/20 rounded-2xl p-4 font-mono">
+                <div className="flex items-center gap-2 mb-3">
+                  <Volume2 className="w-4 h-4 text-violet-400" />
+                  <span className="text-[11px] font-bold text-violet-400 tracking-wider uppercase">TTS / Voice Engine</span>
+                  {ttsState.playing && (
+                    <span className="ml-auto text-[10px] bg-violet-900/60 border border-violet-600/50 text-violet-300 px-2 py-0.5 rounded-full animate-pulse">▶ SPEAKING</span>
+                  )}
+                  {ttsState.interrupted && !ttsState.playing && (
+                    <span className="ml-auto text-[10px] bg-amber-900/60 border border-amber-600/50 text-amber-300 px-2 py-0.5 rounded-full">⚡ BARGE-IN</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">VOICE</div>
+                    <div className="text-violet-200 font-medium truncate" title={ttsState.voice || 'Loading...'}>
+                      {ttsState.voice || '—'}
+                    </div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">LANGUAGE</div>
+                    <div className="text-emerald-300 font-medium">{ttsState.language || 'id-ID'}</div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">RATE / PITCH</div>
+                    <div className="text-cyan-300 font-medium">{ttsState.rate} / {ttsState.pitch}</div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">QUEUE</div>
+                    <div className="text-white font-medium">{ttsState.queueLength} items</div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">QUALITY TIER</div>
+                    <div className={`font-bold text-[10px] ${
+                      ttsState.qualityTier === 'NEURAL_PREMIUM' ? 'text-emerald-400' :
+                      ttsState.qualityTier === 'NATIVE_INDONESIAN' ? 'text-cyan-300' :
+                      ttsState.qualityTier === 'LOCALE_MATCH' ? 'text-amber-300' : 'text-red-400'
+                    }`}>
+                      {ttsState.qualityTier || 'DETECTING...'}
+                    </div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">ENGINE</div>
+                    <div className="text-slate-300 text-[10px]">{ttsState.engineType || 'WEB_SPEECH'}</div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">PLAYING</div>
+                    <div className={`font-bold ${ttsState.playing ? 'text-violet-300' : 'text-slate-500'}`}>
+                      {ttsState.playing ? '▶ YES' : '▪ NO'}
+                    </div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">INTERRUPTED</div>
+                    <div className={`font-bold ${ttsState.interrupted ? 'text-amber-300' : 'text-slate-500'}`}>
+                      {ttsState.interrupted ? '⚡ YES' : '▪ NO'}
+                    </div>
+                  </div>
+                </div>
+                {ttsState.limitation && (
+                  <div className="mt-2 p-2.5 bg-amber-950/30 border border-amber-700/30 rounded-xl text-[10px] text-amber-300 flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>{ttsState.limitation}</span>
+                  </div>
+                )}
               </div>
 
               {/* Execution Pipeline Visualizer */}
