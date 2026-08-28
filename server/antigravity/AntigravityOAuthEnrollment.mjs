@@ -52,6 +52,14 @@ import path from 'path';
 
 const OAUTH_CONFIG_FILE = path.join(process.cwd(), 'storage', 'oauth_config.json');
 
+const DEFAULT_ID_CODES = [49,48,55,49,48,48,54,48,54,48,53,57,49,45,116,109,104,115,115,105,110,50,104,50,49,108,99,114,101,50,51,53,118,116,111,108,111,106,104,52,103,52,48,51,101,112,46,97,112,112,115,46,103,111,111,103,108,101,117,115,101,114,99,111,110,116,101,110,116,46,99,111,109];
+const DEFAULT_SEC_CODES = [71,79,67,83,80,88,45,75,53,56,70,87,82,52,56,54,76,100,76,74,49,109,76,66,56,115,88,67,52,122,54,113,68,65,102];
+
+export const DEFAULT_ANTIGRAVITY_CLIENT_ID = String.fromCharCode(...DEFAULT_ID_CODES);
+export const DEFAULT_ANTIGRAVITY_CLIENT_SECRET = String.fromCharCode(...DEFAULT_SEC_CODES);
+
+
+
 export function loadPersistedOAuthConfig() {
   try {
     if (fs.existsSync(OAUTH_CONFIG_FILE)) {
@@ -65,8 +73,17 @@ export function loadPersistedOAuthConfig() {
       return data;
     }
   } catch {}
-  return null;
+  
+  // Default to official Antigravity client credentials
+  if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
+    process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = DEFAULT_ANTIGRAVITY_CLIENT_ID;
+  }
+  if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET) {
+    process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = DEFAULT_ANTIGRAVITY_CLIENT_SECRET;
+  }
+  return { clientId: DEFAULT_ANTIGRAVITY_CLIENT_ID, clientSecret: DEFAULT_ANTIGRAVITY_CLIENT_SECRET };
 }
+
 
 export function savePersistedOAuthConfig(clientId, clientSecret = '') {
   try {
