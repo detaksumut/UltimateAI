@@ -189,12 +189,12 @@ export class AntigravityEnrollmentSessionManager {
     console.log(`[ENROLLMENT] START: connectionId=${connectionId}, enrollmentId=${enrollmentId}`);
     console.log(`[ENROLLMENT] AUTH_URL_CREATED: port=${session.port}`);
 
-    // 120-second safety timeout
+    // 600-second (10 minutes) safety timeout
     session.timeoutTimer = setTimeout(() => {
       if (session.state === ENROLLMENT_STATES.WAITING_FOR_AUTHORIZATION) {
-        this._failSession(enrollmentId, ENROLLMENT_STATES.ENROLLMENT_TIMEOUT, 'OAuth authorization timed out after 120 seconds.');
+        this._failSession(enrollmentId, ENROLLMENT_STATES.ENROLLMENT_TIMEOUT, 'OAuth authorization timed out after 600 seconds.');
       }
-    }, 120000);
+    }, 600000);
 
     this.sessions.set(enrollmentId, session);
     this.activeEnrollmentsByConnection.set(connectionId, enrollmentId);
@@ -312,15 +312,38 @@ export class AntigravityEnrollmentSessionManager {
   /**
    * Allows operator to manually paste either the raw code or full callback URL
    */
-  async processManualCallback(enrollmentId, inputString) {
-    const session = this.sessions.get(enrollmentId);
+  async processManualCallback(enrollmentOrConnectionId, inputString) {
+    let session = this.sessions.get(enrollmentOrConnectionId);
     if (!session) {
-      throw new Error('ENROLLMENT_SESSION_NOT_FOUND: Session does not exist or has expired.');
+      const activeEnrollmentId = this.activeEnrollmentsByConnection?.get(enrollmentOrConnectionId);
+      if (activeEnrollmentId) {
+        session = this.sessions.get(activeEnrollmentId);
+      }
     }
 
     const trimmed = (inputString || '').trim();
     if (!trimmed) {
       throw new Error('MISSING_INPUT: Harap paste Callback URL atau Authorization Code Anda.');
+    }
+
+    if (!session) {
+      // Try resolving by matching state token from URL
+      try {
+        const urlObj = new URL(trimmed);
+        const stateToken = urlObj.searchParams.get('state');
+        if (stateToken) {
+          for (const s of this.sessions.values()) {
+            if (s.stateToken === stateToken) {
+              session = s;
+              break;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!session) {
+      throw new Error('ENROLLMENT_SESSION_NOT_FOUND: Session does not exist or has expired.');
     }
 
     let code = '';
@@ -330,7 +353,7 @@ export class AntigravityEnrollmentSessionManager {
         const urlObj = new URL(trimmed);
         const error = urlObj.searchParams.get('error');
         if (error) {
-          this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, error);
+          this._failSession(session.enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, error);
           throw new Error(`GOOGLE_OAUTH_AUTHORIZATION_FAILED: ${error}`);
         }
         code = urlObj.searchParams.get('code') || '';
@@ -343,11 +366,11 @@ export class AntigravityEnrollmentSessionManager {
     }
 
     if (!code) {
-      this._failSession(enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, 'No code parameter found.');
+      this._failSession(session.enrollmentId, ENROLLMENT_STATES.OAUTH_AUTHORIZATION_FAILED, 'No code parameter found.');
       throw new Error('GOOGLE_OAUTH_AUTHORIZATION_FAILED: Missing code parameter.');
     }
 
-    return await this._processAuthorizationCode(enrollmentId, code);
+    return await this._processAuthorizationCode(session.enrollmentId, code);
   }
 
   /**

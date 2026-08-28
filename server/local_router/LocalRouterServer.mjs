@@ -177,13 +177,13 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 6. POST /api/antigravity/enrollments/:enrollmentId/callback (Manual Paste)
-    const callbackMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)\/callback$/);
+    // 6. POST /api/antigravity/enrollments/:id/callback (Manual Paste)
+    const callbackMatch = pathname.match(/^\/api\/antigravity\/enrollments\/([a-z0-9-]+)\/callback$/);
     if (callbackMatch && req.method === 'POST') {
-      const enrollmentId = callbackMatch[1];
+      const targetId = callbackMatch[1];
       const body = await readJsonBody();
       try {
-        const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(enrollmentId, body.callbackUrl || '');
+        const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(targetId, body.callbackUrl || body.code || '');
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result, null, 2));
       } catch (err) {
@@ -191,6 +191,34 @@ export function createLocalRouterServer() {
         res.end(JSON.stringify({ error: { message: err.message } }));
       }
       return;
+    }
+
+    // 6B. GET /oauth/callback (Direct loopback on Local Router :20200)
+    if (pathname === '/oauth/callback' && req.method === 'GET') {
+      const code = reqUrl.searchParams.get('code');
+      const state = reqUrl.searchParams.get('state');
+      if (code) {
+        try {
+          await antigravityEnrollmentSessionManagerInstance.processManualCallback(state || '', req.url);
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+              <body style="background:#090d16;color:#22d3ee;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+                <div style="text-align:center;">
+                  <h2>Antigravity OAuth Berhasil!</h2>
+                  <p>Akun Google telah terhubung ke Pool Antigravity. Anda dapat menutup tab ini.</p>
+                </div>
+                <script>setTimeout(() => window.close(), 1500);</script>
+              </body>
+            </html>
+          `);
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'text/html' });
+          res.end(`<h2>Otorisasi Gagal</h2><p>${err.message}</p>`);
+        }
+        return;
+      }
     }
 
     // 7. POST /api/antigravity/enrollments/:enrollmentId/cancel
