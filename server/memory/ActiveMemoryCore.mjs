@@ -108,20 +108,19 @@ export class ActiveMemoryCore {
     includeInactive = false
   } = {}) {
     // 1. Fast SQLite Index Query
-    const indexResults = memoryIndexSQLiteInstance.query({
-      queryText,
-      category,
-      priority,
-      minConfidence,
-      limit,
-      includeInactive
-    });
-
-    if (indexResults.length > 0) {
-      return indexResults;
+    const stats = memoryIndexSQLiteInstance.getStats();
+    if (stats.isOnline) {
+      return memoryIndexSQLiteInstance.query({
+        queryText,
+        category,
+        priority,
+        minConfidence,
+        limit,
+        includeInactive
+      });
     }
 
-    // 2. Fallback to MemoryVault in-memory linear query
+    // 2. Fallback to MemoryVault in-memory linear query only if SQLite is offline
     return memoryVaultEngineInstance.queryMemories(queryText, limit, minConfidence);
   }
 

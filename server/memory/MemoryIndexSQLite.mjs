@@ -211,6 +211,7 @@ export class MemoryIndexSQLite {
 
         return {
           ...row,
+          contentScore,
           tags: JSON.parse(row.tags || '[]'),
           source: JSON.parse(row.source || '{}'),
           rankingScore: finalScore
@@ -218,7 +219,7 @@ export class MemoryIndexSQLite {
       });
 
       return scored
-        .filter(r => keywords.length === 0 || r.rankingScore > 5.0)
+        .filter(r => keywords.length === 0 || r.contentScore > 0)
         .sort((a, b) => b.rankingScore - a.rankingScore)
         .slice(0, limit);
     } catch (err) {
