@@ -317,13 +317,66 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 11B. CONTROL CENTER & RUNTIME OBSERVABILITY APIS
+    if (pathname === '/api/control-center' && req.method === 'GET') {
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
+      const snapshot = runtimeObservabilityInstance.getSnapshot();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(snapshot, null, 2));
+      return;
+    }
+
+    if (pathname === '/api/runtime/events' && req.method === 'GET') {
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ events: runtimeObservabilityInstance.events }, null, 2));
+      return;
+    }
+
+    if (pathname === '/api/runtime/tasks' && req.method === 'GET') {
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ tasks: runtimeObservabilityInstance.tasks }, null, 2));
+      return;
+    }
+
+    if (pathname === '/api/runtime/current' && req.method === 'GET') {
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ currentTask: runtimeObservabilityInstance.currentTask }, null, 2));
+      return;
+    }
+
+    const provMatch = pathname.match(/^\/api\/runtime\/provenance\/([a-zA-Z0-9_-]+)$/);
+    if (provMatch && req.method === 'GET') {
+      const targetTaskId = provMatch[1];
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
+      const task = runtimeObservabilityInstance.tasks.find(t => t.taskId === targetTaskId);
+      if (task) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(task.provenance || {}, null, 2));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: `Task ${targetTaskId} provenance not found` } }));
+      }
+      return;
+    }
+
     // 12. POST /v1/chat/completions (OpenAI-compatible)
     if (pathname === '/v1/chat/completions' && req.method === 'POST') {
+      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
       const payload = await readJsonBody();
       const isStream = payload.stream === true;
       const messages = payload.messages || [];
       const model = payload.model || 'auto';
       const capability = payload.capability || 'FAST_CHAT';
+      const userPrompt = messages.filter(m => m.role === 'user').pop()?.content || '';
+
+      const task = runtimeObservabilityInstance.startTask({
+        userGoal: userPrompt,
+        capability,
+        requestedModel: model
+      });
 
       if (isStream) {
         res.writeHead(200, {
@@ -332,14 +385,16 @@ export function createLocalRouterServer() {
           'Connection': 'keep-alive'
         });
 
+        let fullStreamed = '';
         try {
-          await antigravityProviderInstance.sendChat({
+          const streamResult = await antigravityProviderInstance.sendChat({
             messages,
             stream: true,
             model,
             capability,
             temperature: payload.temperature || 0.7
           }, (tokenChunk) => {
+            fullStreamed += tokenChunk;
             const sseData = JSON.stringify({
               id: 'chatcmpl-' + Date.now(),
               object: 'chat.completion.chunk',
@@ -350,9 +405,11 @@ export function createLocalRouterServer() {
             res.write(`data: ${sseData}\n\n`);
           });
 
+          runtimeObservabilityInstance.completeTask(task.taskId, { content: fullStreamed }, streamResult || {});
           res.write('data: [DONE]\n\n');
           res.end();
         } catch (err) {
+          runtimeObservabilityInstance.failTask(task.taskId, err);
           const errData = JSON.stringify({ error: { message: err.message, type: 'local_router_stream_error' } });
           res.write(`data: ${errData}\n\n`);
           res.end();
@@ -367,6 +424,24 @@ export function createLocalRouterServer() {
             temperature: payload.temperature || 0.7
           });
 
+          const provenance = {
+            providerGateway: 'ANTIGRAVITY',
+            connectionId: result.connectionId,
+            actualConnectionId: result.actualConnectionId,
+            accountAlias: result.accountAlias,
+            requestedModel: model,
+            actualModel: result.actualModel,
+            upstreamEndpoint: result.upstreamEndpoint,
+            transportClass: result.transportClass,
+            upstreamResponseId: result.upstreamResponseId,
+            localResponseId: result.localResponseId,
+            responseId: result.upstreamResponseId || result.localResponseId,
+            fallbackUsed: false,
+            rollover: result.rollover
+          };
+
+          runtimeObservabilityInstance.completeTask(task.taskId, result, provenance);
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             id: 'chatcmpl-' + Date.now(),
@@ -378,23 +453,10 @@ export function createLocalRouterServer() {
               message: { role: 'assistant', content: result.content },
               finish_reason: 'stop'
             }],
-            provenance: {
-              providerGateway: 'ANTIGRAVITY',
-              connectionId: result.connectionId,
-              actualConnectionId: result.actualConnectionId,
-              accountAlias: result.accountAlias,
-              requestedModel: model,
-              actualModel: result.actualModel,
-              upstreamEndpoint: result.upstreamEndpoint,
-              transportClass: result.transportClass,
-              upstreamResponseId: result.upstreamResponseId,
-              localResponseId: result.localResponseId,
-              responseId: result.upstreamResponseId || result.localResponseId,
-              fallbackUsed: false,
-              rollover: result.rollover
-            }
+            provenance
           }, null, 2));
         } catch (err) {
+          runtimeObservabilityInstance.failTask(task.taskId, err);
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             error: {
