@@ -144,6 +144,10 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       e.preventDefault();
       e.stopPropagation();
     }
+    const targetSlot = slots.find((s) => s.connectionId === connectionId);
+    if (!targetSlot || !targetSlot.isEnrolled || targetSlot.status === 'NOT_ENROLLED') {
+      return;
+    }
     try {
       let res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
       if (!res || !res.ok) {
@@ -153,11 +157,13 @@ export default function ConnectionsModal({ isOpen, onClose }) {
         res = await fetch(`http://127.0.0.1:20200/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
+      if (!res.ok && !data.skipped) throw new Error(data.error?.message || 'Refresh gagal');
       setErrorMsg(null);
       fetchLiveState();
     } catch (err) {
-      setErrorMsg(`Refresh gagal: ${err.message}`);
+      if (!err.message.includes('NOT_ENROLLED')) {
+        setErrorMsg(`Refresh gagal: ${err.message}`);
+      }
     }
   };
 
@@ -287,12 +293,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
         {/* 9Router Styled Account Grid */}
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 grid grid-cols-1 lg:grid-cols-2 gap-4 py-3">
           {slots.map((slot) => {
-            const isEnrolled = slot.isEnrolled;
-            const accountEmail = slot.email || slot.accountAlias || null;
-            const livePoolQuota = quotaData[slot.connectionId] || slot.quotaSummary || {};
+            const isEnrolled = Boolean(slot.isEnrolled && slot.status !== 'NOT_ENROLLED');
+            const accountEmail = isEnrolled ? (slot.email || slot.accountAlias || null) : null;
+            const livePoolQuota = isEnrolled ? (quotaData[slot.connectionId] || slot.quotaSummary || {}) : {};
             const modelsMap = livePoolQuota.models || {};
             const recordedModels = Object.keys(modelsMap);
-            const quotaSource = livePoolQuota.source || 'NO_DATA_RECORDED';
+            const quotaSource = isEnrolled ? (livePoolQuota.source || 'NO_DATA_RECORDED') : 'NOT_AVAILABLE';
             const isSlotActive = slotOverrides[slot.connectionId] !== undefined
               ? slotOverrides[slot.connectionId]
               : (slot.isActive !== false);

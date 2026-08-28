@@ -571,9 +571,16 @@ export class AntigravityEnrollmentSessionManager {
    * Proactively refreshes token for a specific connection
    */
   async refreshConnection(connectionId) {
-    const hydrated = this.store.getConnection(connectionId, true);
+    const hydrated = this.store.getConnection(connectionId, false);
     if (!hydrated || (!hydrated.accessToken && !hydrated.refreshToken)) {
-      throw new Error(`CONNECTION_NOT_ENROLLED: '${connectionId}' has no enrolled credentials.`);
+      return {
+        connectionId,
+        valid: false,
+        refreshed: false,
+        error: null,
+        status: 'NOT_ENROLLED',
+        skipped: true
+      };
     }
 
     const result = await this.tokenManager.ensureValidToken(hydrated);
