@@ -67,7 +67,17 @@ export class AntigravityOAuthEnrollment {
       console.warn('⚠️ [MIGRATION WARNING] GOOGLE_OAUTH_CLIENT_ID is deprecated. Please migrate to ANTIGRAVITY_OAUTH_CLIENT_ID.');
     }
 
-    const clientId = (env.ANTIGRAVITY_OAUTH_CLIENT_ID || '').trim();
+    let rawId = (env.ANTIGRAVITY_OAUTH_CLIENT_ID || '').trim();
+    if (rawId.includes('client_id=')) {
+      try {
+        const parsedUrl = new URL(rawId);
+        rawId = parsedUrl.searchParams.get('client_id') || rawId;
+      } catch {
+        const match = rawId.match(/client_id=([^&]+)/);
+        if (match) rawId = decodeURIComponent(match[1]);
+      }
+    }
+    const clientId = rawId.trim();
     const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
     if (!clientId) {

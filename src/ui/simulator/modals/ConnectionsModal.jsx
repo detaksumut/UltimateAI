@@ -118,7 +118,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       setOauthConfigValid(true);
       setShowConfigBox(false);
       setErrorMsg(null);
-      alert('✅ Google OAuth Client ID berhasil disimpan!');
+      // Auto-trigger connect AG-01 immediately upon saving
+      handleStartConnect('ag-01');
     } catch (err) {
       setErrorMsg(err.message);
     }
@@ -139,6 +140,11 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
       setActiveEnrollment(data);
       setEnrollProgress({ state: data.status, connectionId });
+
+      // Instantly open the Google Account Chooser popup in the browser
+      if (data.authUrl) {
+        window.open(data.authUrl, 'google_oauth_popup', 'width=540,height=740,top=100,left=300');
+      }
     } catch (err) {
       setErrorMsg(`Gagal menghubungkan ${connectionId.toUpperCase()}: ${err.message}`);
     }
@@ -274,21 +280,21 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               </button>
             </div>
             <p className="text-[11px] text-slate-300">
-              Salin Client ID dari Google Cloud Console atau parameter <code>client_id</code> pada URL otorisasi Antigravity Anda:
+              Paste <strong>URL Google Sign-In</strong> dari browser Anda atau Client ID (<code>.apps.googleusercontent.com</code>):
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={customClientId}
                 onChange={(e) => setCustomClientId(e.target.value)}
-                placeholder="Contoh: 1234567890-abcdefg.apps.googleusercontent.com"
-                className="flex-1 bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300"
+                placeholder="Paste URL Google Sign-In ATAU Client ID di sini..."
+                className="flex-1 bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
               />
               <button
                 onClick={handleSaveConfig}
-                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs font-mono shadow-[0_0_15px_rgba(0,102,255,0.3)] cursor-pointer"
               >
-                💾 Simpan Client ID
+                🚀 Simpan & Buka Login Google
               </button>
             </div>
           </div>
