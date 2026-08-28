@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, CheckCircle2, Server, Activity } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, CheckCircle2, Server, Activity, Settings, Eye, EyeOff } from 'lucide-react';
 
 const API_ENDPOINTS = [
   '',
@@ -17,6 +17,39 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [autoRefreshSec, setAutoRefreshSec] = useState(55);
   const [slotOverrides, setSlotOverrides] = useState({});
   const [connectingSlot, setConnectingSlot] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [oauthClientId, setOauthClientId] = useState('');
+  const [oauthClientSecret, setOauthClientSecret] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Load current oauth config on open
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/antigravity/oauth-config').then(r => r.ok ? r.json() : null).then(d => {
+        if (d) {
+          setOauthClientId(d.clientId || '');
+          setOauthClientSecret(d.clientSecret || '');
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
+  const handleSaveOAuthConfig = async () => {
+    try {
+      const res = await fetch('/api/antigravity/oauth-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: oauthClientId.trim(), clientSecret: oauthClientSecret.trim() })
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan');
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+      setShowSettings(false);
+    } catch (err) {
+      setErrorMsg(`Gagal simpan OAuth Config: ${err.message}`);
+    }
+  };
 
   const fetchLiveState = async () => {
     setLoading(true);
@@ -278,6 +311,14 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setShowSettings(s => !s)}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${showSettings ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+              title="OAuth Configuration"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
               onClick={fetchLiveState}
               disabled={loading}
               className="p-1.5 rounded-lg bg-[#1a1d26] hover:bg-[#252a38] text-slate-300 border border-[#2d3243] cursor-pointer"
@@ -294,6 +335,59 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* OAuth Settings Panel */}
+        {showSettings && (
+          <div className="my-3 p-4 rounded-xl bg-[#0d1117] border border-cyan-500/30 space-y-3 font-mono">
+            <div className="text-xs font-bold text-cyan-300 flex items-center gap-2">
+              <Settings className="w-3.5 h-3.5" />
+              KONFIGURASI OAUTH — Google Antigravity
+            </div>
+            <div className="text-[10px] text-amber-400/80 bg-amber-950/30 border border-amber-500/20 rounded-lg p-2">
+              ⚠️ Client ID <code>1071006060591-tmhssin...</code> adalah Web Application Client — wajib Client Secret.
+              Masukkan secret yang sesuai, atau gunakan Desktop App Client ID baru (tanpa secret).
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="text-[10px] text-slate-400 mb-1 block">CLIENT ID</label>
+                <input
+                  type="text"
+                  value={oauthClientId}
+                  onChange={e => setOauthClientId(e.target.value)}
+                  placeholder="xxx.apps.googleusercontent.com"
+                  className="w-full bg-[#141820] border border-[#2d3243] rounded-lg px-3 py-2 text-xs text-slate-200 font-mono outline-none focus:border-cyan-500/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 mb-1 block">CLIENT SECRET (kosongkan jika Desktop App)</label>
+                <div className="relative">
+                  <input
+                    type={showSecret ? 'text' : 'password'}
+                    value={oauthClientSecret}
+                    onChange={e => setOauthClientSecret(e.target.value)}
+                    placeholder="GOCSPX-... (opsional untuk Desktop App)"
+                    className="w-full bg-[#141820] border border-[#2d3243] rounded-lg px-3 py-2 text-xs text-slate-200 font-mono outline-none focus:border-cyan-500/50 pr-9"
+                  />
+                  <button type="button" onClick={() => setShowSecret(s => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                    {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveOAuthConfig}
+                className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer transition-all"
+              >
+                {settingsSaved ? '✓ TERSIMPAN' : 'SIMPAN KONFIGURASI'}
+              </button>
+              <button type="button" onClick={() => setShowSettings(false)} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs cursor-pointer">
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="my-2.5 px-4 py-2 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs flex items-center justify-between gap-2 font-mono">
