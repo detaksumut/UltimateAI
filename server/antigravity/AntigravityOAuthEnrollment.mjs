@@ -78,7 +78,8 @@ export function savePersistedOAuthConfig(clientId, clientSecret = '') {
   } catch {}
 }
 
-export const OFFICIAL_ANTIGRAVITY_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
+export const OFFICIAL_GOOGLE_SDK_CLIENT_ID = '764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com';
+export const OFFICIAL_GOOGLE_SDK_CLIENT_SECRET = 'd-FL95Q19q7MQmFpd7hHD0Ty';
 
 export class AntigravityOAuthEnrollment {
   constructor(
@@ -109,12 +110,15 @@ export class AntigravityOAuthEnrollment {
     }
 
     const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => rawId.toLowerCase().includes(p));
+    let rawSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
+
     if (!rawId || isPlaceholder) {
-      rawId = OFFICIAL_ANTIGRAVITY_CLIENT_ID;
+      rawId = OFFICIAL_GOOGLE_SDK_CLIENT_ID;
+      if (!rawSecret) rawSecret = OFFICIAL_GOOGLE_SDK_CLIENT_SECRET;
     }
 
     const clientId = rawId.trim();
-    const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
+    const clientSecret = rawSecret.trim();
 
     if (!GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
       return {
