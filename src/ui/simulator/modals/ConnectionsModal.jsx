@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, CheckCircle2, Server, Activity } from 'lucide-react';
 
 const API_ENDPOINTS = [
+  '',
   'http://127.0.0.1:20200',
   'http://localhost:20200'
 ];
@@ -19,11 +20,11 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     setLoading(true);
     let success = false;
 
-    for (const ep of [activeEndpoint, ...API_ENDPOINTS]) {
+    for (const ep of API_ENDPOINTS) {
       try {
         const [accRes, quotaRes] = await Promise.all([
-          fetch(`${ep}/api/accounts`, { signal: AbortSignal.timeout(1500) })
-            .catch(() => fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) })),
+          fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) })
+            .catch(() => fetch(`${ep}/api/accounts`, { signal: AbortSignal.timeout(1500) })),
           fetch(`${ep}/api/quota`, { signal: AbortSignal.timeout(1500) }).catch(() => null)
         ]);
 
@@ -58,35 +59,30 @@ export default function ConnectionsModal({ isOpen, onClose }) {
         fetchLiveState();
         setAutoRefreshSec(55);
       }, 55000);
-      const ticker = setInterval(() => {
-        setAutoRefreshSec(prev => (prev > 1 ? prev - 1 : 55));
+
+      const secTimer = setInterval(() => {
+        setAutoRefreshSec((prev) => (prev > 1 ? prev - 1 : 55));
       }, 1000);
+
       return () => {
         clearInterval(interval);
-        clearInterval(ticker);
+        clearInterval(secTimer);
       };
     }
   }, [isOpen]);
 
   const handleStartConnect = async (connectionId) => {
     try {
-      setErrorMsg(null);
-      const authWindow = window.open('', '_blank');
-      if (authWindow) {
-        authWindow.document.write(`
-          <html>
-            <body style="background:#0e1117;color:#38bdf8;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-              <div style="text-align:center;">
-                <h3 style="margin:0 0 8px 0;font-size:18px;">Membuka Login Google Antigravity...</h3>
-                <p style="color:#94a3b8;font-size:13px;margin:0;">Menghubungkan slot ${connectionId.toUpperCase()}...</p>
-              </div>
-            </body>
-          </html>
-        `);
+      const authWindow = window.open('about:blank', '_blank');
+      let res = await fetch(`/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' }).catch(() => null);
       }
-
-      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
+      if (!res || !res.ok) {
+        res = await fetch(`http://127.0.0.1:20200/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
+      }
       const data = await res.json();
+
       if (!res.ok) {
         if (authWindow) authWindow.close();
         throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
@@ -104,8 +100,11 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       if (data.enrollmentId) {
         const pollId = setInterval(async () => {
           try {
-            const pollRes = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${data.enrollmentId}`);
-            if (pollRes.ok) {
+            let pollRes = await fetch(`/api/antigravity/enrollments/${data.enrollmentId}`).catch(() => null);
+            if (!pollRes || !pollRes.ok) {
+              pollRes = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${data.enrollmentId}`).catch(() => null);
+            }
+            if (pollRes && pollRes.ok) {
               const pollData = await pollRes.json();
               if (pollData.state === 'ENROLLED') {
                 clearInterval(pollId);
@@ -119,7 +118,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           } catch {}
         }, 1000);
 
-        setTimeout(() => clearInterval(pollId), 120000);
+        setTimeout(() => clearInterval(pollId), 600000);
       }
 
       fetchLiveState();
@@ -130,9 +129,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleRefresh = async (connectionId) => {
     try {
-      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
+      let res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
       if (!res || !res.ok) {
-        res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
+        res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
+      }
+      if (!res || !res.ok) {
+        res = await fetch(`http://127.0.0.1:20200/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
@@ -145,9 +147,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleToggle = async (connectionId) => {
     try {
-      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' }).catch(() => null);
+      let res = await fetch(`/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' }).catch(() => null);
       if (!res || !res.ok) {
-        res = await fetch(`/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
+        res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' }).catch(() => null);
+      }
+      if (!res || !res.ok) {
+        res = await fetch(`http://127.0.0.1:20200/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Toggle gagal');
@@ -161,9 +166,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleDisconnect = async (connectionId) => {
     if (!confirm(`Hapus dan putuskan koneksi ${connectionId.toUpperCase()} dari Pool Antigravity?`)) return;
     try {
-      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' }).catch(() => null);
+      let res = await fetch(`/api/antigravity/connections/${connectionId}`, { method: 'DELETE' }).catch(() => null);
       if (!res || !res.ok) {
-        res = await fetch(`/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
+        res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' }).catch(() => null);
+      }
+      if (!res || !res.ok) {
+        res = await fetch(`http://127.0.0.1:20200/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       }
       if (!res.ok) throw new Error('Disconnect gagal');
       setErrorMsg(null);
