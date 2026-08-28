@@ -105,8 +105,8 @@ export class AntigravityCloudCodeTransport {
       }));
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content || '';
-    const payload = {
-      model: modelResourcePath,
+    
+    const innerRequest = {
       contents,
       generationConfig: {
         temperature,
@@ -115,8 +115,14 @@ export class AntigravityCloudCodeTransport {
     };
 
     if (systemInstruction) {
-      payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+      innerRequest.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
+
+    const payload = {
+      project: projectId,
+      model: modelResourcePath,
+      request: innerRequest
+    };
 
     const upstreamEndpoint = `${this.cloudCodeBaseUrl}/v1internal:streamGenerateContent?alt=sse`;
     const requestId = `req-ag-local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;

@@ -273,6 +273,29 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 9B. GET & POST /api/antigravity/oauth/config
+    if (pathname === '/api/antigravity/oauth/config') {
+      const { loadPersistedOAuthConfig, savePersistedOAuthConfig } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
+      if (req.method === 'GET') {
+        const cfg = loadPersistedOAuthConfig() || {};
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          clientId: cfg.clientId || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || '',
+          hasClientSecret: Boolean(cfg.clientSecret || process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET)
+        }, null, 2));
+        return;
+      }
+      if (req.method === 'POST') {
+        const body = await readJsonBody();
+        if (body.clientId) {
+          savePersistedOAuthConfig(body.clientId, body.clientSecret || '');
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, clientId: body.clientId }, null, 2));
+        return;
+      }
+    }
+
     // 10. GET /api/models
     if (pathname === '/api/models' && req.method === 'GET') {
       const models = AntigravityModelRegistry.getAllModels();

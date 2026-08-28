@@ -215,13 +215,54 @@ function nineRouterGatewayPlugin() {
             return;
           }
 
+          // GET & POST /api/antigravity/oauth/config
+          if (pathname === '/api/antigravity/oauth/config') {
+            const { loadPersistedOAuthConfig, savePersistedOAuthConfig } = await import('./server/antigravity/AntigravityOAuthEnrollment.mjs');
+            if (req.method === 'GET') {
+              const cfg = loadPersistedOAuthConfig() || {};
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify({
+                clientId: cfg.clientId || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || '',
+                hasClientSecret: Boolean(cfg.clientSecret || process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET)
+              }, null, 2));
+              return;
+            }
+            if (req.method === 'POST') {
+              let bodyStr = '';
+              req.on('data', chunk => { bodyStr += chunk; });
+              req.on('end', () => {
+                try {
+                  const body = JSON.parse(bodyStr || '{}');
+                  if (body.clientId) {
+                    savePersistedOAuthConfig(body.clientId, body.clientSecret || '');
+                  }
+                  res.setHeader('Content-Type', 'application/json');
+                  res.setHeader('Access-Control-Allow-Origin', '*');
+                  res.end(JSON.stringify({ success: true, clientId: body.clientId }, null, 2));
+                } catch (err) {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: { message: err.message } }));
+                }
+              });
+              return;
+            }
+          }
+
           // DELETE /api/antigravity/connections/:connectionId
           const deleteMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])$/);
           if (deleteMatch && req.method === 'DELETE') {
-            const result = await antigravityEnrollmentSessionManagerInstance.disconnectConnection(deleteMatch[1]);
-            res.setHeader('Content-Type', 'application/json');
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.end(JSON.stringify(result, null, 2));
+            try {
+              const result = await antigravityEnrollmentSessionManagerInstance.disconnectConnection(deleteMatch[1]);
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify(result, null, 2));
+            } catch (err) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: { message: err.message } }));
+            }
             return;
           }
         }
