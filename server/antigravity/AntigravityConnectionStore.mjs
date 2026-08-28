@@ -186,6 +186,17 @@ export class AntigravityConnectionStore {
   }
 
   /**
+   * Toggles active state for connection (ON/OFF)
+   */
+  toggleActive(connectionId) {
+    const conn = this.getConnection(connectionId, false);
+    if (!conn) throw new Error(`CONNECTION_NOT_FOUND: ${connectionId}`);
+    conn.isActive = conn.isActive === false ? true : false;
+    this.saveConnection(conn);
+    return { connectionId, isActive: conn.isActive };
+  }
+
+  /**
    * Updates operational status / cooldown for connection
    */
   updateStatus(connectionId, { testStatus, cooldownUntil = null }) {

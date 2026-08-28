@@ -252,11 +252,11 @@ export function createLocalRouterServer() {
     if (toggleMatch && req.method === 'POST') {
       const connectionId = toggleMatch[1];
       try {
-        const result = await antigravityEnrollmentSessionManagerInstance.toggleConnection(connectionId);
+        const result = antigravityConnectionStoreInstance.toggleActive(connectionId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result, null, 2));
       } catch (err) {
-        const statusCode = err.message.includes('NOT_ENROLLED') ? 404 : 400;
+        const statusCode = err.message.includes('NOT_FOUND') ? 404 : 400;
         res.writeHead(statusCode, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: { message: err.message } }));
       }
