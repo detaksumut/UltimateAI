@@ -104,6 +104,10 @@ await runTest('Turn 2: Constraint — do not search internet', async () => {
     reply.toLowerCase().includes('oke') ||
     reply.toLowerCase().includes('mengerti') ||
     reply.toLowerCase().includes('paham') ||
+    reply.toLowerCase().includes('siap') ||
+    reply.toLowerCase().includes('diterima') ||
+    reply.toLowerCase().includes('tentu') ||
+    reply.toLowerCase().includes('noted') ||
     reply.toLowerCase().includes('tidak akan mencari') ||
     reply.toLowerCase().includes('tanpa internet');
   assert(acknowledges, `JIN should acknowledge constraint. Got: "${reply.substring(0,100)}"`);

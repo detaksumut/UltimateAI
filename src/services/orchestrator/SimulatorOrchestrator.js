@@ -33,13 +33,25 @@ export class SimulatorOrchestrator {
 
     console.log(`[CHAT] INPUT_RECEIVED | IsVoice: ${isVoiceTrigger} | Content: "${promptText.trim()}"`);
 
-    // 1. Record in conversation history
+    // 1. Check for verbal resume of interrupted speech
+    if (/^lanjutkan\b|^teruskan\b|^lanjut\b/i.test(promptText.trim()) && this.voice.hasResidualContext()) {
+      console.log('[CHAT] 🔁 Resuming interrupted speech context from JinAudioQueue');
+      this.conversation.addMessage('user', promptText);
+      this.voice.resume({
+        onEnd: () => {
+          this.avatar.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED });
+        }
+      });
+      return;
+    }
+
+    // 2. Record in conversation history
     this.conversation.addMessage('user', promptText);
 
-    // 2. Dispatch state to Avatar: PROCESSING
+    // 3. Dispatch state to Avatar: PROCESSING
     this.avatar.dispatch({ type: AVATAR_EVENTS.REQUEST_STARTED });
 
-    // 3. Build payload with context and memory
+    // 4. Build payload with context and memory
     const { messages } = this.conversation.buildPayload(promptText);
     console.log(`[CHAT] AGENT_DISPATCHED | Messages Count: ${messages.length}`);
 

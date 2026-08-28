@@ -125,6 +125,28 @@ export class VoiceController {
     );
   }
 
+  resume(callbacks = {}) {
+    const sessionId = this.sessionController.getActiveSessionId();
+    this.fsm.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY, sessionId });
+    return this.tts.resume({
+      onStart: () => {
+        if (callbacks.onStart) callbacks.onStart();
+      },
+      onEnd: () => {
+        this.fsm.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED, sessionId });
+        if (callbacks.onEnd) callbacks.onEnd();
+      },
+      onError: (err) => {
+        this.fsm.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED, sessionId });
+        if (callbacks.onError) callbacks.onError(err);
+      }
+    });
+  }
+
+  hasResidualContext() {
+    return this.tts.hasResidualContext();
+  }
+
   stopAll() {
     this.stt.stopListening();
     this.tts.stop();

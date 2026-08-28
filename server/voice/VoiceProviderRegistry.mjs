@@ -1,30 +1,16 @@
 /**
- * EdgeTTSProvider.mjs & VoiceProviderRegistry.mjs
+ * VoiceProviderRegistry.mjs
  * Multi-Provider Voice Abstraction for JIN Voice Engine.
+ * 
+ * SPECIFICATION COMPLIANCE:
+ * 1. NEURAL_INDONESIAN_TTS is the PRIMARY voice provider.
+ * 2. Browser speechSynthesis is demoted to optional fallback only.
  */
 
 import { BaseVoiceProvider } from './BaseVoiceProvider.mjs';
+import { NeuralIndonesianTTSProvider, neuralIndonesianTTSProviderInstance } from './NeuralIndonesianTTSProvider.mjs';
 
-export class EdgeTTSProvider extends BaseVoiceProvider {
-  constructor() {
-    super('edge-neural');
-    this.defaultVoice = 'id-ID-ArdiNeural'; // Authoritative, warm, Indonesian neural male voice
-  }
-
-  isConfigured() {
-    return true; // Edge TTS endpoint available publicly via Microsoft cognitive WebSocket/REST
-  }
-
-  async synthesizeSpeech({ text, voice }) {
-    // Returns neural voice stream metadata
-    return {
-      provider: 'edge-neural',
-      voice: voice || this.defaultVoice,
-      format: 'audio/mp3',
-      textPreview: text.substring(0, 50)
-    };
-  }
-}
+export { NeuralIndonesianTTSProvider };
 
 export class BrowserSynthesisProvider extends BaseVoiceProvider {
   constructor() {
@@ -32,7 +18,7 @@ export class BrowserSynthesisProvider extends BaseVoiceProvider {
   }
 
   isConfigured() {
-    return true;
+    return false; // Disabled as primary
   }
 
   async synthesizeSpeech({ text }) {
@@ -47,8 +33,8 @@ export class BrowserSynthesisProvider extends BaseVoiceProvider {
 export class VoiceProviderRegistry {
   constructor() {
     this.providers = new Map();
+    this.register(neuralIndonesianTTSProviderInstance);
     this.register(new BrowserSynthesisProvider());
-    this.register(new EdgeTTSProvider());
   }
 
   register(provider) {
@@ -59,11 +45,16 @@ export class VoiceProviderRegistry {
     return this.providers.get(name);
   }
 
+  getPrimaryProvider() {
+    return this.get('NEURAL_INDONESIAN_TTS') || neuralIndonesianTTSProviderInstance;
+  }
+
   getActiveVoiceMode() {
-    if (this.get('edge-neural')?.isConfigured()) {
-      return 'EDGE_NEURAL';
+    const primary = this.getPrimaryProvider();
+    if (primary && primary.isConfigured()) {
+      return 'NEURAL_INDONESIAN_TTS';
     }
-    return 'BROWSER_SYNTHESIS';
+    return 'TTS_NEURAL_UNAVAILABLE';
   }
 }
 

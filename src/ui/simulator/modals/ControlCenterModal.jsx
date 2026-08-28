@@ -289,14 +289,33 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                   <div className="bg-[#111827] rounded-xl p-2.5">
-                    <div className="text-slate-500 text-[9px] uppercase mb-1">VOICE</div>
-                    <div className="text-violet-200 font-medium truncate" title={ttsState.voice || 'Loading...'}>
-                      {ttsState.voice || '—'}
-                    </div>
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">TTS PROVIDER</div>
+                    <div className="text-cyan-300 font-bold tracking-wide">NEURAL</div>
                   </div>
                   <div className="bg-[#111827] rounded-xl p-2.5">
                     <div className="text-slate-500 text-[9px] uppercase mb-1">LANGUAGE</div>
-                    <div className="text-emerald-300 font-medium">{ttsState.language || 'id-ID'}</div>
+                    <div className="text-emerald-300 font-medium">id-ID</div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">VOICE REFERENCE</div>
+                    <div className={`font-bold text-[10px] ${ttsState.voiceReferenceConfigured ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      {ttsState.voiceReferenceConfigured ? 'CONFIGURED' : 'DEFAULT_NEURAL'}
+                    </div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">STATUS</div>
+                    <div className={`font-bold text-[10px] ${
+                      ttsState.playing ? 'text-violet-400 animate-pulse' :
+                      ttsState.interrupted ? 'text-amber-300' : 'text-emerald-400'
+                    }`}>
+                      {ttsState.playing ? 'SPEAKING' : ttsState.interrupted ? 'INTERRUPTED' : 'READY'}
+                    </div>
+                  </div>
+                  <div className="bg-[#111827] rounded-xl p-2.5">
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">SPEAKER / VOICE</div>
+                    <div className="text-violet-200 font-medium truncate" title={ttsState.speaker || ttsState.voice || 'id-ID-ArdiNeural'}>
+                      {ttsState.speaker || ttsState.voice || 'id-ID-ArdiNeural'}
+                    </div>
                   </div>
                   <div className="bg-[#111827] rounded-xl p-2.5">
                     <div className="text-slate-500 text-[9px] uppercase mb-1">RATE / PITCH</div>
@@ -304,32 +323,12 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   </div>
                   <div className="bg-[#111827] rounded-xl p-2.5">
                     <div className="text-slate-500 text-[9px] uppercase mb-1">QUEUE</div>
-                    <div className="text-white font-medium">{ttsState.queueLength} items</div>
+                    <div className="text-white font-medium">{ttsState.queueLength || 0} segments</div>
                   </div>
                   <div className="bg-[#111827] rounded-xl p-2.5">
-                    <div className="text-slate-500 text-[9px] uppercase mb-1">QUALITY TIER</div>
-                    <div className={`font-bold text-[10px] ${
-                      ttsState.qualityTier === 'NEURAL_PREMIUM' ? 'text-emerald-400' :
-                      ttsState.qualityTier === 'NATIVE_INDONESIAN' ? 'text-cyan-300' :
-                      ttsState.qualityTier === 'LOCALE_MATCH' ? 'text-amber-300' : 'text-red-400'
-                    }`}>
-                      {ttsState.qualityTier || 'DETECTING...'}
-                    </div>
-                  </div>
-                  <div className="bg-[#111827] rounded-xl p-2.5">
-                    <div className="text-slate-500 text-[9px] uppercase mb-1">ENGINE</div>
-                    <div className="text-slate-300 text-[10px]">{ttsState.engineType || 'WEB_SPEECH'}</div>
-                  </div>
-                  <div className="bg-[#111827] rounded-xl p-2.5">
-                    <div className="text-slate-500 text-[9px] uppercase mb-1">PLAYING</div>
-                    <div className={`font-bold ${ttsState.playing ? 'text-violet-300' : 'text-slate-500'}`}>
-                      {ttsState.playing ? '▶ YES' : '▪ NO'}
-                    </div>
-                  </div>
-                  <div className="bg-[#111827] rounded-xl p-2.5">
-                    <div className="text-slate-500 text-[9px] uppercase mb-1">INTERRUPTED</div>
-                    <div className={`font-bold ${ttsState.interrupted ? 'text-amber-300' : 'text-slate-500'}`}>
-                      {ttsState.interrupted ? '⚡ YES' : '▪ NO'}
+                    <div className="text-slate-500 text-[9px] uppercase mb-1">BARGE-IN RESIDUAL</div>
+                    <div className={`font-bold text-[10px] ${ttsState.interrupted ? 'text-amber-300' : 'text-slate-500'}`}>
+                      {ttsState.interrupted ? '⚡ PRESERVED' : 'NONE'}
                     </div>
                   </div>
                 </div>

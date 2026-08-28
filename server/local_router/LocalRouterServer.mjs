@@ -362,6 +362,34 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 11C. NEURAL VOICE SYNTHESIS APIS (POST & GET /api/voice/*)
+    if (pathname === '/api/voice/status' && req.method === 'GET') {
+      const { neuralIndonesianTTSProviderInstance } = await import('../voice/NeuralIndonesianTTSProvider.mjs');
+      const status = neuralIndonesianTTSProviderInstance.getVoiceStatus();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(status, null, 2));
+      return;
+    }
+
+    if (pathname === '/api/voice/synthesize' && req.method === 'POST') {
+      const { neuralIndonesianTTSProviderInstance } = await import('../voice/NeuralIndonesianTTSProvider.mjs');
+      const body = await readJsonBody();
+      try {
+        const result = await neuralIndonesianTTSProviderInstance.synthesize(body.text || '', {
+          speaker: body.speaker,
+          rate: body.rate,
+          pitch: body.pitch,
+          audioPromptPath: body.audioPromptPath
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'TTS_NEURAL_UNAVAILABLE' } }));
+      }
+      return;
+    }
+
     // 12. POST /v1/chat/completions (OpenAI-compatible)
     if (pathname === '/v1/chat/completions' && req.method === 'POST') {
       const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');

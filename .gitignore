@@ -16,3 +16,12 @@ iframe_html.txt
 # Secure local storage & connection vault
 storage/*.json
 !storage/.gitkeep
+
+# Secure voice prompts & local audio references
+storage/voice/*
+!storage/voice/.gitkeep
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a

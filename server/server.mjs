@@ -82,6 +82,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 1B. Voice Synthesis Endpoint (POST /api/voice/synthesize, GET /api/voice/status)
+  if (pathname === '/api/voice/status' && req.method === 'GET') {
+    const { neuralIndonesianTTSProviderInstance } = await import('./voice/NeuralIndonesianTTSProvider.mjs');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(neuralIndonesianTTSProviderInstance.getVoiceStatus(), null, 2));
+    return;
+  }
+
+  if ((pathname === '/api/voice/synthesize' || pathname === '/v1/audio/speech') && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const { neuralIndonesianTTSProviderInstance } = await import('./voice/NeuralIndonesianTTSProvider.mjs');
+        const result = await neuralIndonesianTTSProviderInstance.synthesize(payload.text || payload.input || '', {
+          speaker: payload.speaker || payload.voice,
+          rate: payload.rate || payload.speed,
+          pitch: payload.pitch,
+          audioPromptPath: payload.audioPromptPath
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'TTS_NEURAL_UNAVAILABLE' } }));
+      }
+    });
+    return;
+  }
+
   // 1. Basic Health Check
   if (pathname === '/health' && req.method === 'GET') {
     const cert = await ProviderCertification.certifyAllProviders();
