@@ -49,13 +49,12 @@ const server = http.createServer(async (req, res) => {
       res.end(`
         <!DOCTYPE html>
         <html>
-          <head><title>Otorisasi Sukses - UltimateAI</title></head>
-          <body style="background:#090d16;color:#22d3ee;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-            <div style="text-align:center;padding:40px;border:1px solid rgba(0,229,255,0.3);border-radius:24px;background:#0d1527;box-shadow:0 0 50px rgba(0,229,255,0.2);">
-              <h2 style="color:#4ade80;margin-top:0;">✅ OTORISASI GOOGLE BERHASIL!</h2>
-              <p style="color:#cbd5e1;font-size:15px;">Akun Google Anda telah terhubung ke slot <strong>${matchedSession.connectionId.toUpperCase()}</strong>.</p>
-              <p style="color:#94a3b8;font-size:13px;">Anda dapat menutup jendela ini dan kembali ke UltimateAI.</p>
-            </div>
+          <head><title>Antigravity Auth</title></head>
+          <body style="background:#090d16;">
+            <script>
+              try { if (window.opener) window.opener.postMessage({ type: 'ANTIGRAVITY_AUTH_SUCCESS' }, '*'); window.close(); } catch(e) {}
+              setTimeout(() => window.close(), 100);
+            </script>
           </body>
         </html>
       `);

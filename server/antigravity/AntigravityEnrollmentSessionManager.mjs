@@ -272,14 +272,24 @@ export class AntigravityEnrollmentSessionManager {
     res.end(`
       <!DOCTYPE html>
       <html>
-        <body style="font-family: system-ui, sans-serif; background: #090d16; color: #f3f4f6; text-align: center; padding: 40px;">
-          <h2 style="color: #10b981;">Otorisasi Antigravity Diterima</h2>
-          <p>Memproses Cloud Code onboarding dan enkripsi Vault. Anda dapat menutup tab ini.</p>
+        <head><title>Antigravity Auth</title></head>
+        <body style="background:#090d16;color:#22d3ee;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <script>
+            try {
+              if (window.opener) {
+                window.opener.postMessage({ type: 'ANTIGRAVITY_AUTH_SUCCESS' }, '*');
+              }
+              window.close();
+            } catch(e) {}
+            setTimeout(() => {
+              window.close();
+            }, 100);
+          </script>
         </body>
       </html>
     `);
 
-    // Process token exchange & Cloud Code onboarding asynchronously
+    // Process token exchange & Cloud Code onboarding asynchronously in backend
     this._processAuthorizationCode(enrollmentId, code).catch(err => {
       console.error('[Enrollment] Processing error:', err.message);
     });
