@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UltimateAI — Antigravity Connection Manager</title>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121d;
+      --border: #1e293b;
+      --primary: #38bdf8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .header h1 { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .badge-live { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; position: relative; transition: border-color 0.2s; }
+    .card:hover { border-color: #334155; }
+    .card-head { display: flex; justify-content: space-between; align-items: flex-start; }
+    .slot-id { font-size: 18px; font-weight: 700; color: var(--primary); }
+    .alias { font-size: 13px; color: var(--text-muted); }
+    .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .status-enrolled { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+    .status-not_enrolled { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
+    .status-waiting { background: rgba(245, 158, 11, 0.2); color: var(--warning); animation: pulse 1.5s infinite; }
+    .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: var(--text-muted); background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; }
+    .meta-val { color: var(--text); font-weight: 600; }
+    .quota-box { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+    .quota-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: var(--text-muted); }
+    .progress-bar { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--success); width: 100%; }
+    .btn-group { display: flex; gap: 8px; margin-top: auto; }
+    button { flex: 1; padding: 10px 14px; border-radius: 8px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+    .btn-connect { background: #0284c7; color: #fff; }
+    .btn-connect:hover { background: #0369a1; }
+    .btn-refresh { background: #1e293b; color: var(--text); }
+    .btn-refresh:hover { background: #334155; }
+    .btn-disconnect { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+    .btn-disconnect:hover { background: rgba(239, 68, 68, 0.25); }
+    
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); }
+    .modal { background: #0f172a; border: 1px solid var(--border); border-radius: 14px; width: 500px; max-width: 95vw; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .modal h3 { font-size: 18px; color: var(--primary); }
+    .step-box { background: #1e293b; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+    .url-display { background: #0b0f19; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; word-break: break-all; color: var(--primary); margin-top: 6px; }
+    .input-box { width: 100%; padding: 10px; background: #0b0f19; border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 12px; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>⚡ UltimateAI Antigravity Connection Manager</h1>
+      <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">7 Independent Native Cloud Code OAuth Slots (127.0.0.1:20200)</p>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <span class="badge-live">LOCAL ROUTER v1 ONLINE</span>
+      <button class="btn-refresh" onclick="loadSlots()" style="flex: initial; padding: 8px 12px;">🔄 Refresh All</button>
+    </div>
+  </div>
+
+  <div id="grid" class="grid">
+    <!-- Slot Cards Rendered via JS -->
+  </div>
+
+  <!-- Enrollment Modal -->
+  <div id="enrollModal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="modalTitle">Connect Antigravity Connection</h3>
+      <div id="modalSpinner" style="display: flex; align-items: center; gap: 10px; color: var(--warning); font-size: 13px;">
+        <span style="font-size: 18px;">⏳</span> <span id="modalStatus">Waiting for browser authorization...</span>
+      </div>
+
+      <div class="step-box">
+        <strong>Step 1:</strong> System browser opened automatically. If not, open this link:
+        <div id="modalAuthUrl" class="url-display">https://accounts.google.com/o/oauth2/v2/auth?...</div>
+      </div>
+
+      <div class="step-box">
+        <strong>Step 2 (Optional):</strong> If popup callback is blocked, paste redirect URL here:
+        <input id="manualCallbackInput" class="input-box" placeholder="http://127.0.0.1:port/oauth/callback?code=..." style="margin-top: 8px;">
+        <button onclick="submitManualCallback()" class="btn-connect" style="margin-top: 8px; width: 100%;">Submit Callback URL</button>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button onclick="cancelActiveEnrollment()" class="btn-disconnect" style="flex: initial; padding: 8px 16px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeEnrollmentId = null;
+    let pollTimer = null;
+
+    async function loadSlots() {
+      try {
+        const res = await fetch('/api/antigravity/connections');
+        const data = await res.json();
+        renderSlots(data.slots || []);
+      } catch (err) {
+        console.error('Failed to load slots:', err);
+      }
+    }
+
+    function renderSlots(slots) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = slots.map(slot => {
+        const isEnrolled = slot.isEnrolled;
+        const statusClass = isEnrolled ? 'status-enrolled' : (slot.status === 'WAITING_FOR_AUTH' ? 'status-waiting' : 'status-not_enrolled');
+        const remaining = slot.quotaSummary?.remainingEstimate ?? 1000;
+        const pct = Math.min(100, Math.max(0, (remaining / 1000) * 100));
+
+        return `
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="slot-id">${slot.connectionId.toUpperCase()}</div>
+                <div class="alias">${slot.accountAlias}</div>
+              </div>
+              <span class="status-badge ${statusClass}">${slot.status}</span>
+            </div>
+
+            <div class="card-meta">
+              <div>Project: <span class="meta-val">${slot.projectId}</span></div>
+              <div>Tier: <span class="meta-val">${slot.projectTier}</span></div>
+              <div>Tokens: <span class="meta-val">${slot.hasRefreshToken ? 'REFRESHABLE' : 'NONE'}</span></div>
+              <div>Priority: <span class="meta-val">#${slot.priority}</span></div>
+            </div>
+
+            <div class="quota-box">
+              <div class="quota-head">
+                <span>Quota (Fast Chat)</span>
+                <span>${remaining} / 1,000 (${slot.quotaSummary?.source || 'LOCAL'})</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${pct}%;"></div>
+              </div>
+            </div>
+
+            <div class="btn-group">
+              ${!isEnrolled ? `
+                <button class="btn-connect" onclick="startEnroll('${slot.connectionId}')">⚡ CONNECT</button>
+              ` : `
+                <button class="btn-refresh" onclick="refreshConn('${slot.connectionId}')">🔄 Refresh</button>
+                <button class="btn-disconnect" onclick="disconnectConn('${slot.connectionId}')">Disconnect</button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function startEnroll(connectionId) {
+      try {
+        const res = await fetch(`/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || data.message || 'Failed to start enrollment');
+
+        activeEnrollmentId = data.enrollmentId;
+        document.getElementById('modalTitle').innerText = `Connect ${connectionId.toUpperCase()}`;
+        document.getElementById('modalAuthUrl').innerText = data.authUrl;
+        document.getElementById('modalStatus').innerText = 'Waiting for browser authorization...';
+        document.getElementById('enrollModal').style.display = 'flex';
+
+        startPollingProgress();
+      } catch (err) {
+        alert('Enrollment Error: ' + err.message);
+      }
+    }
+
+    function startPollingProgress() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        if (!activeEnrollmentId) return;
+        try {
+          const res = await fetch(`/api/antigravity/enrollments/${activeEnrollmentId}`);
+          const data = await res.json();
+          document.getElementById('modalStatus').innerText = `State: ${data.state}`;
+
+          if (data.state === 'ENROLLED') {
+            clearInterval(pollTimer);
+            document.getElementById('enrollModal').style.display = 'none';
+            activeEnrollmentId = null;
+            loadSlots();
+            alert('🎉 Connection successfully enrolled!');
+          } else if (data.state.includes('FAILED') || data.state.includes('TIMEOUT') || data.state.includes('CANCELLED')) {
+            clearInterval(pollTimer);
+            document.getElementById('modalStatus').innerText = `Failed: ${data.error || data.state}`;
+            alert(`❌ Enrollment Failed: ${data.error || data.state}`);
+          }
+        } catch {}
+      }, 1500);
+    }
+
+    async function submitManualCallback() {
+      const url = document.getElementById('manualCallbackInput').value.trim();
+      if (!url) return alert('Please enter callback URL');
+      try {
+        const res = await fetch(`/api/antigravity/enrollments/${activeEnrollmentId}/callback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callbackUrl: url })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Callback validation failed');
+      } catch (err) {
+        alert('Manual Callback Error: ' + err.message);
+      }
+    }
+
+    async function cancelActiveEnrollment() {
+      if (activeEnrollmentId) {
+        await fetch(`/api/antigravity/enrollments/${activeEnrollmentId}/cancel`, { method: 'POST' });
+        activeEnrollmentId = null;
+      }
+      if (pollTimer) clearInterval(pollTimer);
+      document.getElementById('enrollModal').style.display = 'none';
+      loadSlots();
+    }
+
+    async function refreshConn(connectionId) {
+      try {
+        const res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
+        const data = await res.json();
+        alert(`Connection ${connectionId.toUpperCase()} status: ${data.status} (Valid: ${data.valid})`);
+        loadSlots();
+      } catch (err) {
+        alert('Refresh Error: ' + err.message);
+      }
+    }
+
+    async function disconnectConn(connectionId) {
+      if (!confirm(`Are you sure you want to disconnect and purge credentials for ${connectionId.toUpperCase()}?`)) return;
+      try {
+        await fetch(`/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
+        loadSlots();
+      } catch (err) {
+        alert('Disconnect Error: ' + err.message);
+      }
+    }
+
+    loadSlots();
+  </script>
+</body>
+</html>
