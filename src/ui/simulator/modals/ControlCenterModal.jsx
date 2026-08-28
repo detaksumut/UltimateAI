@@ -230,6 +230,29 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                 </div>
               </div>
 
+              {/* REAL-TIME VOICE PIPELINE STATUS BAR */}
+              <div className="bg-[#0b1021] border border-cyan-500/25 rounded-2xl p-3.5 flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar font-mono text-xs shadow-[0_0_15px_rgba(0,229,255,0.06)]">
+                <div className="flex items-center gap-1.5 flex-shrink-0 text-cyan-400 font-bold text-[11px] uppercase tracking-wider pr-2 border-r border-slate-800">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                  VOICE PIPELINE:
+                </div>
+                <div className="flex items-center gap-3 text-[11px]">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>MIC: <b className="text-white">ACTIVE</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>VAD: <b className="text-white">ACTIVE</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>STT: <b className="text-white">READY</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>AGENT: <b className="text-white">ONLINE</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span>POOL: <b className="text-cyan-300">{overview.currentStickyPool?.toUpperCase() || 'AG-01'}</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span>TTS: <b className="text-white">READY</b></span>
+                  <span className="text-slate-600">|</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>BARGE-IN: <b className="text-emerald-300">ACTIVE</b></span>
+                </div>
+              </div>
+
               {/* Execution Pipeline Visualizer */}
               <div className="bg-[#0f1424] border border-[#1e2640] rounded-3xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
