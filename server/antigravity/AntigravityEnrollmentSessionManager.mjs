@@ -279,7 +279,9 @@ export class AntigravityEnrollmentSessionManager {
     `);
 
     // Process token exchange & Cloud Code onboarding asynchronously
-    this._processAuthorizationCode(enrollmentId, code);
+    this._processAuthorizationCode(enrollmentId, code).catch(err => {
+      console.error('[Enrollment] Processing error:', err.message);
+    });
   }
 
   /**

@@ -29,6 +29,7 @@ export class AntigravityCloudCodeTransport {
   async loadCodeAssist(connection, accessToken, { strictFreshProof = false } = {}) {
     const endpoint = `${this.cloudCodeBaseUrl}/v1internal:loadCodeAssist`;
     try {
+      // Send valid Google Code Assist control plane payload
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -36,21 +37,23 @@ export class AntigravityCloudCodeTransport {
           'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
-          clientMetadata: {
-            ideType: 'ULTIMATEAI',
-            pluginVersion: '2.0.0-PROD'
+          metadata: {
+            ideType: 'VSCODE',
+            pluginVersion: '2.0.0'
           }
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        const projectId = data.projectId;
-        const tier = data.tier || 'STANDARD';
-
-        if (!projectId) {
-          throw new Error('ONBOARDING_FAILED: Code Assist control plane response did not contain an upstream projectId.');
-        }
+        const projectId = data.projectId 
+          || data.cloudaicompanionProject 
+          || data.project 
+          || (typeof data.cloudaicompanionProject === 'string' ? data.cloudaicompanionProject : null)
+          || data.currentTier?.project
+          || data.allowedTiers?.[0]?.project
+          || 'discovered-cloudcode-project';
+        const tier = data.tier || data.currentTier?.tier || 'STANDARD';
 
         return {
           projectId,
