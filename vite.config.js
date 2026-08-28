@@ -249,5 +249,8 @@ export default defineConfig({
   plugins: [react(), nineRouterGatewayPlugin()],
   server: {
     port: 5177,
+    watch: {
+      ignored: ['**/storage/**', '**/tests/**', '**/.git/**', '**/scratch/**']
+    }
   },
 });

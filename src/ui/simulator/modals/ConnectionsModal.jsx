@@ -15,6 +15,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [isLiveOnline, setIsLiveOnline] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [autoRefreshSec, setAutoRefreshSec] = useState(55);
+  const [slotOverrides, setSlotOverrides] = useState({});
 
   const fetchLiveState = async () => {
     setLoading(true);
@@ -23,18 +24,29 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     for (const ep of API_ENDPOINTS) {
       try {
         const [accRes, quotaRes] = await Promise.all([
-          fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) })
-            .catch(() => fetch(`${ep}/api/accounts`, { signal: AbortSignal.timeout(1500) })),
-          fetch(`${ep}/api/quota`, { signal: AbortSignal.timeout(1500) }).catch(() => null)
+          fetch(`${ep}/api/antigravity/connections?t=${Date.now()}`, { signal: AbortSignal.timeout(1500) })
+            .catch(() => fetch(`${ep}/api/accounts?t=${Date.now()}`, { signal: AbortSignal.timeout(1500) })),
+          fetch(`${ep}/api/quota?t=${Date.now()}`, { signal: AbortSignal.timeout(1500) }).catch(() => null)
         ]);
 
         if (accRes && accRes.ok) {
           const accData = await accRes.json();
-          setSlots(accData.slots || accData.accounts || []);
+          const fetchedSlots = accData.slots || accData.accounts || [];
+          setSlots(fetchedSlots);
           setActiveEndpoint(ep);
           setIsLiveOnline(true);
           setErrorMsg(null);
           success = true;
+
+          setSlotOverrides((prev) => {
+            const nextMap = { ...prev };
+            for (const s of fetchedSlots) {
+              if (s.isActive !== undefined && nextMap[s.connectionId] === undefined) {
+                nextMap[s.connectionId] = s.isActive !== false;
+              }
+            }
+            return nextMap;
+          });
 
           if (quotaRes && quotaRes.ok) {
             const qData = await quotaRes.json();
@@ -127,7 +139,11 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     }
   };
 
-  const handleRefresh = async (connectionId) => {
+  const handleRefresh = async (e, connectionId) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     try {
       let res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
       if (!res || !res.ok) {
@@ -145,7 +161,21 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     }
   };
 
-  const handleToggle = async (connectionId) => {
+  const handleToggle = async (e, connectionId) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const currentActive = slotOverrides[connectionId] !== undefined
+      ? slotOverrides[connectionId]
+      : (slots.find((s) => s.connectionId === connectionId)?.isActive !== false);
+
+    const nextActive = !currentActive;
+
+    // Instant zero-delay DOM update
+    setSlotOverrides((prev) => ({ ...prev, [connectionId]: nextActive }));
+
     try {
       let res = await fetch(`/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' }).catch(() => null);
       if (!res || !res.ok) {
@@ -156,14 +186,22 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Toggle gagal');
+      if (typeof data.isActive === 'boolean') {
+        setSlotOverrides((prev) => ({ ...prev, [connectionId]: data.isActive }));
+      }
       setErrorMsg(null);
-      fetchLiveState();
     } catch (err) {
       setErrorMsg(`Toggle gagal: ${err.message}`);
+      // Revert on failure
+      setSlotOverrides((prev) => ({ ...prev, [connectionId]: currentActive }));
     }
   };
 
-  const handleDisconnect = async (connectionId) => {
+  const handleDisconnect = async (e, connectionId) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!confirm(`Hapus dan putuskan koneksi ${connectionId.toUpperCase()} dari Pool Antigravity?`)) return;
     try {
       let res = await fetch(`/api/antigravity/connections/${connectionId}`, { method: 'DELETE' }).catch(() => null);
@@ -211,6 +249,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={fetchLiveState}
               disabled={loading}
               className="p-1.5 rounded-lg bg-[#1a1d26] hover:bg-[#252a38] text-slate-300 border border-[#2d3243] cursor-pointer"
@@ -219,6 +258,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
+              type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg bg-[#1a1d26] hover:bg-[#252a38] text-slate-300 border border-[#2d3243] cursor-pointer"
             >
@@ -234,6 +274,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               <span>{errorMsg}</span>
             </div>
             <button
+              type="button"
               onClick={() => setErrorMsg(null)}
               className="p-1 hover:bg-red-900/50 rounded text-red-300 cursor-pointer"
               title="Tutup Notifikasi"
@@ -252,7 +293,9 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             const modelsMap = livePoolQuota.models || {};
             const recordedModels = Object.keys(modelsMap);
             const quotaSource = livePoolQuota.source || 'NO_DATA_RECORDED';
-            const isSlotActive = slot.isActive !== false;
+            const isSlotActive = slotOverrides[slot.connectionId] !== undefined
+              ? slotOverrides[slot.connectionId]
+              : (slot.isActive !== false);
 
             return (
               <div
@@ -309,24 +352,27 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                       {isEnrolled && (
                         <>
                           <button
+                            type="button"
                             data-testid={`refresh-${slot.connectionId}`}
-                            onClick={() => handleRefresh(slot.connectionId)}
+                            onClick={(e) => handleRefresh(e, slot.connectionId)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#252a38] transition-all cursor-pointer"
                             title="Refresh Token & Health"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             data-testid={`delete-${slot.connectionId}`}
-                            onClick={() => handleDisconnect(slot.connectionId)}
+                            onClick={(e) => handleDisconnect(e, slot.connectionId)}
                             className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/40 transition-all cursor-pointer"
                             title="Purge Credentials (Delete)"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             data-testid={`toggle-${slot.connectionId}`}
-                            onClick={() => handleToggle(slot.connectionId)}
+                            onClick={(e) => handleToggle(e, slot.connectionId)}
                             className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-all cursor-pointer ${
                               isSlotActive
                                 ? 'bg-emerald-500 justify-end shadow-[0_0_10px_rgba(16,185,129,0.4)]'
@@ -334,7 +380,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                             }`}
                             title={isSlotActive ? "ON: Eligible in Scheduler" : "OFF: Excluded from Scheduler"}
                           >
-                            <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
+                            <div className="w-4 h-4 rounded-full bg-white shadow-md pointer-events-none"></div>
                           </button>
                         </>
                       )}
