@@ -113,9 +113,9 @@ export default function VoiceConsole({
         {(liveTranscript || isListening || isProcessing) && (
           <div className="w-full mt-2 pt-2 border-t border-cyan-500/20 flex flex-col gap-1 text-[10px] font-mono">
             {liveTranscript && (
-              <div className="bg-slate-950/80 rounded-lg px-2.5 py-1.5 text-slate-200 border border-slate-800 flex items-center gap-2">
-                <span className="text-cyan-400 font-bold">YOU:</span>
-                <span className="truncate">{liveTranscript}</span>
+              <div className="bg-slate-950/80 rounded-lg px-2.5 py-1.5 text-slate-200 border border-slate-800 flex items-center gap-2 select-text cursor-text selection:bg-cyan-500/40 selection:text-white">
+                <span className="text-cyan-400 font-bold select-none">YOU:</span>
+                <span className="select-text">{liveTranscript}</span>
               </div>
             )}
             <div className="flex items-center justify-between px-1 text-[8px] text-slate-400">

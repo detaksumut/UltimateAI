@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, ChevronDown, MessageSquare, Globe, Shield, 
   Layers, AlertTriangle, CheckCircle, ExternalLink, Play,
-  Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music
+  Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music,
+  Copy, Check
 } from 'lucide-react';
 import AppSandboxRenderer from './AppSandboxRenderer.jsx';
 
@@ -19,6 +20,27 @@ export default function MobileSimulatorHUD({
   const [currentTab, setCurrentTab] = useState(activeMode);
   const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'IMAGE' | 'DATA'
   const [selectedVideoId, setSelectedVideoId] = useState('vr0qNXmkUJ8');
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyText = (text, id) => {
+    if (!text) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.warn('Copy failed:', err);
+    }
+  };
 
   useEffect(() => {
     if (activeMode) setCurrentTab(activeMode);
@@ -150,33 +172,67 @@ export default function MobileSimulatorHUD({
           
           {/* TAB 1: CONVERSATION */}
           {currentTab === 'CONVERSATION' && (
-            <div className="space-y-3">
-              <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800 shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-cyan-300">
-                    <MessageSquare className="w-3.5 h-3.5" />
+            <div className="space-y-3 select-text">
+              <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800 shadow-md select-text">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-cyan-300">
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white tracking-wide">LIVE CONVERSATION</div>
+                      <div className="text-[9px] text-slate-400">Streamed from 9Router</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-white tracking-wide">LIVE CONVERSATION</div>
-                    <div className="text-[9px] text-slate-400">Streamed from 9Router</div>
-                  </div>
+                  {lastAssistantMessage && (
+                    <button
+                      onClick={() => handleCopyText(lastAssistantMessage, 'all-chat')}
+                      className="p-1 px-2 rounded-md bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-cyan-300 text-[10px] font-mono flex items-center gap-1 transition-all"
+                      title="Salin respon JIN"
+                    >
+                      {copiedId === 'all-chat' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                      <span>{copiedId === 'all-chat' ? 'Tersalin' : 'Copy'}</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-2 text-xs font-sans">
+                <div className="space-y-2 text-xs font-sans select-text">
                   {lastUserMessage && (
-                    <div className="bg-blue-600/25 border border-blue-500/30 rounded-xl p-2.5 text-right text-slate-200 text-[11px]">
-                      {lastUserMessage}
+                    <div className="group relative bg-blue-600/25 border border-blue-500/30 rounded-xl p-2.5 text-right text-slate-200 text-[11px] select-text selection:bg-cyan-500/40 selection:text-white cursor-text">
+                      <p className="whitespace-pre-wrap select-text selection:bg-cyan-500/40 selection:text-white">{lastUserMessage}</p>
+                      <button
+                        onClick={() => handleCopyText(lastUserMessage, 'user-msg')}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-2 top-2 p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300 hover:text-cyan-300 text-[9px] flex items-center gap-1 shadow"
+                        title="Salin teks pesan Anda"
+                      >
+                        {copiedId === 'user-msg' ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                        <span>{copiedId === 'user-msg' ? 'Tersalin' : 'Copy'}</span>
+                      </button>
                     </div>
                   )}
 
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-slate-300 text-[11px] leading-relaxed">
+                  <div className="group relative bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-slate-300 text-[11px] leading-relaxed select-text selection:bg-cyan-500/40 selection:text-white cursor-text">
                     {isProcessing ? (
                       <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs py-1">
                         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
                         <span>JIN 9Router sedang memproses...</span>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap">{lastAssistantMessage}</p>
+                      <>
+                        <div className="whitespace-pre-wrap select-text selection:bg-cyan-500/40 selection:text-white cursor-text leading-relaxed">
+                          {lastAssistantMessage}
+                        </div>
+                        <div className="flex justify-end mt-2 pt-1 border-t border-slate-800/60">
+                          <button
+                            onClick={() => handleCopyText(lastAssistantMessage, 'assistant-msg')}
+                            className="p-1 px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-cyan-300 text-[10px] font-mono flex items-center gap-1.5 transition-all shadow"
+                            title="Salin seluruh teks percakapan JIN"
+                          >
+                            {copiedId === 'assistant-msg' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                            <span>{copiedId === 'assistant-msg' ? 'Tersalin!' : 'Salin Respon'}</span>
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
