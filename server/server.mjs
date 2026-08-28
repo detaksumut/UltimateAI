@@ -114,6 +114,35 @@ const server = http.createServer(async (req, res) => {
   // 2C. Antigravity Connection Manager Endpoints (/api/antigravity/*)
   if (pathname.startsWith('/api/antigravity/')) {
     const { antigravityEnrollmentSessionManagerInstance } = await import('./antigravity/AntigravityEnrollmentSessionManager.mjs');
+    const { AntigravityOAuthEnrollment } = await import('./antigravity/AntigravityOAuthEnrollment.mjs');
+
+    // GET /api/antigravity/config
+    if (pathname === '/api/antigravity/config' && req.method === 'GET') {
+      const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(diag, null, 2));
+      return;
+    }
+
+    // POST /api/antigravity/config
+    if (pathname === '/api/antigravity/config' && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; });
+      req.on('end', () => {
+        try {
+          const parsed = JSON.parse(body || '{}');
+          if (parsed.clientId) process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = parsed.clientId.trim();
+          if (parsed.clientSecret) process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = parsed.clientSecret.trim();
+          const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
+          res.writeHead(diag.valid ? 200 : 400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(diag, null, 2));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: { message: err.message } }));
+        }
+      });
+      return;
+    }
 
     // GET /api/antigravity/connections
     if (pathname === '/api/antigravity/connections' && req.method === 'GET') {

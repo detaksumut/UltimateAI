@@ -82,6 +82,31 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 2B. GET /api/antigravity/config (Non-secret diagnostic)
+    if (pathname === '/api/antigravity/config' && req.method === 'GET') {
+      const { AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
+      const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(diag, null, 2));
+      return;
+    }
+
+    // 2C. POST /api/antigravity/config (Set OAuth Client ID dynamically)
+    if (pathname === '/api/antigravity/config' && req.method === 'POST') {
+      const body = await readJsonBody();
+      if (body.clientId) {
+        process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = body.clientId.trim();
+      }
+      if (body.clientSecret) {
+        process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = body.clientSecret.trim();
+      }
+      const { AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
+      const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
+      res.writeHead(diag.valid ? 200 : 400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(diag, null, 2));
+      return;
+    }
+
     // 3. GET /api/antigravity/connections (7 Connection Slots with Live Status)
     if (pathname === '/api/antigravity/connections' && req.method === 'GET') {
       const slots = antigravityEnrollmentSessionManagerInstance.getAllConnectionSlots();

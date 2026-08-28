@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, Settings, Key } from 'lucide-react';
 
 const API_ENDPOINTS = [
   'http://127.0.0.1:20200',
@@ -18,19 +18,39 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [manualCallbackUrl, setManualCallbackUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const fetchSlots = async () => {
+  // OAuth Config State
+  const [oauthConfigValid, setOauthConfigValid] = useState(true);
+  const [showConfigBox, setShowConfigBox] = useState(false);
+  const [customClientId, setCustomClientId] = useState('');
+  const [customClientSecret, setCustomClientSecret] = useState('');
+
+  const fetchSlotsAndConfig = async () => {
     setLoading(true);
     let success = false;
 
     for (const ep of [activeEndpoint, ...API_ENDPOINTS]) {
       try {
+        // 1. Fetch Slots
         const res = await fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
           const data = await res.json();
           setSlots(data.slots || []);
           setActiveEndpoint(ep);
-          setErrorMsg(null);
           success = true;
+
+          // 2. Fetch OAuth Config
+          try {
+            const configRes = await fetch(`${ep}/api/antigravity/config`);
+            if (configRes.ok) {
+              const cfg = await configRes.json();
+              setOauthConfigValid(cfg.valid);
+              if (!cfg.valid) {
+                setShowConfigBox(true);
+              }
+            }
+          } catch {}
+
+          setErrorMsg(null);
           break;
         }
       } catch {}
@@ -44,8 +64,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      fetchSlots();
-      const interval = setInterval(fetchSlots, 5000);
+      fetchSlotsAndConfig();
+      const interval = setInterval(fetchSlotsAndConfig, 5000);
       return () => clearInterval(interval);
     }
   }, [isOpen]);
@@ -63,7 +83,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             if (data.state === 'ENROLLED') {
               clearInterval(pollTimer);
               setActiveEnrollment(null);
-              fetchSlots();
+              fetchSlotsAndConfig();
             } else if (data.state.includes('FAILED') || data.state.includes('TIMEOUT') || data.state.includes('CANCELLED')) {
               clearInterval(pollTimer);
             }
@@ -76,12 +96,46 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     };
   }, [activeEnrollment, activeEndpoint]);
 
+  const handleSaveConfig = async (e) => {
+    if (e) e.preventDefault();
+    if (!customClientId.trim()) {
+      setErrorMsg('Harap masukkan Google OAuth Client ID (.apps.googleusercontent.com)');
+      return;
+    }
+    try {
+      const res = await fetch(`${activeEndpoint}/api/antigravity/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: customClientId.trim(),
+          clientSecret: customClientSecret.trim() || undefined
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        throw new Error(data.message || 'Client ID tidak valid. Pastikan format: <id>-<hash>.apps.googleusercontent.com');
+      }
+      setOauthConfigValid(true);
+      setShowConfigBox(false);
+      setErrorMsg(null);
+      alert('✅ Google OAuth Client ID berhasil disimpan!');
+    } catch (err) {
+      setErrorMsg(err.message);
+    }
+  };
+
   const handleStartConnect = async (connectionId) => {
     try {
       setErrorMsg(null);
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
+      if (!res.ok) {
+        const errMessage = data.error?.message || data.message || 'Gagal memulai koneksi';
+        if (errMessage.includes('AUTH_CONFIGURATION')) {
+          setShowConfigBox(true);
+        }
+        throw new Error(errMessage);
+      }
 
       setActiveEnrollment(data);
       setEnrollProgress({ state: data.status, connectionId });
@@ -113,7 +167,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       } catch {}
       setActiveEnrollment(null);
       setEnrollProgress(null);
-      fetchSlots();
+      fetchSlotsAndConfig();
     }
   };
 
@@ -122,7 +176,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
-      fetchSlots();
+      fetchSlotsAndConfig();
     } catch (err) {
       setErrorMsg(`Refresh ${connectionId.toUpperCase()} gagal: ${err.message}`);
     }
@@ -133,7 +187,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     try {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Disconnect gagal');
-      fetchSlots();
+      fetchSlotsAndConfig();
     } catch (err) {
       setErrorMsg(`Disconnect ${connectionId.toUpperCase()} gagal: ${err.message}`);
     }
@@ -167,9 +221,17 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={fetchSlots}
+              onClick={() => setShowConfigBox(!showConfigBox)}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 flex items-center gap-1.5 transition-all border border-cyan-500/30"
+              title="Konfigurasi Client ID OAuth"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>OAuth Client ID</span>
+            </button>
+            <button
+              onClick={fetchSlotsAndConfig}
               disabled={loading}
               className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 transition-all border border-slate-700"
             >
@@ -199,8 +261,41 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           </div>
         </div>
 
+        {/* OAuth Client Config Inline Box */}
+        {showConfigBox && (
+          <div className="mb-3 p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 text-xs font-mono space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-cyan-300 flex items-center gap-2">
+                <Key className="w-4 h-4" />
+                MASUKKAN GOOGLE OAUTH DESKTOP CLIENT ID
+              </span>
+              <button onClick={() => setShowConfigBox(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-300">
+              Salin Client ID dari Google Cloud Console atau parameter <code>client_id</code> pada URL otorisasi Antigravity Anda:
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={customClientId}
+                onChange={(e) => setCustomClientId(e.target.value)}
+                placeholder="Contoh: 1234567890-abcdefg.apps.googleusercontent.com"
+                className="flex-1 bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300"
+              />
+              <button
+                onClick={handleSaveConfig}
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
+              >
+                💾 Simpan Client ID
+              </button>
+            </div>
+          </div>
+        )}
+
         {errorMsg && (
-          <div className="mb-3 px-4 py-2 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center gap-2">
+          <div className="mb-3 px-4 py-2 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center gap-2 font-mono">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -269,7 +364,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                   {!isEnrolled ? (
                     <button
                       onClick={() => handleStartConnect(slot.connectionId)}
-                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-all"
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-all cursor-pointer"
                     >
                       <Zap className="w-3.5 h-3.5" />
                       <span>CONNECT {slot.connectionId.toUpperCase()}</span>
@@ -278,14 +373,14 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                     <>
                       <button
                         onClick={() => handleRefresh(slot.connectionId)}
-                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono flex items-center justify-center gap-1 border border-slate-700 transition-all"
+                        className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono flex items-center justify-center gap-1 border border-slate-700 transition-all cursor-pointer"
                       >
                         <RefreshCw className="w-3 h-3" />
                         <span>Refresh</span>
                       </button>
                       <button
                         onClick={() => handleDisconnect(slot.connectionId)}
-                        className="py-1.5 px-2.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 text-xs font-mono flex items-center justify-center gap-1 border border-red-800/40 transition-all"
+                        className="py-1.5 px-2.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 text-xs font-mono flex items-center justify-center gap-1 border border-red-800/40 transition-all cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                         <span>Disconnect</span>
@@ -319,7 +414,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
                 <button
                   onClick={handleCancelEnrollment}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono"
+                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono cursor-pointer"
                 >
                   Batal
                 </button>
@@ -347,8 +442,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
               {/* Manual URL fallback */}
               <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-2">
-                <div className="text-slate-300 font-medium">
-                  Browser telah dibuka otomatis. Jika popup diblokir, buka URL berikut:
+                <div className="text-slate-300 font-medium font-mono">
+                  Browser telah dibuka otomatis dengan pilihan akun Google (Account Chooser). Jika popup diblokir, buka URL berikut:
                 </div>
                 <div className="p-2 rounded bg-black/60 font-mono text-[10px] text-cyan-300 break-all select-all border border-slate-800">
                   {activeEnrollment.authUrl}
@@ -368,7 +463,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                     />
                     <button
                       onClick={handleManualCallbackSubmit}
-                      className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono"
+                      className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs font-mono cursor-pointer"
                     >
                       Submit Callback
                     </button>
@@ -384,7 +479,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               </span>
               <button
                 onClick={handleCancelEnrollment}
-                className="px-4 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/50"
+                className="px-4 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/50 cursor-pointer"
               >
                 Cancel Authorization
               </button>

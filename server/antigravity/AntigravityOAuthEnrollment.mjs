@@ -154,7 +154,7 @@ export class AntigravityOAuthEnrollment {
       code_challenge_method: 'S256',
       state,
       access_type: 'offline',
-      prompt: 'consent'
+      prompt: 'select_account consent'
     });
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
