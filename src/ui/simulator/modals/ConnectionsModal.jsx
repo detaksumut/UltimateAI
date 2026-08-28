@@ -340,13 +340,22 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                     </div>
                   ) : (
                     /* Not Connected State */
-                    <div className="py-6 flex flex-col items-center justify-center text-center">
-                      <p className="text-xs text-slate-400 mb-3 font-mono">
-                        Slot {slot.connectionId.toUpperCase()} siap dihubungkan ke Google Antigravity.
-                      </p>
+                    <div className="py-4 px-2 flex flex-col items-center justify-center text-center space-y-2 font-mono">
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                          STATUS: NOT_ENROLLED
+                        </span>
+                        <span className="text-slate-500">|</span>
+                        <span className="text-amber-400/90 text-[10px]">
+                          No live credential
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        Quota: <span className="text-slate-400 font-bold">NOT_AVAILABLE</span>
+                      </div>
                       <button
                         onClick={() => handleStartConnect(slot.connectionId)}
-                        className="py-2 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(0,102,255,0.4)] transition-all cursor-pointer"
+                        className="mt-2 py-2 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(0,102,255,0.4)] transition-all cursor-pointer"
                       >
                         <Zap className="w-3.5 h-3.5" />
                         <span>CONNECT {slot.connectionId.toUpperCase()}</span>

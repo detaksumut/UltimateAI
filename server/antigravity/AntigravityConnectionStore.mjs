@@ -29,6 +29,26 @@ export class AntigravityConnectionStore {
   }
 
   /**
+   * Checks if a credential token is a fixture / synthetic mock string
+   */
+  static isSyntheticOrFixtureCredential(tokenStr) {
+    if (!tokenStr || typeof tokenStr !== 'string') return true;
+    const syntheticPatterns = [
+      'valid_oauth_access_token_',
+      'valid_oauth_refresh_token_',
+      'refreshed_access_token',
+      'test_secret_key',
+      'ya29.auth_token_',
+      '1//refresh_token_',
+      'mock_',
+      'dummy_',
+      'test_token',
+      'fake_token'
+    ];
+    return syntheticPatterns.some(pat => tokenStr.includes(pat));
+  }
+
+  /**
    * Retrieves all connection records (with decrypted secrets for internal runtime use)
    * @param {boolean} maskSecrets - If true, strips all credentials for public/API exposure
    */
@@ -38,33 +58,46 @@ export class AntigravityConnectionStore {
       const raw = fs.readFileSync(CONNECTIONS_FILE, 'utf8');
       const records = JSON.parse(raw || '[]');
 
-      return records.map(record => {
-        if (maskSecrets) {
-          const { encryptedAccessToken, encryptedRefreshToken, ...safeMetadata } = record;
+      return records
+        .map(record => {
+          let decryptedAccessToken = '';
+          let decryptedRefreshToken = '';
+          try {
+            if (record.encryptedAccessToken) decryptedAccessToken = this.vault.decrypt(record.encryptedAccessToken);
+          } catch {}
+          try {
+            if (record.encryptedRefreshToken) decryptedRefreshToken = this.vault.decrypt(record.encryptedRefreshToken);
+          } catch {}
+
+          const isSynthetic = AntigravityConnectionStore.isSyntheticOrFixtureCredential(decryptedAccessToken)
+            && AntigravityConnectionStore.isSyntheticOrFixtureCredential(decryptedRefreshToken);
+
+          // If credential is a synthetic fixture, reject it from production runtime
+          if (isSynthetic) {
+            return null;
+          }
+
+          const hasValidAccess = Boolean(decryptedAccessToken && !AntigravityConnectionStore.isSyntheticOrFixtureCredential(decryptedAccessToken));
+          const hasValidRefresh = Boolean(decryptedRefreshToken && !AntigravityConnectionStore.isSyntheticOrFixtureCredential(decryptedRefreshToken));
+
+          if (maskSecrets) {
+            const { encryptedAccessToken, encryptedRefreshToken, ...safeMetadata } = record;
+            return {
+              ...safeMetadata,
+              hasAccessToken: hasValidAccess,
+              hasRefreshToken: hasValidRefresh
+            };
+          }
+
           return {
-            ...safeMetadata,
-            hasAccessToken: Boolean(encryptedAccessToken),
-            hasRefreshToken: Boolean(encryptedRefreshToken)
+            ...record,
+            hasAccessToken: hasValidAccess,
+            hasRefreshToken: hasValidRefresh,
+            accessToken: decryptedAccessToken,
+            refreshToken: decryptedRefreshToken
           };
-        }
-
-        let decryptedAccessToken = '';
-        let decryptedRefreshToken = '';
-        try {
-          if (record.encryptedAccessToken) decryptedAccessToken = this.vault.decrypt(record.encryptedAccessToken);
-        } catch {}
-        try {
-          if (record.encryptedRefreshToken) decryptedRefreshToken = this.vault.decrypt(record.encryptedRefreshToken);
-        } catch {}
-
-        return {
-          ...record,
-          hasAccessToken: Boolean(record.encryptedAccessToken),
-          hasRefreshToken: Boolean(record.encryptedRefreshToken),
-          accessToken: decryptedAccessToken,
-          refreshToken: decryptedRefreshToken
-        };
-      });
+        })
+        .filter(Boolean);
     } catch (err) {
       return [];
     }
