@@ -29,21 +29,17 @@ export class TextToSpeech {
       this.loadVoices();
     }
 
-    // 1. Prioritize Google Bahasa Indonesia or any id-ID voice
-    const idVoice = this.voices.find(v => 
-      v.lang === 'id-ID' || 
-      v.lang === 'id_ID' ||
-      v.lang.startsWith('id') ||
-      v.name.toLowerCase().includes('indonesia')
-    );
+    // 1. Prioritize Google Bahasa Indonesia or any id-ID / Indonesian voice
+    const idVoice = this.voices.find(v => {
+      const lang = (v.lang || '').toLowerCase();
+      const name = (v.name || '').toLowerCase();
+      return lang.includes('id-id') || lang.startsWith('id') || name.includes('indonesia') || name.includes('bahasa') || name.includes('gadis') || name.includes('andika');
+    });
+
     if (idVoice) return idVoice;
 
-    // 2. Default system voice
-    const defaultVoice = this.voices.find(v => v.default);
-    if (defaultVoice) return defaultVoice;
-
-    // 3. Fallback to first available voice
-    return this.voices[0] || null;
+    // 2. If no explicit Indonesian voice object exists, return null so browser uses native id-ID locale synthesis
+    return null;
   }
 
   speak(text, { onStart, onEnd, onError, voiceLang = 'id-ID' } = {}) {
@@ -86,7 +82,7 @@ export class TextToSpeech {
 
     utterance.onstart = () => {
       this.isPlaying = true;
-      console.log('[TTS] 🔊 Started speaking with voice:', voice?.name || 'default');
+      console.log(`[TTS] 🔊 Started speaking | TTS_SELECTED_VOICE=${voice?.name || 'BROWSER_NATIVE_ID'} | TTS_LANG=${utterance.lang}`);
       if (onStart) onStart();
     };
 

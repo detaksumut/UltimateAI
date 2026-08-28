@@ -54,8 +54,11 @@ export class VoiceController {
     // 1. Safe barge in check (only if speaking)
     this.handleUserBargeIn();
 
-    // 2. Start a fresh session with unique ID
-    const session = this.sessionController.startNewSession('MIC_PUSH_TO_TALK');
+    // 2. Reuse active session if still active, or start fresh session
+    let session = this.sessionController.getActiveSession();
+    if (!session || !session.isActive) {
+      session = this.sessionController.startNewSession('MIC_PUSH_TO_TALK');
+    }
 
     return this.stt.startListening({
       onStart: () => {
@@ -70,6 +73,7 @@ export class VoiceController {
       onEnd: (finalTranscript) => {
         if (!this.sessionController.isCurrentSession(session.id)) return;
         if (finalTranscript && finalTranscript.trim()) {
+          console.log(`[VOG] AGENT_INPUT_RECEIVED: "${finalTranscript.trim()}"`);
           this.fsm.dispatch({ type: AVATAR_EVENTS.INPUT_COMPLETED, sessionId: session.id });
         } else {
           this.fsm.dispatch({ type: AVATAR_EVENTS.RESET, sessionId: session.id });

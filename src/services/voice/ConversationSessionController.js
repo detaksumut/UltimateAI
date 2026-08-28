@@ -104,6 +104,10 @@ export class ConversationSessionController {
     return Boolean(!this.activeSession || (this.activeSession.id === sessionId && this.activeSession.isActive));
   }
 
+  getActiveSession() {
+    return this.activeSession;
+  }
+
   getActiveSessionId() {
     return this.activeSession?.id || this.currentSessionId;
   }

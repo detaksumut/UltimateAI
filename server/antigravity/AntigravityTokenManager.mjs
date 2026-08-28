@@ -80,8 +80,9 @@ export class AntigravityTokenManager {
    */
   async refreshToken(connection) {
     const tokenEndpoint = 'https://oauth2.googleapis.com/token';
-    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || 'ultimateai-client-id';
-    const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
+    const { DEFAULT_ANTIGRAVITY_CLIENT_ID, DEFAULT_ANTIGRAVITY_CLIENT_SECRET } = await import('./AntigravityOAuthEnrollment.mjs');
+    const clientId = process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || DEFAULT_ANTIGRAVITY_CLIENT_ID;
+    const clientSecret = process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || DEFAULT_ANTIGRAVITY_CLIENT_SECRET;
 
     const bodyParams = new URLSearchParams({
       client_id: clientId,

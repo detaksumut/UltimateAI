@@ -1,17 +1,20 @@
 /**
- * SpeechToText.js (Ultra-Fast Response Edition)
- * Speech Recognition service with intelligent 600ms silence auto-finalization.
+ * SpeechToText.js (Hardened Browser STT Engine)
+ * High-reliability Speech Recognition service with MediaStream diagnostics,
+ * id-ID locale, and fast 650ms silence auto-finalization.
  */
 
 export class SpeechToText {
   constructor() {
     this.recognition = null;
+    this.mediaStream = null;
     this.isListening = false;
     this.onResultCallback = null;
     this.onErrorCallback = null;
     this.onEndCallback = null;
     this.silenceTimer = null;
     this.latestTranscript = '';
+    this.hasFinalized = false;
     this.init();
   }
 
@@ -24,66 +27,126 @@ export class SpeechToText {
       this.recognition.interimResults = true;
       this.recognition.lang = 'id-ID';
 
+      this.recognition.onstart = () => {
+        this.isListening = true;
+        this.hasFinalized = false;
+        console.log('[VOG] STT_STARTED | Lang: id-ID');
+      };
+
       this.recognition.onresult = (event) => {
-        let transcript = '';
+        let fullTranscript = '';
         let isFinal = false;
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+        for (let i = 0; i < event.results.length; ++i) {
+          fullTranscript += event.results[i][0].transcript;
           if (event.results[i].isFinal) isFinal = true;
         }
 
-        if (transcript.trim()) {
-          this.latestTranscript = transcript.trim();
+        const clean = fullTranscript.trim();
+        if (clean) {
+          this.latestTranscript = clean;
+          console.log(`[VOG] STT_RESULT: "${clean}" (isFinal: ${isFinal})`);
+
           if (this.onResultCallback) {
-            this.onResultCallback(transcript, isFinal);
+            this.onResultCallback(clean, isFinal);
           }
 
-          // Clear previous silence timer
           if (this.silenceTimer) clearTimeout(this.silenceTimer);
 
-          // Fast 700ms silence detection: auto-finalize speech without waiting 3s
+          // Auto-finalize speech after 650ms of quiet
           this.silenceTimer = setTimeout(() => {
-            if (this.isListening && this.latestTranscript) {
+            if (this.isListening && this.latestTranscript && !this.hasFinalized) {
+              console.log('[VOG] VAD_SPEECH_END | Auto-finalizing transcript:', this.latestTranscript);
+              this.hasFinalized = true;
+              const textToDispatch = this.latestTranscript;
               this.stopListening();
+              if (this.onEndCallback) {
+                this.onEndCallback(textToDispatch);
+              }
             }
-          }, 700);
+          }, 650);
         }
       };
 
       this.recognition.onerror = (event) => {
-        this.isListening = false;
-        if (this.silenceTimer) clearTimeout(this.silenceTimer);
-        if (this.onErrorCallback) this.onErrorCallback(event.error);
+        console.warn('[VOG] STT_ERROR:', event.error);
+        if (event.error !== 'no-speech') {
+          this.isListening = false;
+          if (this.silenceTimer) clearTimeout(this.silenceTimer);
+          if (this.onErrorCallback) this.onErrorCallback(event.error);
+        }
       };
 
       this.recognition.onend = () => {
+        const remaining = this.latestTranscript;
         this.isListening = false;
         if (this.silenceTimer) clearTimeout(this.silenceTimer);
-        if (this.onEndCallback) this.onEndCallback(this.latestTranscript);
+        
+        if (remaining && !this.hasFinalized) {
+          this.hasFinalized = true;
+          if (this.onEndCallback) this.onEndCallback(remaining);
+        }
         this.latestTranscript = '';
+        console.log('[VOG] STT_ENDED');
       };
     }
   }
 
-  startListening({ onStart, onResult, onEnd, onError, onFinalTranscript } = {}) {
+  async verifyMicrophonePermission() {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      console.warn('[VOG] MediaDevices API not available in current environment');
+      return true;
+    }
+
+    try {
+      if (!this.mediaStream || !this.mediaStream.active) {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const track = this.mediaStream.getAudioTracks()[0];
+        console.log(`[VOG] MIC_PERMISSION: GRANTED | MIC_TRACK_STATE: ${track?.readyState || 'live'}`);
+      }
+      return true;
+    } catch (err) {
+      console.error('[VOG] MIC_PERMISSION_DENIED:', err.message);
+      return false;
+    }
+  }
+
+  async startListening({ onStart, onResult, onEnd, onError, onFinalTranscript } = {}) {
     this.onResultCallback = onResult || onFinalTranscript;
     this.onErrorCallback = onError;
     this.onEndCallback = onFinalTranscript || onEnd;
     this.latestTranscript = '';
+    this.hasFinalized = false;
 
-    if (this.recognition && !this.isListening) {
+    if (this.isListening) {
+      console.log('[VOG] STT already active, reusing existing session');
+      return true;
+    }
+
+    await this.verifyMicrophonePermission();
+
+    if (this.recognition) {
       try {
         this.recognition.start();
         this.isListening = true;
+        console.log('[VOG] MIC_STARTED | VAD_SPEECH_START');
         if (onStart) onStart();
         return true;
-      } catch {
+      } catch (err) {
+        if (err.name === 'InvalidStateError') {
+          // Already running
+          this.isListening = true;
+          return true;
+        }
+        console.error('[VOG] STT Start Exception:', err);
         this.isListening = false;
+        if (onError) onError(err);
         return false;
       }
+    } else {
+      console.warn('[VOG] STT_NOT_AVAILABLE in this browser.');
+      return false;
     }
-    return false;
   }
 
   stopListening() {

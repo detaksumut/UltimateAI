@@ -31,6 +31,8 @@ export class SimulatorOrchestrator {
   async executeUserPrompt(promptText, { onStreamChunk, onResponseReady, isVoiceTrigger = false } = {}) {
     if (!promptText || !promptText.trim()) return;
 
+    console.log(`[CHAT] INPUT_RECEIVED | IsVoice: ${isVoiceTrigger} | Content: "${promptText.trim()}"`);
+
     // 1. Record in conversation history
     this.conversation.addMessage('user', promptText);
 
@@ -39,9 +41,10 @@ export class SimulatorOrchestrator {
 
     // 3. Build payload with context and memory
     const { messages } = this.conversation.buildPayload(promptText);
+    console.log(`[CHAT] AGENT_DISPATCHED | Messages Count: ${messages.length}`);
 
     try {
-      // 4. Send to 9Router with streaming callback
+      // 4. Send to 9Router / LocalRouter with streaming callback
       const result = await this.router.routeAndExecute(
         messages,
         {},
@@ -51,6 +54,7 @@ export class SimulatorOrchestrator {
       );
 
       const responseText = result.text || '';
+      console.log(`[CHAT] RESPONSE_RECEIVED | Output Length: ${responseText.length} chars`);
       
       // 5. Add assistant message to conversation history
       this.conversation.addMessage('assistant', responseText, {

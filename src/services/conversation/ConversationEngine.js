@@ -76,17 +76,15 @@ Provide clear, intelligent, structured, and insightful responses in the language
     const relevantMemories = this.retrieveRelevantMemories(userMessage);
     const memoryString = relevantMemories.map(f => `[${f.category}] ${f.key}: ${f.value}`).join('; ');
 
-    const augmentedSystemPrompt = `${this.systemPrompt}
-[Runtime Context: Domain=${context.activeDomain}, User=${context.userRole}, Intent=${intent}]
-${memoryString ? `[Retrieved Knowledge Context: ${memoryString}]` : ''}`;
+    const historyMessages = this.history.map(m => ({ role: m.role, content: m.content }));
+    const lastHistory = historyMessages[historyMessages.length - 1];
+    
+    // Include userMessage only if not already the last item in history
+    const finalMessages = (lastHistory && lastHistory.role === 'user' && lastHistory.content === userMessage)
+      ? [{ role: 'system', content: augmentedSystemPrompt }, ...historyMessages]
+      : [{ role: 'system', content: augmentedSystemPrompt }, ...historyMessages, { role: 'user', content: userMessage }];
 
-    const messages = [
-      { role: 'system', content: augmentedSystemPrompt },
-      ...this.history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: userMessage }
-    ];
-
-    return { messages, intent, context, retrievedMemories: relevantMemories };
+    return { messages: finalMessages, intent, context, retrievedMemories: relevantMemories };
   }
 
   clearHistory() {
