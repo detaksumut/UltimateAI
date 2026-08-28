@@ -137,6 +137,36 @@ function nineRouterGatewayPlugin() {
             return;
           }
 
+          // GET /oauth/callback (Dev server loopback fallback)
+          if (pathname === '/oauth/callback' && req.method === 'GET') {
+            const parsedUrl = new URL(req.url, 'http://localhost:5177');
+            const code = parsedUrl.searchParams.get('code');
+            const state = parsedUrl.searchParams.get('state');
+            if (code) {
+              try {
+                await antigravityEnrollmentSessionManagerInstance.processManualCallback(state || '', req.url);
+                res.setHeader('Content-Type', 'text/html');
+                res.end(`
+                  <!DOCTYPE html>
+                  <html>
+                    <body style="background:#090d16;color:#22d3ee;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+                      <div style="text-align:center;">
+                        <h2>Antigravity OAuth Berhasil!</h2>
+                        <p>Akun Google telah terhubung ke Pool Antigravity. Anda dapat menutup tab ini.</p>
+                      </div>
+                      <script>setTimeout(() => window.close(), 1500);</script>
+                    </body>
+                  </html>
+                `);
+              } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'text/html');
+                res.end(`<h2>Otorisasi Gagal</h2><p>${err.message}</p>`);
+              }
+              return;
+            }
+          }
+
           // GET /api/antigravity/enrollments/:enrollmentId
           const getEnrollMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)$/);
           if (getEnrollMatch && req.method === 'GET') {
@@ -152,15 +182,15 @@ function nineRouterGatewayPlugin() {
             return;
           }
 
-          // POST /api/antigravity/enrollments/:enrollmentId/callback
-          const callbackMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)\/callback$/);
+          // POST /api/antigravity/enrollments/:enrollmentId/callback & /api/antigravity/connections/:connectionId/callback
+          const callbackMatch = pathname.match(/^\/api\/antigravity\/(?:enrollments|connections)\/([a-z0-9-]+)\/callback$/);
           if (callbackMatch && req.method === 'POST') {
             let body = '';
             req.on('data', c => { body += c; });
             req.on('end', async () => {
               try {
                 const parsed = JSON.parse(body || '{}');
-                const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(callbackMatch[1], parsed.callbackUrl || '');
+                const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(callbackMatch[1], parsed.callbackUrl || parsed.code || '');
                 res.setHeader('Content-Type', 'application/json');
                 res.setHeader('Access-Control-Allow-Origin', '*');
                 res.end(JSON.stringify(result, null, 2));

@@ -165,11 +165,16 @@ export class AntigravityEnrollmentSessionManager {
       projectInfo: null
     };
 
-    // Allocate Ephemeral Loopback Listener
+    // Allocate Ephemeral Loopback Listener with persistent handle
     await new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
         this._handleHttpCallback(enrollmentId, req, res);
       });
+
+      server.keepAliveTimeout = 600000;
+      server.headersTimeout = 610000;
+      globalThis.__antigravity_servers = globalThis.__antigravity_servers || new Map();
+      globalThis.__antigravity_servers.set(enrollmentId, server);
 
       server.listen(0, '127.0.0.1', () => {
         session.port = server.address().port;
@@ -675,8 +680,13 @@ export class AntigravityEnrollmentSessionManager {
       session.timeoutTimer = null;
     }
     if (session.server) {
-      session.server.close();
+      try {
+        session.server.close();
+      } catch {}
       session.server = null;
+    }
+    if (globalThis.__antigravity_servers) {
+      globalThis.__antigravity_servers.delete(session.enrollmentId);
     }
     if (this.activeEnrollmentsByConnection.get(session.connectionId) === session.enrollmentId) {
       this.activeEnrollmentsByConnection.delete(session.connectionId);

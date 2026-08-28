@@ -177,8 +177,8 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 6. POST /api/antigravity/enrollments/:id/callback (Manual Paste)
-    const callbackMatch = pathname.match(/^\/api\/antigravity\/enrollments\/([a-z0-9-]+)\/callback$/);
+    // 6. POST /api/antigravity/enrollments/:id/callback & /api/antigravity/connections/:id/callback
+    const callbackMatch = pathname.match(/^\/api\/antigravity\/(?:enrollments|connections)\/([a-z0-9-]+)\/callback$/);
     if (callbackMatch && req.method === 'POST') {
       const targetId = callbackMatch[1];
       const body = await readJsonBody();
