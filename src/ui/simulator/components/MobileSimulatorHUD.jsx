@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Smartphone, ChevronDown, MessageSquare, Globe, Shield, 
-  Layers, AlertTriangle, CheckCircle, ExternalLink, Play,
+  Layers, AlertTriangle, CheckCircle, ExternalLink, Play, Pause,
+  SkipBack, SkipForward, Volume2, VolumeX, RotateCcw, Upload,
   Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music,
   Copy, Check
 } from 'lucide-react';
@@ -21,6 +22,31 @@ export default function MobileSimulatorHUD({
   const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'IMAGE' | 'DATA'
   const [selectedVideoId, setSelectedVideoId] = useState('vr0qNXmkUJ8');
   const [copiedId, setCopiedId] = useState(null);
+
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(38); // seconds
+  const [audioDuration, setAudioDuration] = useState(210); // seconds
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [audioVolume, setAudioVolume] = useState(85);
+  const [currentAudioTrack, setCurrentAudioTrack] = useState({
+    title: 'Penyimpanan Bersih: 0 Berkas MP3 Lokal',
+    artist: 'JIN Neural Stream Engine (Air-Gapped Clean)',
+    sourceType: 'STREAM / READY'
+  });
+
+  const formatAudioTime = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleTogglePlayAudio = () => {
+    setIsPlayingAudio(prev => !prev);
+  };
+
+  const handleSkipAudio = (delta) => {
+    setAudioProgress(prev => Math.min(Math.max(0, prev + delta), audioDuration));
+  };
 
   const handleCopyText = (text, id) => {
     if (!text) return;
@@ -269,6 +295,12 @@ export default function MobileSimulatorHUD({
                   ▶ VIDEO
                 </button>
                 <button
+                  onClick={() => setActiveMediaType('AUDIO')}
+                  className={`flex-1 py-1 rounded-lg ${activeMediaType === 'AUDIO' ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold' : 'text-slate-400'}`}
+                >
+                  🎵 AUDIO
+                </button>
+                <button
                   onClick={() => setActiveMediaType('IMAGE')}
                   className={`flex-1 py-1 rounded-lg ${activeMediaType === 'IMAGE' ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold' : 'text-slate-400'}`}
                 >
@@ -406,7 +438,166 @@ export default function MobileSimulatorHUD({
                 </div>
               )}
 
-              {/* 2. IMAGE GALLERY CARD */}
+              {/* 2. DEDICATED STANDARD AUDIO & MP3 PLAYER CARD */}
+              {(activeMediaType === 'ALL' || activeMediaType === 'AUDIO') && (
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-emerald-500/30 shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-300">
+                        <Music className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white tracking-wide">STANDARD AUDIO & MP3 PLAYER</div>
+                        <div className="text-[8px] text-emerald-400">Stream & In-Memory Audio Engine</div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                      🟢 0 MP3 DISK (CLEAN)
+                    </span>
+                  </div>
+
+                  {/* Audio Track Visualizer & Info Box */}
+                  <div className="bg-slate-950/90 rounded-xl p-2.5 mb-2.5 border border-slate-800 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-bold text-white truncate flex items-center gap-1.5">
+                          <span>{currentAudioTrack.title}</span>
+                        </div>
+                        <div className="text-[8px] text-emerald-400/80 truncate">
+                          {currentAudioTrack.artist}
+                        </div>
+                      </div>
+                      {/* Waveform visualizer bars */}
+                      <div className="flex items-end gap-0.5 h-4 ml-2 flex-shrink-0">
+                        {[40, 75, 100, 60, 90, 45, 80, 55].map((h, i) => (
+                          <div
+                            key={i}
+                            className={`w-0.5 rounded-full bg-emerald-400 transition-all ${
+                              isPlayingAudio ? 'animate-pulse' : 'opacity-30'
+                            }`}
+                            style={{ height: isPlayingAudio ? `${h}%` : '20%' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Timeline Scrubber */}
+                    <div className="space-y-1">
+                      <input
+                        type="range"
+                        min="0"
+                        max={audioDuration}
+                        value={audioProgress}
+                        onChange={(e) => setAudioProgress(Number(e.target.value))}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                      />
+                      <div className="flex justify-between text-[8px] text-slate-400 font-mono">
+                        <span>{formatAudioTime(audioProgress)}</span>
+                        <span>{formatAudioTime(audioDuration)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Standard Playback Controls */}
+                  <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSkipAudio(-10)}
+                        title="Mundur 10 detik"
+                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
+                      >
+                        <SkipBack className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setAudioProgress(0)}
+                        title="Ulangi dari awal"
+                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Main Big Play / Pause Button */}
+                    <button
+                      onClick={handleTogglePlayAudio}
+                      className={`px-4 py-2 rounded-full font-bold flex items-center gap-1.5 transition-all shadow-md ${
+                        isPlayingAudio
+                          ? 'bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.7)] scale-105'
+                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                      }`}
+                    >
+                      {isPlayingAudio ? (
+                        <>
+                          <Pause className="w-4 h-4 fill-current" />
+                          <span className="text-[10px]">PAUSE</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-current ml-0.5" />
+                          <span className="text-[10px]">PLAY</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleSkipAudio(10)}
+                        title="Maju 10 detik"
+                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
+                      >
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setIsAudioMuted(!isAudioMuted)}
+                        title={isAudioMuted ? 'Unmute' : 'Mute'}
+                        className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
+                      >
+                        {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Audio Stream Source Selector */}
+                  <div className="mt-2 flex items-center gap-1.5 text-[8px] overflow-x-auto pb-0.5">
+                    <button
+                      onClick={() => {
+                        setCurrentAudioTrack({
+                          title: 'Synthwave Focus Stream (Live)',
+                          artist: 'JIN Chill Stream Station',
+                          sourceType: 'STREAM'
+                        });
+                        setAudioDuration(240);
+                        setIsPlayingAudio(true);
+                      }}
+                      className="px-2 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/60 font-bold whitespace-nowrap"
+                    >
+                      📻 Stream Focus Synth
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentAudioTrack({
+                          title: 'Neural Speech Synthesizer Stream',
+                          artist: 'JIN Voice TTS Model 3.6',
+                          sourceType: 'STREAM'
+                        });
+                        setAudioDuration(90);
+                        setIsPlayingAudio(true);
+                      }}
+                      className="px-2 py-1 rounded-md bg-slate-800/90 text-slate-300 hover:text-white whitespace-nowrap"
+                    >
+                      🎙️ Voice Neural
+                    </button>
+                  </div>
+
+                  {/* Air-Gapped Clean Disk Storage Note */}
+                  <div className="mt-2 text-[8px] text-slate-400 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60 flex items-center justify-between">
+                    <span>🛡️ Status Disk: 0 file MP3 fisik tersimpan</span>
+                    <span className="text-emerald-400 font-bold font-mono">100% CLEAN</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. IMAGE GALLERY CARD */}
               {(activeMediaType === 'ALL' || activeMediaType === 'IMAGE') && (
                 <div className="bg-slate-900/90 rounded-2xl p-3 border border-cyan-500/30 shadow-md">
                   <div className="flex items-center justify-between mb-2">
