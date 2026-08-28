@@ -1,24 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Activity, Cpu, Radio, Globe, Mic, Volume2, 
-  RefreshCw, CheckCircle2, AlertTriangle, XCircle, Clock, Zap
+  RefreshCw, CheckCircle2, AlertTriangle, XCircle, Clock, Zap, Server, Layers
 } from 'lucide-react';
 import conversationSessionControllerInstance from '../../../services/voice/ConversationSessionController.js';
 import humanBargeInBenchmarkInstance from '../../../services/voice/HumanBargeInBenchmark.js';
 
 export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState({
-    gateway: 'ONLINE',
-    mode: 'LOCAL_HEURISTIC_FALLBACK',
-    timestamp: new Date().toISOString(),
-    providers: {
-      gemini: { configured: false, status: 'NOT_CONFIGURED' },
-      openai: { configured: false, status: 'NOT_CONFIGURED' },
-      claude: { configured: false, status: 'NOT_CONFIGURED' },
-      deepseek: { configured: false, status: 'NOT_CONFIGURED' }
-    }
-  });
+  const [slots, setSlots] = useState([]);
+  const [quotaData, setQuotaData] = useState({});
+  const [routerOnline, setRouterOnline] = useState(false);
 
   const [benchmarkResult, setBenchmarkResult] = useState(null);
   const activeSessionId = conversationSessionControllerInstance.getActiveSessionId();
@@ -26,13 +18,25 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
   const fetchStatus = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ultimateai/providers/status');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      const [connRes, quotaRes] = await Promise.all([
+        fetch('http://127.0.0.1:20200/api/antigravity/connections', { signal: AbortSignal.timeout(2000) }),
+        fetch('http://127.0.0.1:20200/api/quota', { signal: AbortSignal.timeout(2000) }).catch(() => null)
+      ]);
+
+      if (connRes.ok) {
+        const connData = await connRes.json();
+        setSlots(connData.slots || connData.accounts || []);
+        setRouterOnline(true);
+
+        if (quotaRes && quotaRes.ok) {
+          const qData = await quotaRes.json();
+          setQuotaData(qData.pools || {});
+        }
+      } else {
+        setRouterOnline(false);
       }
     } catch {
-      // Standalone probe
+      setRouterOnline(false);
     } finally {
       setLoading(false);
     }
@@ -52,31 +56,6 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const getStatusBadge = (status) => {
-    if (status === 'AUTHENTICATED_AND_LIVE') {
-      return (
-        <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-          AUTHENTICATED LIVE
-        </span>
-      );
-    }
-    if (status === 'DEGRADED') {
-      return (
-        <span className="flex items-center gap-1 text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
-          <AlertTriangle className="w-3 h-3 text-amber-400" />
-          DEGRADED
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1 text-[11px] font-mono text-slate-400 bg-slate-800/60 border border-slate-700/50 px-2 py-0.5 rounded-full">
-        <XCircle className="w-3 h-3 text-slate-500" />
-        NOT CONFIGURED
-      </span>
-    );
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
       <div className="w-full max-w-3xl bg-[#070c18] border border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(0,229,255,0.15)] flex flex-col overflow-hidden text-slate-200">
@@ -88,10 +67,10 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
             </div>
             <div>
               <h2 className="text-sm font-bold text-white tracking-wider uppercase font-mono">
-                JIN LIVE OPERATIONS & OBSERVABILITY (PHASE 4.4)
+                ANTIGRAVITY POOL OBSERVABILITY & RUNTIME
               </h2>
               <p className="text-[10px] text-cyan-400/80 font-mono">
-                Granular Forensic Telemetry | Real Human & Host Runtime Verification
+                Local Router :20200 | 7 Isolated Google Account Pools | Dynamic Model Registry
               </p>
             </div>
           </div>
@@ -119,35 +98,37 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
           {/* Section 1: Live Operations Status Grid */}
           <div className="grid grid-cols-4 gap-2.5">
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
-              <div className="text-[9px] text-slate-400 font-mono">ACTIVE SESSION</div>
-              <div className="text-sm font-bold text-purple-300 font-mono">#{activeSessionId}</div>
-              <div className="text-[8px] text-slate-500 font-mono">Monotonic ID</div>
+              <div className="text-[9px] text-slate-400 font-mono">ROUTER STATUS</div>
+              <div className={`text-xs font-bold font-mono ${routerOnline ? 'text-emerald-400' : 'text-red-400'}`}>
+                {routerOnline ? 'ONLINE (:20200)' : 'OFFLINE'}
+              </div>
+              <div className="text-[8px] text-slate-500 font-mono">Local Router SSOT</div>
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
-              <div className="text-[9px] text-slate-400 font-mono">STREAM MODE</div>
+              <div className="text-[9px] text-slate-400 font-mono">ENROLLED POOLS</div>
               <div className="text-xs font-bold text-cyan-300 font-mono">
-                {Object.values(data.providers || {}).some(p => p.configured) ? 'UPSTREAM_NATIVE' : 'LOCAL_SYNTHETIC'}
+                {slots.filter(s => s.isEnrolled).length} / 7 ENROLLED
               </div>
-              <div className="text-[8px] text-slate-500 font-mono">
-                {Object.values(data.providers || {}).some(p => p.configured) ? 'Real Cloud AI' : 'Transparent Heuristic'}
-              </div>
+              <div className="text-[8px] text-slate-500 font-mono">1 Google Acc = 1 Pool</div>
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
-              <div className="text-[9px] text-slate-400 font-mono">WEB INTELLIGENCE</div>
-              <div className="text-xs font-bold text-emerald-400 font-mono">LIVE</div>
-              <div className="text-[8px] text-slate-500 font-mono">Untrusted Delimiter</div>
+              <div className="text-[9px] text-slate-400 font-mono">ACTIVE IN SCHEDULER</div>
+              <div className="text-xs font-bold text-emerald-400 font-mono">
+                {slots.filter(s => s.isEnrolled && s.isActive !== false).length} ACTIVE
+              </div>
+              <div className="text-[8px] text-slate-500 font-mono">Sticky Sequential</div>
             </div>
 
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between">
-              <div className="text-[9px] text-slate-400 font-mono">NEURAL VOICE</div>
-              <div className="text-xs font-bold text-purple-300 font-mono">EDGE_NEURAL</div>
-              <div className="text-[8px] text-slate-500 font-mono">id-ID-ArdiNeural</div>
+              <div className="text-[9px] text-slate-400 font-mono">SESSION ID</div>
+              <div className="text-xs font-bold text-purple-300 font-mono">#{activeSessionId}</div>
+              <div className="text-[8px] text-slate-500 font-mono">Monotonic FSM</div>
             </div>
           </div>
 
-          {/* Section 2: Real Human Barge-In Benchmark (T0 -> T6) */}
+          {/* Section 2: Real Human Barge-In Benchmark */}
           <div className="bg-slate-900/70 border border-cyan-500/30 rounded-xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -180,9 +161,6 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
                     <div className="text-emerald-400 font-bold">{benchmarkResult.breakdown.totalHumanBargeInLatencyMs} ms</div>
                   </div>
                 </div>
-                <div className="text-[9px] text-slate-400 text-right">
-                  Session #{benchmarkResult.oldSessionId} invalidated ➔ Session #{benchmarkResult.newSessionId} created cleanly.
-                </div>
               </div>
             ) : (
               <p className="text-[10px] text-slate-400 font-mono">
@@ -191,52 +169,59 @@ export default function LiveCertificationDashboardModal({ isOpen, onClose }) {
             )}
           </div>
 
-          {/* Section 3: AI Brain Providers Probe Matrix */}
+          {/* Section 3: Antigravity Pools Live Matrix */}
           <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-cyan-400" />
+                <Layers className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                  AI BRAIN PROVIDER MATRIX
+                  ANTIGRAVITY POOL SLOTS (AG-01..AG-07)
                 </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Zero-Camouflage Verification</span>
+              <span className="text-[10px] font-mono text-slate-400">Single Source of Truth</span>
             </div>
 
-            <div className="space-y-2">
-              {[
-                { name: 'Gemini (Google AI)', key: 'gemini', model: 'gemini-2.0-flash', desc: 'Fast Chat & High Throughput' },
-                { name: 'OpenAI (GPT-4o)', key: 'openai', model: 'gpt-4o-mini', desc: 'Reasoning & Coding' },
-                { name: 'Claude (Anthropic)', key: 'claude', model: 'claude-3-5-sonnet', desc: 'Architecture & Analysis' },
-                { name: 'DeepSeek (Reasoner)', key: 'deepseek', model: 'deepseek-reasoner', desc: 'Deep Multi-Step Synthesis' }
-              ].map((prov) => {
-                const status = data.providers?.[prov.key]?.status || (data.providers?.[prov.key]?.configured ? 'AUTHENTICATED_AND_LIVE' : 'NOT_CONFIGURED');
-                return (
-                  <div
-                    key={prov.key}
-                    className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-3 hover:border-slate-700 transition-all"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-200 font-mono flex items-center gap-2">
-                        <span>{prov.name}</span>
-                        <span className="text-[9px] text-cyan-400/80 bg-cyan-950/60 px-1.5 py-0.2 rounded border border-cyan-800/40">
-                          {prov.model}
+            <div className="space-y-1.5 font-mono text-xs">
+              {slots.length > 0 ? (
+                slots.map((slot) => {
+                  const isEnrolled = slot.isEnrolled;
+                  const isActive = slot.isActive !== false;
+                  return (
+                    <div
+                      key={slot.connectionId}
+                      className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-cyan-300 font-bold">{slot.connectionId.toUpperCase()}</span>
+                        <span className="text-slate-400 text-[11px]">{slot.email || '(Not Enrolled)'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                          isEnrolled
+                            ? isActive
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {isEnrolled ? (isActive ? 'ENROLLED & ACTIVE' : 'DISABLED (OFF)') : 'NOT_ENROLLED'}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-400">{prov.desc}</div>
                     </div>
-                    <div>{getStatusBadge(status)}</div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="text-slate-500 text-center py-4 text-[11px]">
+                  Local Router :20200 offline atau memuat status...
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400 px-5">
-          <span>Standards: Phase 4.4 Live Operations & Forensic Telemetry</span>
-          <span>Timestamp: {new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+          <span>UltimateAI Antigravity Local Router :20200</span>
+          <span className="text-emerald-400">● LIVE RUNTIME</span>
         </div>
       </div>
     </div>

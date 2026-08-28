@@ -3,10 +3,7 @@ import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, Ch
 
 const API_ENDPOINTS = [
   'http://127.0.0.1:20200',
-  'http://localhost:20200',
-  'http://127.0.0.1:20128',
-  'http://localhost:20128',
-  ''
+  'http://localhost:20200'
 ];
 
 export default function ConnectionsModal({ isOpen, onClose }) {

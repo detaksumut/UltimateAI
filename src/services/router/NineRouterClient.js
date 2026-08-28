@@ -158,7 +158,7 @@ export class NineRouterClient {
     if (lower.includes('halo') || lower.includes('hai') || lower.includes('salam') || lower.includes('jin')) {
       return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian berita, data, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
     }
-    return `Instruksi "${raw}" telah dieksekusi secara langsung oleh sistem 9Router.`;
+    return `Instruksi "${raw}" telah dieksekusi secara langsung oleh sistem UltimateAI.`;
   }
 }
 

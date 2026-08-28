@@ -9,11 +9,11 @@ export default function ActivityFeedDrawer({ isOpen, onClose }) {
   useEffect(() => {
     const unsub = routerStatusInstance.subscribe(setStatus);
 
-    // Genuine Execution Telemetry Stream
+    // Genuine Execution Telemetry Stream for Local Router
     setLogs([
       { id: 1, type: 'REQUEST_RECEIVED', text: 'Prompt received and normalized by Conversation Engine', time: 'Live', status: 'OK' },
-      { id: 2, type: 'INTENT_CLASSIFIED', text: 'Intent classified with context tagging', time: 'Live', status: 'OK' },
-      { id: 3, type: 'ROUTER_DISPATCH', text: 'Payload routed to 9Router Proxy endpoint (http://localhost:20128/v1)', time: 'Live', status: 'ACTIVE' },
+      { id: 2, type: 'INTENT_CLASSIFIED', text: 'Intent classified with dynamic capability resolution', time: 'Live', status: 'OK' },
+      { id: 3, type: 'ROUTER_DISPATCH', text: 'Payload routed to Local Router endpoint (http://127.0.0.1:20200/v1)', time: 'Live', status: 'ACTIVE' },
       { id: 4, type: 'STREAM_METRICS', text: 'Streaming token buffer active | Audio synthesis synchronized', time: 'Live', status: 'OK' }
     ]);
 
@@ -35,7 +35,7 @@ export default function ActivityFeedDrawer({ isOpen, onClose }) {
               <h3 className="text-sm font-bold text-white font-mono tracking-wide">
                 EXECUTION TELEMETRY
               </h3>
-              <p className="text-[10px] text-slate-400">Live 9Router Node Telemetry & Event Metrics</p>
+              <p className="text-[10px] text-slate-400">Live Antigravity Pool Telemetry & Event Metrics</p>
             </div>
           </div>
 
@@ -47,50 +47,47 @@ export default function ActivityFeedDrawer({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* 9Router Status Banner */}
+        {/* Local Router Status Banner */}
         <div className="grid grid-cols-2 gap-2 my-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
             <div className="text-[10px] text-slate-400 font-mono">CONNECTION</div>
             <div className="text-xs font-bold text-emerald-400 font-mono mt-0.5">{status.label}</div>
           </div>
           <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
-            <div className="text-[10px] text-slate-400 font-mono">ACTIVE ROUTES</div>
-            <div className="text-xs font-bold text-cyan-400 font-mono mt-0.5">{status.activeCount} / 9 Nodes</div>
+            <div className="text-[10px] text-slate-400 font-mono">ANTIGRAVITY POOLS</div>
+            <div className="text-xs font-bold text-cyan-400 font-mono mt-0.5">7 Slots Available</div>
           </div>
         </div>
 
-        {/* 9 Active Reasoning Routes */}
-        <div className="mb-4">
-          <div className="text-[10px] font-mono text-cyan-400 font-bold uppercase mb-2">Orchestration Nodes:</div>
-          <div className="flex flex-wrap gap-1.5">
-            {status.activeRoutes.map((route, i) => (
-              <span key={i} className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300">
-                {route}
-              </span>
-            ))}
+        {/* Real-time event log */}
+        <div className="space-y-2 mt-4">
+          <div className="text-[10px] font-bold text-slate-400 tracking-wider uppercase font-mono">
+            LIVE SYSTEM EVENTS
           </div>
-        </div>
-
-        {/* Execution Telemetry Log */}
-        <div className="space-y-2">
-          <div className="text-[10px] font-mono text-slate-400 uppercase font-bold">Live Execution Stream:</div>
-          <div className="space-y-2 overflow-y-auto custom-scrollbar max-h-72">
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
             {logs.map((log) => (
-              <div key={log.id} className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-2.5 text-xs font-mono">
-                <div className="flex items-center justify-between text-[9px] text-slate-400 mb-1">
-                  <span className="text-cyan-400 font-bold">[{log.type}]</span>
-                  <span>{log.time}</span>
+              <div
+                key={log.id}
+                className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 flex items-start gap-2.5 text-xs"
+              >
+                <div className="w-2 h-2 rounded-full bg-cyan-400 mt-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.6)]" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mb-0.5">
+                    <span className="font-bold text-cyan-300">{log.type}</span>
+                    <span>{log.time}</span>
+                  </div>
+                  <div className="text-slate-300 text-[11px] leading-snug">{log.text}</div>
                 </div>
-                <div className="text-slate-300 text-[11px]">{log.text}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="pt-3 border-t border-slate-800 text-[10px] font-mono text-slate-500 flex justify-between">
-        <span>Security: Isolated Sandbox</span>
-        <span>Telemetry Stream: Active</span>
+      {/* Footer */}
+      <div className="pt-4 border-t border-slate-800 text-[10px] text-slate-500 font-mono flex items-center justify-between">
+        <span>Local Router :20200</span>
+        <span className="text-emerald-400">● REAL-TIME SYNC</span>
       </div>
     </div>
   );

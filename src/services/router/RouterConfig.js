@@ -1,27 +1,23 @@
 /**
  * RouterConfig.js
- * Runtime configuration for UltimateAI 9Router.
- * Zero-secret exposure: Reads endpoints from environment / runtime proxy.
+ * Runtime configuration for UltimateAI Local Router (:20200).
+ * Connects frontend UI directly to the Local Router backend.
  */
 
 export const RouterConfig = {
-  // Default local endpoint for 9Router Proxy (standard OpenAI-compatible /v1 endpoint)
-  DEFAULT_LOCAL_ENDPOINT: 'http://localhost:20128/v1',
+  // Authoritative local endpoint for Local Router (:20200)
+  DEFAULT_LOCAL_ENDPOINT: 'http://127.0.0.1:20200',
   
-  // Production / Proxy fallback endpoint (configured in Vite environment without leaking secrets)
   getEndpoint() {
-    if (typeof window !== 'undefined') {
-      if (window.__ULTIMATE_ROUTER_ENDPOINT__) {
-        return window.__ULTIMATE_ROUTER_ENDPOINT__;
-      }
-      return `${window.location.origin}/api/ultimateai`;
+    if (typeof window !== 'undefined' && window.__ULTIMATE_ROUTER_ENDPOINT__) {
+      return window.__ULTIMATE_ROUTER_ENDPOINT__;
     }
-    return 'http://localhost:5177/api/ultimateai';
+    return 'http://127.0.0.1:20200';
   },
 
   // Model routing preferences
-  DEFAULT_MODEL: 'ultimateai-9router-orchestrator',
-  FALLBACK_MODEL: 'gemini-2.0-flash',
+  DEFAULT_MODEL: 'gemini-3.6-flash-high',
+  FALLBACK_MODEL: 'gemini-3.6-flash-med',
   REQUEST_TIMEOUT_MS: 30000,
 };
 
