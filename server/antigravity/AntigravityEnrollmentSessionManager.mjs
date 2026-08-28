@@ -129,10 +129,13 @@ export class AntigravityEnrollmentSessionManager {
       throw new Error(`INVALID_CONNECTION_ID: '${connectionId}' is not a valid slot (must be ag-01..ag-07).`);
     }
 
-    // Cancel existing session for this connection if active
+    // Track active enrollment for this slot
     const prevEnrollmentId = this.activeEnrollmentsByConnection.get(connectionId);
     if (prevEnrollmentId) {
-      await this.cancelEnrollment(prevEnrollmentId);
+      const prevSession = this.sessions.get(prevEnrollmentId);
+      if (prevSession && prevSession.state === ENROLLMENT_STATES.ENROLLED) {
+        this._cleanupSessionServer(prevSession);
+      }
     }
 
     const config = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);

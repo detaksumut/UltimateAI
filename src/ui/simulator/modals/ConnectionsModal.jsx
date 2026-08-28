@@ -16,6 +16,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const [autoRefreshSec, setAutoRefreshSec] = useState(55);
   const [slotOverrides, setSlotOverrides] = useState({});
+  const [connectingSlot, setConnectingSlot] = useState(null);
 
   const fetchLiveState = async () => {
     setLoading(true);
@@ -84,6 +85,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   const handleStartConnect = async (connectionId) => {
+    setConnectingSlot(connectionId);
     try {
       const authWindow = window.open('about:blank', '_blank');
       let res = await fetch(`/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' }).catch(() => null);
@@ -97,6 +99,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
       if (!res.ok) {
         if (authWindow) authWindow.close();
+        setConnectingSlot(null);
         throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
       }
 
@@ -120,9 +123,11 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               const pollData = await pollRes.json();
               if (pollData.state === 'ENROLLED') {
                 clearInterval(pollId);
+                setConnectingSlot(null);
                 fetchLiveState();
               } else if (pollData.state && (pollData.state.includes('FAILED') || pollData.state.includes('TIMEOUT') || pollData.state.includes('ERROR'))) {
                 clearInterval(pollId);
+                setConnectingSlot(null);
                 setErrorMsg(`[ENROLLMENT FAILED] ${pollData.state}: ${pollData.error || 'Otorisasi gagal'}`);
                 fetchLiveState();
               }
@@ -130,11 +135,15 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           } catch {}
         }, 1000);
 
-        setTimeout(() => clearInterval(pollId), 600000);
+        setTimeout(() => {
+          clearInterval(pollId);
+          setConnectingSlot(null);
+        }, 600000);
       }
 
       fetchLiveState();
     } catch (err) {
+      setConnectingSlot(null);
       setErrorMsg(`Gagal menghubungkan ${connectionId.toUpperCase()}: ${err.message}`);
     }
   };
@@ -480,11 +489,17 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                         Quota: <span className="text-slate-400 font-bold">NOT_AVAILABLE</span>
                       </div>
                       <button
+                        type="button"
+                        disabled={connectingSlot === slot.connectionId}
                         onClick={() => handleStartConnect(slot.connectionId)}
-                        className="mt-2 py-2 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(0,102,255,0.4)] transition-all cursor-pointer"
+                        className={`mt-2 py-2 px-5 rounded-xl text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(0,102,255,0.4)] transition-all cursor-pointer ${
+                          connectingSlot === slot.connectionId
+                            ? 'bg-slate-700 opacity-60 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500'
+                        }`}
                       >
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>CONNECT {slot.connectionId.toUpperCase()}</span>
+                        <Zap className={`w-3.5 h-3.5 ${connectingSlot === slot.connectionId ? 'animate-spin' : ''}`} />
+                        <span>{connectingSlot === slot.connectionId ? 'CONNECTING...' : `CONNECT ${slot.connectionId.toUpperCase()}`}</span>
                       </button>
                     </div>
                   )}
