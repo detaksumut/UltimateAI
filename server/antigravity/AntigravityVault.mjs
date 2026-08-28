@@ -65,6 +65,20 @@ export class AntigravityVault {
       return '';
     }
   }
+
+  /**
+   * Safe non-secret diagnostic metadata
+   */
+  getDiagnosticInfo() {
+    let source = 'BOOTSTRAP';
+    if (process.env.ULTIMATEAI_VAULT_KEY) source = 'ENVIRONMENT_ULTIMATEAI_VAULT_KEY';
+    else if (process.env.ENCRYPTION_SECRET) source = 'ENVIRONMENT_ENCRYPTION_SECRET';
+    return {
+      vaultKeySource: source,
+      algorithm: ALGORITHM,
+      vaultInstanceConsistent: true
+    };
+  }
 }
 
 export const antigravityVaultInstance = new AntigravityVault();

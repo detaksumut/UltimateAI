@@ -12,6 +12,7 @@
 
 import http from 'http';
 import crypto from 'crypto';
+import fs from 'fs';
 import { AntigravityOAuthEnrollment } from './AntigravityOAuthEnrollment.mjs';
 import { antigravityVaultInstance } from './AntigravityVault.mjs';
 import { antigravityConnectionStoreInstance } from './AntigravityConnectionStore.mjs';
@@ -38,6 +39,7 @@ export const ENROLLMENT_STATES = {
   IDENTITY_VERIFICATION_FAILED: 'IDENTITY_VERIFICATION_FAILED',
   CLOUD_CODE_AUTH_FAILED: 'CLOUD_CODE_AUTH_FAILED',
   PROJECT_DISCOVERY_FAILED: 'PROJECT_DISCOVERY_FAILED',
+  PERSISTENCE_VERIFICATION_FAILED: 'PERSISTENCE_VERIFICATION_FAILED',
   ENROLLMENT_TIMEOUT: 'ENROLLMENT_TIMEOUT',
   ENROLLMENT_CANCELLED: 'ENROLLMENT_CANCELLED'
 };
@@ -458,31 +460,81 @@ export class AntigravityEnrollmentSessionManager {
       const expiresIn = tokenData.expires_in || 3600;
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-      const savedRecord = this.store.saveConnection({
-        id: session.connectionId,
-        accountAlias: userEmail || session.connectionId,
-        email: userEmail,
-        userName,
-        label: userEmail ? `${userEmail} (${session.connectionId.toUpperCase()})` : `Slot ${session.connectionId.toUpperCase()}`,
-        provider: 'ANTIGRAVITY',
-        authType: 'oauth',
-        isActive: true,
-        priority: parseInt(session.connectionId.replace('ag-0', ''), 10) || 1,
-        projectId: projectInfo.projectId,
-        projectTier: projectInfo.tier || 'STANDARD',
-        expiresAt,
-        testStatus: 'ENROLLED',
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || tokenData.access_token
-      });
+      try {
+        this.store.saveConnection({
+          id: session.connectionId,
+          connectionId: session.connectionId,
+          accountAlias: userEmail || session.connectionId,
+          email: userEmail,
+          userName,
+          label: userEmail ? `${userEmail} (${session.connectionId.toUpperCase()})` : `Slot ${session.connectionId.toUpperCase()}`,
+          provider: 'ANTIGRAVITY',
+          authType: 'oauth',
+          isActive: true,
+          priority: parseInt(session.connectionId.replace('ag-0', ''), 10) || 1,
+          projectId: projectInfo.projectId,
+          projectTier: projectInfo.tier || 'STANDARD',
+          expiresAt,
+          testStatus: 'ENROLLED',
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token || tokenData.access_token
+        });
+      } catch (writeErr) {
+        throw new Error(`PERSISTENCE_VERIFICATION_FAILED: STORE_WRITE_FAILED (${writeErr.message})`);
+      }
 
-      // Verify read-back from store
-      const readBack = this.store.getConnection(session.connectionId, true);
-      if (!readBack || (!readBack.accessToken && !readBack.refreshToken)) {
-        throw new Error('PERSISTENCE_VERIFICATION_FAILED: Saved credentials could not be read back from Vault.');
+      // Step 1 & 2: Confirm storage file exists and parses
+      const storageFile = this.store.getStoragePath ? this.store.getStoragePath() : path.resolve(process.cwd(), 'storage', 'antigravity_connections.json');
+      if (!fs.existsSync(storageFile)) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: STORE_WRITE_FAILED (Storage file not found)');
+      }
+
+      let rawRecords = [];
+      try {
+        const rawContent = fs.readFileSync(storageFile, 'utf8');
+        rawRecords = JSON.parse(rawContent || '[]');
+      } catch (parseErr) {
+        throw new Error(`PERSISTENCE_VERIFICATION_FAILED: JSON_PARSE_FAILED (${parseErr.message})`);
+      }
+
+      // Step 3: Locate record
+      const rawRecord = rawRecords.find(r => r.id === session.connectionId || r.connectionId === session.connectionId);
+      if (!rawRecord) {
+        throw new Error(`PERSISTENCE_VERIFICATION_FAILED: RECORD_NOT_FOUND for ${session.connectionId}`);
+      }
+
+      // Step 4 & 5: Confirm encrypted fields exist
+      const encryptedAccessPresent = Boolean(rawRecord.encryptedAccessToken);
+      const encryptedRefreshPresent = Boolean(rawRecord.encryptedRefreshToken);
+      console.log(`[ENROLLMENT] encryptedAccessPresent=${encryptedAccessPresent}, encryptedRefreshPresent=${encryptedRefreshPresent}`);
+
+      if (!encryptedAccessPresent) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: ENCRYPTED_ACCESS_MISSING');
+      }
+      if (!encryptedRefreshPresent) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: ENCRYPTED_REFRESH_MISSING');
+      }
+
+      // Step 6 & 7: Read back from store using same vault and decrypt
+      const readBack = this.store.getConnection(session.connectionId, false);
+      const accessReadBack = Boolean(readBack && readBack.accessToken);
+      const refreshReadBack = Boolean(readBack && readBack.refreshToken);
+      console.log(`[ENROLLMENT] accessReadBack=${accessReadBack}, refreshReadBack=${refreshReadBack}`);
+
+      if (!readBack || !accessReadBack || !refreshReadBack) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: VAULT_DECRYPT_FAILED');
+      }
+
+      // Step 8: Compare decrypted values to in-memory values without logging secrets
+      if (readBack.accessToken !== tokenData.access_token) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: READBACK_VALIDATION_FAILED (Access token mismatch)');
+      }
+      if (tokenData.refresh_token && readBack.refreshToken !== tokenData.refresh_token) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: READBACK_VALIDATION_FAILED (Refresh token mismatch)');
       }
 
       console.log(`[ENROLLMENT] PERSIST_SUCCESS: connectionId=${session.connectionId}`);
+      console.log(`[ENROLLMENT] READBACK_SUCCESS: connectionId=${session.connectionId}`);
 
       session.state = ENROLLMENT_STATES.ENROLLED;
       console.log(`[ENROLLMENT] ENROLLED: slot=${session.connectionId.toUpperCase()} is now fully ACTIVE & ENROLLED`);
@@ -496,9 +548,18 @@ export class AntigravityEnrollmentSessionManager {
         projectId: projectInfo.projectId
       };
     } catch (err) {
-      const failState = err.message.includes('TOKEN')
-        ? ENROLLMENT_STATES.TOKEN_EXCHANGE_FAILED
-        : (err.message.includes('PROJECT') ? ENROLLMENT_STATES.PROJECT_DISCOVERY_FAILED : ENROLLMENT_STATES.CLOUD_CODE_AUTH_FAILED);
+      let failState = ENROLLMENT_STATES.CLOUD_CODE_AUTH_FAILED;
+      if (err.message.includes('TOKEN')) {
+        failState = ENROLLMENT_STATES.TOKEN_EXCHANGE_FAILED;
+      } else if (err.message.includes('PROJECT')) {
+        failState = ENROLLMENT_STATES.PROJECT_DISCOVERY_FAILED;
+      } else if (err.message.includes('PERSISTENCE_VERIFICATION_FAILED')) {
+        failState = ENROLLMENT_STATES.PERSISTENCE_VERIFICATION_FAILED;
+        // Transactional Rollback: Purge any partial/corrupt record
+        try {
+          this.store.deleteConnection(session.connectionId);
+        } catch {}
+      }
 
       console.error(`[ENROLLMENT FAILED] Stage: ${failState}, Message: ${err.message}`);
       this._failSession(enrollmentId, failState, err.message);

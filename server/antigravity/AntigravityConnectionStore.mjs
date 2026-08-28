@@ -119,7 +119,7 @@ export class AntigravityConnectionStore {
     const records = this._readRawRecords();
     const id = connectionData.id || connectionData.connectionId;
 
-    const existingIndex = records.findIndex(r => r.id === id);
+    const existingIndex = records.findIndex(r => r.id === id || r.connectionId === id);
 
     // Encrypt sensitive tokens
     const recordToStore = {
@@ -134,6 +134,7 @@ export class AntigravityConnectionStore {
       isActive: connectionData.isActive !== false,
       priority: connectionData.priority || 1,
       projectId: connectionData.projectId || '',
+      projectTier: connectionData.projectTier || 'STANDARD',
       expiresAt: connectionData.expiresAt || null,
       testStatus: connectionData.testStatus || 'INITIALIZED',
       cooldownUntil: connectionData.cooldownUntil || null,
@@ -150,6 +151,20 @@ export class AntigravityConnectionStore {
 
     fs.writeFileSync(CONNECTIONS_FILE, JSON.stringify(records, null, 2), 'utf8');
     return this.getConnection(id);
+  }
+
+  /**
+   * Safe non-secret diagnostic metadata
+   */
+  getStoragePath() {
+    return CONNECTIONS_FILE;
+  }
+
+  getDiagnosticInfo() {
+    return {
+      storagePath: CONNECTIONS_FILE,
+      vault: this.vault?.getDiagnosticInfo ? this.vault.getDiagnosticInfo() : null
+    };
   }
 
   /**
