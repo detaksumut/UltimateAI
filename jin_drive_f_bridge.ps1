@@ -1,6 +1,6 @@
 <#
  ====================================================================
-  UltimateAI - JIN Local Agent Bridge (Drive F:\ Read/Write Daemon)
+  UltimateAI - JIN Active Memory Core & Event Daemon (Drive F:\)
   Operator: Rahman (Enterprise Admin)
   Target: F:\UltimateAI_Memory
   Port: 8080
@@ -11,13 +11,14 @@ $BasePath = "F:\UltimateAI_Memory"
 $Port = 8080
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host " [JIN AGENT] Initializing Local Bridge Node for F:\ " -ForegroundColor Magenta
+Write-Host " [JIN AGENT] Active Memory Core Node (Drive F:\)    " -ForegroundColor Magenta
 Write-Host "====================================================" -ForegroundColor Cyan
 
-# 1. Membuat Struktur Folder Memori Lokal
+# 1. Pastikan Struktur Folder Memori Lokal
 $Folders = @(
     "$BasePath\01_Logs",
     "$BasePath\02_Documentation",
+    "$BasePath\02_Documentation\Backups",
     "$BasePath\03_AgentState",
     "$BasePath\04_Outputs",
     "$BasePath\05_Vault"
@@ -28,11 +29,84 @@ foreach ($folder in $Folders) {
         New-Item -Path $folder -ItemType Directory -Force | Out-Null
         Write-Host "[+] Directory created: $folder" -ForegroundColor Green
     } else {
-        Write-Host "[=] Directory exists: $folder" -ForegroundColor Yellow
+        Write-Host "[=] Directory active: $folder" -ForegroundColor Yellow
     }
 }
 
-# 2. Menulis File Inisialisasi Pertama
+# 2. In-Memory Event Ring Buffer & Debounce Cache
+$global:EventBuffer = [System.Collections.ArrayList]::new()
+$global:DebounceCache = @{}
+$global:MaxEvents = 50
+
+function Add-MemoryEvent {
+    param(
+        [string]$Path,
+        [string]$EventType,
+        [string]$Severity = "NORMAL"
+    )
+
+    $now = Get-Date
+    $key = "$Path-$EventType"
+
+    # Debounce: abaikan event duplikat dalam kurun 500ms
+    if ($global:DebounceCache.ContainsKey($key)) {
+        $lastTime = $global:DebounceCache[$key]
+        if (($now - $lastTime).TotalMilliseconds -lt 500) {
+            return
+        }
+    }
+    $global:DebounceCache[$key] = $now
+
+    # Tentukan Severity
+    $relPath = $Path.Replace($BasePath, "").TrimStart("\")
+    if ($relPath.StartsWith("05_Vault")) {
+        $Severity = "HIGH"
+    } elseif ($relPath.StartsWith("03_AgentState")) {
+        $Severity = "NORMAL"
+    } elseif ($relPath.StartsWith("01_Logs")) {
+        $Severity = "LOW"
+    }
+
+    $eventObj = [PSCustomObject]@{
+        eventId = "evt_$(Get-Date -Format 'yyyyMMddHHmmssfff')_$([System.IO.Path]::GetRandomFileName().Substring(0,4))"
+        path = $relPath
+        fullPath = $Path
+        eventType = $EventType
+        severity = $Severity
+        timestamp = $now.ToString("yyyy-MM-dd HH:mm:ss")
+        source = "FileSystemWatcher.DriveF"
+    }
+
+    [void]$global:EventBuffer.Add($eventObj)
+    if ($global:EventBuffer.Count -gt $global:MaxEvents) {
+        $global:EventBuffer.RemoveAt(0)
+    }
+
+    $color = switch ($Severity) {
+        "HIGH" { "Yellow" }
+        "CRITICAL" { "Red" }
+        "NORMAL" { "Cyan" }
+        Default { "DarkGray" }
+    }
+    Write-Host "[EVENT: $Severity] $EventType ➔ $relPath" -ForegroundColor $color
+}
+
+# 3. Setup FileSystemWatcher
+$watcher = New-Object System.IO.FileSystemWatcher
+$watcher.Path = $BasePath
+$watcher.IncludeSubdirectories = $true
+$watcher.EnableRaisingEvents = $true
+$watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite, DirectoryName'
+
+# Register Watcher Events
+Register-ObjectEvent $watcher "Created" -Action { Add-MemoryEvent $Event.SourceEventArgs.FullPath "CREATED" } | Out-Null
+Register-ObjectEvent $watcher "Changed" -Action { Add-MemoryEvent $Event.SourceEventArgs.FullPath "CHANGED" } | Out-Null
+Register-ObjectEvent $watcher "Deleted" -Action { Add-MemoryEvent $Event.SourceEventArgs.FullPath "DELETED" } | Out-Null
+Register-ObjectEvent $watcher "Renamed" -Action { Add-MemoryEvent $Event.SourceEventArgs.FullPath "RENAMED" } | Out-Null
+
+Write-Host "[+] Active FileSystemWatcher attached to $BasePath" -ForegroundColor Green
+
+# 4. Menulis State Inisialisasi
 $InitFile = "$BasePath\03_AgentState\bridge_status.json"
 $InitData = @{
     agent = "JIN-UltimateAI"
@@ -40,29 +114,28 @@ $InitData = @{
     drive = "F:\"
     permissions = "READ_WRITE"
     status = "CONNECTED"
-    storage_mode = "LOCAL_AIRGAP_OFFLINE"
+    watcher = "ACTIVE"
+    storage_mode = "LOCAL_AIRGAP_ACTIVE_MEMORY"
     timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
 } | ConvertTo-Json
 
 $InitData | Out-File -FilePath $InitFile -Encoding utf8
-Write-Host "[+] Memory Init file written to: $InitFile" -ForegroundColor Green
 
-# 3. Menjalankan HTTP Listener Service (API Bridge)
+# 5. HTTP Listener Service
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$Port/")
 
 try {
     $listener.Start()
-    Write-Host "`n[SUCCESS] JIN Local Bridge actively listening on http://localhost:$Port/" -ForegroundColor Green
-    Write-Host "[ACCESS LEVEL] FULL READ/WRITE ENABLED FOR DRIVE F:\" -ForegroundColor Cyan
-    Write-Host "[INFO] Press CTRL+C in this terminal window to stop the agent bridge.`n" -ForegroundColor Gray
+    Write-Host "`n[SUCCESS] Active Memory Daemon running on http://localhost:$Port/" -ForegroundColor Green
+    Write-Host "[CHANNELS] REST + Event Stream (/events, /status, /health, /list)" -ForegroundColor Cyan
+    Write-Host "[INFO] Press CTRL+C to stop the active memory daemon.`n" -ForegroundColor Gray
 
     while ($listener.IsListening) {
         $context = $listener.GetContext()
         $request = $context.Request
         $response = $context.Response
 
-        # Enable CORS
         $response.AddHeader("Access-Control-Allow-Origin", "*")
         $response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         $response.AddHeader("Access-Control-Allow-Headers", "Content-Type")
@@ -73,7 +146,7 @@ try {
             continue
         }
 
-        # Handling GET: Status & Read
+        # GET Handling
         if ($request.HttpMethod -eq "GET") {
             $urlPath = $request.Url.LocalPath
 
@@ -83,11 +156,43 @@ try {
                     targetDrive = "F:\"
                     basePath = $BasePath
                     agent = "JIN-Core"
-                    mode = "LOCAL_AIRGAP"
+                    mode = "LOCAL_AIRGAP_ACTIVE_MEMORY"
+                    watcher = "ACTIVE"
+                    eventCount = $global:EventBuffer.Count
                     timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
                 } | ConvertTo-Json
 
                 $buffer = [System.Text.Encoding]::UTF8.GetBytes($statusPayload)
+                $response.ContentType = "application/json"
+                $response.ContentLength64 = $buffer.Length
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+                continue
+            }
+
+            if ($urlPath -eq "/health") {
+                $vaultFiles = (Get-ChildItem -Path "$BasePath\05_Vault" -Filter *.json -ErrorAction SilentlyContinue).Count
+                $healthPayload = @{
+                    status = "HEALTHY"
+                    drive = "F:\"
+                    vaultRecords = $vaultFiles
+                    watcherAlive = $true
+                    timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                } | ConvertTo-Json
+
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($healthPayload)
+                $response.ContentType = "application/json"
+                $response.ContentLength64 = $buffer.Length
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.Close()
+                continue
+            }
+
+            if ($urlPath -eq "/events") {
+                $eventsPayload = $global:EventBuffer | ConvertTo-Json
+                if (-not $eventsPayload) { $eventsPayload = "[]" }
+
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($eventsPayload)
                 $response.ContentType = "application/json"
                 $response.ContentLength64 = $buffer.Length
                 $response.OutputStream.Write($buffer, 0, $buffer.Length)
@@ -106,20 +211,19 @@ try {
             }
         }
 
-        # Handling POST: Read/Write Request
+        # POST Handling
         if ($request.HttpMethod -eq "POST") {
             $reader = New-Object System.IO.StreamReader($request.InputStream, $request.ContentEncoding)
             $body = $reader.ReadToEnd()
             
             try {
                 $payload = $body | ConvertFrom-Json
-                $action = $payload.action # "write" | "read" | "append_log"
+                $action = $payload.action
                 $relPath = $payload.filePath
                 $content = $payload.content
 
                 $fullTarget = Join-Path -Path $BasePath -ChildPath $relPath
 
-                # Security check: must remain inside F:\UltimateAI_Memory
                 if (-not $fullTarget.StartsWith($BasePath)) {
                     $resJson = @{ success = $false; error = "ACCESS_DENIED: Path must be inside $BasePath" } | ConvertTo-Json
                     $response.StatusCode = 403
@@ -141,7 +245,6 @@ try {
                     $resJson = @{ success = $true; action = "append_log"; path = $fullTarget } | ConvertTo-Json
                     $response.StatusCode = 200
                 } else {
-                    # Default: Write / Overwrite
                     $parentDir = Split-Path -Path $fullTarget -Parent
                     if (-not (Test-Path -Path $parentDir)) { New-Item -Path $parentDir -ItemType Directory -Force | Out-Null }
 
@@ -152,7 +255,6 @@ try {
                         [System.IO.File]::WriteAllText($fullTarget, $jsonText, [System.Text.Encoding]::UTF8)
                     }
 
-                    Write-Host "[+] Wrote file: $relPath" -ForegroundColor Green
                     $resJson = @{ success = $true; action = "write"; path = $fullTarget; timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") } | ConvertTo-Json
                     $response.StatusCode = 200
                 }
@@ -174,6 +276,10 @@ try {
     if ($listener -ne $null) {
         $listener.Stop()
         $listener.Close()
-        Write-Host "`n[STOPPED] JIN Local Bridge stopped." -ForegroundColor Yellow
     }
+    if ($watcher -ne $null) {
+        $watcher.EnableRaisingEvents = $false
+        $watcher.Dispose()
+    }
+    Write-Host "`n[STOPPED] JIN Active Memory Bridge stopped." -ForegroundColor Yellow
 }
