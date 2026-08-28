@@ -1,30 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, ExternalLink, Key } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
 
-const LOCAL_ROUTER_URL = 'http://127.0.0.1:20200';
+const API_ENDPOINTS = [
+  'http://127.0.0.1:20200',
+  'http://localhost:20200',
+  'http://127.0.0.1:20128',
+  'http://localhost:20128',
+  ''
+];
 
 export default function ConnectionsModal({ isOpen, onClose }) {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeEndpoint, setActiveEndpoint] = useState(API_ENDPOINTS[0]);
   const [activeEnrollment, setActiveEnrollment] = useState(null);
   const [enrollProgress, setEnrollProgress] = useState(null);
   const [manualCallbackUrl, setManualCallbackUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
 
   const fetchSlots = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/connections`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setSlots(data.slots || []);
-      setErrorMsg(null);
-    } catch (err) {
-      console.warn('Local Router not reachable on 20200:', err.message);
-      setErrorMsg('Local Router (127.0.0.1:20200) sedang offline atau belum dijalankan.');
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    let success = false;
+
+    for (const ep of [activeEndpoint, ...API_ENDPOINTS]) {
+      try {
+        const res = await fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          const data = await res.json();
+          setSlots(data.slots || []);
+          setActiveEndpoint(ep);
+          setErrorMsg(null);
+          success = true;
+          break;
+        }
+      } catch {}
     }
+
+    if (!success) {
+      setErrorMsg('Local Router (127.0.0.1:20200 / 20128) sedang offline atau belum dijalankan.');
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -41,7 +56,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     if (activeEnrollment && activeEnrollment.enrollmentId) {
       pollTimer = setInterval(async () => {
         try {
-          const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}`);
+          const res = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}`);
           if (res.ok) {
             const data = await res.json();
             setEnrollProgress(data);
@@ -59,12 +74,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     return () => {
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [activeEnrollment]);
+  }, [activeEnrollment, activeEndpoint]);
 
   const handleStartConnect = async (connectionId) => {
     try {
       setErrorMsg(null);
-      const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
+      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
 
@@ -78,7 +93,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleManualCallbackSubmit = async () => {
     if (!manualCallbackUrl || !activeEnrollment) return;
     try {
-      const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}/callback`, {
+      const res = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callbackUrl: manualCallbackUrl })
@@ -94,7 +109,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleCancelEnrollment = async () => {
     if (activeEnrollment) {
       try {
-        await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}/cancel`, { method: 'POST' });
+        await fetch(`${activeEndpoint}/api/antigravity/enrollments/${activeEnrollment.enrollmentId}/cancel`, { method: 'POST' });
       } catch {}
       setActiveEnrollment(null);
       setEnrollProgress(null);
@@ -104,7 +119,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleRefresh = async (connectionId) => {
     try {
-      const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
+      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
       fetchSlots();
@@ -116,7 +131,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleDisconnect = async (connectionId) => {
     if (!confirm(`Apakah Anda yakin ingin memutuskan dan menghapus kredensial ${connectionId.toUpperCase()} dari Vault?`)) return;
     try {
-      const res = await fetch(`${LOCAL_ROUTER_URL}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
+      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Disconnect gagal');
       fetchSlots();
     } catch (err) {
