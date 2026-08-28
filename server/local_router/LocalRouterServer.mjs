@@ -134,12 +134,14 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 3. GET /api/antigravity/connections (7 Connection Slots with Live Status)
-    if (pathname === '/api/antigravity/connections' && req.method === 'GET') {
+    // 3. GET /api/antigravity/connections & GET /api/accounts (7 Connection Slots with Live Status)
+    if ((pathname === '/api/antigravity/connections' || pathname === '/api/accounts') && req.method === 'GET') {
       const slots = antigravityEnrollmentSessionManagerInstance.getAllConnectionSlots();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
+        dataSource: 'LOCAL_ROUTER_API',
         total: slots.length,
+        accounts: slots,
         slots
       }, null, 2));
       return;
@@ -239,6 +241,7 @@ export function createLocalRouterServer() {
       const snapshot = antigravityQuotaTrackerInstance.getQuotaSnapshot();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
+        dataSource: 'LOCAL_ROUTER_API',
         status: 'ONLINE',
         timestamp: new Date().toISOString(),
         pools: snapshot

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, Edit3, Power, ExternalLink, CheckCircle2, ShieldCheck, Eye, EyeOff, Layers, Filter } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, CheckCircle2, Server, Activity } from 'lucide-react';
 
 const API_ENDPOINTS = [
   'http://127.0.0.1:20200',
@@ -9,55 +9,56 @@ const API_ENDPOINTS = [
   ''
 ];
 
-const DEFAULT_MODELS = [
-  { name: 'Gemini 3.6 Flash (High)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.6 Flash (Medium)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.6 Flash (Low)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.5 Flash (Medium)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.5 Flash (Low)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.1 Pro (High)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Gemini 3.1 Pro (Low)', used: 3, total: 1000, reset: 'in 5d 10h 40m' },
-  { name: 'Claude Sonnet 4.6 (Thinking)', used: 0, total: 1000, reset: 'in 7d 0h 0m' },
-  { name: 'Claude Opus 4.6 (Thinking)', used: 0, total: 1000, reset: 'in 7d 0h 0m' },
-  { name: 'GPT-OSS 120B (Medium)', used: 0, total: 1000, reset: 'in 7d 0h 0m' }
-];
-
 export default function ConnectionsModal({ isOpen, onClose }) {
   const [slots, setSlots] = useState([]);
+  const [quotaData, setQuotaData] = useState({});
   const [loading, setLoading] = useState(false);
   const [activeEndpoint, setActiveEndpoint] = useState(API_ENDPOINTS[0]);
+  const [isLiveOnline, setIsLiveOnline] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [autoRefreshSec, setAutoRefreshSec] = useState(55);
 
-  const fetchSlots = async () => {
+  const fetchLiveState = async () => {
     setLoading(true);
     let success = false;
 
     for (const ep of [activeEndpoint, ...API_ENDPOINTS]) {
       try {
-        const res = await fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) });
-        if (res.ok) {
-          const data = await res.json();
-          setSlots(data.slots || []);
+        const [accRes, quotaRes] = await Promise.all([
+          fetch(`${ep}/api/accounts`, { signal: AbortSignal.timeout(1500) })
+            .catch(() => fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) })),
+          fetch(`${ep}/api/quota`, { signal: AbortSignal.timeout(1500) }).catch(() => null)
+        ]);
+
+        if (accRes && accRes.ok) {
+          const accData = await accRes.json();
+          setSlots(accData.slots || accData.accounts || []);
           setActiveEndpoint(ep);
+          setIsLiveOnline(true);
           setErrorMsg(null);
           success = true;
+
+          if (quotaRes && quotaRes.ok) {
+            const qData = await quotaRes.json();
+            setQuotaData(qData.pools || {});
+          }
           break;
         }
       } catch {}
     }
 
     if (!success) {
-      setErrorMsg('Local Router (127.0.0.1:20200) sedang offline.');
+      setIsLiveOnline(false);
+      setErrorMsg('LIVE DATA UNAVAILABLE: Local Router (127.0.0.1:20200) sedang offline.');
     }
     setLoading(false);
   };
 
   useEffect(() => {
     if (isOpen) {
-      fetchSlots();
+      fetchLiveState();
       const interval = setInterval(() => {
-        fetchSlots();
+        fetchLiveState();
         setAutoRefreshSec(55);
       }, 55000);
       const ticker = setInterval(() => {
@@ -101,7 +102,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           window.open(data.authUrl, '_blank');
         }
       }
-      fetchSlots();
+      fetchLiveState();
     } catch (err) {
       setErrorMsg(`Gagal menghubungkan ${connectionId.toUpperCase()}: ${err.message}`);
     }
@@ -112,7 +113,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
-      fetchSlots();
+      fetchLiveState();
     } catch (err) {
       setErrorMsg(`Refresh gagal: ${err.message}`);
     }
@@ -123,7 +124,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     try {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Disconnect gagal');
-      fetchSlots();
+      fetchLiveState();
     } catch (err) {
       setErrorMsg(`Disconnect gagal: ${err.message}`);
     }
@@ -134,35 +135,39 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/90 backdrop-blur-md">
       <div className="relative w-full max-w-7xl bg-[#12141a] border border-[#232734] rounded-2xl p-5 shadow-[0_0_80px_rgba(0,0,0,0.8)] text-slate-200 select-none flex flex-col max-h-[95vh] overflow-hidden">
-        {/* Top Control Toolbar (9Router Style) */}
+        {/* Top Control Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#232734] text-xs font-mono">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5 cursor-pointer">
+            {/* Live Data Boundary Badge */}
+            <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-bold ${
+              isLiveOnline
+                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                : 'bg-red-950/60 border-red-500/40 text-red-300'
+            }`}>
+              <Server className="w-3.5 h-3.5" />
+              <span>{isLiveOnline ? 'LIVE DATA: LOCAL_ROUTER_API (:20200)' : 'LIVE DATA UNAVAILABLE'}</span>
+            </div>
+
+            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
               <span>All Providers ▾</span>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5 cursor-pointer">
+            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-cyan-400" />
               <span>All accounts ▾</span>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300 cursor-pointer">
+            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-slate-300">
               ⏳ Expiring first
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-red-400/90 cursor-pointer">
-              🚫 Turn off Empty
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-emerald-400/90 cursor-pointer">
-              ✅ Turn on Available
-            </div>
             <div className="px-3 py-1.5 rounded-lg bg-[#1a1d26] border border-[#2d3243] text-amber-400/90 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <Activity className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
               <span>Auto-refresh ({autoRefreshSec}s)</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={fetchSlots}
+              onClick={fetchLiveState}
               disabled={loading}
               className="p-1.5 rounded-lg bg-[#1a1d26] hover:bg-[#252a38] text-slate-300 border border-[#2d3243] cursor-pointer"
               title="Refresh All"
@@ -180,6 +185,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
         {errorMsg && (
           <div className="my-2.5 px-4 py-2 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs flex items-center gap-2 font-mono">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -188,18 +194,25 @@ export default function ConnectionsModal({ isOpen, onClose }) {
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 grid grid-cols-1 lg:grid-cols-2 gap-4 py-3">
           {slots.map((slot) => {
             const isEnrolled = slot.isEnrolled;
-            const accountEmail = slot.email || slot.accountAlias || `antigravity-${slot.connectionId.replace('ag-', '')}@gmail.com`;
+            const accountEmail = slot.email || slot.accountAlias || null;
+            const livePoolQuota = quotaData[slot.connectionId] || slot.quotaSummary || {};
+            const modelsMap = livePoolQuota.models || {};
+            const recordedModels = Object.keys(modelsMap);
+            const quotaSource = livePoolQuota.source || 'NO_DATA_RECORDED';
 
             return (
               <div
                 key={slot.connectionId}
-                className="bg-[#181b24] border border-[#282d3d] rounded-2xl p-4 flex flex-col justify-between shadow-lg transition-all hover:border-[#383f55]"
+                className={`border rounded-2xl p-4 flex flex-col justify-between shadow-lg transition-all ${
+                  isEnrolled
+                    ? 'bg-[#181b24] border-[#282d3d] hover:border-[#383f55]'
+                    : 'bg-[#12141a]/80 border-[#202430]'
+                }`}
               >
                 <div>
                   {/* Card Header (9Router Style) */}
                   <div className="flex items-center justify-between pb-3 border-b border-[#252a39] mb-3">
                     <div className="flex items-center gap-3">
-                      {/* Antigravity Colorful Delta Logo */}
                       <div className="w-9 h-9 rounded-xl bg-[#1e2330] border border-[#30374b] flex items-center justify-center text-cyan-400">
                         <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 2L2 22h20L12 2z" stroke="url(#antigravity-grad)" />
@@ -217,9 +230,20 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                           <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">
                             {slot.connectionId.toUpperCase()}
                           </span>
+                          {isEnrolled && (
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                              quotaSource === 'UPSTREAM_OBSERVED'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : quotaSource === 'LOCAL_ACCOUNTING'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {quotaSource}
+                            </span>
+                          )}
                         </div>
-                        <span className={`text-xs font-mono font-bold tracking-tight ${isEnrolled ? 'text-slate-100' : 'text-slate-500'}`}>
-                          {isEnrolled ? accountEmail : '(Belum Terhubung)'}
+                        <span className={`text-xs font-mono font-bold tracking-tight ${isEnrolled && accountEmail ? 'text-emerald-300' : 'text-slate-500'}`}>
+                          {isEnrolled ? (accountEmail || 'AUTHENTICATED_ACCOUNT') : '(Belum Terhubung)'}
                         </span>
                       </div>
                     </div>
@@ -242,7 +266,6 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          {/* Toggle Switch */}
                           <div className="w-9 h-5 rounded-full bg-emerald-500/80 p-0.5 flex items-center justify-end cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.3)]">
                             <div className="w-4 h-4 rounded-full bg-white shadow-md"></div>
                           </div>
@@ -251,46 +274,81 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                     </div>
                   </div>
 
-                  {/* Quotas Model List (9Router Style) */}
+                  {/* Quotas Model List (Live Telemetry Only - No Fabricated Arrays) */}
                   {isEnrolled ? (
                     <div>
-                      <div className="text-[11px] text-slate-400 font-mono mb-2">11 quotas</div>
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                        {DEFAULT_MODELS.map((m, idx) => {
-                          const pct = Math.round(((m.total - m.used) / m.total) * 100);
-                          return (
-                            <div key={idx} className="flex items-center justify-between text-[11px] font-mono py-1 px-2 rounded-lg bg-[#14161f] border border-[#212533] hover:border-[#2f3549]">
-                              <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.8)]"></span>
-                                <span className="text-slate-200 truncate">{m.name}</span>
-                                <span className="text-slate-400 text-[10px] flex-shrink-0">{m.used}/1,000</span>
-                              </div>
-
-                              <div className="flex items-center gap-3 flex-shrink-0">
-                                {/* Green Quota Bar */}
-                                <div className="w-28 h-1 bg-slate-800 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" style={{ width: `${pct}%` }}></div>
-                                </div>
-                                <span className="text-emerald-400 font-bold text-[10px] w-8 text-right">{pct}%</span>
-                                <span className="text-slate-400 text-[10px] w-20 text-right">{m.reset}</span>
-                                <EyeOff className="w-3.5 h-3.5 text-slate-500 cursor-pointer hover:text-slate-300" />
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono mb-2">
+                        <span>
+                          {recordedModels.length > 0 ? `${recordedModels.length} observed models` : 'Live Quota Telemetry'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Source: {quotaSource}
+                        </span>
                       </div>
+
+                      {recordedModels.length > 0 ? (
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                          {recordedModels.map((modelId) => {
+                            const m = modelsMap[modelId];
+                            const limit = m.limit || 1000;
+                            const remaining = m.remaining ?? limit;
+                            const used = m.used ?? (limit - remaining);
+                            const pct = Math.min(100, Math.max(0, Math.round((remaining / limit) * 100)));
+                            const isUpstream = m.source === 'UPSTREAM_OBSERVED';
+
+                            return (
+                              <div key={modelId} className="flex items-center justify-between text-[11px] font-mono py-1 px-2 rounded-lg bg-[#14161f] border border-[#212533]">
+                                <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                    isUpstream ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-amber-400'
+                                  }`}></span>
+                                  <span className="text-slate-200 truncate">{modelId}</span>
+                                  <span className="text-slate-400 text-[10px] flex-shrink-0">
+                                    {remaining} / {limit}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <div className="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full ${isUpstream ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                                      style={{ width: `${pct}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className={`font-bold text-[10px] w-8 text-right ${isUpstream ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {pct}%
+                                  </span>
+                                  <span className="text-[9px] px-1 py-0.2 rounded bg-black/40 text-slate-400 border border-slate-800">
+                                    {isUpstream ? 'UPSTREAM' : 'ESTIMATE'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-black/30 border border-[#212533] text-[11px] font-mono text-slate-400 space-y-1">
+                          <div className="text-cyan-300 font-semibold flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Akun Terotentikasi di Vault</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400">
+                            Telemetry quota upstream ({quotaSource}) akan dicatat otomatis pada request inferensi pertama melalui Local Router.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    /* Not Connected Placeholder */
-                    <div className="py-8 flex flex-col items-center justify-center text-center">
-                      <p className="text-xs text-slate-400 mb-4 font-mono">
-                        Slot {slot.connectionId.toUpperCase()} siap dihubungkan ke akun Google Antigravity Anda.
+                    /* Not Connected State */
+                    <div className="py-6 flex flex-col items-center justify-center text-center">
+                      <p className="text-xs text-slate-400 mb-3 font-mono">
+                        Slot {slot.connectionId.toUpperCase()} siap dihubungkan ke Google Antigravity.
                       </p>
                       <button
                         onClick={() => handleStartConnect(slot.connectionId)}
-                        className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_20px_rgba(0,102,255,0.4)] transition-all cursor-pointer"
+                        className="py-2 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-2 shadow-[0_0_15px_rgba(0,102,255,0.4)] transition-all cursor-pointer"
                       >
-                        <Zap className="w-4 h-4" />
+                        <Zap className="w-3.5 h-3.5" />
                         <span>CONNECT {slot.connectionId.toUpperCase()}</span>
                       </button>
                     </div>

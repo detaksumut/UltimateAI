@@ -83,11 +83,15 @@ export class AntigravityEnrollmentSessionManager {
         status = existing.testStatus === 'AUTH_REFRESH_FAILED' ? 'AUTH_EXPIRED' : (existing.testStatus || 'ENROLLED');
       }
 
+      const rawQuota = quotaSummary[connectionId];
+      const hasUpstreamQuota = rawQuota && rawQuota.source === 'UPSTREAM_OBSERVED';
+
       slots.push({
         connectionId,
-        accountAlias: existing?.accountAlias || `antigravity-0${i}`,
-        email: existing?.email || existing?.accountAlias || null,
-        label: existing?.label || `Antigravity Connection ${i}`,
+        accountAlias: existing?.accountAlias || null,
+        email: existing?.email || null,
+        userName: existing?.userName || null,
+        label: existing?.label || `Slot ${connectionId.toUpperCase()}`,
         priority: i,
         status,
         isEnrolled: hasTokens,
@@ -98,7 +102,15 @@ export class AntigravityEnrollmentSessionManager {
         hasRefreshToken: hasTokens,
         cooldownUntil: existing?.cooldownUntil || null,
         models: Object.keys(antigravityModelRegistryInstance.models),
-        quotaSummary: quotaSummary[connectionId] || { source: 'LOCAL_ACCOUNTING', remainingEstimate: 1000 }
+        quotaSummary: rawQuota ? {
+          source: rawQuota.source,
+          lastUpdated: rawQuota.lastUpdated,
+          models: rawQuota.models || {}
+        } : {
+          source: 'NO_DATA_RECORDED',
+          models: {}
+        },
+        dataSource: 'LOCAL_ROUTER_API'
       });
     }
 
@@ -374,7 +386,7 @@ export class AntigravityEnrollmentSessionManager {
       session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZED;
 
       // Stage 3: Fetch Google User Profile for exact email identification
-      let userEmail = `antigravity-${session.connectionId.replace('ag-', '')}@gmail.com`;
+      let userEmail = null;
       let userName = '';
       try {
         const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -394,10 +406,10 @@ export class AntigravityEnrollmentSessionManager {
 
       this.store.saveConnection({
         id: session.connectionId,
-        accountAlias: userEmail,
+        accountAlias: userEmail || session.connectionId,
         email: userEmail,
         userName,
-        label: `${userEmail} (${session.connectionId.toUpperCase()})`,
+        label: userEmail ? `${userEmail} (${session.connectionId.toUpperCase()})` : `Antigravity Connection ${session.connectionId.toUpperCase()}`,
         provider: 'ANTIGRAVITY',
         authType: 'oauth',
         isActive: true,
