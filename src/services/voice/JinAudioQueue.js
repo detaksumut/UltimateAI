@@ -157,7 +157,7 @@ export class JinAudioQueue {
         }).catch(() => {});
       }
 
-      // Play current audio
+      // Play current audio or browser speech fallback
       if (this.audioElement && item.audioDataUrl) {
         this.audioElement.src = item.audioDataUrl;
         this.isPlaying = true;
@@ -168,8 +168,38 @@ export class JinAudioQueue {
         }
 
         await this.audioElement.play();
+      } else if (typeof window !== 'undefined' && window.speechSynthesis && item.fallbackSpeechText) {
+        this.isPlaying = true;
+        this._emitState({ isPlaying: true, currentIndex: index });
+
+        if (index === 0 && this.callbacks?.onStart) {
+          this.callbacks.onStart();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(item.fallbackSpeechText);
+        utterance.lang = 'id-ID';
+        utterance.rate = 0.92;
+        utterance.pitch = 1.05;
+        if (item.fallbackVoice) utterance.voice = item.fallbackVoice;
+
+        utterance.onend = () => {
+          if (!this.isInterrupted) {
+            this.spokenSegments.push(item.text);
+            this._playNextSegment();
+          }
+        };
+
+        utterance.onerror = () => {
+          if (!this.isInterrupted) this._playNextSegment();
+        };
+
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          this._playNextSegment();
+        }
       } else {
-        // Fallback or Node environment mock progress
+        // Mock / headless environment progress
         setTimeout(() => this._playNextSegment(), 800);
       }
     } catch (err) {
@@ -207,6 +237,10 @@ export class JinAudioQueue {
         this.audioElement.pause();
         this.audioElement.currentTime = 0;
       } catch {}
+    }
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch {}
     }
 
     // Preserve remaining unspoken segments

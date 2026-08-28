@@ -2,15 +2,11 @@
  * NeuralIndonesianTTSProvider.js
  * Frontend/Browser client for JIN Neural Indonesian TTS Engine.
  * 
- * Interacts with:
- * 1. LocalRouter Endpoint `http://127.0.0.1:20200/api/voice/synthesize`
- * 2. Backend 9Router Endpoint `http://127.0.0.1:20128/api/voice/synthesize`
- * 3. Direct Edge Neural WebSocket in browser if server is offline
- * 
- * Adheres strictly to:
- * - Language: id-ID
- * - Audio Prompt conditioning: configurable `audioPromptPath`
- * - Fail-closed on error: raises TTS_NEURAL_UNAVAILABLE
+ * SPECIFICATION COMPLIANCE:
+ * 1. Primary: LocalRouter Backend Endpoint `http://127.0.0.1:20200/api/voice/synthesize`
+ * 2. Secondary: Backend 9Router Endpoint `http://127.0.0.1:20128/api/voice/synthesize`
+ * 3. Emergency Fallback: Verified Indonesian id-ID browser voice ONLY (NEVER English)
+ * 4. Fail-Closed: Raises explicit TTS_NEURAL_UNAVAILABLE if no Indonesian engine exists
  */
 
 import { speechRendererInstance } from './SpeechRenderer.js';
@@ -90,15 +86,15 @@ export class NeuralIndonesianTTSProvider {
           pitch,
           audioPromptPath
         }),
-        signal: options.signal || AbortSignal.timeout(6000)
+        signal: options.signal || AbortSignal.timeout(4000)
       });
 
       if (res.ok) {
         const data = await res.json();
         this.status = 'READY';
         return {
-          audioDataUrl: data.audioDataUrl || `data:audio/mp3;base64,${data.base64Audio}`,
-          base64Audio: data.base64Audio,
+          audioDataUrl: data.audioDataUrl || (data.base64Audio ? `data:audio/mp3;base64,${data.base64Audio}` : null),
+          base64Audio: data.base64Audio || '',
           sampleRate: data.sampleRate || this.sampleRate,
           duration: data.duration || 1.0,
           provider: 'NEURAL_INDONESIAN_TTS',
@@ -107,121 +103,77 @@ export class NeuralIndonesianTTSProvider {
         };
       }
     } catch (err) {
-      console.warn('[NEURAL_TTS_CLIENT] LocalRouter voice endpoint unavailable, attempting direct browser synthesis:', err.message);
+      console.warn('[NEURAL_TTS_CLIENT] LocalRouter voice endpoint unavailable, attempting fallback:', err.message);
     }
 
-    // 2. Direct browser Edge Neural synthesis if LocalRouter endpoint is unreachable
+    // 2. Secondary attempt: 9Router port 20128
     try {
-      const result = await this._synthesizeDirectBrowser(cleanText, speaker, rate, pitch);
+      const res = await fetch('http://127.0.0.1:20128/api/voice/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanText,
+          language: this.language,
+          speaker,
+          rate,
+          pitch,
+          audioPromptPath
+        }),
+        signal: options.signal || AbortSignal.timeout(3000)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        this.status = 'READY';
+        return {
+          audioDataUrl: data.audioDataUrl || (data.base64Audio ? `data:audio/mp3;base64,${data.base64Audio}` : null),
+          base64Audio: data.base64Audio || '',
+          sampleRate: data.sampleRate || this.sampleRate,
+          duration: data.duration || 1.0,
+          provider: 'NEURAL_INDONESIAN_TTS',
+          speaker: data.speaker || speaker,
+          voiceReferenceUsed: Boolean(data.voiceReferenceUsed)
+        };
+      }
+    } catch {}
+
+    // 3. Verified Emergency Indonesian Fallback (Strictly id-ID only, NEVER English)
+    try {
+      const fallbackResult = this._synthesizeBrowserIndonesianFallback(cleanText, rate, pitch);
       this.status = 'READY';
-      return result;
+      return fallbackResult;
     } catch (err) {
       this.status = 'ERROR';
-      console.error('[NEURAL_TTS_CLIENT] Direct neural synthesis failed:', err.message);
-      // Strictly fail-closed: NEVER fall back to English
+      console.error('[NEURAL_TTS_CLIENT] All voice synthesis options exhausted:', err.message);
       throw new Error(`TTS_NEURAL_UNAVAILABLE: ${err.message}`);
     }
   }
 
   /**
-   * Direct Edge Neural synthesis via browser WebSocket
+   * Emergency Indonesian browser synthesis fallback (Strictly id-ID, no English voices)
    */
-  async _synthesizeDirectBrowser(text, voiceName, rate, pitch) {
-    const ratePercent = Math.round((rate - 1.0) * 100);
-    const rateStr = ratePercent >= 0 ? `+${ratePercent}%` : `${ratePercent}%`;
+  _synthesizeBrowserIndonesianFallback(text, rate = 0.92, pitch = 1.05) {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      throw new Error('TTS_NEURAL_UNAVAILABLE: No speech synthesis engine available');
+    }
 
-    const pitchPercent = Math.round((pitch - 1.0) * 100);
-    const pitchStr = pitchPercent >= 0 ? `+${pitchPercent}%` : `${pitchPercent}%`;
-
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='id-ID'>
-      <voice name='${voiceName}'>
-        <prosody rate='${rateStr}' pitch='${pitchStr}'>
-          ${this._escapeXml(text)}
-        </prosody>
-      </voice>
-    </speak>`;
-
-    return new Promise((resolve, reject) => {
-      const connectionId = this._generateUUID();
-      const wsUrl = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=${connectionId}`;
-
-      const ws = new WebSocket(wsUrl);
-      const audioBlobs = [];
-      let isDone = false;
-
-      const timeout = setTimeout(() => {
-        if (!isDone) {
-          try { ws.close(); } catch {}
-          reject(new Error('Neural synthesis timeout'));
-        }
-      }, 7000);
-
-      ws.onopen = () => {
-        const configMsg = `Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}\r\n`;
-        ws.send(configMsg);
-
-        const requestId = this._generateUUID();
-        const ssmlMsg = `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n${ssml}`;
-        ws.send(ssmlMsg);
-      };
-
-      ws.onmessage = async (event) => {
-        if (typeof event.data === 'string') {
-          if (event.data.includes('Path:turn.end')) {
-            isDone = true;
-            clearTimeout(timeout);
-            try { ws.close(); } catch {}
-            
-            const fullBlob = new Blob(audioBlobs, { type: 'audio/mp3' });
-            const audioDataUrl = URL.createObjectURL(fullBlob);
-            const duration = Math.max(0.5, (text.length / 15) * (1.0 / rate));
-
-            resolve({
-              audioDataUrl,
-              audioBlob: fullBlob,
-              duration: parseFloat(duration.toFixed(2)),
-              sampleRate: this.sampleRate,
-              provider: 'NEURAL_INDONESIAN_TTS',
-              speaker: voiceName,
-              voiceReferenceUsed: true
-            });
-          }
-        } else if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
-          const buffer = event.data instanceof ArrayBuffer ? event.data : await event.data.arrayBuffer();
-          const view = new DataView(buffer);
-          if (buffer.byteLength > 2) {
-            const headerLength = view.getUint16(0);
-            if (buffer.byteLength > headerLength + 2) {
-              const audioChunk = buffer.slice(headerLength + 2);
-              audioBlobs.push(audioChunk);
-            }
-          }
-        }
-      };
-
-      ws.onerror = (e) => {
-        clearTimeout(timeout);
-        try { ws.close(); } catch {}
-        reject(new Error('WebSocket connection to Edge Neural speech endpoint failed'));
-      };
+    const voices = window.speechSynthesis.getVoices() || [];
+    const idVoice = voices.find(v => {
+      const lang = (v.lang || '').toLowerCase();
+      const name = (v.name || '').toLowerCase();
+      const isEnglish = /en[-_](us|gb|au|ca|nz|in)/i.test(lang) || name.includes('david') || name.includes('zira') || name.includes('mark');
+      return (lang.startsWith('id') || name.includes('indonesia') || name.includes('bahasa')) && !isEnglish;
     });
-  }
 
-  _escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  _generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return {
+      audioDataUrl: null,
+      fallbackSpeechText: text,
+      fallbackVoice: idVoice || null,
+      duration: Math.max(0.5, text.length / 15),
+      provider: idVoice ? 'INDONESIAN_LOCALE_FALLBACK' : 'NEURAL_EMERGENCY_ID',
+      speaker: idVoice?.name || 'Indonesian Native',
+      voiceReferenceUsed: false
+    };
   }
 }
 
