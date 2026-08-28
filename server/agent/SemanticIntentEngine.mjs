@@ -9,7 +9,7 @@ import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
 
 export class SemanticIntentEngine {
   constructor(proxyUrl = null, apiKey = null) {
-    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://localhost:20128/v1';
+    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
     this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
   }
 
@@ -53,7 +53,7 @@ Analyze the user's natural language input and output STRICT valid JSON with:
   "reason": "Brief rationale for this decision"
 }`;
 
-    const model = options.forcedModel || 'gemini-3.5-flash';
+    const model = options.forcedModel || 'gemini-3.6-flash-high';
     const transport = options.certificationTransport || 'NINE_ROUTER_PROXY';
 
     // 1. PRIMARY: HTTP 9Router Proxy Dispatch (Standard & Verified 9Router Gateway Path)

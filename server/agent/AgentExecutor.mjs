@@ -12,7 +12,7 @@ import { artifactManagerInstance } from './ArtifactManager.mjs';
 
 export class AgentExecutor {
   constructor(proxyUrl = null, apiKey = null) {
-    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://localhost:20128/v1';
+    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
     this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
   }
 

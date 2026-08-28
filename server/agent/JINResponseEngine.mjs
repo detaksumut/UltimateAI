@@ -22,7 +22,7 @@ function sanitizeOutput(val) {
 
 export class JINResponseEngine {
   constructor(proxyUrl = null, apiKey = null) {
-    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://localhost:20128/v1';
+    this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
     this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
   }
 
@@ -57,7 +57,7 @@ export class JINResponseEngine {
    */
   async synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options = {}) {
     const raw = userUtterance.trim();
-    const model = options.forcedModel || 'gemini-3.5-flash';
+    const model = options.forcedModel || 'gemini-3.6-flash-high';
 
     const prompt = `You are JIN, the intelligent, warm, and highly capable AI partner in UltimateAI.
 The user said: "${raw}"
