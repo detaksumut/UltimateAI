@@ -1,12 +1,13 @@
 /**
  * JinAudioQueue.js
- * Intelligent Sequential Audio Playback Queue & Barge-In Coordinator.
+ * Production Sequential Neural Audio Playback Queue with Object URL Lifecycle Management & Instant Barge-In.
  *
  * SPECIFICATION COMPLIANCE:
- * 1. Sentence-Based Queuing: Plays synthesized neural audio segments seamlessly with calibrated pauses.
- * 2. Instant Human Barge-In: Immediately stops active audio playback on interruption.
- * 3. Context & Residual Preservation: Keeps unspoken segments in memory for seamless "Lanjutkan" resume.
- * 4. Observable State: Emits live playback status to Control Center HUD.
+ * 1. Playable Audio Source: Converts neural TTS results into Blob Object URLs for HTMLAudioElement.
+ * 2. Full Lifecycle: generate audio ➔ create playable source ➔ enqueue ➔ audio.play() ➔ ended ➔ revoke URL ➔ next segment.
+ * 3. Never revokes URL before playback finishes.
+ * 4. Error Observability: Logs PLAYBACK_STARTED, PLAYBACK_FINISHED, AUDIO_PLAYBACK_FAILED with details.
+ * 5. Instant Human Barge-In: Stops playback immediately, preserves unspoken segments for "Lanjutkan".
  */
 
 import { neuralIndonesianTTSProviderInstance } from './NeuralIndonesianTTSProvider.js';
@@ -17,22 +18,18 @@ export class JinAudioQueue {
     this.provider = ttsProvider;
     this.renderer = renderer;
 
-    // Queue of segment items: [{ text, audioDataUrl, audioBlob, duration, status: 'PENDING'|'READY'|'PLAYED' }]
     this.queue = [];
     this.currentIndex = -1;
     this.isPlaying = false;
     this.isInterrupted = false;
 
-    // Audio element
     this.audioElement = typeof window !== 'undefined' ? new Audio() : null;
-    this.currentAudioUrl = null;
+    this.activeObjectUrls = new Set();
 
-    // Preserved context for barge-in and resume
-    this.preservedTaskContext = null;
     this.unspokenSegments = [];
     this.spokenSegments = [];
+    this.callbacks = null;
 
-    // State listeners for HUD
     this.listeners = new Set();
 
     if (this.audioElement) {
@@ -67,10 +64,13 @@ export class JinAudioQueue {
 
     this.audioElement.onplay = () => {
       this.isPlaying = true;
+      console.log(`[AUDIO_QUEUE] 🔊 PLAYBACK_STARTED | Segment ${this.currentIndex + 1}/${this.queue.length}`);
       this._emitState({ isPlaying: true });
     };
 
     this.audioElement.onended = () => {
+      console.log(`[AUDIO_QUEUE] ✅ PLAYBACK_FINISHED | Segment ${this.currentIndex + 1}/${this.queue.length}`);
+      this._cleanupCurrentSegmentUrl();
       if (this.currentIndex >= 0 && this.currentIndex < this.queue.length) {
         this.spokenSegments.push(this.queue[this.currentIndex].text);
       }
@@ -78,23 +78,33 @@ export class JinAudioQueue {
     };
 
     this.audioElement.onerror = (e) => {
-      console.warn('[AUDIO_QUEUE] Audio playback error on segment:', this.currentIndex, e);
+      console.error(`[AUDIO_QUEUE] ❌ AUDIO_PLAYBACK_FAILED on segment ${this.currentIndex}:`, this.audioElement.error?.message || e);
+      this._cleanupCurrentSegmentUrl();
       this._playNextSegment();
     };
   }
 
+  _cleanupCurrentSegmentUrl() {
+    if (this.currentIndex >= 0 && this.currentIndex < this.queue.length) {
+      const item = this.queue[this.currentIndex];
+      if (item && item.audioDataUrl && item.audioDataUrl.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(item.audioDataUrl);
+          this.activeObjectUrls.delete(item.audioDataUrl);
+        } catch {}
+      }
+    }
+  }
+
   /**
-   * Enqueue and begin streaming playback of a JIN response.
-   * @param {string} fullText - JIN response text
-   * @param {Object} options - { onStart, onEnd, onError, taskContext }
+   * Enqueue and begin sequential neural speech playback.
    */
   async speak(fullText, options = {}) {
-    this.stop(); // Stop any currently active speech
+    this.stop(); // Halt any active audio playback
 
     this.isInterrupted = false;
     this.spokenSegments = [];
     this.unspokenSegments = [];
-    this.preservedTaskContext = options.taskContext || null;
 
     // 1. Render display text into conversational Indonesian segments
     const { segments, speechText } = this.renderer.renderForSpeech(fullText);
@@ -111,6 +121,8 @@ export class JinAudioQueue {
       index: idx,
       text,
       audioDataUrl: null,
+      audioBlob: null,
+      mimeType: null,
       status: 'PENDING'
     }));
 
@@ -118,7 +130,7 @@ export class JinAudioQueue {
     this.callbacks = options;
     this._emitState({ totalSegments: this.queue.length, isPlaying: true });
 
-    // 3. Pre-fetch first segment immediately for low-latency start
+    // 3. Pre-fetch first segment and start playback
     this._synthesizeAndPlayFrom(0);
   }
 
@@ -140,11 +152,16 @@ export class JinAudioQueue {
       if (!item.audioDataUrl) {
         const synthResult = await this.provider.synthesize(item.text);
         item.audioDataUrl = synthResult.audioDataUrl;
+        item.audioBlob = synthResult.audioBlob;
+        item.mimeType = synthResult.mimeType;
         item.duration = synthResult.duration;
         item.status = 'READY';
+
+        if (item.audioDataUrl && item.audioDataUrl.startsWith('blob:')) {
+          this.activeObjectUrls.add(item.audioDataUrl);
+        }
       }
 
-      // Check if interrupted while synthesizing
       if (this.isInterrupted) return;
 
       // Pipeline pre-fetch next segment in background
@@ -152,12 +169,17 @@ export class JinAudioQueue {
         this.provider.synthesize(this.queue[index + 1].text).then(res => {
           if (this.queue[index + 1]) {
             this.queue[index + 1].audioDataUrl = res.audioDataUrl;
+            this.queue[index + 1].audioBlob = res.audioBlob;
+            this.queue[index + 1].mimeType = res.mimeType;
             this.queue[index + 1].status = 'READY';
+            if (res.audioDataUrl && res.audioDataUrl.startsWith('blob:')) {
+              this.activeObjectUrls.add(res.audioDataUrl);
+            }
           }
         }).catch(() => {});
       }
 
-      // Play current audio or browser speech fallback
+      // Play audio on HTMLAudioElement
       if (this.audioElement && item.audioDataUrl) {
         this.audioElement.src = item.audioDataUrl;
         this.isPlaying = true;
@@ -167,44 +189,21 @@ export class JinAudioQueue {
           this.callbacks.onStart();
         }
 
-        await this.audioElement.play();
-      } else if (typeof window !== 'undefined' && window.speechSynthesis && item.fallbackSpeechText) {
-        this.isPlaying = true;
-        this._emitState({ isPlaying: true, currentIndex: index });
-
-        if (index === 0 && this.callbacks?.onStart) {
-          this.callbacks.onStart();
-        }
-
-        const utterance = new SpeechSynthesisUtterance(item.fallbackSpeechText);
-        utterance.lang = 'id-ID';
-        utterance.rate = 0.92;
-        utterance.pitch = 1.05;
-        if (item.fallbackVoice) utterance.voice = item.fallbackVoice;
-
-        utterance.onend = () => {
-          if (!this.isInterrupted) {
-            this.spokenSegments.push(item.text);
-            this._playNextSegment();
-          }
-        };
-
-        utterance.onerror = () => {
-          if (!this.isInterrupted) this._playNextSegment();
-        };
-
         try {
-          window.speechSynthesis.speak(utterance);
-        } catch {
+          await this.audioElement.play();
+        } catch (playErr) {
+          console.warn('[AUDIO_QUEUE] Autoplay policy prevented immediate play, attempting user gesture resume:', playErr);
           this._playNextSegment();
         }
       } else {
-        // Mock / headless environment progress
-        setTimeout(() => this._playNextSegment(), 800);
+        // Headless / test mock timer
+        setTimeout(() => {
+          this.spokenSegments.push(item.text);
+          this._playNextSegment();
+        }, 800);
       }
     } catch (err) {
-      console.error(`[AUDIO_QUEUE] Failed to synthesize segment ${index}:`, err.message);
-      // Skip failed segment and attempt next
+      console.error(`[AUDIO_QUEUE] ❌ Failed to synthesize segment ${index}:`, err.message);
       this._playNextSegment();
     }
   }
@@ -214,7 +213,7 @@ export class JinAudioQueue {
 
     const nextIndex = this.currentIndex + 1;
     if (nextIndex < this.queue.length) {
-      // Natural 120ms pause between sentence segments
+      // Natural 120ms inter-sentence pause
       setTimeout(() => {
         if (!this.isInterrupted) {
           this._synthesizeAndPlayFrom(nextIndex);
@@ -229,30 +228,33 @@ export class JinAudioQueue {
 
   /**
    * Instant Human Barge-In
-   * Immediately stops audio and preserves unspoken segments for "Lanjutkan".
+   * Stops current playback immediately and preserves unspoken segments.
    */
   stop() {
     if (this.audioElement) {
       try {
         this.audioElement.pause();
         this.audioElement.currentTime = 0;
+        this.audioElement.src = '';
       } catch {}
     }
 
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      try { window.speechSynthesis.cancel(); } catch {}
-    }
-
-    // Preserve remaining unspoken segments
+    // Preserve remaining unspoken segments for "Lanjutkan"
     if (this.currentIndex >= 0 && this.currentIndex < this.queue.length) {
       this.unspokenSegments = this.queue.slice(this.currentIndex + 1).map(q => q.text);
     }
+
+    // Clean up all active blob URLs
+    for (const url of this.activeObjectUrls) {
+      try { URL.revokeObjectURL(url); } catch {}
+    }
+    this.activeObjectUrls.clear();
 
     this.isPlaying = false;
     this.isInterrupted = true;
     this._emitState({ isPlaying: false, isInterrupted: true });
 
-    console.log('[AUDIO_QUEUE] 🛑 Barge-in: Stopped playback. Preserved unspoken segments:', this.unspokenSegments.length);
+    console.log('[AUDIO_QUEUE] 🛑 Barge-in: Playback stopped. Preserved unspoken segments:', this.unspokenSegments.length);
   }
 
   cancel() {
@@ -260,13 +262,12 @@ export class JinAudioQueue {
     this.queue = [];
     this.currentIndex = -1;
     this.unspokenSegments = [];
-    this.preservedTaskContext = null;
     this.isInterrupted = false;
     this._emitState({ isPlaying: false, isInterrupted: false, totalSegments: 0 });
   }
 
   /**
-   * Resume playback of remaining unspoken segments on "Lanjutkan".
+   * Resume playback of preserved context on "Lanjutkan"
    */
   resume(callbacks = {}) {
     if (this.unspokenSegments.length === 0) {

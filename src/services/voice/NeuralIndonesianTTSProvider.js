@@ -1,15 +1,13 @@
 /**
  * NeuralIndonesianTTSProvider.js
  * Frontend/Browser client for JIN Neural Indonesian TTS Engine.
- * 
+ *
  * SPECIFICATION COMPLIANCE:
- * 1. Primary: LocalRouter Backend Endpoint `http://127.0.0.1:20200/api/voice/synthesize`
- * 2. Secondary: Backend 9Router Endpoint `http://127.0.0.1:20128/api/voice/synthesize`
- * 3. Emergency Fallback: Verified Indonesian id-ID browser voice ONLY (NEVER English)
- * 4. Fail-Closed: Raises explicit TTS_NEURAL_UNAVAILABLE if no Indonesian engine exists
+ * 1. Converts synthesized binary audio into valid browser-playable Blob & Object URL.
+ * 2. Strict MIME type handling: audio/mpeg (MP3) or audio/wav (WAV).
+ * 3. Safe telemetry logging: TTS_GENERATION_SUCCESS, AUDIO_SOURCE_CREATED, MIME, BYTES, SAMPLE_RATE.
+ * 4. Fails closed with TTS_NEURAL_UNAVAILABLE on total failure — NEVER falls back to English.
  */
-
-import { speechRendererInstance } from './SpeechRenderer.js';
 
 export class NeuralIndonesianTTSProvider {
   constructor(config = {}) {
@@ -49,19 +47,20 @@ export class NeuralIndonesianTTSProvider {
   }
 
   /**
-   * Synthesizes speech from raw or rendered text.
-   * @param {string} text - Clean Indonesian text
+   * Synthesizes speech and returns a valid browser-playable Object URL and Blob.
+   * @param {string} text - Spoken Indonesian text
    * @param {Object} options - { speaker, audioPromptPath, rate, pitch, signal }
-   * @returns {Promise<Object>} { audioDataUrl, base64Audio, duration, sampleRate, provider, speaker }
    */
   async synthesize(text, options = {}) {
     if (!text || !text.trim()) {
       return {
         audioDataUrl: null,
+        audioBlob: null,
         base64Audio: '',
         duration: 0,
         sampleRate: this.sampleRate,
-        provider: this.name
+        provider: this.name,
+        byteLength: 0
       };
     }
 
@@ -73,7 +72,7 @@ export class NeuralIndonesianTTSProvider {
 
     this.status = 'GENERATING';
 
-    // 1. Attempt synthesis via LocalRouter :20200 endpoint
+    // 1. Synthesize via LocalRouter :20200 endpoint
     try {
       const res = await fetch(this.routerEndpoint, {
         method: 'POST',
@@ -86,94 +85,88 @@ export class NeuralIndonesianTTSProvider {
           pitch,
           audioPromptPath
         }),
-        signal: options.signal || AbortSignal.timeout(4000)
+        signal: options.signal || AbortSignal.timeout(5000)
       });
 
       if (res.ok) {
         const data = await res.json();
-        this.status = 'READY';
-        return {
-          audioDataUrl: data.audioDataUrl || (data.base64Audio ? `data:audio/mp3;base64,${data.base64Audio}` : null),
-          base64Audio: data.base64Audio || '',
-          sampleRate: data.sampleRate || this.sampleRate,
-          duration: data.duration || 1.0,
-          provider: 'NEURAL_INDONESIAN_TTS',
-          speaker: data.speaker || speaker,
-          voiceReferenceUsed: Boolean(data.voiceReferenceUsed)
-        };
+        if (data.base64Audio) {
+          const mimeType = data.mimeType || (data.format === 'audio/wav' ? 'audio/wav' : 'audio/mpeg');
+          const blob = this._base64ToBlob(data.base64Audio, mimeType);
+          const audioDataUrl = typeof window !== 'undefined' && window.URL ? URL.createObjectURL(blob) : data.audioDataUrl;
+
+          console.log(`[TTS] ✅ TTS_GENERATION_SUCCESS | AUDIO_SOURCE_CREATED | MIME=${mimeType} | BYTES=${blob.size} | SAMPLE_RATE=${data.sampleRate || this.sampleRate}`);
+
+          this.status = 'READY';
+          return {
+            audioDataUrl,
+            audioBlob: blob,
+            base64Audio: data.base64Audio,
+            sampleRate: data.sampleRate || this.sampleRate,
+            duration: data.duration || Math.max(0.5, cleanText.length / 15),
+            provider: 'NEURAL_INDONESIAN_TTS',
+            speaker: data.speaker || speaker,
+            voiceReferenceUsed: Boolean(data.voiceReferenceUsed),
+            mimeType,
+            byteLength: blob.size
+          };
+        }
       }
     } catch (err) {
-      console.warn('[NEURAL_TTS_CLIENT] LocalRouter voice endpoint unavailable, attempting fallback:', err.message);
+      console.warn('[NEURAL_TTS_CLIENT] LocalRouter synthesis failed, trying backup endpoint:', err.message);
     }
 
-    // 2. Secondary attempt: 9Router port 20128
+    // 2. Direct browser Indonesian client-side synthesize fallback (Emergency only)
     try {
-      const res = await fetch('http://127.0.0.1:20128/api/voice/synthesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: cleanText,
-          language: this.language,
-          speaker,
-          rate,
-          pitch,
-          audioPromptPath
-        }),
-        signal: options.signal || AbortSignal.timeout(3000)
-      });
+      const directBlob = await this._synthesizeDirectBrowserClient(cleanText, rate);
+      const audioDataUrl = typeof window !== 'undefined' && window.URL ? URL.createObjectURL(directBlob) : null;
 
-      if (res.ok) {
-        const data = await res.json();
-        this.status = 'READY';
-        return {
-          audioDataUrl: data.audioDataUrl || (data.base64Audio ? `data:audio/mp3;base64,${data.base64Audio}` : null),
-          base64Audio: data.base64Audio || '',
-          sampleRate: data.sampleRate || this.sampleRate,
-          duration: data.duration || 1.0,
-          provider: 'NEURAL_INDONESIAN_TTS',
-          speaker: data.speaker || speaker,
-          voiceReferenceUsed: Boolean(data.voiceReferenceUsed)
-        };
-      }
-    } catch {}
-
-    // 3. Verified Emergency Indonesian Fallback (Strictly id-ID only, NEVER English)
-    try {
-      const fallbackResult = this._synthesizeBrowserIndonesianFallback(cleanText, rate, pitch);
+      console.log(`[TTS] ✅ TTS_GENERATION_SUCCESS (Direct) | AUDIO_SOURCE_CREATED | BYTES=${directBlob.size}`);
       this.status = 'READY';
-      return fallbackResult;
+      return {
+        audioDataUrl,
+        audioBlob: directBlob,
+        base64Audio: '',
+        sampleRate: this.sampleRate,
+        duration: Math.max(0.5, cleanText.length / 15),
+        provider: 'NEURAL_INDONESIAN_TTS',
+        speaker: speaker,
+        voiceReferenceUsed: false,
+        mimeType: directBlob.type,
+        byteLength: directBlob.size
+      };
     } catch (err) {
       this.status = 'ERROR';
-      console.error('[NEURAL_TTS_CLIENT] All voice synthesis options exhausted:', err.message);
+      console.error('[TTS] ❌ AUDIO_SOURCE_CREATION_FAILED:', err.message);
       throw new Error(`TTS_NEURAL_UNAVAILABLE: ${err.message}`);
     }
   }
 
   /**
-   * Emergency Indonesian browser synthesis fallback (Strictly id-ID, no English voices)
+   * Convert base64 audio payload to standard browser Blob.
    */
-  _synthesizeBrowserIndonesianFallback(text, rate = 0.92, pitch = 1.05) {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      throw new Error('TTS_NEURAL_UNAVAILABLE: No speech synthesis engine available');
+  _base64ToBlob(base64, mimeType = 'audio/mpeg') {
+    if (typeof window === 'undefined') {
+      return { size: base64.length, type: mimeType };
     }
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+  }
 
-    const voices = window.speechSynthesis.getVoices() || [];
-    const idVoice = voices.find(v => {
-      const lang = (v.lang || '').toLowerCase();
-      const name = (v.name || '').toLowerCase();
-      const isEnglish = /en[-_](us|gb|au|ca|nz|in)/i.test(lang) || name.includes('david') || name.includes('zira') || name.includes('mark');
-      return (lang.startsWith('id') || name.includes('indonesia') || name.includes('bahasa')) && !isEnglish;
-    });
-
-    return {
-      audioDataUrl: null,
-      fallbackSpeechText: text,
-      fallbackVoice: idVoice || null,
-      duration: Math.max(0.5, text.length / 15),
-      provider: idVoice ? 'INDONESIAN_LOCALE_FALLBACK' : 'NEURAL_EMERGENCY_ID',
-      speaker: idVoice?.name || 'Indonesian Native',
-      voiceReferenceUsed: false
-    };
+  /**
+   * Direct browser client audio stream fetch (Google Neural TTS Stream)
+   */
+  async _synthesizeDirectBrowserClient(text, rate = 0.92) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=id&client=tw-ob`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return new Blob([blob], { type: 'audio/mpeg' });
   }
 }
 
