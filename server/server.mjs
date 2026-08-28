@@ -13,6 +13,11 @@ import { toolRegistryInstance } from './tools/ToolRegistry.mjs';
 import { GatewayTelemetry } from './telemetry/GatewayTelemetry.mjs';
 
 import { agentRuntimeInstance } from './agent/AgentRuntime.mjs';
+import { DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID } from './antigravity/AntigravityOAuthEnrollment.mjs';
+
+if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID.includes('SEBENARNYA')) {
+  process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
+}
 
 const PORT = config.port;
 const startTime = Date.now();

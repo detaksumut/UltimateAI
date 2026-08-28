@@ -20,6 +20,12 @@ import { antigravityProviderInstance } from '../antigravity/AntigravityProvider.
 import { AntigravityModelRegistry } from '../antigravity/AntigravityModelRegistry.mjs';
 import { antigravityEnrollmentSessionManagerInstance } from '../antigravity/AntigravityEnrollmentSessionManager.mjs';
 
+import { AntigravityOAuthEnrollment, DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID } from '../antigravity/AntigravityOAuthEnrollment.mjs';
+
+if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID.includes('SEBENARNYA')) {
+  process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
