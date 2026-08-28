@@ -21,6 +21,9 @@ console.log('================================================================');
 console.log('  TEST: ANTIGRAVITY POOL CARD ACTION & FUNCTIONAL CONTROLS');
 console.log('================================================================\n');
 
+// Set operator client ID for test context
+process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = '987654321098-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com';
+
 // Clean initial storage for fresh test run
 antigravityConnectionStoreInstance.saveConnections([]);
 

@@ -78,9 +78,6 @@ export function savePersistedOAuthConfig(clientId, clientSecret = '') {
   } catch {}
 }
 
-export const OFFICIAL_GOOGLE_SDK_CLIENT_ID = '764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com';
-export const OFFICIAL_GOOGLE_SDK_CLIENT_SECRET = 'd-FL95Q19q7MQmFpd7hHD0Ty';
-
 export class AntigravityOAuthEnrollment {
   constructor(
     vault = antigravityVaultInstance,
@@ -93,7 +90,8 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Validates and parses OAuth Client Configuration with formal format validation
+   * Validates and parses OAuth Client Configuration with formal format validation.
+   * Requires explicit operator-configured ANTIGRAVITY_OAUTH_CLIENT_ID. Zero hardcoded fallbacks.
    */
   static validateOAuthClientConfig(env = process.env) {
     loadPersistedOAuthConfig();
@@ -113,8 +111,19 @@ export class AntigravityOAuthEnrollment {
     let rawSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
     if (!rawId || isPlaceholder) {
-      rawId = OFFICIAL_GOOGLE_SDK_CLIENT_ID;
-      if (!rawSecret) rawSecret = OFFICIAL_GOOGLE_SDK_CLIENT_SECRET;
+      return {
+        valid: false,
+        clientId: null,
+        clientSecret: null,
+        clientIdPresent: false,
+        clientIdSource: 'MISSING',
+        clientIdFormatValid: false,
+        clientSecretPresent: Boolean(rawSecret),
+        redirectMode: 'LOOPBACK',
+        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
+        error: 'AUTH_CONFIGURATION_MISSING',
+        message: 'Google OAuth Client ID belum dikonfigurasi oleh operator. Harap set ANTIGRAVITY_OAUTH_CLIENT_ID pada environment atau konfigurasi operator.'
+      };
     }
 
     const clientId = rawId.trim();
@@ -123,13 +132,16 @@ export class AntigravityOAuthEnrollment {
     if (!GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
       return {
         valid: false,
+        clientId: null,
+        clientSecret: null,
         clientIdPresent: true,
+        clientIdSource: 'OPERATOR_CONFIGURED',
         clientIdFormatValid: false,
         clientSecretPresent: Boolean(clientSecret),
         redirectMode: 'LOOPBACK',
         scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
         error: 'AUTH_CONFIGURATION_INVALID',
-        message: 'Google OAuth Client ID tidak valid.'
+        message: 'Google OAuth Client ID dari operator tidak valid. Format harus: [0-9]+-[a-z0-9_.-]+.apps.googleusercontent.com'
       };
     }
 
@@ -153,6 +165,7 @@ export class AntigravityOAuthEnrollment {
       clientId,
       clientSecret: clientSecret || null,
       clientIdPresent: true,
+      clientIdSource: 'OPERATOR_CONFIGURED',
       clientIdFormatValid: true,
       clientSecretPresent: Boolean(clientSecret),
       redirectMode: 'LOOPBACK',

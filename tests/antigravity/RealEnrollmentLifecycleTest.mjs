@@ -23,6 +23,9 @@ console.log('================================================================');
 console.log('  TEST: REAL ANTIGRAVITY ENROLLMENT LIFECYCLE END-TO-END');
 console.log('================================================================\n');
 
+// Set operator client ID for test context
+process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = '987654321098-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com';
+
 const testConnId = 'ag-01';
 const vault = new AntigravityVault();
 const store = new AntigravityConnectionStore(vault);

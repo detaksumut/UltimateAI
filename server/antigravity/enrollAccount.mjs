@@ -22,6 +22,7 @@ async function main() {
     console.log('OAuth Configuration Diagnostic');
     console.log('------------------------------');
     console.log(`clientIdPresent:      ${config.clientIdPresent}`);
+    console.log(`clientIdSource:       ${config.clientIdSource || 'MISSING'}`);
     console.log(`clientIdFormatValid:  ${config.clientIdFormatValid}`);
     console.log(`clientSecretPresent:  ${config.clientSecretPresent}`);
     console.log(`redirectMode:         ${config.redirectMode}`);
