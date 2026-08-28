@@ -85,6 +85,7 @@ export class AntigravityEnrollmentSessionManager {
 
       const rawQuota = quotaSummary[connectionId];
       const hasUpstreamQuota = rawQuota && rawQuota.source === 'UPSTREAM_OBSERVED';
+      const isSlotActive = existing ? (existing.isActive !== false) : false;
 
       slots.push({
         connectionId,
@@ -93,8 +94,9 @@ export class AntigravityEnrollmentSessionManager {
         userName: existing?.userName || null,
         label: existing?.label || `Slot ${connectionId.toUpperCase()}`,
         priority: i,
-        status,
+        status: !isSlotActive && hasTokens ? 'DISABLED' : status,
         isEnrolled: hasTokens,
+        isActive: isSlotActive,
         projectId: existing?.projectId ? 'BOUND' : 'UNBOUND',
         projectTier: existing?.projectTier || 'STANDARD',
         expiresAt: existing?.expiresAt || null,

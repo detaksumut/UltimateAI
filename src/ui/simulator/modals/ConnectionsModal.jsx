@@ -309,6 +309,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                       {isEnrolled && (
                         <>
                           <button
+                            data-testid={`refresh-${slot.connectionId}`}
                             onClick={() => handleRefresh(slot.connectionId)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#252a38] transition-all cursor-pointer"
                             title="Refresh Token & Health"
@@ -316,6 +317,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            data-testid={`delete-${slot.connectionId}`}
                             onClick={() => handleDisconnect(slot.connectionId)}
                             className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/40 transition-all cursor-pointer"
                             title="Purge Credentials (Delete)"
@@ -323,6 +325,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            data-testid={`toggle-${slot.connectionId}`}
                             onClick={() => handleToggle(slot.connectionId)}
                             className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-all cursor-pointer ${
                               isSlotActive
