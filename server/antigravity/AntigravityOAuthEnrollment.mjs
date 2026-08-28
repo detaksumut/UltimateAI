@@ -2,14 +2,22 @@
  * AntigravityOAuthEnrollment.mjs
  * Hardened Production OAuth Enrollment Engine for UltimateAI Antigravity Connections.
  * 
- * Strict Audit Compliance:
+ * Strict Specification & Audit Compliance:
  *  1. Dedicated Namespace: ANTIGRAVITY_OAUTH_CLIENT_ID / ANTIGRAVITY_OAUTH_CLIENT_SECRET.
- *  2. Configurable Scopes: ANTIGRAVITY_OAUTH_SCOPES (Candidate: cloud-platform, userinfo, cclog, experimentsandconfigs).
- *  3. Dynamic Ephemeral Loopback Port: Auto-allocated by OS, eliminating port collision.
- *  4. Stage Separation: GOOGLE_OAUTH_SUCCESS vs ANTIGRAVITY_CLOUD_CODE_AUTHORIZED.
- *  5. Hard Token Assertions: access_token, refresh_token, token_type=Bearer, expires_in.
- *  6. Transactional Integrity: Persists to Vault ONLY upon authentic UPSTREAM_PROJECT_DISCOVERED proof.
- *  7. Zero PII / Secret Leakage: Diagnostics strictly omit tokens, secrets, or raw ciphertext.
+ *  2. Formal Client ID Regex Validation: /^[0-9]+-[a-z0-9_.-]+\.apps\.googleusercontent\.com$/i
+ *  3. Explicit Placeholder Rejection: Detects and rejects dummy/template strings before network dispatch.
+ *  4. PKCE Public Client Support: Client Secret is optional for native loopback PKCE flow; zero fake secrets.
+ *  5. Dynamic Ephemeral Loopback: 127.0.0.1:<port>/oauth/callback (Strict Single Source of Truth).
+ *  6. Granular Error Classification:
+ *     - AUTH_CONFIGURATION_MISSING
+ *     - AUTH_CONFIGURATION_INVALID
+ *     - GOOGLE_OAUTH_AUTHORIZATION_FAILED
+ *     - GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED
+ *     - ANTIGRAVITY_CLOUD_CODE_UNAUTHORIZED
+ *     - ANTIGRAVITY_PROJECT_DISCOVERY_FAILED
+ *     - ENROLLMENT_TOKEN_INCOMPLETE
+ *  7. Two-Stage Observability: GOOGLE_OAUTH_SUCCESS vs ANTIGRAVITY_CLOUD_CODE_AUTHORIZED.
+ *  8. Transactional Vault Persistence: ZERO disk write if upstream loadCodeAssist fails.
  */
 
 import http from 'http';
@@ -18,6 +26,15 @@ import { exec } from 'child_process';
 import { antigravityVaultInstance } from './AntigravityVault.mjs';
 import { antigravityConnectionStoreInstance } from './AntigravityConnectionStore.mjs';
 import { antigravityCloudCodeTransportInstance } from './AntigravityCloudCodeTransport.mjs';
+
+const GOOGLE_CLIENT_ID_REGEX = /^[0-9]+-[a-z0-9_.-]+\.apps\.googleusercontent\.com$/i;
+const KNOWN_PLACEHOLDERS = [
+  'ultimateai-client-id',
+  'client_id_google_anda',
+  'google_oauth_client_id_asli',
+  'your_client_id_here',
+  'placeholder'
+];
 
 function base64URLEncode(str) {
   return str.toString('base64')
@@ -42,14 +59,43 @@ export class AntigravityOAuthEnrollment {
   }
 
   /**
-   * Validates explicit Antigravity OAuth client configuration
+   * Validates and parses OAuth Client Configuration with formal format validation
    */
-  _getOAuthConfig() {
-    const clientId = process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
-    const clientSecret = process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  static validateOAuthClientConfig(env = process.env) {
+    // Migration check: notify operator if legacy variable is used
+    if (env.GOOGLE_OAUTH_CLIENT_ID && !env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
+      console.warn('⚠️ [MIGRATION WARNING] GOOGLE_OAUTH_CLIENT_ID is deprecated. Please migrate to ANTIGRAVITY_OAUTH_CLIENT_ID.');
+    }
+
+    const clientId = (env.ANTIGRAVITY_OAUTH_CLIENT_ID || '').trim();
+    const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
     if (!clientId) {
-      throw new Error('AUTH_CONFIGURATION_MISSING: ANTIGRAVITY_OAUTH_CLIENT_ID environment variable is required for Antigravity OAuth enrollment.');
+      return {
+        valid: false,
+        clientIdPresent: false,
+        clientIdFormatValid: false,
+        clientSecretPresent: Boolean(clientSecret),
+        redirectMode: 'LOOPBACK',
+        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
+        error: 'AUTH_CONFIGURATION_MISSING',
+        message: 'ANTIGRAVITY_OAUTH_CLIENT_ID environment variable is missing.'
+      };
+    }
+
+    // Check for known placeholder values
+    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => clientId.toLowerCase().includes(p));
+    if (isPlaceholder || !GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
+      return {
+        valid: false,
+        clientIdPresent: true,
+        clientIdFormatValid: false,
+        clientSecretPresent: Boolean(clientSecret),
+        redirectMode: 'LOOPBACK',
+        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
+        error: 'AUTH_CONFIGURATION_INVALID',
+        message: 'ANTIGRAVITY_OAUTH_CLIENT_ID does not match the formal Google OAuth Desktop Client ID format (<id>-<hash>.apps.googleusercontent.com).'
+      };
     }
 
     const defaultScopes = [
@@ -61,15 +107,21 @@ export class AntigravityOAuthEnrollment {
       'https://www.googleapis.com/auth/experimentsandconfigs'
     ];
 
-    const scopes = process.env.ANTIGRAVITY_OAUTH_SCOPES
-      ? process.env.ANTIGRAVITY_OAUTH_SCOPES.split(',').map(s => s.trim())
+    const scopes = env.ANTIGRAVITY_OAUTH_SCOPES
+      ? env.ANTIGRAVITY_OAUTH_SCOPES.split(',').map(s => s.trim()).filter(Boolean)
       : defaultScopes;
 
-    const controlPlaneEndpoint = process.env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://cloudcode-pa.googleapis.com';
+    const controlPlaneEndpoint = env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://cloudcode-pa.googleapis.com';
 
     return {
+      valid: true,
       clientId,
-      clientSecret,
+      clientSecret: clientSecret || null,
+      clientIdPresent: true,
+      clientIdFormatValid: true,
+      clientSecretPresent: Boolean(clientSecret),
+      redirectMode: 'LOOPBACK',
+      scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
       scopes: scopes.join(' '),
       controlPlaneEndpoint
     };
@@ -89,6 +141,10 @@ export class AntigravityOAuthEnrollment {
    * Builds the Google OAuth 2.0 authorization URL
    */
   buildAuthUrl({ clientId, redirectUri, scopes, challenge, state }) {
+    if (!clientId || !redirectUri || !scopes || !challenge || !state) {
+      throw new Error('AUTH_CONFIGURATION_INVALID: Missing parameters required for OAuth authorization URL.');
+    }
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -143,40 +199,50 @@ export class AntigravityOAuthEnrollment {
       params.append('client_secret', clientSecret);
     }
 
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    });
+    let response;
+    try {
+      response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+    } catch (networkErr) {
+      throw new Error(`GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED: Network communication error (${networkErr.message})`);
+    }
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`TOKEN_EXCHANGE_ERROR (${response.status}): ${errText}`);
+      throw new Error(`GOOGLE_OAUTH_TOKEN_EXCHANGE_FAILED (${response.status}): ${errText}`);
     }
 
     const tokenData = await response.json();
 
     // Strict assertions on token payload
     if (!tokenData.access_token || typeof tokenData.access_token !== 'string') {
-      throw new Error('TOKEN_VALIDATION_ERROR: Upstream response did not contain access_token.');
+      throw new Error('ENROLLMENT_TOKEN_INCOMPLETE: Upstream response did not contain access_token.');
     }
 
     if (!tokenData.refresh_token || typeof tokenData.refresh_token !== 'string') {
-      throw new Error('TOKEN_VALIDATION_ERROR: Upstream response did not contain refresh_token (ensure access_type=offline and prompt=consent).');
+      throw new Error('ENROLLMENT_TOKEN_INCOMPLETE: Upstream response did not contain refresh_token (ensure access_type=offline and prompt=consent).');
     }
 
     if (tokenData.token_type && tokenData.token_type.toLowerCase() !== 'bearer') {
-      throw new Error(`TOKEN_VALIDATION_ERROR: Unexpected token_type '${tokenData.token_type}', expected 'Bearer'.`);
+      throw new Error(`ENROLLMENT_TOKEN_INCOMPLETE: Unexpected token_type '${tokenData.token_type}', expected 'Bearer'.`);
     }
 
     return tokenData;
   }
 
   /**
-   * Interactive Production Enrollment Flow with Strict Stage Separation
+   * Interactive Production Enrollment Flow with Strict Stage Separation & Transactional Integrity
    */
   async executeInteractiveEnrollment({ connectionId, accountAlias, label }) {
-    const config = this._getOAuthConfig();
+    // 0. Pre-Flight Config Validation (Fail-Closed before network dispatch)
+    const config = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
+    if (!config.valid) {
+      throw new Error(`${config.error}: ${config.message}`);
+    }
+
     const { verifier, challenge, state } = this.generatePKCE();
 
     // 1. Dynamic Ephemeral Loopback Listener
@@ -205,7 +271,7 @@ export class AntigravityOAuthEnrollment {
         res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(`<h2>OAuth Authorization Denied</h2><p>${error}</p>`);
         server.close();
-        codeRejecter(new Error(`OAUTH_DENIED: ${error}`));
+        codeRejecter(new Error(`GOOGLE_OAUTH_AUTHORIZATION_FAILED: ${error}`));
         return;
       }
 
@@ -213,7 +279,7 @@ export class AntigravityOAuthEnrollment {
         res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(`<h2>Invalid State</h2><p>OAuth state mismatch.</p>`);
         server.close();
-        codeRejecter(new Error('OAUTH_STATE_MISMATCH: Callback state mismatch.'));
+        codeRejecter(new Error('GOOGLE_OAUTH_AUTHORIZATION_FAILED: Callback state verification token mismatch.'));
         return;
       }
 
@@ -221,7 +287,7 @@ export class AntigravityOAuthEnrollment {
         res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end(`<h2>Missing Code</h2>`);
         server.close();
-        codeRejecter(new Error('MISSING_AUTH_CODE: No authorization code received.'));
+        codeRejecter(new Error('GOOGLE_OAUTH_AUTHORIZATION_FAILED: No authorization code received in callback.'));
         return;
       }
 
@@ -255,13 +321,16 @@ export class AntigravityOAuthEnrollment {
     console.log(`\n================================================================`);
     console.log(`  ULTIMATEAI OAUTH ENROLLMENT: [${connectionId.toUpperCase()}]`);
     console.log(`================================================================`);
-    console.log(`\n[DIAGNOSTICS - STAGE 0] Pre-Flight Configuration:`);
-    console.log(`  -> oauthConfigPresent:          true`);
+    console.log(`\n[DIAGNOSTICS - PRE-FLIGHT]:`);
+    console.log(`  -> clientIdPresent:             ${config.clientIdPresent}`);
+    console.log(`  -> clientIdFormatValid:         ${config.clientIdFormatValid}`);
+    console.log(`  -> clientSecretPresent:         ${config.clientSecretPresent}`);
+    console.log(`  -> redirectMode:                ${config.redirectMode}`);
     console.log(`  -> redirectUri:                 ${redirectUri}`);
     console.log(`  -> selectedControlPlaneEndpoint:${config.controlPlaneEndpoint}`);
-    console.log(`  -> configuredScopes:            ${config.scopes}`);
+    console.log(`  -> scopesConfigured:            ${config.scopesConfigured}`);
 
-    console.log(`\n[STEP 1] Launching System Browser for Google OAuth Authorization...`);
+    console.log(`\n[STEP 1] Launching System Browser for Google Cloud Code Authorization...`);
     console.log(`If browser does not open automatically, visit:\n\n${authUrl}\n`);
 
     this.openBrowser(authUrl);
@@ -301,12 +370,12 @@ export class AntigravityOAuthEnrollment {
     } catch (onboardingErr) {
       console.error(`\n❌ Control Plane Onboarding FAILED: ${onboardingErr.message}`);
       console.error(`❌ Transaction Aborted: Credentials NOT persisted to Vault (Fail-Closed).`);
-      throw new Error(`ANTIGRAVITY_ONBOARDING_FAILED: Google login succeeded, but Cloud Code Assist rejected authorization (${onboardingErr.message}).`);
+      throw new Error(`ANTIGRAVITY_CLOUD_CODE_UNAUTHORIZED: Google login succeeded, but Cloud Code Assist rejected authorization (${onboardingErr.message}).`);
     }
 
     if (projectInfo.projectSource !== 'UPSTREAM_PROJECT_DISCOVERED' || !projectInfo.projectId) {
       console.error(`\n❌ Transaction Aborted: No authoritative upstream projectId received.`);
-      throw new Error('ANTIGRAVITY_ONBOARDING_REJECTED: Upstream did not return an authoritative projectId.');
+      throw new Error('ANTIGRAVITY_PROJECT_DISCOVERY_FAILED: Upstream did not return an authoritative projectId.');
     }
 
     console.log(`  -> projectSource:     ${projectInfo.projectSource}`);
