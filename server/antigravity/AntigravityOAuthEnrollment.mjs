@@ -78,6 +78,8 @@ export function savePersistedOAuthConfig(clientId, clientSecret = '') {
   } catch {}
 }
 
+export const OFFICIAL_ANTIGRAVITY_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
+
 export class AntigravityOAuthEnrollment {
   constructor(
     vault = antigravityVaultInstance,
@@ -95,11 +97,6 @@ export class AntigravityOAuthEnrollment {
   static validateOAuthClientConfig(env = process.env) {
     loadPersistedOAuthConfig();
 
-    // Migration check: notify operator if legacy variable is used
-    if (env.GOOGLE_OAUTH_CLIENT_ID && !env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
-      console.warn('⚠️ [MIGRATION WARNING] GOOGLE_OAUTH_CLIENT_ID is deprecated. Please migrate to ANTIGRAVITY_OAUTH_CLIENT_ID.');
-    }
-
     let rawId = (env.ANTIGRAVITY_OAUTH_CLIENT_ID || '').trim();
     if (rawId.includes('client_id=')) {
       try {
@@ -111,24 +108,15 @@ export class AntigravityOAuthEnrollment {
       }
     }
 
+    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => rawId.toLowerCase().includes(p));
+    if (!rawId || isPlaceholder) {
+      rawId = OFFICIAL_ANTIGRAVITY_CLIENT_ID;
+    }
+
     const clientId = rawId.trim();
     const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
-    if (!clientId) {
-      return {
-        valid: false,
-        clientIdPresent: false,
-        clientIdFormatValid: false,
-        clientSecretPresent: Boolean(clientSecret),
-        redirectMode: 'LOOPBACK',
-        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
-        error: 'AUTH_CONFIGURATION_MISSING',
-        message: 'Google OAuth Client ID belum dimasukkan. Harap masukkan Client ID & Secret Google Anda pada form di atas.'
-      };
-    }
-
-    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => clientId.toLowerCase().includes(p));
-    if (isPlaceholder || !GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
+    if (!GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
       return {
         valid: false,
         clientIdPresent: true,
@@ -137,7 +125,7 @@ export class AntigravityOAuthEnrollment {
         redirectMode: 'LOOPBACK',
         scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
         error: 'AUTH_CONFIGURATION_INVALID',
-        message: 'Google OAuth Client ID tidak valid. Pastikan format: <angka-id>-<hash>.apps.googleusercontent.com'
+        message: 'Google OAuth Client ID tidak valid.'
       };
     }
 

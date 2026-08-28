@@ -35,6 +35,34 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
 
+  // 0. OAuth Callback Catcher: GET /callback, GET /oauth/callback
+  if ((pathname === '/callback' || pathname === '/oauth/callback') && req.method === 'GET') {
+    const state = url.searchParams.get('state');
+    const { antigravityEnrollmentSessionManagerInstance } = await import('./antigravity/AntigravityEnrollmentSessionManager.mjs');
+    const activeSessions = Array.from(antigravityEnrollmentSessionManagerInstance.sessions.values());
+    const matchedSession = activeSessions.find(s => s.stateToken === state) || activeSessions[activeSessions.length - 1];
+
+    if (matchedSession) {
+      const fullUrl = `http://${req.headers.host || '127.0.0.1:20128'}${req.url}`;
+      await antigravityEnrollmentSessionManagerInstance.processManualCallback(matchedSession.enrollmentId, fullUrl);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Otorisasi Sukses - UltimateAI</title></head>
+          <body style="background:#090d16;color:#22d3ee;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:40px;border:1px solid rgba(0,229,255,0.3);border-radius:24px;background:#0d1527;box-shadow:0 0 50px rgba(0,229,255,0.2);">
+              <h2 style="color:#4ade80;margin-top:0;">✅ OTORISASI GOOGLE BERHASIL!</h2>
+              <p style="color:#cbd5e1;font-size:15px;">Akun Google Anda telah terhubung ke slot <strong>${matchedSession.connectionId.toUpperCase()}</strong>.</p>
+              <p style="color:#94a3b8;font-size:13px;">Anda dapat menutup jendela ini dan kembali ke UltimateAI.</p>
+            </div>
+          </body>
+        </html>
+      `);
+      return;
+    }
+  }
+
   // 1. Autonomous Agent Execution Endpoint (POST /api/agent/run)
   if ((pathname === '/api/agent/run' || pathname === '/v1/agent/run') && req.method === 'POST') {
     let body = '';

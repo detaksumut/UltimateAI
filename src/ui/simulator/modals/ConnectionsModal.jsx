@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, Settings, Key } from 'lucide-react';
+import { X, Zap, RefreshCw, Trash2, CheckCircle2, AlertCircle, Clock, ShieldCheck, ExternalLink } from 'lucide-react';
 
 const API_ENDPOINTS = [
   'http://127.0.0.1:20200',
@@ -18,36 +18,19 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const [manualCallbackUrl, setManualCallbackUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // OAuth Config State
-  const [oauthConfigValid, setOauthConfigValid] = useState(true);
-  const [showConfigBox, setShowConfigBox] = useState(false);
-  const [customClientId, setCustomClientId] = useState('');
-  const [customClientSecret, setCustomClientSecret] = useState('');
-
-  const fetchSlotsAndConfig = async () => {
+  const fetchSlots = async () => {
     setLoading(true);
     let success = false;
 
     for (const ep of [activeEndpoint, ...API_ENDPOINTS]) {
       try {
-        // 1. Fetch Slots
         const res = await fetch(`${ep}/api/antigravity/connections`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
           const data = await res.json();
           setSlots(data.slots || []);
           setActiveEndpoint(ep);
-          success = true;
-
-          // 2. Fetch OAuth Config
-          try {
-            const configRes = await fetch(`${ep}/api/antigravity/config`);
-            if (configRes.ok) {
-              const cfg = await configRes.json();
-              setOauthConfigValid(cfg.valid);
-            }
-          } catch {}
-
           setErrorMsg(null);
+          success = true;
           break;
         }
       } catch {}
@@ -61,8 +44,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      fetchSlotsAndConfig();
-      const interval = setInterval(fetchSlotsAndConfig, 5000);
+      fetchSlots();
+      const interval = setInterval(fetchSlots, 5000);
       return () => clearInterval(interval);
     }
   }, [isOpen]);
@@ -80,7 +63,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             if (data.state === 'ENROLLED') {
               clearInterval(pollTimer);
               setActiveEnrollment(null);
-              fetchSlotsAndConfig();
+              fetchSlots();
             } else if (data.state.includes('FAILED') || data.state.includes('TIMEOUT') || data.state.includes('CANCELLED')) {
               clearInterval(pollTimer);
             }
@@ -93,52 +76,19 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     };
   }, [activeEnrollment, activeEndpoint]);
 
-  const handleSaveConfig = async (e) => {
-    if (e) e.preventDefault();
-    if (!customClientId.trim()) {
-      setErrorMsg('Harap masukkan Google OAuth Client ID (.apps.googleusercontent.com)');
-      return;
-    }
-    try {
-      const res = await fetch(`${activeEndpoint}/api/antigravity/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId: customClientId.trim(),
-          clientSecret: customClientSecret.trim() || undefined
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.valid) {
-        throw new Error(data.message || 'Client ID tidak valid. Pastikan format: <id>-<hash>.apps.googleusercontent.com');
-      }
-      setOauthConfigValid(true);
-      setShowConfigBox(false);
-      setErrorMsg(null);
-      // Auto-trigger connect AG-01 immediately upon saving
-      handleStartConnect('ag-01');
-    } catch (err) {
-      setErrorMsg(err.message);
-    }
-  };
-
   const handleStartConnect = async (connectionId) => {
     try {
       setErrorMsg(null);
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
-        const errMessage = data.error?.message || data.message || 'Gagal memulai koneksi';
-        if (errMessage.includes('AUTH_CONFIGURATION')) {
-          setShowConfigBox(true);
-        }
-        throw new Error(errMessage);
+        throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
       }
 
       setActiveEnrollment(data);
       setEnrollProgress({ state: data.status, connectionId });
 
-      // Instantly open the Google Account Chooser popup in the browser
+      // Instantly open the Google Account Login & Password screen
       if (data.authUrl) {
         window.open(data.authUrl, 'google_oauth_popup', 'width=540,height=740,top=100,left=300');
       }
@@ -170,7 +120,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       } catch {}
       setActiveEnrollment(null);
       setEnrollProgress(null);
-      fetchSlotsAndConfig();
+      fetchSlots();
     }
   };
 
@@ -179,7 +129,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
-      fetchSlotsAndConfig();
+      fetchSlots();
     } catch (err) {
       setErrorMsg(`Refresh ${connectionId.toUpperCase()} gagal: ${err.message}`);
     }
@@ -190,7 +140,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     try {
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Disconnect gagal');
-      fetchSlotsAndConfig();
+      fetchSlots();
     } catch (err) {
       setErrorMsg(`Disconnect ${connectionId.toUpperCase()} gagal: ${err.message}`);
     }
@@ -219,31 +169,23 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Pilih akun Google Anda secara independen untuk tiap slot AG-01 s/d AG-07
+                Pilih dan login akun Google Anda untuk tiap slot AG-01 s/d AG-07
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setShowConfigBox(!showConfigBox)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 flex items-center gap-1.5 transition-all border border-cyan-500/30"
-              title="Konfigurasi Client ID OAuth"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>OAuth Client ID</span>
-            </button>
-            <button
-              onClick={fetchSlotsAndConfig}
+              onClick={fetchSlots}
               disabled={loading}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 transition-all border border-slate-700"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center gap-1.5 transition-all border border-slate-700 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -263,56 +205,6 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             <span>Vault AES-256-GCM Encrypted</span>
           </div>
         </div>
-
-        {/* OAuth Client Config Box */}
-        {(showConfigBox || !oauthConfigValid) && (
-          <div className="mb-3 p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 text-xs font-mono space-y-3 shadow-[0_0_20px_rgba(0,229,255,0.15)]">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-cyan-300 flex items-center gap-2">
-                <Key className="w-4 h-4 text-cyan-400" />
-                MASUKKAN GOOGLE OAUTH 2.0 CLIENT ID & SECRET
-              </span>
-              {oauthConfigValid && (
-                <button onClick={() => setShowConfigBox(false)} className="text-slate-400 hover:text-white cursor-pointer">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-300">
-              Masukkan <strong>Client ID</strong> dan <strong>Client Secret</strong> dari Google Cloud Console Anda agar Google dapat mengizinkan login dan otorisasi:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Google Client ID (.apps.googleusercontent.com):</label>
-                <input
-                  type="text"
-                  value={customClientId}
-                  onChange={(e) => setCustomClientId(e.target.value)}
-                  placeholder="Contoh: 1234567890-abcdefg.apps.googleusercontent.com"
-                  className="w-full bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Google Client Secret (GOCSPX-...):</label>
-                <input
-                  type="password"
-                  value={customClientSecret}
-                  onChange={(e) => setCustomClientSecret(e.target.value)}
-                  placeholder="Contoh: GOCSPX-xxxxxxxxx (atau kosongkan jika public PKCE)"
-                  className="w-full bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end pt-1">
-              <button
-                onClick={handleSaveConfig}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs font-mono shadow-[0_0_15px_rgba(0,102,255,0.3)] cursor-pointer"
-              >
-                💾 Simpan Kredensial OAuth Google
-              </button>
-            </div>
-          </div>
-        )}
 
         {errorMsg && (
           <div className="mb-3 px-4 py-2 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs flex items-center gap-2 font-mono">
@@ -463,7 +355,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
               {/* Manual URL fallback */}
               <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-2">
                 <div className="text-slate-300 font-medium font-mono">
-                  Browser telah dibuka otomatis dengan pilihan akun Google (Account Chooser). Jika popup diblokir, buka URL berikut:
+                  Browser telah dibuka otomatis dengan pilihan akun Google. Jika popup diblokir, buka URL berikut:
                 </div>
                 <div className="p-2 rounded bg-black/60 font-mono text-[10px] text-cyan-300 break-all select-all border border-slate-800">
                   {activeEnrollment.authUrl}
