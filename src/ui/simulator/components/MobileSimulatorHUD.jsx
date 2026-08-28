@@ -96,12 +96,7 @@ export default function MobileSimulatorHUD({
     }
   }, [lastUserMessage]);
 
-  const displaySources = liveSearchSources.length > 0 ? liveSearchSources : [
-    { id: '1', category: 'GOVERNMENT', title: 'Kominfo AI Framework', domain: 'kominfo.go.id', url: 'https://kominfo.go.id' },
-    { id: '2', category: 'ACADEMIC', title: 'ArXiv CS AI Repository', domain: 'arxiv.org', url: 'https://arxiv.org' },
-    { id: '3', category: 'NEWS', title: 'TechInAsia AI Trends', domain: 'techinasia.com', url: 'https://techinasia.com' },
-    { id: '4', category: 'INDUSTRY', title: 'GitHub Open Models', domain: 'github.com', url: 'https://github.com' }
-  ];
+  const displaySources = liveSearchSources || [];
 
   const handleTabClick = (tab) => {
     setCurrentTab(tab);
@@ -700,35 +695,47 @@ export default function MobileSimulatorHUD({
                     </div>
                   </div>
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
-                    {displaySources.length} Verifikasi
+                    {displaySources.length > 0 ? `${displaySources.length} Verifikasi` : '0 PENCARIAN AKTIF'}
                   </span>
                 </div>
 
-                {/* Real Verified Web Source Nodes */}
-                <div className="space-y-1.5 mb-2 font-mono text-[10px]">
-                  {displaySources.map((src, i) => (
-                    <a
-                      key={i}
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-slate-950/90 hover:bg-slate-900 p-2 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 transition-all hover:border-emerald-500/50 block"
-                    >
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                          src.category === 'GOVERNMENT' ? 'bg-amber-400' :
-                          src.category === 'ACADEMIC' ? 'bg-cyan-400' :
-                          src.category === 'NEWS' ? 'bg-blue-400' : 'bg-purple-400'
-                        }`}></span>
-                        <div className="overflow-hidden">
-                          <div className="text-slate-200 font-bold truncate text-[11px]">{src.title}</div>
-                          <div className="text-slate-400 text-[9px] truncate">{src.domain}</div>
+                {/* Real Verified Web Source Nodes or Clean Ready State */}
+                {displaySources.length > 0 ? (
+                  <div className="space-y-1.5 mb-2 font-mono text-[10px]">
+                    {displaySources.map((src, i) => (
+                      <a
+                        key={i}
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-slate-950/90 hover:bg-slate-900 p-2 rounded-xl border border-slate-800/80 flex items-center justify-between gap-2 transition-all hover:border-emerald-500/50 block"
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            src.category === 'GOVERNMENT' ? 'bg-amber-400' :
+                            src.category === 'ACADEMIC' ? 'bg-cyan-400' :
+                            src.category === 'NEWS' ? 'bg-blue-400' : 'bg-purple-400'
+                          }`}></span>
+                          <div className="overflow-hidden">
+                            <div className="text-slate-200 font-bold truncate text-[11px]">{src.title}</div>
+                            <div className="text-slate-400 text-[9px] truncate">{src.domain}</div>
+                          </div>
                         </div>
-                      </div>
-                      <ExternalLink className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                    </a>
-                  ))}
-                </div>
+                        <ExternalLink className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/90 text-center flex flex-col items-center justify-center gap-2 font-sans my-1">
+                    <div className="w-8 h-8 rounded-full bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-200 font-mono">Siap Menjelajah Web Real-Time</div>
+                    <p className="text-[9px] text-slate-400 leading-relaxed max-w-[220px]">
+                      Belum ada pencarian aktif. Perintahkan JIN untuk riset topik atau berita terkini untuk memulai live web search.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -742,19 +749,19 @@ export default function MobileSimulatorHUD({
                     <Shield className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white tracking-wide">CRITICAL INSIGHTS</div>
-                    <div className="text-[9px] text-amber-400 font-mono">⚠ HIGH PRIORITY FINDINGS</div>
+                    <div className="text-xs font-bold text-white tracking-wide">RUNTIME INSIGHTS & AUDIT</div>
+                    <div className="text-[9px] text-emerald-400 font-mono">🟢 SSOT SYSTEM SYNCHRONIZED</div>
                   </div>
                 </div>
 
                 <div className="space-y-2 text-xs font-sans">
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-slate-200 space-y-1">
-                    <div className="font-bold text-amber-300 text-[11px] flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3 text-amber-400" />
-                      <span>Inkonsistensi Data Terdeteksi</span>
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 text-slate-200 space-y-1">
+                    <div className="font-bold text-emerald-300 text-[11px] flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-400" />
+                      <span>Sistem Siap & Data Bersih</span>
                     </div>
                     <p className="text-[10px] text-slate-300 leading-normal">
-                      Ditemukan variansi 4.2% pada parameter dataset riset yang memerlukan validasi ulang.
+                      Tidak ada anomali atau data tiruan. Berikan perintah analisis dataset, perhitungan kuantitatif, atau query formal untuk memproses data baru.
                     </p>
                   </div>
                 </div>
