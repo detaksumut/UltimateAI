@@ -6,6 +6,7 @@
 
 import { ToolContract, PERMISSION_LEVELS } from './ToolContract.mjs';
 import { memoryVaultEngineInstance, MEMORY_TIERS } from '../memory/MemoryVaultEngine.mjs';
+import { localDriveFStorageInstance } from '../memory/LocalDriveFStorage.mjs';
 
 export class MemoryVaultTool extends ToolContract {
   constructor() {
@@ -35,6 +36,11 @@ export class MemoryVaultTool extends ToolContract {
         confidence: 0.95,
         provenance: 'USER_EXPLICIT_STORE'
       });
+
+      // Mirror directly to Drive F: (Local Air-Gapped Storage)
+      localDriveFStorageInstance.writeRecord('05_Vault', `mem_${Date.now()}.json`, stored);
+      localDriveFStorageInstance.appendLog('vault_operations.log', `STORE: key="${key || 'user_note'}" tier="${tier}"`);
+
       return { status: 'SUCCESS', action: 'STORE', storedMemory: stored, latencyMs: Date.now() - startTime };
     }
 
