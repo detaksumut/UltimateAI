@@ -145,7 +145,7 @@ export class AntigravityCloudCodeTransport {
       throw new Error(`Antigravity CodeAssist Error (${response.status}): ${errText}`);
     }
 
-    const upstreamResponseId = response.headers.get('x-goog-request-id') || response.headers.get('request-id') || null;
+    let upstreamResponseId = response.headers.get('x-goog-request-id') || response.headers.get('request-id') || null;
     this._recordObservedHeaders(connection.id, modelId, response.headers);
 
     const reader = response.body.getReader();
@@ -170,6 +170,11 @@ export class AntigravityCloudCodeTransport {
             const modelVer = json.response?.modelVersion || json.modelVersion || json.model;
             if (modelVer) {
               attestedModel = modelVer;
+            }
+
+            const respId = json.response?.responseId || json.responseId || json.traceId;
+            if (respId && !upstreamResponseId) {
+              upstreamResponseId = respId;
             }
 
             if (token) {

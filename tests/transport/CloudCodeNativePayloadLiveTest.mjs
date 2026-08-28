@@ -35,6 +35,8 @@ async function runLiveTest() {
     console.log('[1] Live Execution Result:', result);
     assert.strictEqual(result.actualConnectionId, 'ag-01', 'actualConnectionId must remain ag-01');
     assert.strictEqual(result.requestedModel, 'gemini-3.6-flash-high', 'requestedModel must be preserved');
+    assert.strictEqual(result.actualModel, 'gemini-3.6-flash', 'actualModel must match upstream canonical modelVersion');
+    assert(result.upstreamResponseId, 'upstreamResponseId must be captured from Google SSE payload');
     assert(result.content.length > 0, 'Content must not be empty');
 
     // Schema assertions on intercepted payload

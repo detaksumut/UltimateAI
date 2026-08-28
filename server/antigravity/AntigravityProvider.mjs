@@ -51,13 +51,15 @@ export class AntigravityProvider {
 
         return {
           content: typeof transportResult === 'object' ? transportResult.content : transportResult,
-          responseId: transportResult?.responseId || `resp-${Date.now()}`,
+          upstreamResponseId: transportResult?.upstreamResponseId || null,
+          localResponseId: transportResult?.requestId || `resp-${Date.now()}`,
+          responseId: transportResult?.upstreamResponseId || null,
           connectionId: selection.connectionId,
           actualConnectionId: transportResult?.actualConnectionId || selection.connectionId,
           accountAlias: selection.accountAlias,
           model: selection.modelId,
           actualModel: transportResult?.actualModel || selection.modelId,
-          upstreamEndpoint: transportResult?.upstreamEndpoint || 'https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent',
+          upstreamEndpoint: transportResult?.upstreamEndpoint || 'https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse',
           transportClass: transportResult?.transportClass || 'ANTIGRAVITY_CLOUD_CODE',
           rollover: selection.rollover,
           transport: 'ANTIGRAVITY'

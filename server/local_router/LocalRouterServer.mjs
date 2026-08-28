@@ -387,7 +387,9 @@ export function createLocalRouterServer() {
               actualModel: result.actualModel,
               upstreamEndpoint: result.upstreamEndpoint,
               transportClass: result.transportClass,
-              responseId: result.responseId,
+              upstreamResponseId: result.upstreamResponseId,
+              localResponseId: result.localResponseId,
+              responseId: result.upstreamResponseId || result.localResponseId,
               fallbackUsed: false,
               rollover: result.rollover
             }
