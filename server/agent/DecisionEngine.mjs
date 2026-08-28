@@ -32,6 +32,16 @@ export class DecisionEngine {
    * @returns {Promise<Object>} decision
    */
   async decide(input, context = {}, options = {}) {
+    // If semantic decision is explicitly provided in context, honor it directly
+    if (context.semanticDecision) {
+      return {
+        ...context.semanticDecision,
+        autonomyLevel: this.currentLevel,
+        actionRequired: context.semanticDecision.actionRequired !== false,
+        requiresApproval: false
+      };
+    }
+
     const semantic = await semanticIntentEngineInstance.interpret(input, context, options);
 
     // If level 0 (Chat only), force actionRequired = false

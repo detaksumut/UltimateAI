@@ -186,18 +186,35 @@ Analyze the user's natural language input and output STRICT valid JSON with:
       };
     }
 
+    const isMemoryStore = /simpan fakta|ingat fakta|catat fakta|simpan ke memory|ingat bahwa/i.test(p);
+    const isMemoryRecall = /apa informasi yang tersimpan|ingat tidak|apa yang kamu ingat|ingatkah kamu|cari di memory/i.test(p);
+    const isMultiStep = /(analisis dokumen ini.*cari.*bandingkan)|(cari informasi pendukung.*bandingkan.*rekomendasi)|multi-step/i.test(p);
+    const isDocAnalysis = /analisis dokumen|dokumen performa|ekstrak dokumen|baca dokumen/i.test(p) || Boolean(context.documentText);
+    const isWebSearch = /cari perkembangan|search web|cari di internet|google search|informasi terbaru mengenai/i.test(p);
     const hasMedia = /video|lagu|musik|dj|song|youtube|putar/i.test(p);
     const hasNews = /berita|demo|dpr|politik|terkini|sidang/i.test(p);
     const hasApp = /aplikasi|prototype|purwarupa|kalkulator|bikin app|buatkan app|buatkan dashboard|buatkan sistem|web app/i.test(p);
-    const hasData = /data|tabel|grafik|chart|statistik|metrik|analisis|angka janggal|angka pertumbuhan|kondisi industri|gali lebih dalam|ekstrak data/i.test(p);
+    const hasData = /data|tabel|grafik|chart|statistik|metrik|angka janggal|angka pertumbuhan|kondisi industri|gali lebih dalam|ekstrak data/i.test(p);
     const isSensitive = /hapus|delete|format|destroy|drop|bersihkan seluruh/i.test(p);
 
     let intent = 'RESEARCH_QUESTION';
-    let toolsNeeded = ['intel.multilayer_search'];
+    let toolsNeeded = ['web.search'];
 
     if (isSensitive) {
       intent = 'SENSITIVE_ENVIRONMENT';
       toolsNeeded = ['system.governance'];
+    } else if (isMemoryStore) {
+      intent = 'MEMORY_STORE';
+      toolsNeeded = ['memory.vault'];
+    } else if (isMemoryRecall) {
+      intent = 'MEMORY_RETRIEVAL';
+      toolsNeeded = ['memory.vault'];
+    } else if (isMultiStep) {
+      intent = 'MULTI_STEP_TASK';
+      toolsNeeded = ['doc.analyze', 'web.search', 'data.matrix_generator'];
+    } else if (isDocAnalysis) {
+      intent = 'DOCUMENT_ANALYSIS';
+      toolsNeeded = ['doc.analyze', 'data.matrix_generator'];
     } else if (hasNews) {
       intent = 'LIVE_NEWS';
       toolsNeeded = ['intel.multilayer_search', 'media.video_resolver'];
@@ -207,6 +224,9 @@ Analyze the user's natural language input and output STRICT valid JSON with:
     } else if (hasApp) {
       intent = 'APP_SYNTHESIS';
       toolsNeeded = ['spec.blueprint_architect', 'code.synthesizer', 'ui.render_app_sandbox'];
+    } else if (isWebSearch) {
+      intent = 'WEB_SEARCH';
+      toolsNeeded = ['web.search'];
     } else if (hasData) {
       intent = 'DATA_ANALYTICS';
       toolsNeeded = ['intel.multilayer_search', 'data.matrix_generator'];
