@@ -16,8 +16,9 @@ export class AntigravityCloudCodeTransport {
   constructor(tokenManager = antigravityTokenManagerInstance, quotaTracker = antigravityQuotaTrackerInstance) {
     this.tokenManager = tokenManager;
     this.quotaTracker = quotaTracker;
-    this.cloudCodeBaseUrl = process.env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://cloudcode-pa.googleapis.com';
+    this.cloudCodeBaseUrl = process.env.ANTIGRAVITY_CONTROL_PLANE_ENDPOINT || 'https://daily-cloudcode-pa.googleapis.com';
     this.defaultLocation = process.env.ANTIGRAVITY_LOCATION || 'us-central1';
+
   }
 
   /**
@@ -29,31 +30,33 @@ export class AntigravityCloudCodeTransport {
   async loadCodeAssist(connection, accessToken, { strictFreshProof = false } = {}) {
     const endpoint = `${this.cloudCodeBaseUrl}/v1internal:loadCodeAssist`;
     try {
-      // Send valid Google Code Assist control plane payload
+      // Send valid Google Antigravity Code Assist control plane payload
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}`,
+          'User-Agent': 'antigravity/1.107.0 darwin/arm64'
         },
         body: JSON.stringify({
           metadata: {
-            ideType: 'VSCODE',
-            pluginVersion: '2.0.0'
+            ideName: 'antigravity',
+            ideVersion: '1.107.0'
           }
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        const projectId = data.projectId 
-          || data.cloudaicompanionProject 
-          || data.project 
+        const projectId = data.cloudaicompanionProject?.id 
           || (typeof data.cloudaicompanionProject === 'string' ? data.cloudaicompanionProject : null)
+          || data.projectId 
+          || data.project 
           || data.currentTier?.project
           || data.allowedTiers?.[0]?.project
-          || 'discovered-cloudcode-project';
-        const tier = data.tier || data.currentTier?.tier || 'STANDARD';
+          || connection?.projectId
+          || '';
+        const tier = data.tier || data.currentTier?.tier || data.paidTier?.id || 'STANDARD';
 
         return {
           projectId,
@@ -66,10 +69,11 @@ export class AntigravityCloudCodeTransport {
       const errText = await response.text();
       throw new Error(`Code Assist Onboarding Error (${response.status}): ${errText}`);
     } catch (err) {
+      if (strictFreshProof) throw err;
       return {
-        projectId: connection.projectId || `antigravity-${connection.id || 'pool'}-project`,
-        tier: connection.projectTier || 'STANDARD',
-        projectSource: 'UPSTREAM_PROJECT_DISCOVERED',
+        projectId: connection?.projectId || '',
+        tier: connection?.projectTier || 'STANDARD',
+        projectSource: 'STORED_PROJECT_ID',
         onboarded: true
       };
     }
@@ -87,15 +91,9 @@ export class AntigravityCloudCodeTransport {
 
     const accessToken = tokenResult.accessToken;
 
-    // 2. Load Code Assist Project Binding (Strict Fail-Closed in CERTIFICATION_MODE)
+    // 2. Load Code Assist Project Binding
     const projectInfo = await this.loadCodeAssist(connection, accessToken, { strictFreshProof });
     const projectId = projectInfo.projectId;
-    const location = connection.location || this.defaultLocation;
-
-    // 3. Format Model Path for Cloud Code Assist
-    // projects/<projectId>/locations/<location>/publishers/<publisher>/models/<modelId>
-    const publisher = modelId.startsWith('claude') ? 'anthropic' : (modelId.startsWith('gpt-oss') ? 'openai' : 'google');
-    const modelResourcePath = `projects/${projectId}/locations/${location}/publishers/${publisher}/models/${modelId}`;
 
     const contents = messages
       .filter(m => m.role !== 'system')
@@ -119,19 +117,19 @@ export class AntigravityCloudCodeTransport {
     }
 
     const payload = {
-      project: projectId,
-      model: modelResourcePath,
+      project: projectId || undefined,
+      model: modelId,
       request: innerRequest
     };
 
     const upstreamEndpoint = `${this.cloudCodeBaseUrl}/v1internal:streamGenerateContent?alt=sse`;
     const requestId = `req-ag-local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
+    // Critical: Do NOT pass 'x-goog-user-project' header for Antigravity personal OAuth tokens
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
-      'x-goog-user-project': projectId,
-      'User-Agent': 'UltimateAI-LocalRouter/2.0.0'
+      'User-Agent': 'antigravity/1.107.0 darwin/arm64'
     };
 
     // 4. Dispatch Request
@@ -166,10 +164,12 @@ export class AntigravityCloudCodeTransport {
         if (line.startsWith('data: ')) {
           try {
             const json = JSON.parse(line.substring(6));
-            const token = json.candidates?.[0]?.content?.parts?.[0]?.text || json.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const candidate = json.response?.candidates?.[0] || json.candidates?.[0];
+            const token = candidate?.content?.parts?.[0]?.text || '';
             
-            if (json.modelVersion || json.model) {
-              attestedModel = json.modelVersion || json.model;
+            const modelVer = json.response?.modelVersion || json.modelVersion || json.model;
+            if (modelVer) {
+              attestedModel = modelVer;
             }
 
             if (token) {
