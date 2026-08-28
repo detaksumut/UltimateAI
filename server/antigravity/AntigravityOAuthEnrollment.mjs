@@ -200,20 +200,16 @@ export class AntigravityOAuthEnrollment {
    */
   openBrowser(url) {
     const platform = process.platform;
-    let cmd = '';
-
-    if (platform === 'win32') {
-      cmd = `start "" "${url}"`;
-    } else if (platform === 'darwin') {
-      cmd = `open "${url}"`;
-    } else {
-      cmd = `xdg-open "${url}"`;
-    }
-
     try {
-      exec(cmd);
+      if (platform === 'win32') {
+        exec(`powershell -NoProfile -Command "Start-Process '${url.replace(/'/g, "''")}'"`);
+      } else if (platform === 'darwin') {
+        exec(`open "${url}"`);
+      } else {
+        exec(`xdg-open "${url}"`);
+      }
     } catch {
-      // Graceful fallback to manual terminal link
+      // Graceful fallback to frontend window.open
     }
   }
 

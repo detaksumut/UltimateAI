@@ -50,14 +50,34 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleStartConnect = async (connectionId) => {
     try {
       setErrorMsg(null);
+      // Pre-open tab immediately in user gesture to avoid popup blockers
+      const authWindow = window.open('', '_blank');
+      if (authWindow) {
+        authWindow.document.write(`
+          <html>
+            <body style="background:#090d16;color:#22d3ee;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+              <div style="text-align:center;">
+                <h3 style="color:#38bdf8;margin:0 0 8px 0;">Membuka Login Google...</h3>
+                <p style="color:#94a3b8;font-size:13px;margin:0;">Menghubungkan slot ${connectionId.toUpperCase()} ke Google Cloud...</p>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+
       const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/enroll`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
+        if (authWindow) authWindow.close();
         throw new Error(data.error?.message || data.message || 'Gagal memulai koneksi');
       }
 
       if (data.authUrl) {
-        window.open(data.authUrl, '_blank');
+        if (authWindow) {
+          authWindow.location.href = data.authUrl;
+        } else {
+          window.open(data.authUrl, '_blank');
+        }
       }
       fetchSlots();
     } catch (err) {
