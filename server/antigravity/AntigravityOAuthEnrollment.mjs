@@ -47,7 +47,36 @@ function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest();
 }
 
-export const DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID = '1071006060469-rhbenckiv2kchmgakf7sm924k87mllkh.apps.googleusercontent.com';
+import fs from 'fs';
+import path from 'path';
+
+const OAUTH_CONFIG_FILE = path.join(process.cwd(), 'storage', 'oauth_config.json');
+
+export function loadPersistedOAuthConfig() {
+  try {
+    if (fs.existsSync(OAUTH_CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(OAUTH_CONFIG_FILE, 'utf8'));
+      if (data.clientId && !process.env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
+        process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = data.clientId;
+      }
+      if (data.clientSecret && !process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET) {
+        process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = data.clientSecret;
+      }
+      return data;
+    }
+  } catch {}
+  return null;
+}
+
+export function savePersistedOAuthConfig(clientId, clientSecret = '') {
+  try {
+    const dir = path.dirname(OAUTH_CONFIG_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(OAUTH_CONFIG_FILE, JSON.stringify({ clientId, clientSecret }, null, 2), 'utf8');
+    process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = clientId;
+    if (clientSecret) process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = clientSecret;
+  } catch {}
+}
 
 export class AntigravityOAuthEnrollment {
   constructor(
@@ -64,6 +93,8 @@ export class AntigravityOAuthEnrollment {
    * Validates and parses OAuth Client Configuration with formal format validation
    */
   static validateOAuthClientConfig(env = process.env) {
+    loadPersistedOAuthConfig();
+
     // Migration check: notify operator if legacy variable is used
     if (env.GOOGLE_OAUTH_CLIENT_ID && !env.ANTIGRAVITY_OAUTH_CLIENT_ID) {
       console.warn('⚠️ [MIGRATION WARNING] GOOGLE_OAUTH_CLIENT_ID is deprecated. Please migrate to ANTIGRAVITY_OAUTH_CLIENT_ID.');
@@ -80,16 +111,24 @@ export class AntigravityOAuthEnrollment {
       }
     }
 
-    // Zero-friction built-in default if unconfigured or placeholder
-    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => rawId.toLowerCase().includes(p));
-    if (!rawId || isPlaceholder) {
-      rawId = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
-    }
-
     const clientId = rawId.trim();
     const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
-    if (!GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
+    if (!clientId) {
+      return {
+        valid: false,
+        clientIdPresent: false,
+        clientIdFormatValid: false,
+        clientSecretPresent: Boolean(clientSecret),
+        redirectMode: 'LOOPBACK',
+        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
+        error: 'AUTH_CONFIGURATION_MISSING',
+        message: 'Google OAuth Client ID belum dimasukkan. Harap masukkan Client ID & Secret Google Anda pada form di atas.'
+      };
+    }
+
+    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => clientId.toLowerCase().includes(p));
+    if (isPlaceholder || !GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
       return {
         valid: false,
         clientIdPresent: true,
@@ -98,7 +137,7 @@ export class AntigravityOAuthEnrollment {
         redirectMode: 'LOOPBACK',
         scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
         error: 'AUTH_CONFIGURATION_INVALID',
-        message: 'ANTIGRAVITY_OAUTH_CLIENT_ID does not match the formal Google OAuth Desktop Client ID format (<id>-<hash>.apps.googleusercontent.com).'
+        message: 'Google OAuth Client ID tidak valid. Pastikan format: <angka-id>-<hash>.apps.googleusercontent.com'
       };
     }
 

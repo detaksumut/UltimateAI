@@ -13,11 +13,9 @@ import { toolRegistryInstance } from './tools/ToolRegistry.mjs';
 import { GatewayTelemetry } from './telemetry/GatewayTelemetry.mjs';
 
 import { agentRuntimeInstance } from './agent/AgentRuntime.mjs';
-import { DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID } from './antigravity/AntigravityOAuthEnrollment.mjs';
+import { loadPersistedOAuthConfig } from './antigravity/AntigravityOAuthEnrollment.mjs';
 
-if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID.includes('SEBENARNYA')) {
-  process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
-}
+loadPersistedOAuthConfig();
 
 const PORT = config.port;
 const startTime = Date.now();
@@ -133,11 +131,13 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/antigravity/config' && req.method === 'POST') {
       let body = '';
       req.on('data', c => { body += c; });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const parsed = JSON.parse(body || '{}');
-          if (parsed.clientId) process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = parsed.clientId.trim();
-          if (parsed.clientSecret) process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = parsed.clientSecret.trim();
+          const { savePersistedOAuthConfig } = await import('./antigravity/AntigravityOAuthEnrollment.mjs');
+          if (parsed.clientId) {
+            savePersistedOAuthConfig(parsed.clientId.trim(), (parsed.clientSecret || '').trim());
+          }
           const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
           res.writeHead(diag.valid ? 200 : 400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(diag, null, 2));

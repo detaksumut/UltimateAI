@@ -264,34 +264,51 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* OAuth Client Config Inline Box */}
-        {showConfigBox && (
-          <div className="mb-3 p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 text-xs font-mono space-y-3">
+        {/* OAuth Client Config Box */}
+        {(showConfigBox || !oauthConfigValid) && (
+          <div className="mb-3 p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 text-xs font-mono space-y-3 shadow-[0_0_20px_rgba(0,229,255,0.15)]">
             <div className="flex items-center justify-between">
               <span className="font-bold text-cyan-300 flex items-center gap-2">
-                <Key className="w-4 h-4" />
-                MASUKKAN GOOGLE OAUTH DESKTOP CLIENT ID
+                <Key className="w-4 h-4 text-cyan-400" />
+                MASUKKAN GOOGLE OAUTH 2.0 CLIENT ID & SECRET
               </span>
-              <button onClick={() => setShowConfigBox(false)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
+              {oauthConfigValid && (
+                <button onClick={() => setShowConfigBox(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <p className="text-[11px] text-slate-300">
-              Paste <strong>URL Google Sign-In</strong> dari browser Anda atau Client ID (<code>.apps.googleusercontent.com</code>):
+              Masukkan <strong>Client ID</strong> dan <strong>Client Secret</strong> dari Google Cloud Console Anda agar Google dapat mengizinkan login dan otorisasi:
             </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={customClientId}
-                onChange={(e) => setCustomClientId(e.target.value)}
-                placeholder="Paste URL Google Sign-In ATAU Client ID di sini..."
-                className="flex-1 bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Google Client ID (.apps.googleusercontent.com):</label>
+                <input
+                  type="text"
+                  value={customClientId}
+                  onChange={(e) => setCustomClientId(e.target.value)}
+                  placeholder="Contoh: 1234567890-abcdefg.apps.googleusercontent.com"
+                  className="w-full bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Google Client Secret (GOCSPX-...):</label>
+                <input
+                  type="password"
+                  value={customClientSecret}
+                  onChange={(e) => setCustomClientSecret(e.target.value)}
+                  placeholder="Contoh: GOCSPX-xxxxxxxxx (atau kosongkan jika public PKCE)"
+                  className="w-full bg-black/80 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-300 font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
               <button
                 onClick={handleSaveConfig}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs font-mono shadow-[0_0_15px_rgba(0,102,255,0.3)] cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs font-mono shadow-[0_0_15px_rgba(0,102,255,0.3)] cursor-pointer"
               >
-                🚀 Simpan & Buka Login Google
+                💾 Simpan Kredensial OAuth Google
               </button>
             </div>
           </div>

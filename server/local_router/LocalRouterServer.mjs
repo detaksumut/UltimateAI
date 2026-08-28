@@ -20,11 +20,9 @@ import { antigravityProviderInstance } from '../antigravity/AntigravityProvider.
 import { AntigravityModelRegistry } from '../antigravity/AntigravityModelRegistry.mjs';
 import { antigravityEnrollmentSessionManagerInstance } from '../antigravity/AntigravityEnrollmentSessionManager.mjs';
 
-import { AntigravityOAuthEnrollment, DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID } from '../antigravity/AntigravityOAuthEnrollment.mjs';
+import { AntigravityOAuthEnrollment, loadPersistedOAuthConfig } from '../antigravity/AntigravityOAuthEnrollment.mjs';
 
-if (!process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID.includes('SEBENARNYA')) {
-  process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
-}
+loadPersistedOAuthConfig();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,13 +98,10 @@ export function createLocalRouterServer() {
     // 2C. POST /api/antigravity/config (Set OAuth Client ID dynamically)
     if (pathname === '/api/antigravity/config' && req.method === 'POST') {
       const body = await readJsonBody();
+      const { savePersistedOAuthConfig, AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
       if (body.clientId) {
-        process.env.ANTIGRAVITY_OAUTH_CLIENT_ID = body.clientId.trim();
+        savePersistedOAuthConfig(body.clientId.trim(), (body.clientSecret || '').trim());
       }
-      if (body.clientSecret) {
-        process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET = body.clientSecret.trim();
-      }
-      const { AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
       const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
       res.writeHead(diag.valid ? 200 : 400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(diag, null, 2));
