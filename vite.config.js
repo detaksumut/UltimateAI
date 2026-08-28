@@ -107,8 +107,124 @@ function nineRouterGatewayPlugin() {
           return;
         }
 
+        // 3. Antigravity Connection Endpoints (/api/antigravity/*)
+        if (req.url.startsWith('/api/antigravity/')) {
+          const { antigravityEnrollmentSessionManagerInstance } = await import('./server/antigravity/AntigravityEnrollmentSessionManager.mjs');
+          const pathname = req.url.split('?')[0];
+
+          // GET /api/antigravity/connections
+          if (pathname === '/api/antigravity/connections' && req.method === 'GET') {
+            const slots = antigravityEnrollmentSessionManagerInstance.getAllConnectionSlots();
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify({ total: slots.length, slots }, null, 2));
+            return;
+          }
+
+          // POST /api/antigravity/connections/:connectionId/enroll
+          const enrollMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/enroll$/);
+          if (enrollMatch && req.method === 'POST') {
+            try {
+              const sessionInfo = await antigravityEnrollmentSessionManagerInstance.startEnrollment(enrollMatch[1]);
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify(sessionInfo, null, 2));
+            } catch (err) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: { message: err.message } }));
+            }
+            return;
+          }
+
+          // GET /api/antigravity/enrollments/:enrollmentId
+          const getEnrollMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)$/);
+          if (getEnrollMatch && req.method === 'GET') {
+            const progress = antigravityEnrollmentSessionManagerInstance.getEnrollmentProgress(getEnrollMatch[1]);
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            if (!progress) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: { message: 'Session not found' } }));
+            } else {
+              res.end(JSON.stringify(progress, null, 2));
+            }
+            return;
+          }
+
+          // POST /api/antigravity/enrollments/:enrollmentId/callback
+          const callbackMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)\/callback$/);
+          if (callbackMatch && req.method === 'POST') {
+            let body = '';
+            req.on('data', c => { body += c; });
+            req.on('end', async () => {
+              try {
+                const parsed = JSON.parse(body || '{}');
+                const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(callbackMatch[1], parsed.callbackUrl || '');
+                res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.end(JSON.stringify(result, null, 2));
+              } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: { message: err.message } }));
+              }
+            });
+            return;
+          }
+
+          // POST /api/antigravity/enrollments/:enrollmentId/cancel
+          const cancelMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)\/cancel$/);
+          if (cancelMatch && req.method === 'POST') {
+            const result = await antigravityEnrollmentSessionManagerInstance.cancelEnrollment(cancelMatch[1]);
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify(result, null, 2));
+            return;
+          }
+
+          // POST /api/antigravity/connections/:connectionId/refresh
+          const refreshMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/refresh$/);
+          if (refreshMatch && req.method === 'POST') {
+            try {
+              const result = await antigravityEnrollmentSessionManagerInstance.refreshConnection(refreshMatch[1]);
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify(result, null, 2));
+            } catch (err) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: { message: err.message } }));
+            }
+            return;
+          }
+
+          // DELETE /api/antigravity/connections/:connectionId
+          const deleteMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])$/);
+          if (deleteMatch && req.method === 'DELETE') {
+            const result = await antigravityEnrollmentSessionManagerInstance.disconnectConnection(deleteMatch[1]);
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify(result, null, 2));
+            return;
+          }
+        }
+
         next();
       });
+
+      // Auto-start Local Router on 20200 when Vite starts
+      import('./server/local_router/LocalRouterServer.mjs').then(({ createLocalRouterServer }) => {
+        try {
+          const router = createLocalRouterServer();
+          router.listen(20200, '127.0.0.1', () => {
+            console.log('\x1b[36m⚡ [Vite Bootstrap] UltimateAI Local Router Live on http://127.0.0.1:20200\x1b[0m');
+          });
+          router.on('error', (err) => {
+            if (err.code !== 'EADDRINUSE') console.warn('Local router warning:', err.message);
+          });
+        } catch {}
+      }).catch(() => {});
     }
   };
 }
