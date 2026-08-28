@@ -39,6 +39,7 @@
     "electron-builder": "^26.15.3",
     "express": "^5.2.1",
     "jimp": "^0.22.10",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.21.0",
     "node-fetch": "^3.3.2",
     "react": "^19.0.0",

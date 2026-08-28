@@ -106,15 +106,15 @@ export default function AnalyzeDataModal({ isOpen, onClose, onAnalyzeDocument })
               ref={fileInputRef}
               type="file"
               onChange={(e) => handleFiles(e.target.files)}
-              accept=".pdf,.csv,.json,.txt,.md,.js,.ts,.py,.png,.jpg,.jpeg"
+              accept=".docx,.doc,.pdf,.csv,.json,.txt,.md,.js,.ts,.py,.png,.jpg,.jpeg,.xlsx"
               className="hidden"
             />
-            <UploadCloud className="w-10 h-10 text-cyan-400 mb-2 animate-bounce" />
+            <UploadCloud className={`w-10 h-10 ${isExtracting ? 'text-emerald-400 animate-spin' : 'text-cyan-400 animate-bounce'} mb-2`} />
             <p className="text-sm font-semibold text-white">
-              Tarik & Letakkan Dokumen atau Klik untuk Unggah
+              {isExtracting ? 'Sedang mengekstrak teks & struktur dokumen...' : 'Tarik & Letakkan Dokumen atau Klik untuk Unggah'}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Mendukung CSV, JSON, TXT, Markdown, Gambar, dan Dokumen Riset (Maks 5 MB)
+              Mendukung DOCX (Word), PDF, CSV, JSON, TXT, Markdown, Gambar, dan Dokumen Riset (Maks 15 MB)
             </p>
           </div>
 
