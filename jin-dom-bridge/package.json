@@ -1,0 +1,14 @@
+{
+  "name": "jin-dom-bridge",
+  "version": "1.0.0",
+  "description": "JIN Autonomous DOM Bridge — Live Accessibility & UI Inspection Engine",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "playwright": "^1.44.0"
+  }
+}
