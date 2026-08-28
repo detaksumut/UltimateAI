@@ -360,15 +360,31 @@ export class AntigravityEnrollmentSessionManager {
       session.projectInfo = projectInfo;
       session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZED;
 
-      // Stage 3: Transactional Persistence
+      // Stage 3: Fetch Google User Profile for exact email identification
+      let userEmail = `antigravity-${session.connectionId.replace('ag-', '')}`;
+      let userName = '';
+      try {
+        const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          if (profile.email) userEmail = profile.email;
+          if (profile.name) userName = profile.name;
+        }
+      } catch {}
+
+      // Stage 4: Transactional Persistence
       session.state = ENROLLMENT_STATES.PERSISTING;
       const expiresIn = tokenData.expires_in || 3600;
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
       this.store.saveConnection({
         id: session.connectionId,
-        accountAlias: `antigravity-${session.connectionId.replace('ag-', '')}`,
-        label: `Antigravity Connection ${session.connectionId}`,
+        accountAlias: userEmail,
+        email: userEmail,
+        userName,
+        label: `${userEmail} (${session.connectionId.toUpperCase()})`,
         provider: 'ANTIGRAVITY',
         authType: 'oauth',
         isActive: true,
@@ -387,6 +403,7 @@ export class AntigravityEnrollmentSessionManager {
       return {
         connectionId: session.connectionId,
         state: ENROLLMENT_STATES.ENROLLED,
+        email: userEmail,
         projectId: projectInfo.projectId
       };
     } catch (err) {
