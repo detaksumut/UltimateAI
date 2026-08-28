@@ -76,6 +76,8 @@ export class SimulatorOrchestrator {
       if (onResponseReady) {
         onResponseReady(responseText, result.routing);
       }
+      
+      console.log('[VOG] JIN_RESPONSE_RECEIVED');
 
       // 6. Transition avatar: SPEAKING via Voice Engine
       this.avatar.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY });

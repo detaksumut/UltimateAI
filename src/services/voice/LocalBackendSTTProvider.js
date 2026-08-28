@@ -1,6 +1,6 @@
 /**
  * LocalBackendSTTProvider.js
- * Local Audio Recording & Backend Speech-to-Text Provider.
+ * Production Local Audio Recording & Backend Speech-to-Text Provider.
  * Captures real mic audio via MediaRecorder, runs local VAD silence detection,
  * and transcribes spoken Indonesian via LocalRouter /api/voice/transcribe.
  */
@@ -15,8 +15,6 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
     this.audioChunks = [];
     this.audioContext = null;
     this.analyser = null;
-    this.vadTimer = null;
-    this.silenceStart = null;
     this.mediaStream = null;
   }
 
@@ -44,17 +42,15 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
         }
       });
 
-      console.log('[VOG] MIC_STARTED | Engine: LOCAL_BACKEND_STT');
+      console.log('[VOG] MIC_STARTED | Engine: LOCAL_BACKEND_STT | Lang: id-ID');
       if (onStart) onStart();
 
-      // Setup VAD (Voice Activity Detector) via AudioContext
+      // Setup VAD (Voice Activity Detector)
       this._setupVAD(this.mediaStream, () => {
-        // VAD triggered silence after speech
         console.log('[VOG] VAD_SPEECH_END | Silence detected, finalizing audio capture');
         this.stop();
       });
 
-      // Setup MediaRecorder
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
@@ -71,11 +67,11 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
         this._cleanupVAD();
 
         const fullAudioBlob = new Blob(this.audioChunks, { type: mimeType });
-        console.log(`[VOG] AUDIO_CAPTURED | Size: ${fullAudioBlob.size} bytes | MIME: ${mimeType}`);
+        console.log(`[VOG] AUDIO_STREAM_ENDED | Captured: ${fullAudioBlob.size} bytes`);
 
-        if (fullAudioBlob.size < 1000) {
-          console.warn('[VOG] Captured audio too short, skipping transcription');
-          if (onEnd) onEnd();
+        if (fullAudioBlob.size < 500) {
+          console.warn('[VOG] STT_NO_RESULT: Audio stream too short');
+          if (onEnd) onEnd('');
           return;
         }
 
@@ -84,11 +80,13 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
           const transcript = await this._sendForTranscription(fullAudioBlob);
           
           if (transcript && transcript.trim()) {
-            console.log(`[VOG] STT_RESULT: "${transcript.trim()}"`);
-            if (onTranscript) onTranscript(transcript.trim(), true);
-            if (onFinalTranscript) onFinalTranscript(transcript.trim());
+            const clean = transcript.trim();
+            console.log(`[VOG] STT_RESULT: "${clean}"`);
+            if (onTranscript) onTranscript(clean, true);
+            if (onFinalTranscript) onFinalTranscript(clean);
           } else {
-            console.warn('[VOG] Empty transcript returned from backend STT');
+            console.warn('[VOG] STT_NO_RESULT: Backend returned empty transcript');
+            if (onEnd) onEnd('');
           }
         } catch (transcribeErr) {
           console.error('[VOG] ❌ Backend STT transcription failed:', transcribeErr.message);
@@ -98,7 +96,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
         if (onEnd) onEnd();
       };
 
-      this.mediaRecorder.start(100); // 100ms chunk slices
+      this.mediaRecorder.start(100);
       return true;
     } catch (err) {
       console.error('[VOG] LocalBackendSTT start failed:', err);
@@ -123,6 +121,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
       const dataArray = new Uint8Array(bufferLength);
 
       let speechDetected = false;
+      let soundLogged = false;
       let silenceFrames = 0;
 
       const checkAudioLevel = () => {
@@ -135,17 +134,20 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
         }
         const average = sum / bufferLength;
 
-        // Threshold for human voice in 0..255 scale
-        if (average > 12) {
-          if (!speechDetected) {
+        if (average > 10) {
+          if (!soundLogged) {
+            console.log('[VOG] SOUND_DETECTED');
+            soundLogged = true;
+          }
+          if (average > 18 && !speechDetected) {
             speechDetected = true;
             console.log('[VOG] VAD_SPEECH_START');
           }
           silenceFrames = 0;
         } else if (speechDetected) {
           silenceFrames++;
-          // ~750ms of silence at ~60fps (45 frames)
-          if (silenceFrames > 45) {
+          // ~700ms silence at 60fps (42 frames)
+          if (silenceFrames > 42) {
             speechDetected = false;
             if (onSilenceDetected) onSilenceDetected();
             return;
@@ -157,7 +159,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
 
       requestAnimationFrame(checkAudioLevel);
     } catch (err) {
-      console.warn('[VOG] VAD AudioContext setup failed, falling back to manual stop:', err);
+      console.warn('[VOG] VAD AudioContext setup failed:', err);
     }
   }
 
@@ -176,7 +178,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
     const reader = new FileReader();
     const base64Promise = new Promise((resolve) => {
       reader.onloadend = () => {
-        const base64 = reader.result.split(',')[1];
+        const base64 = (reader.result || '').split(',')[1] || '';
         resolve(base64);
       };
       reader.readAsDataURL(blob);

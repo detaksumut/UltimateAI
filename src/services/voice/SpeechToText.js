@@ -2,10 +2,18 @@
  * SpeechToText.js (Enterprise Resilient Hybrid STT Coordinator)
  * 
  * SPECIFICATION COMPLIANCE:
- * 1. Hybrid STT Strategy: BrowserSTTProvider with automated fallback to LocalBackendSTTProvider on STT_NETWORK_ERROR.
- * 2. Real-time logging: MIC_STARTED, VAD_SPEECH_START, VAD_SPEECH_END, STT_STARTED, STT_RESULT, AGENT_INPUT_RECEIVED.
- * 3. Never remains visually stuck in LISTENING on error.
- * 4. Delivers real Indonesian transcript to AgentRuntime.
+ * 1. Default Primary Provider: LOCAL_BACKEND_STT (MediaRecorder + Local VAD + LocalRouter /api/voice/transcribe).
+ * 2. Secondary Provider: BROWSER_STT (Web Speech API with id-ID).
+ * 3. Complete Telemetry:
+ *    [VOG] MIC_STARTED
+ *    [VOG] VAD_SPEECH_START
+ *    [VOG] VAD_SPEECH_END
+ *    [VOG] STT_STARTED
+ *    [VOG] STT_RESULT
+ *    [VOG] TRANSCRIPT_FINAL
+ *    [VOG] AGENT_INPUT_RECEIVED
+ *    [VOG] JIN_RESPONSE_RECEIVED
+ * 4. Never remains stuck in LISTENING on empty result or failure.
  */
 
 import { BrowserSTTProvider } from './BrowserSTTProvider.js';
@@ -15,32 +23,40 @@ export class SpeechToText {
   constructor() {
     this.browserProvider = new BrowserSTTProvider();
     this.localProvider = new LocalBackendSTTProvider();
-    this.activeProviderName = 'BROWSER_STT';
+    // Default to LOCAL_BACKEND_STT as primary because Web Speech API in Chrome on localhost silently drops hypotheses
+    this.activeProviderName = 'LOCAL_BACKEND_STT';
     this.isListening = false;
     this.callbacks = null;
   }
 
   isAvailable() {
-    return this.browserProvider.isAvailable() || this.localProvider.isAvailable();
+    return this.localProvider.isAvailable() || this.browserProvider.isAvailable();
   }
 
   getActiveProvider() {
     if (this.activeProviderName === 'LOCAL_BACKEND_STT') {
       return this.localProvider;
     }
-    return this.browserProvider.isAvailable() ? this.browserProvider : this.localProvider;
+    if (this.activeProviderName === 'BROWSER_STT') {
+      return this.browserProvider;
+    }
+    return this.localProvider.isAvailable() ? this.localProvider : this.browserProvider;
   }
 
   setProvider(providerName) {
     if (['BROWSER_STT', 'LOCAL_BACKEND_STT'].includes(providerName)) {
       this.activeProviderName = providerName;
-      console.log(`[VOG] STT Provider manually set to: ${providerName}`);
+      console.log(`[VOG] STT Provider explicitly set to: ${providerName}`);
     }
+  }
+
+  getProviderName() {
+    return this.getActiveProvider().getProviderName();
   }
 
   async verifyMicrophonePermission() {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      console.warn('[VOG] MediaDevices API not available');
+      console.warn('[VOG] MediaDevices API not available in headless environment');
       return true;
     }
 
@@ -48,7 +64,6 @@ export class SpeechToText {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const track = stream.getAudioTracks()[0];
       console.log(`[VOG] MIC_PERMISSION: GRANTED | MIC_TRACK_STATE: ${track?.readyState || 'live'}`);
-      // Keep track open or release properly
       return true;
     } catch (err) {
       console.error('[VOG] MIC_PERMISSION_DENIED:', err.message);
@@ -76,24 +91,24 @@ export class SpeechToText {
       onFinalTranscript: (finalText) => {
         this.isListening = false;
         if (finalText && finalText.trim()) {
-          console.log(`[VOG] AGENT_INPUT_RECEIVED: "${finalText.trim()}"`);
-          if (callbacks.onFinalTranscript) callbacks.onFinalTranscript(finalText.trim());
-          if (callbacks.onEnd) callbacks.onEnd(finalText.trim());
+          const cleanText = finalText.trim();
+          console.log(`[VOG] TRANSCRIPT_FINAL: "${cleanText}"`);
+          console.log(`[VOG] AGENT_INPUT_RECEIVED: "${cleanText}"`);
+          if (callbacks.onFinalTranscript) callbacks.onFinalTranscript(cleanText);
+          if (callbacks.onEnd) callbacks.onEnd(cleanText);
         } else {
+          console.warn('[VOG] STT_NO_RESULT: No speech transcript generated');
           if (callbacks.onEnd) callbacks.onEnd('');
         }
       },
       onError: async (err) => {
-        console.warn(`[VOG] STT Provider error on ${currentProvider.getProviderName()}:`, err);
+        console.warn(`[VOG] STT error on ${currentProvider.getProviderName()}:`, err?.message || err);
 
-        // Automated fallback: If Browser STT fails with network error, switch to LocalBackendSTT!
-        if (currentProvider.getProviderName() === 'BROWSER_STT' && (err.isNetworkError || err.error === 'network')) {
-          console.log('[VOG] ⚡ STT_NETWORK_ERROR detected! Switching seamlessly to LOCAL_BACKEND_STT fallback...');
+        // Failover if Browser STT fails
+        if (currentProvider.getProviderName() === 'BROWSER_STT' && this.localProvider.isAvailable()) {
+          console.log('[VOG] Switching to LOCAL_BACKEND_STT fallback...');
           this.activeProviderName = 'LOCAL_BACKEND_STT';
-          
-          if (this.localProvider.isAvailable()) {
-            return this.localProvider.start(providerCallbacks);
-          }
+          return this.localProvider.start(providerCallbacks);
         }
 
         this.isListening = false;
