@@ -351,61 +351,44 @@ export default function MobileSimulatorHUD({
 
                   {/* Dynamic Video Selector Chips */}
                   <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-[9px]">
-                    {isNewsQuery ? (
-                      <>
-                        <button
-                          onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === 'vr0qNXmkUJ8'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔴 Liputan Utama #1
-                        </button>
-                        <button
-                          onClick={() => setSelectedVideoId('60ItHLz5WEA')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === '60ItHLz5WEA'
-                              ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🔴 Liputan Media #2
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === 'vr0qNXmkUJ8'
-                              ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🎧 Avicii - Heaven
-                        </button>
-                        <button
-                          onClick={() => setSelectedVideoId('60ItHLz5WEA')}
-                          className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
-                            selectedVideoId === '60ItHLz5WEA'
-                              ? 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(0,229,255,0.6)]'
-                              : 'bg-slate-800/90 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          ⚡ Alan Walker - Faded
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={() => setSelectedVideoId('fJ9rUzIMcZQ')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === 'fJ9rUzIMcZQ'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      🔴 Kompas TV Live
+                    </button>
+                    <button
+                      onClick={() => setSelectedVideoId('60ItHLz5WEA')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === '60ItHLz5WEA'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      🔴 CNN Indonesia Live
+                    </button>
+                    <button
+                      onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
+                      className={`px-2.5 py-1 rounded-lg transition-all flex-shrink-0 font-bold ${
+                        selectedVideoId === 'vr0qNXmkUJ8'
+                          ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.6)]'
+                          : 'bg-slate-800/90 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      🔴 TVOne / MetroTV Live
+                    </button>
                   </div>
 
                   {/* Embedded Video Player */}
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
                       className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=0`}
-                      title="YouTube Media Player"
+                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1`}
+                      title="YouTube News Video Player"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     ></iframe>
@@ -414,16 +397,16 @@ export default function MobileSimulatorHUD({
                   {/* 1-Click Direct Hub to Full YouTube Search */}
                   <div className="mt-2.5 flex items-center gap-2">
                     <a
-                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'berita hari ini live')}`}
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(lastUserMessage || 'berita terkini hari ini live indonesia')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-red-600 hover:bg-red-500 text-white text-[9px] font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-all shadow-[0_0_10px_rgba(220,38,38,0.5)]"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      <span>Buka Seluruh Hasil di YouTube</span>
+                      <span>Buka Hasil Topik di YouTube</span>
                     </a>
                     <a
-                      href={`https://www.google.com/search?q=${encodeURIComponent(lastUserMessage || 'berita hari ini')}&tbm=nws`}
+                      href={`https://www.google.com/search?q=${encodeURIComponent(lastUserMessage || 'berita terkini hari ini')}&tbm=nws`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[9px] font-bold py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition-all"
