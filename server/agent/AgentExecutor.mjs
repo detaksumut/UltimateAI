@@ -138,6 +138,35 @@ export class AgentExecutor {
         const result = await toolRegistryInstance.executeTool('threat.feed', params);
         return {
           stepId: step.id || step.stepId,
+          success: result.status === 'SUCCESS',
+          tool,
+          result,
+          durationMs: Date.now() - startTime
+        };
+      }
+
+      // 7. Tool-Specific: Formal Solver (formal.solve)
+      if (tool === 'formal.solve') {
+        const result = await toolRegistryInstance.executeTool('formal.solve', params);
+        const artifact = artifactManagerInstance.createArtifact({
+          name: `solver_${Date.now()}`,
+          type: 'DATA_MODEL',
+          content: result,
+          metadata: {
+            mode: result.solverMode,
+            isVerified: result.isVerified,
+            generatedBy: 'FormalSolveTool'
+          }
+        });
+
+        return {
+          stepId: step.id || step.stepId,
+          success: result.status === 'SUCCESS' && result.isVerified,
+          tool,
+          result: { ...result, artifactId: artifact.id, artifact },
+          durationMs: Date.now() - startTime
+        };
+      }
           success: true,
           tool,
           result,

@@ -10,6 +10,7 @@ import { multiLayerSearchToolInstance } from './MultiLayerSearchTool.mjs';
 import { webFetchToolInstance } from './WebFetchTool.mjs';
 import { sandboxExecutionToolInstance } from './SandboxExecutionTool.mjs';
 import { threatFeedToolInstance } from './ThreatFeedTool.mjs';
+import { formalSolveToolInstance } from './FormalSolveTool.mjs';
 
 export class ToolRegistry {
   constructor() {
@@ -21,6 +22,7 @@ export class ToolRegistry {
     this.register(webFetchToolInstance);
     this.register(sandboxExecutionToolInstance);
     this.register(threatFeedToolInstance);
+    this.register(formalSolveToolInstance);
   }
 
   register(toolInstance) {
