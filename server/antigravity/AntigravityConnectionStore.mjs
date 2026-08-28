@@ -48,10 +48,21 @@ export class AntigravityConnectionStore {
           };
         }
 
+        let decryptedAccessToken = '';
+        let decryptedRefreshToken = '';
+        try {
+          if (record.encryptedAccessToken) decryptedAccessToken = this.vault.decrypt(record.encryptedAccessToken);
+        } catch {}
+        try {
+          if (record.encryptedRefreshToken) decryptedRefreshToken = this.vault.decrypt(record.encryptedRefreshToken);
+        } catch {}
+
         return {
           ...record,
-          accessToken: record.encryptedAccessToken ? this.vault.decrypt(record.encryptedAccessToken) : '',
-          refreshToken: record.encryptedRefreshToken ? this.vault.decrypt(record.encryptedRefreshToken) : ''
+          hasAccessToken: Boolean(record.encryptedAccessToken),
+          hasRefreshToken: Boolean(record.encryptedRefreshToken),
+          accessToken: decryptedAccessToken,
+          refreshToken: decryptedRefreshToken
         };
       });
     } catch (err) {

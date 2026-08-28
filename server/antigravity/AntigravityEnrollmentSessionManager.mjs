@@ -88,6 +88,7 @@ export class AntigravityEnrollmentSessionManager {
       slots.push({
         connectionId,
         accountAlias: existing?.accountAlias || `antigravity-0${i}`,
+        email: existing?.email || existing?.accountAlias || null,
         label: existing?.label || `Antigravity Connection ${i}`,
         priority: i,
         status,
