@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902326703-sym6u",
+  "name": "search_1787902326703",
+  "currentVersion": 1,
+  "latestHash": "2f8d38b8554cc49178363f1baa0c46c02cdcf175414f254ea754c10ac7c4df36",
+  "lastUpdated": "2026-08-28T07:32:06.704Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "2f8d38b8554cc49178363f1baa0c46c02cdcf175414f254ea754c10ac7c4df36",
+      "timestamp": "2026-08-28T07:32:06.704Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

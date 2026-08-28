@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902327035-7zkfx",
+  "name": "search_1787902327035",
+  "currentVersion": 1,
+  "latestHash": "71e2a4bb8e8ccf6fbf2a367832465ae08c054fd8ce5fa3fc2f674b2a9646c0de",
+  "lastUpdated": "2026-08-28T07:32:07.035Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "71e2a4bb8e8ccf6fbf2a367832465ae08c054fd8ce5fa3fc2f674b2a9646c0de",
+      "timestamp": "2026-08-28T07:32:07.035Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

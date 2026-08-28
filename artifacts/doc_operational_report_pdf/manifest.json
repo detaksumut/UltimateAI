@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467725-attbv",
+  "name": "doc_operational_report_pdf",
+  "currentVersion": 1,
+  "latestHash": "08d76ed1d64f90dfd675b5b08bf09859cb91acef3476bfe76967c8e57e822683",
+  "lastUpdated": "2026-08-28T07:34:27.725Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "08d76ed1d64f90dfd675b5b08bf09859cb91acef3476bfe76967c8e57e822683",
+      "timestamp": "2026-08-28T07:34:27.725Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

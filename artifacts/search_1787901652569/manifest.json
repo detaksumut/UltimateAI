@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901652570-1scfl",
+  "name": "search_1787901652569",
+  "currentVersion": 1,
+  "latestHash": "41be73a1a4b934c6e3cda4fc30c99e98103588ff68c9b499567be9e5dc7bbc52",
+  "lastUpdated": "2026-08-28T07:20:52.570Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "41be73a1a4b934c6e3cda4fc30c99e98103588ff68c9b499567be9e5dc7bbc52",
+      "timestamp": "2026-08-28T07:20:52.570Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

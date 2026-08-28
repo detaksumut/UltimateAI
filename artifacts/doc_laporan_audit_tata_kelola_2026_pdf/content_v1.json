@@ -1,0 +1,24 @@
+{
+  "fileName": "laporan_audit_tata_kelola_2026.pdf",
+  "totalDocumentLength": 602,
+  "totalChunks": 2,
+  "relevantChunksCount": 2,
+  "relevantChunks": [
+    {
+      "chunkIndex": 0,
+      "citationTag": "[Ref: laporan_audit_tata_kelola_2026.pdf#Chunk-1]",
+      "relevanceScore": 5,
+      "textPreview": "LAPORAN AUDIT TATA KELOLA AI ENTERPRISE 2026\n\n1. Masalah Utama:\n- Terjadi bottleneck pada alokasi akun tunggal saat beba...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: laporan_audit_tata_kelola_2026.pdf, Chunk: 1]>>>\nLAPORAN AUDIT TATA KELOLA AI ENTERPRISE 2026\n\n1. Masalah Utama:\n- Terjadi bottleneck pada alokasi akun tunggal saat beban kerja analitik meningkat tajam di kuartal 3.\n- Rasio kegagalan permintaan sebelum integrasi multi-pool mencapai 18.4%.\n\n2. Solusi & Pencapaian:\n- Implementasi 7 pool Antigravity independen menurunkan rasio kegagalan menjadi 0%.\n- Throughput pemrosesan dokumen naik +48%, menghasilkan efisiensi biaya token 65%.\n\n3. Rekomendasi Tindak Lanjut:\n- Terapkan pemantauan kuota proaktif di Control Center.\n- Pastikan mekanisme fail-closed aktif untuk menjaga keamanan integritas data.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    },
+    {
+      "chunkIndex": 1,
+      "citationTag": "[Ref: laporan_audit_tata_kelola_2026.pdf#Chunk-2]",
+      "relevanceScore": 0,
+      "textPreview": "f di Control Center.\n- Pastikan mekanisme fail-closed aktif untuk menjaga keamanan integritas data....",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: laporan_audit_tata_kelola_2026.pdf, Chunk: 2]>>>\nf di Control Center.\n- Pastikan mekanisme fail-closed aktif untuk menjaga keamanan integritas data.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    }
+  ],
+  "securityPolicy": "UNTRUSTED_DOCUMENT_BOUNDARY_ENFORCED",
+  "latencyMs": 0
+}

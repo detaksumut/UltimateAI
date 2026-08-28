@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901986151-o5rpo",
+  "name": "search_1787901986151",
+  "currentVersion": 1,
+  "latestHash": "3b9394d090167ec42821cbd8b8294cdfd73a93fce2fe9b316b42012089967b62",
+  "lastUpdated": "2026-08-28T07:26:26.153Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "3b9394d090167ec42821cbd8b8294cdfd73a93fce2fe9b316b42012089967b62",
+      "timestamp": "2026-08-28T07:26:26.153Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901972712-reokc",
+  "name": "search_1787901972712",
+  "currentVersion": 1,
+  "latestHash": "03ccd265db02e9d8060dc26b862f9614594dff7a4b7592eace458462ad255861",
+  "lastUpdated": "2026-08-28T07:26:12.712Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "03ccd265db02e9d8060dc26b862f9614594dff7a4b7592eace458462ad255861",
+      "timestamp": "2026-08-28T07:26:12.712Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

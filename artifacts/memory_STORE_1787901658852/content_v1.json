@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "action": "STORE",
+  "storedMemory": {
+    "id": "MEM-1787901658850-WERT",
+    "key": "system_architecture_facts",
+    "content": "UltimateAI beroperasi dengan 7 pool inferensi Antigravity independen tanpa dependensi IDE.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:20:58.850Z",
+    "lastAccessedAt": "2026-08-28T07:20:58.851Z",
+    "accessCount": 1
+  },
+  "latencyMs": 2
+}

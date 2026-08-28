@@ -1,0 +1,17 @@
+{
+  "fileName": "sop_keamanan_data_enterprise.docx",
+  "totalDocumentLength": 122,
+  "totalChunks": 1,
+  "relevantChunksCount": 1,
+  "relevantChunks": [
+    {
+      "chunkIndex": 0,
+      "citationTag": "[Ref: sop_keamanan_data_enterprise.docx#Chunk-1]",
+      "relevanceScore": 0,
+      "textPreview": "SOP Keamanan Data: Kredensial OAuth wajib dienkripsi AES-256-GCM Vault, zero plaintext token logging, isolasi 7 slot poo...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: sop_keamanan_data_enterprise.docx, Chunk: 1]>>>\nSOP Keamanan Data: Kredensial OAuth wajib dienkripsi AES-256-GCM Vault, zero plaintext token logging, isolasi 7 slot pool.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    }
+  ],
+  "securityPolicy": "UNTRUSTED_DOCUMENT_BOUNDARY_ENFORCED",
+  "latencyMs": 0
+}

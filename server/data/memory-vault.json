@@ -7,8 +7,8 @@
     "confidence": 1,
     "provenance": "SYSTEM_BOOTSTRAP",
     "createdAt": "2026-08-27T10:58:11.682Z",
-    "lastAccessedAt": "2026-08-27T10:58:11.682Z",
-    "accessCount": 1
+    "lastAccessedAt": "2026-08-28T07:32:06.431Z",
+    "accessCount": 2
   },
   {
     "id": "MEM-CORE-002",
@@ -20,5 +20,71 @@
     "createdAt": "2026-08-27T10:58:11.682Z",
     "lastAccessedAt": "2026-08-27T10:58:11.682Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1787901658850-WERT",
+    "key": "system_architecture_facts",
+    "content": "UltimateAI beroperasi dengan 7 pool inferensi Antigravity independen tanpa dependensi IDE.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:20:58.850Z",
+    "lastAccessedAt": "2026-08-28T07:34:27.715Z",
+    "accessCount": 4
+  },
+  {
+    "id": "MEM-1787902139357-219K",
+    "key": "q3_system_performance_benchmark",
+    "content": "UltimateAI Q3 deviasi +33.8% di atas rata-rata industri dengan efisiensi CAC 65%.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:28:59.357Z",
+    "lastAccessedAt": "2026-08-28T07:32:06.431Z",
+    "accessCount": 2
+  },
+  {
+    "id": "MEM-1787902326430-EPTL",
+    "key": "ultimateai_production_config",
+    "content": "Arsitektur UltimateAI dikonfigurasi dengan 7 pool Antigravity dan latensi rata-rata sub-detik.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:32:06.430Z",
+    "lastAccessedAt": "2026-08-28T07:34:27.715Z",
+    "accessCount": 3
+  },
+  {
+    "id": "MEM-1787902467710-YYAA",
+    "key": "user_preference_language",
+    "content": "Operator Rahman memilih respon JIN dalam bahasa Indonesia yang ringkas dan analitis.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:34:27.710Z",
+    "lastAccessedAt": "2026-08-28T07:34:27.713Z",
+    "accessCount": 2
+  },
+  {
+    "id": "MEM-1787902467711-79FO",
+    "key": "primary_deployment_target",
+    "content": "Target runtime UltimateAI adalah standalone Node.js tanpa ekstensi editor.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:34:27.711Z",
+    "lastAccessedAt": "2026-08-28T07:34:27.715Z",
+    "accessCount": 2
+  },
+  {
+    "id": "MEM-1787902467712-65JA",
+    "key": "active_pool_tier",
+    "content": "7 akun Antigravity terdaftar dalam Google Cloud Code Tier Standard.",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T07:34:27.712Z",
+    "lastAccessedAt": "2026-08-28T07:34:27.715Z",
+    "accessCount": 2
   }
 ]

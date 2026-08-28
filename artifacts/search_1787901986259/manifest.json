@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901986259-gzyhb",
+  "name": "search_1787901986259",
+  "currentVersion": 1,
+  "latestHash": "e7b351ebc02301fac8896b9f52a48a3bf299160a7410d1c3dfbc5469e3ce665b",
+  "lastUpdated": "2026-08-28T07:26:26.260Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "e7b351ebc02301fac8896b9f52a48a3bf299160a7410d1c3dfbc5469e3ce665b",
+      "timestamp": "2026-08-28T07:26:26.260Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902466556-mhztg",
+  "name": "search_1787902466556",
+  "currentVersion": 1,
+  "latestHash": "da12c79413581541f2eda791cd9c2221b8b5118acae2459288adf37e9cc083a5",
+  "lastUpdated": "2026-08-28T07:34:26.556Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "da12c79413581541f2eda791cd9c2221b8b5118acae2459288adf37e9cc083a5",
+      "timestamp": "2026-08-28T07:34:26.556Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

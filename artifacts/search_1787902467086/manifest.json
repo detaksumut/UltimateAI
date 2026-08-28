@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467086-ryvyv",
+  "name": "search_1787902467086",
+  "currentVersion": 1,
+  "latestHash": "e7cbde1249f7b12c8f671435bc7551b6f6d35b6740abfece0929e9c0e38b0b46",
+  "lastUpdated": "2026-08-28T07:34:27.086Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "e7cbde1249f7b12c8f671435bc7551b6f6d35b6740abfece0929e9c0e38b0b46",
+      "timestamp": "2026-08-28T07:34:27.086Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

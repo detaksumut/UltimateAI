@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467706-1rsxh",
+  "name": "doc_rencana_ekspansi_infrastruktur_txt",
+  "currentVersion": 1,
+  "latestHash": "1f6db2d14c6e32d6d4086671308aca1cfd16e81749de5aec0ebe839bd104b237",
+  "lastUpdated": "2026-08-28T07:34:27.707Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "1f6db2d14c6e32d6d4086671308aca1cfd16e81749de5aec0ebe839bd104b237",
+      "timestamp": "2026-08-28T07:34:27.707Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "title": "Executive Meeting Risk & Growth Anomaly Brief",
+  "title": "Executive Strategic Analysis & Recommendations",
   "anomaliesDetected": [
     {
       "metric": "Revenue Growth Q3",
@@ -24,6 +24,11 @@
     "deviation": "+33.8% di atas rata-rata industri"
   },
   "executiveSummary": "Ditemukan 2 anomali signifikan pada proyeksi pertumbuhan kuartal 3. Disarankan menyajikan data margin bersih bersamaan dengan angka pertumbuhan bruto pada rapat pimpinan.",
+  "recommendations": [
+    "Optimasi alokasi anggaran riset ke fitur dengan retensi tertinggi",
+    "Otomasi audit kepatuhan metrik untuk mencegah deviasi pelaporan",
+    "Implementasi feedback loop pengguna berbasis analitik real-time"
+  ],
   "status": "ANALYSIS_COMPLETE",
   "metricsAnalyzed": 4
 }

@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902466448-30d9w",
+  "name": "search_1787902466448",
+  "currentVersion": 1,
+  "latestHash": "a62af23acf3937722c2a99f778ddf6842c5120fda6157939da01231b064deb27",
+  "lastUpdated": "2026-08-28T07:34:26.449Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "a62af23acf3937722c2a99f778ddf6842c5120fda6157939da01231b064deb27",
+      "timestamp": "2026-08-28T07:34:26.449Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

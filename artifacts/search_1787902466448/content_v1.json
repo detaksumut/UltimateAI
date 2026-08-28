@@ -1,0 +1,8 @@
+{
+  "query": "Bagaimana kondisi performa sistem kita saat ini?",
+  "mode": "UNAVAILABLE",
+  "reason": "fetch failed",
+  "sourcesCount": 0,
+  "sources": [],
+  "latencyMs": 127
+}

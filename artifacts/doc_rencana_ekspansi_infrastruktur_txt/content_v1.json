@@ -1,0 +1,17 @@
+{
+  "fileName": "rencana_ekspansi_infrastruktur.txt",
+  "totalDocumentLength": 134,
+  "totalChunks": 1,
+  "relevantChunksCount": 1,
+  "relevantChunks": [
+    {
+      "chunkIndex": 0,
+      "citationTag": "[Ref: rencana_ekspansi_infrastruktur.txt#Chunk-1]",
+      "relevanceScore": 1,
+      "textPreview": "Rencana Infrastruktur 2026: Peningkatan kapasitas 7 pool Antigravity, pemeliharaan sequential rollover, dan monitoring C...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: rencana_ekspansi_infrastruktur.txt, Chunk: 1]>>>\nRencana Infrastruktur 2026: Peningkatan kapasitas 7 pool Antigravity, pemeliharaan sequential rollover, dan monitoring Control Center.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    }
+  ],
+  "securityPolicy": "UNTRUSTED_DOCUMENT_BOUNDARY_ENFORCED",
+  "latencyMs": 0
+}

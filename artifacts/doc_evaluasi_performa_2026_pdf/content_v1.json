@@ -1,0 +1,24 @@
+{
+  "fileName": "evaluasi_performa_2026.pdf",
+  "totalDocumentLength": 818,
+  "totalChunks": 2,
+  "relevantChunksCount": 2,
+  "relevantChunks": [
+    {
+      "chunkIndex": 0,
+      "citationTag": "[Ref: evaluasi_performa_2026.pdf#Chunk-1]",
+      "relevanceScore": 4,
+      "textPreview": "LAPORAN EVALUASI PERFORMA SISTEM ULTIMATEAI 2026\n\n1. Ringkasan Eksekutif\nSistem UltimateAI telah mengintegrasikan 7 pool...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: evaluasi_performa_2026.pdf, Chunk: 1]>>>\nLAPORAN EVALUASI PERFORMA SISTEM ULTIMATEAI 2026\n\n1. Ringkasan Eksekutif\nSistem UltimateAI telah mengintegrasikan 7 pool inferensi Antigravity secara mandiri.\nHasil pengukuran selama kuartal 3 menunjukkan peningkatan throughput sebesar 48% dibandingkan baseline sebelumnya.\nCustomer Acquisition Cost (CAC) tercatat turun hingga 65% dengan efisiensi alokasi biaya token.\n\n2. Identifikasi Deviasi & Anomali\nDitemukan deviasi sebesar +33.8% di atas rata-rata industri terhadap benchmark industri pada rasio konversi pengguna aktif.\nFaktor penyebab utama adalah implementasi zero-latency rollover antar\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    },
+    {
+      "chunkIndex": 1,
+      "citationTag": "[Ref: evaluasi_performa_2026.pdf#Chunk-2]",
+      "relevanceScore": 1,
+      "textPreview": "asio konversi pengguna aktif.\nFaktor penyebab utama adalah implementasi zero-latency rollover antar akun Antigravity.\n\n3...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: evaluasi_performa_2026.pdf, Chunk: 2]>>>\nasio konversi pengguna aktif.\nFaktor penyebab utama adalah implementasi zero-latency rollover antar akun Antigravity.\n\n3. Rekomendasi\n- Pertahankan alokasi sticky connection pada pool AG-01 untuk menjaga konsistensi state.\n- Lakukan penyegaran token otomatis secara berkala sebelum mencapai batas waktu kedaluwarsa.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    }
+  ],
+  "securityPolicy": "UNTRUSTED_DOCUMENT_BOUNDARY_ENFORCED",
+  "latencyMs": 0
+}

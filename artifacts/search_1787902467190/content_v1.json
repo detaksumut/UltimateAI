@@ -1,0 +1,8 @@
+{
+  "query": "Apakah sistem ini bisa berjalan tanpa membuka VS Code?",
+  "mode": "UNAVAILABLE",
+  "reason": "fetch failed",
+  "sourcesCount": 0,
+  "sources": [],
+  "latencyMs": 97
+}

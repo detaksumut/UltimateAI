@@ -186,6 +186,7 @@ export class AgentRuntime {
       success: finalVerification?.isSatisfied || false,
       confidence: finalVerification?.confidence || 0.95,
       actionRequired: true,
+      intent: decision.intent,
       attempts: attempt,
       responseMessage: responsePayload.naturalVoiceSpeech,
       detailedDisplay: responsePayload.detailedTextDisplay,

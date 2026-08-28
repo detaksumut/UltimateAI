@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901646371-sassv",
+  "name": "search_1787901646370",
+  "currentVersion": 1,
+  "latestHash": "d070aab689476d5b30e498a67774ed1ac2189f0b934f49cc4ac89ed2121cba16",
+  "lastUpdated": "2026-08-28T07:20:46.371Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "d070aab689476d5b30e498a67774ed1ac2189f0b934f49cc4ac89ed2121cba16",
+      "timestamp": "2026-08-28T07:20:46.371Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

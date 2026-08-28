@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901600108-lexgm",
+  "name": "search_1787901600108",
+  "currentVersion": 1,
+  "latestHash": "44341a903c577abf9e99e1cfc83fba3b6c78e72b364a15d7d32afd5c9c8f2696",
+  "lastUpdated": "2026-08-28T07:20:00.115Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "44341a903c577abf9e99e1cfc83fba3b6c78e72b364a15d7d32afd5c9c8f2696",
+      "timestamp": "2026-08-28T07:20:00.115Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

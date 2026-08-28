@@ -1,16 +1,16 @@
 {
-  "artifactId": "art-1787863516110-wp6u9",
+  "artifactId": "art-1787902468060-6umxb",
   "name": "brief_executive",
   "currentVersion": 1,
-  "latestHash": "09ff50d2b1529985bc0ffed5041ec0ad73f608ed272d39850c9ba08f64a7a4cd",
-  "lastUpdated": "2026-08-27T20:45:16.110Z",
+  "latestHash": "68e5ad7ea560275ee8d3093718b8f1f28df71e554655ac88ce6f938e76ae0845",
+  "lastUpdated": "2026-08-28T07:34:28.060Z",
   "type": "DATA_MODEL",
   "persistenceStatus": "PERSISTED",
   "history": [
     {
       "version": 1,
-      "hash": "09ff50d2b1529985bc0ffed5041ec0ad73f608ed272d39850c9ba08f64a7a4cd",
-      "timestamp": "2026-08-27T20:45:16.110Z",
+      "hash": "68e5ad7ea560275ee8d3093718b8f1f28df71e554655ac88ce6f938e76ae0845",
+      "timestamp": "2026-08-28T07:34:28.060Z",
       "file": "content_v1.json"
     }
   ]

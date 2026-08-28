@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901659252-dbnky",
+  "name": "search_1787901659252",
+  "currentVersion": 1,
+  "latestHash": "8b14d1357c7339682c5047c7f4a5d77359c8147356c27932091bfa5c454bd24d",
+  "lastUpdated": "2026-08-28T07:20:59.253Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "8b14d1357c7339682c5047c7f4a5d77359c8147356c27932091bfa5c454bd24d",
+      "timestamp": "2026-08-28T07:20:59.253Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "query": "Jika terjadi rollover, apakah percakapan kita akan terputus?",
+  "mode": "UNAVAILABLE",
+  "reason": "fetch failed",
+  "sourcesCount": 0,
+  "sources": [],
+  "latencyMs": 92
+}

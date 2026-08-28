@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467392-nrzcc",
+  "name": "search_1787902467392",
+  "currentVersion": 1,
+  "latestHash": "b6bfa5c59b0b04149fc0b08344328215b17d2bf782a45de1a1efdcae05930d0e",
+  "lastUpdated": "2026-08-28T07:34:27.392Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "b6bfa5c59b0b04149fc0b08344328215b17d2bf782a45de1a1efdcae05930d0e",
+      "timestamp": "2026-08-28T07:34:27.392Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

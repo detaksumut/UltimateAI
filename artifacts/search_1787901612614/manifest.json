@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901612614-twvw7",
+  "name": "search_1787901612614",
+  "currentVersion": 1,
+  "latestHash": "f891dd6eb3fd7814211f4a088fe8c533333070202bd4449f9ecb54d5992260db",
+  "lastUpdated": "2026-08-28T07:20:12.615Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "f891dd6eb3fd7814211f4a088fe8c533333070202bd4449f9ecb54d5992260db",
+      "timestamp": "2026-08-28T07:20:12.615Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

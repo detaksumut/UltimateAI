@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902139598-ufiv5",
+  "name": "search_1787902139598",
+  "currentVersion": 1,
+  "latestHash": "44579fd58530f60b3f9ccac713f4e1699976cb61022011a895ec0a79875aa7fd",
+  "lastUpdated": "2026-08-28T07:28:59.598Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "44579fd58530f60b3f9ccac713f4e1699976cb61022011a895ec0a79875aa7fd",
+      "timestamp": "2026-08-28T07:28:59.598Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

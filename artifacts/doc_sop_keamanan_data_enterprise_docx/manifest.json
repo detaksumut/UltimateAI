@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467703-4oelt",
+  "name": "doc_sop_keamanan_data_enterprise_docx",
+  "currentVersion": 1,
+  "latestHash": "12831444bc1365534620c0c420a41158f311d42e16a4b80a08535d87c1f7ae76",
+  "lastUpdated": "2026-08-28T07:34:27.704Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "12831444bc1365534620c0c420a41158f311d42e16a4b80a08535d87c1f7ae76",
+      "timestamp": "2026-08-28T07:34:27.704Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901658666-lcosa",
+  "name": "doc_evaluasi_performa_2026_pdf",
+  "currentVersion": 1,
+  "latestHash": "8a4f5412a44b663f1d9e06aa7a4ae2a7b327494b63023d698d500d58f617b61c",
+  "lastUpdated": "2026-08-28T07:20:58.666Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "8a4f5412a44b663f1d9e06aa7a4ae2a7b327494b63023d698d500d58f617b61c",
+      "timestamp": "2026-08-28T07:20:58.666Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

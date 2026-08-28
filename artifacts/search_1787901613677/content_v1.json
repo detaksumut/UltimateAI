@@ -1,0 +1,8 @@
+{
+  "query": "Analisis dokumen ini, cari informasi pendukung benchmark web, bandingkan temuannya, lalu berikan rekomendasi.",
+  "mode": "UNAVAILABLE",
+  "reason": "fetch failed",
+  "sourcesCount": 0,
+  "sources": [],
+  "latencyMs": 126
+}

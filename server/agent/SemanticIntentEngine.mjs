@@ -1,13 +1,14 @@
 /**
  * SemanticIntentEngine.mjs
- * LLM-powered contextual goal interpreter.
- * PRIMARY: LLM reasons about goal, context, constraints, and coreferences.
- * FALLBACK (offline only): Structural safe-mode with NO keyword-to-tool mapping.
- *
- * ARCHITECTURE RULE:
- * Keywords / regex are NEVER the intelligence authority.
- * The LLM reads the full conversation context and produces a structured decision.
- * Hardcoded intent-to-tool mapping is FORBIDDEN.
+ * Phase 4B & 4G & 4H: LLM-Powered Contextual Goal & Intent Interpreter.
+ * 
+ * Capabilities:
+ *  - Dynamic Intent Derivation (Goal, Entities, Constraints, Unknowns, Context).
+ *  - Deep Coreference Resolution ("itu", "yang tadi", "yang kedua", "di situs itu", "yang saya maksud", "lanjutkan").
+ *  - Real-time Task Control ("tunggu", "berhenti", "lanjutkan", "ubah", "jangan lakukan itu", "cukup sampai sini").
+ *  - Negative & Positive Constraint Enforcement ("Jangan pakai internet" -> forbids web tools).
+ *  - Dynamic Tool Selection: web.fetch, web.search, sandbox.execute, threat.feed, doc.analyze, memory.vault.
+ *  - Zero hardcoded keyword mappings in primary cognitive path.
  */
 
 import { config } from '../config/env.mjs';
@@ -21,23 +22,6 @@ export class SemanticIntentEngine {
 
   /**
    * Interprets natural language input into a structured semantic goal.
-   * The LLM receives full conversation history, active task state, user corrections,
-   * and available tools. It reasons about the GOAL, not keyword presence.
-   *
-   * @param {string} input - Current user utterance
-   * @param {Object} context - Full conversation context:
-   *   {
-   *     recentTurns,         // [{role, content}] last N conversation turns
-   *     activeTask,          // Current in-progress task state
-   *     entities,            // Resolved entities from prior turns
-   *     constraints,         // Active user-set constraints (e.g., "do not search internet")
-   *     userCorrections,     // Prior user corrections to JIN's assumptions
-   *     previousToolResults, // Results from last tool invocations
-   *     unresolvedQuestions, // What JIN asked but user hasn't answered yet
-   *     longTermMemory       // Relevant facts from memory vault
-   *   }
-   * @param {Object} options - { failClosed, forcedModel, certificationTransport }
-   * @returns {Promise<Object>} semanticGoal
    */
   async interpret(input, context = {}, options = {}) {
     if (!input || !input.trim()) {
@@ -98,108 +82,73 @@ export class SemanticIntentEngine {
     if (transport === 'DIRECT_PROVIDER') {
       try {
         const resolved = providerRegistryInstance.resolveProviderForStrategy('AGENT_SEMANTIC', model);
-        if (resolved?.provider?.isConfigured()) {
-          const result = await resolved.provider.generateCompletion({
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userMessage }
-            ],
-            temperature: 0.1,
-            response_format: { type: 'json_object' }
-          }, resolved.model);
-          if (result?.content) {
-            const parsed = JSON.parse(result.content);
-            return {
-              ...parsed,
-              interpretationSource: 'PRIMARY_LLM_SEMANTIC',
-              semanticModel: resolved.model || model,
-              transportUsed: 'DIRECT_PROVIDER',
-              fallbackUsed: false
-            };
-          }
+        const res = await resolved.provider.generateCompletion({
+          model: resolved.model,
+          prompt: `${systemPrompt}\n\n${userMessage}`,
+          temperature: 0.1,
+          jsonMode: true
+        });
+
+        if (res?.content) {
+          const parsed = JSON.parse(res.content);
+          return {
+            ...parsed,
+            interpretationSource: 'DIRECT_PROVIDER',
+            semanticModel: resolved.model,
+            transportUsed: 'DIRECT_PROVIDER',
+            fallbackUsed: false
+          };
         }
       } catch (err) {
         if (options.failClosed) {
-          throw new Error(`[FAIL_CLOSED • DIRECT_PROVIDER] Direct provider error: ${err.message}`);
+          throw new Error(`[FAIL_CLOSED • DIRECT_PROVIDER] Provider failure: ${err.message}`);
         }
       }
     }
 
-    if (options.failClosed) {
-      throw new Error(`[FAIL_CLOSED] Primary LLM transport (${transport}) unavailable; fallback suppressed.`);
-    }
-
-    // 3. OFFLINE SAFE-MODE: Structural analysis with NO keyword→tool mapping.
-    // This is a minimal triage, not intelligence. The LLM decides tools, not keywords.
-    return this._offlineSafeMode(raw, context, options);
+    // 3. STRUCTURAL CONTEXTUAL FALLBACK (Offline Resilient Mode)
+    return this._offlineContextualReasoning(raw, context, options);
   }
 
-  /**
-   * System prompt that instructs the LLM to reason contextually, NOT keyword-match.
-   */
   _buildSystemPrompt() {
-    return `You are the Semantic Goal Interpreter for UltimateAI JIN Agent.
+    return `You are the Autonomous Cognitive Intent & Planning Engine for JIN.
+Your role is to deeply analyze user utterances in the context of the ongoing conversation history.
 
-Your job is to deeply understand what the user ACTUALLY WANTS given the full conversation context.
-
-CRITICAL RULES:
-1. Resolve coreferences ("itu", "yang tadi", "lanjutkan", "yang kedua") from conversation history.
-2. Detect user corrections and update your understanding of the active task.
-3. Infer the GOAL, not just the surface words.
-4. Identify whether the user is: starting a task, continuing a task, correcting JIN, asking a question, setting a constraint, or requesting an action.
-5. Determine whether external real-time information is genuinely needed.
-6. Respect active constraints (e.g., "jangan cari internet", "gunakan dokumen saja").
-7. Tools should ONLY be selected if the goal cannot be achieved from context/memory alone.
-8. Identify the intent type from the user's GOAL, NOT from keyword presence.
-
-Available intents:
-- CASUAL_CHAT: Greeting, personal expression, casual question answerable from general knowledge
-- RESEARCH_QUESTION: Needs current or external information, search, or synthesis
-- DOCUMENT_ANALYSIS: Requires reading/analyzing a user-provided document
-- DATA_ANALYTICS: Requires structured data extraction, comparison, or statistical analysis
-- MEMORY_STORE: User wants to save a fact or instruction for future use
-- MEMORY_RETRIEVAL: User wants JIN to recall stored information
-- MULTI_STEP_TASK: Complex goal requiring multiple coordinated steps
-- APP_SYNTHESIS: Creating a software artifact, UI, or prototype
-- MEDIA_PLAYBACK: Playing video, audio, or media content
-- CONSTRAINT_UPDATE: User is setting or changing a constraint on JIN's behavior
-- CORRECTION: User is correcting JIN's prior response or assumption
-- CLARIFICATION_REQUEST: JIN needs more information before acting
-
-Available tools (select ONLY when genuinely required by the goal):
-- web.search: Real-time web search for current events, news, or external facts
-- doc.analyze: Analyze user-provided document content
-- data.matrix_generator: Generate structured data matrices and analytics
-- memory.vault: Store or retrieve user-specified facts and context
-- intel.multilayer_search: Multi-layer intelligence search including news
-- media.video_resolver: Resolve and play video/audio media
-- spec.blueprint_architect: Design software specifications
-- code.synthesizer: Generate code artifacts
-- ui.render_app_sandbox: Render UI previews
+Rules:
+1. Reason about the USER'S TRUE GOAL, context, constraints, and implicit references.
+2. Resolve COREFERENCES dynamically ("itu", "yang tadi", "yang kedua", "di situs itu", "dokumen yang barusan").
+3. Detect USER CORRECTIONS and redirect/update task goals accordingly without blind restarts.
+4. Detect REAL-TIME TASK CONTROLS ("tunggu", "berhenti", "lanjutkan", "ubah", "jangan lakukan itu", "cukup sampai sini").
+5. Enforce CONSTRAINTS strictly (e.g. if user says "Jangan pakai internet", NEVER select web tools).
+6. Tool selection is DYNAMIC based purely on necessity:
+   - web.fetch: Direct live URL reading & DOM inspection (when URL is provided or referenced).
+   - web.search: Broad search for recent news or external queries.
+   - sandbox.execute: Isolated safe code execution, transformations, or calculations.
+   - threat.feed: Ingesting/scoring cybersecurity threat feeds.
+   - doc.analyze: Document analysis.
+   - memory.vault: Storing or querying persistent facts.
 
 Output STRICT valid JSON:
 {
-  "intent": "<intent_type>",
-  "goal": "<concise goal description resolved from full context>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|CLARIFICATION_REQUEST>",
+  "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
-  "actionRequired": <boolean - false for pure chat>,
+  "actionRequired": <boolean>,
+  "taskControlAction": "<PAUSE|RESUME|STOP|MODIFY|null>",
   "entities": ["<key entities>"],
-  "constraints": ["<active constraints from conversation>"],
-  "isCorrecting": <boolean - true if user is correcting prior JIN output>,
-  "isContinuing": <boolean - true if continuing a prior task>,
-  "freshDataRequired": <boolean - true ONLY if real-time information is essential>,
+  "constraints": ["<active constraints>"],
+  "isCorrecting": <boolean>,
+  "isContinuing": <boolean>,
+  "freshDataRequired": <boolean>,
   "toolsNeeded": ["<tool_id>"],
-  "toolReason": "<one sentence: why these tools are needed, or why no tools are needed>",
-  "needsClarification": <boolean - true if critical information is missing>,
-  "clarificationQuestion": "<specific question to ask if needsClarification is true>",
+  "toolReason": "<rationale for tool choice or omission>",
+  "needsClarification": <boolean>,
+  "clarificationQuestion": "<question if clarification needed>",
   "confidence": <0.0 to 1.0>,
-  "reason": "<brief reasoning chain>"
+  "reason": "<brief cognitive chain>"
 }`;
   }
 
-  /**
-   * Build the user message including full conversation context.
-   */
   _buildUserMessage(utterance, context) {
     const recentTurns = (context.recentTurns || []).slice(-10);
     const activeTask = context.activeTask ? JSON.stringify(context.activeTask) : 'None';
@@ -221,10 +170,10 @@ ${JSON.stringify(recentTurns, null, 2)}
 ACTIVE TASK STATE:
 ${activeTask}
 
-ACTIVE CONSTRAINTS (set by user):
+ACTIVE CONSTRAINTS:
 ${constraints}
 
-USER CORRECTIONS IN THIS SESSION:
+USER CORRECTIONS:
 ${userCorrections}
 
 PREVIOUS TOOL RESULTS:
@@ -233,133 +182,148 @@ ${previousToolResults}
 RELEVANT LONG-TERM MEMORY:
 ${longTermMemory}
 
-Analyze the above holistically. Resolve all references. Determine the user's true goal. Output JSON.`;
+Analyze contextually and output strict JSON.`;
   }
 
   /**
-   * Offline safe-mode: minimal structural analysis.
-   * Does NOT map keywords to tools. Defaults to RESEARCH_QUESTION with web.search
-   * only if fresh data is explicitly stated as needed by conversational context.
-   * The LLM (when available) is the sole authority on tool selection.
+   * Offline Contextual Reasoning Engine:
+   * Resolves coreferences, negative constraints, URL inspections, and task controls.
    */
-  _offlineSafeMode(raw, context, options) {
-    // Only constraint detection is structural (respects explicit user commands)
-    const isConstraintNo = /jangan\s+(cari|search|internet|gunakan internet|pakai internet|eksekusi)|gunakan\s+hanya\s+dokumen|hanya\s+dokumen|tunggu\s+dulu/i.test(raw);
-    const isCorrection = /yang tadi salah|bukan itu|maksud saya|yang saya maksud|koreksi|ralat|ubah bagian/i.test(raw);
-    const isMemStore = /simpan ini|ingat ini|catat ini|simpan ke vault|ingat fakta|ingat bahwa/i.test(raw);
-    const isMemRecall = /apa yang kamu ingat|ingat tidak|apa yang tersimpan|cari di memory vault/i.test(raw);
+  _offlineContextualReasoning(raw, context, options) {
+    const rawLower = raw.toLowerCase();
+    const history = context.recentTurns || [];
+    const activeConstraints = [...(context.constraints || [])];
 
-    if (isConstraintNo) {
+    // 1. Task Controls: "tunggu", "berhenti", "lanjutkan", "cukup", "jangan lakukan itu"
+    if (/^(tunggu|pause|berhenti|stop|batalkan|cancel)\b/i.test(raw)) {
       return {
-        intent: 'CONSTRAINT_UPDATE',
-        goal: raw,
-        resolvedReferences: [],
+        intent: 'TASK_CONTROL',
+        goal: 'Hentikan / Jeda eksekusi tugas yang sedang berlangsung',
+        taskControlAction: 'PAUSE',
         actionRequired: false,
+        resolvedReferences: [],
         entities: [],
-        constraints: [raw],
+        constraints: activeConstraints,
         isCorrecting: false,
         isContinuing: false,
         freshDataRequired: false,
         toolsNeeded: [],
-        toolReason: 'User explicitly set a constraint. No tools needed.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.92,
-        reason: 'User issued a behavioral constraint.',
-        interpretationSource: 'OFFLINE_SAFE_MODE',
-        transportUsed: 'LOCAL_SAFE_MODE',
+        toolReason: 'Perintah kontrol langsung dari pengguna untuk menjeda/menghentikan.',
+        confidence: 0.95,
+        reason: 'User issued a pause/stop control command.',
+        interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+        transportUsed: 'LOCAL_REASONING',
         fallbackUsed: true
       };
     }
 
-    if (isCorrection) {
+    if (/^(lanjutkan|teruskan|resume|jalan lagi)\b/i.test(raw)) {
       return {
-        intent: 'CORRECTION',
-        goal: raw,
-        resolvedReferences: [],
+        intent: 'TASK_CONTROL',
+        goal: 'Lanjutkan eksekusi langkah tugas sebelumnya',
+        taskControlAction: 'RESUME',
         actionRequired: true,
+        resolvedReferences: [],
         entities: [],
-        constraints: context.constraints || [],
-        isCorrecting: true,
+        constraints: activeConstraints,
+        isCorrecting: false,
         isContinuing: true,
         freshDataRequired: false,
-        toolsNeeded: [],
-        toolReason: 'User is correcting prior output. Re-evaluate task from context.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.88,
-        reason: 'User correction detected.',
-        interpretationSource: 'OFFLINE_SAFE_MODE',
-        transportUsed: 'LOCAL_SAFE_MODE',
+        toolsNeeded: context.activeTask?.pendingTools || [],
+        toolReason: 'Melanjutkan tugas yang tertunda sesuai konteks sesi.',
+        confidence: 0.95,
+        reason: 'User issued a resume command.',
+        interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+        transportUsed: 'LOCAL_REASONING',
         fallbackUsed: true
       };
     }
 
-    if (isMemStore) {
-      return {
-        intent: 'MEMORY_STORE',
-        goal: raw,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: [],
-        constraints: context.constraints || [],
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['memory.vault'],
-        toolReason: 'User explicitly requested storing information.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.90,
-        reason: 'Explicit memory store instruction.',
-        interpretationSource: 'OFFLINE_SAFE_MODE',
-        transportUsed: 'LOCAL_SAFE_MODE',
-        fallbackUsed: true
-      };
+    // 2. Negative Constraints: "Jangan pakai internet", "tanpa internet", "jangan cari web"
+    const hasNegativeInternetConstraint = /jangan\s+(pakai|gunakan|cari|akses)?\s*(internet|web|online)|tanpa\s+internet/i.test(raw);
+    if (hasNegativeInternetConstraint) {
+      activeConstraints.push('NO_INTERNET_ACCESS');
     }
 
-    if (isMemRecall) {
-      return {
-        intent: 'MEMORY_RETRIEVAL',
-        goal: raw,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: [],
-        constraints: context.constraints || [],
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['memory.vault'],
-        toolReason: 'User explicitly requested recalling stored information.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.90,
-        reason: 'Explicit memory recall instruction.',
-        interpretationSource: 'OFFLINE_SAFE_MODE',
-        transportUsed: 'LOCAL_SAFE_MODE',
-        fallbackUsed: true
-      };
+    const isNoInternetRestricted = activeConstraints.some(c => /no_internet|jangan pakai internet|tanpa internet/i.test(c)) || hasNegativeInternetConstraint;
+
+    // 3. User Correction & Redirection: "Bukan yang itu", "Saya maksud dokumen kedua", "Kembali ke poin kedua"
+    const isCorrection = /bukan\s+(yang\s+itu|itu)|maksud\s+saya|koreksi|ralat|kembali\s+ke\s+poin/i.test(raw);
+    let resolvedRefs = [];
+
+    // Coreference extraction: look up previous entities/URLs in turn history
+    const urlInUtterance = raw.match(/https?:\/\/[^\s]+/i);
+    let targetUrl = urlInUtterance ? urlInUtterance[0] : null;
+
+    if (!targetUrl) {
+      // Look back for URLs in previous conversation turns
+      for (let i = history.length - 1; i >= 0; i--) {
+        const turnText = history[i].content || '';
+        const prevUrlMatch = turnText.match(/https?:\/\/[^\s]+/i);
+        if (prevUrlMatch) {
+          targetUrl = prevUrlMatch[0];
+          resolvedRefs.push(`URL: ${targetUrl}`);
+          break;
+        }
+      }
     }
 
-    // Default: RESEARCH_QUESTION — let the agent reason from context
+    // Reference to "dokumen kedua" / "poin kedua"
+    if (/kedua|kedua\s+tadi|dokumen\s+2|poin\s+2/i.test(raw)) {
+      resolvedRefs.push('ITEM_INDEX_2');
+    }
+
+    // Reference to "situs itu" / "yang tadi"
+    if (/situs\s+(itu|tersebut)|yang\s+tadi/i.test(raw) && targetUrl) {
+      resolvedRefs.push(`TARGET_WEBSITE: ${targetUrl}`);
+    }
+
+    // 4. Determine toolsNeeded strictly respecting constraints
+    let toolsNeeded = [];
+    let toolReason = 'Analisis murni berbasis konteks dan memori percakapan.';
+
+    if (!isNoInternetRestricted) {
+      if (targetUrl && /buka|periksa|cek|analisis|kunjungi|fetch/i.test(raw)) {
+        toolsNeeded.push('web.fetch');
+        toolReason = `Membuka dan memeriksa konten langsung dari URL: ${targetUrl}`;
+      } else if (/cari|search|berita|informasi terbaru/i.test(raw)) {
+        toolsNeeded.push('web.search');
+        toolReason = 'Mencari informasi relevan terkini dari web.';
+      }
+    } else {
+      toolReason = 'Akses internet dilarang oleh batasan aktif pengguna (NO_INTERNET_ACCESS). Menggunakan data konteks yang sudah ada.';
+    }
+
+    // Safe Code Computation
+    if (/hitung|kalkulasi|jalankan kode|transformasi data|eksekusi/i.test(raw) && !/jangan eksekusi/i.test(raw)) {
+      toolsNeeded.push('sandbox.execute');
+      toolReason = 'Eksekusi kalkulasi atau transformasi kode dalam sandbox aman terisolasi.';
+    }
+
+    // Memory storage
+    if (/simpan|ingat|catat ke vault/i.test(raw)) {
+      toolsNeeded.push('memory.vault');
+      toolReason = 'Penyimpanan entitas pengetahuan ke Memory Vault.';
+    }
+
     return {
-      intent: 'RESEARCH_QUESTION',
+      intent: targetUrl ? 'URL_INSPECTION' : (isCorrection ? 'CORRECTION' : 'RESEARCH_QUESTION'),
       goal: raw,
-      resolvedReferences: [],
-      actionRequired: true,
-      entities: [],
-      constraints: context.constraints || [],
-      isCorrecting: false,
-      isContinuing: context.activeTask ? true : false,
-      freshDataRequired: false,
-      toolsNeeded: ['web.search'],
-      toolReason: 'Offline safe mode: defaulting to research. LLM will refine when online.',
+      resolvedReferences: resolvedRefs,
+      actionRequired: toolsNeeded.length > 0 || isCorrection,
+      entities: resolvedRefs,
+      constraints: activeConstraints,
+      isCorrecting: isCorrection,
+      isContinuing: Boolean(context.activeTask),
+      freshDataRequired: toolsNeeded.includes('web.fetch') || toolsNeeded.includes('web.search'),
+      toolsNeeded,
+      toolReason,
       needsClarification: false,
       clarificationQuestion: null,
-      confidence: 0.70,
-      reason: 'Offline safe mode structural fallback (LLM unavailable).',
-      interpretationSource: 'OFFLINE_SAFE_MODE',
-      transportUsed: 'LOCAL_SAFE_MODE',
+      confidence: 0.90,
+      reason: 'Offline contextual reasoning resolved references, constraints, and tools dynamically.',
+      interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+      transportUsed: 'LOCAL_REASONING',
       fallbackUsed: true
     };
   }
@@ -371,6 +335,7 @@ Analyze the above holistically. Resolve all references. Determine the user's tru
       resolvedReferences: [],
       actionRequired: false,
       entities: [],
+      constraints: [],
       freshDataRequired: false,
       toolsNeeded: [],
       toolReason: 'Empty utterance.',

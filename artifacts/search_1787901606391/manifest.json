@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787901606391-wmxsv",
+  "name": "search_1787901606391",
+  "currentVersion": 1,
+  "latestHash": "42e61007efd2474a11e49c700bf9a4f5a4574b59e36756749edacd42b9bc6fb7",
+  "lastUpdated": "2026-08-28T07:20:06.392Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "42e61007efd2474a11e49c700bf9a4f5a4574b59e36756749edacd42b9bc6fb7",
+      "timestamp": "2026-08-28T07:20:06.392Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

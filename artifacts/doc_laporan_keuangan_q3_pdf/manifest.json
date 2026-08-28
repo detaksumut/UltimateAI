@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467699-1w8jf",
+  "name": "doc_laporan_keuangan_q3_pdf",
+  "currentVersion": 1,
+  "latestHash": "a643b501b0b5073c9062f60f3ea04a4ba88d0b180e881b2ca444a5fd1bc79fda",
+  "lastUpdated": "2026-08-28T07:34:27.700Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "a643b501b0b5073c9062f60f3ea04a4ba88d0b180e881b2ca444a5fd1bc79fda",
+      "timestamp": "2026-08-28T07:34:27.700Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

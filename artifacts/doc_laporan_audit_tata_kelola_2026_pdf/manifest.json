@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902326253-5h8z1",
+  "name": "doc_laporan_audit_tata_kelola_2026_pdf",
+  "currentVersion": 1,
+  "latestHash": "5a2f4b19222c65ee5054acb6da329795c00962fb98bee5d15c2dd2eaf0995b3d",
+  "lastUpdated": "2026-08-28T07:32:06.254Z",
+  "type": "DATA_MODEL",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "5a2f4b19222c65ee5054acb6da329795c00962fb98bee5d15c2dd2eaf0995b3d",
+      "timestamp": "2026-08-28T07:32:06.254Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

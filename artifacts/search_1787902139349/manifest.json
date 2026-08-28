@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902139349-wldyr",
+  "name": "search_1787902139349",
+  "currentVersion": 1,
+  "latestHash": "349e9806c16d9594997e6c30ffa4eb8d0aff2041599ac789dd0bd6c21af302ed",
+  "lastUpdated": "2026-08-28T07:28:59.349Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "349e9806c16d9594997e6c30ffa4eb8d0aff2041599ac789dd0bd6c21af302ed",
+      "timestamp": "2026-08-28T07:28:59.349Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

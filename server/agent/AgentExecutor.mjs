@@ -96,7 +96,56 @@ export class AgentExecutor {
         };
       }
 
-      // 4. Multi-Layer Search (intel.multilayer_search)
+      // 4. Tool-Specific: Live Web Fetch (web.fetch)
+      if (tool === 'web.fetch') {
+        const result = await toolRegistryInstance.executeTool('web.fetch', params);
+        const artifact = artifactManagerInstance.createArtifact({
+          name: `web_${Date.now()}`,
+          type: 'RESEARCH_BRIEF',
+          content: result,
+          metadata: {
+            url: result.url,
+            finalUrl: result.finalUrl,
+            status: result.status,
+            title: result.title,
+            generatedBy: 'WebFetchTool'
+          }
+        });
+
+        return {
+          stepId: step.id || step.stepId,
+          success: true,
+          tool,
+          result: { ...result, artifactId: artifact.id, artifact },
+          durationMs: Date.now() - startTime
+        };
+      }
+
+      // 5. Tool-Specific: Sandbox Execution (sandbox.execute)
+      if (tool === 'sandbox.execute') {
+        const result = await toolRegistryInstance.executeTool('sandbox.execute', params);
+        return {
+          stepId: step.id || step.stepId,
+          success: result.exitCode === 0,
+          tool,
+          result,
+          durationMs: Date.now() - startTime
+        };
+      }
+
+      // 6. Tool-Specific: Threat Feed Intelligence (threat.feed)
+      if (tool === 'threat.feed') {
+        const result = await toolRegistryInstance.executeTool('threat.feed', params);
+        return {
+          stepId: step.id || step.stepId,
+          success: true,
+          tool,
+          result,
+          durationMs: Date.now() - startTime
+        };
+      }
+
+      // 7. Multi-Layer Search (intel.multilayer_search)
       if (tool === 'intel.multilayer_search') {
         const result = await toolRegistryInstance.executeTool('intel.multilayer_search', params);
         return {
@@ -108,7 +157,7 @@ export class AgentExecutor {
         };
       }
 
-      // 5. Video Resolver (media.video_resolver)
+      // 8. Video Resolver (media.video_resolver)
       if (tool === 'media.video_resolver') {
         const result = await LiveVideoResolver.resolveBestVideo(params.query);
         return {

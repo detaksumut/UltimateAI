@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902467947-nswn2",
+  "name": "search_1787902467947",
+  "currentVersion": 1,
+  "latestHash": "6e86e7cc27c4ef1665164704902310aab08d40cd48b4b593f798f59bbdb0862c",
+  "lastUpdated": "2026-08-28T07:34:27.947Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "6e86e7cc27c4ef1665164704902310aab08d40cd48b4b593f798f59bbdb0862c",
+      "timestamp": "2026-08-28T07:34:27.947Z",
+      "file": "content_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "fileName": "operational_report.pdf",
+  "totalDocumentLength": 132,
+  "totalChunks": 1,
+  "relevantChunksCount": 1,
+  "relevantChunks": [
+    {
+      "chunkIndex": 0,
+      "citationTag": "[Ref: operational_report.pdf#Chunk-1]",
+      "relevanceScore": 1,
+      "textPreview": "Laporan Keuangan Q3 2026: Revenue 12.4M (+48%), Opex 4.2M (-18%), CAC turun 65%, laba bersih naik 33.8% terhadap benchma...",
+      "safePayload": "<<<UNTRUSTED_DOCUMENT_DATA [Source: operational_report.pdf, Chunk: 1]>>>\nLaporan Keuangan Q3 2026: Revenue 12.4M (+48%), Opex 4.2M (-18%), CAC turun 65%, laba bersih naik 33.8% terhadap benchmark industri.\n<<<END_UNTRUSTED_DOCUMENT_DATA>>>"
+    }
+  ],
+  "securityPolicy": "UNTRUSTED_DOCUMENT_BOUNDARY_ENFORCED",
+  "latencyMs": 0
+}

@@ -15,7 +15,10 @@ import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 const PLANNER_PROXY_URL = process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
 
 const AVAILABLE_TOOLS_MANIFEST = [
+  { id: 'web.fetch', description: 'Fetch and extract structured text, DOM, links, and metadata from live URLs using isolated browser execution' },
   { id: 'web.search', description: 'Real-time web search for current events, news, and external information' },
+  { id: 'sandbox.execute', description: 'Execute safe, isolated computational code, transformations, or calculations in a constrained sandbox' },
+  { id: 'threat.feed', description: 'Fetch, normalize, and score structured threat intelligence feeds and cybersecurity indicators' },
   { id: 'doc.analyze', description: 'Analyze and extract insight from user-provided document text' },
   { id: 'data.matrix_generator', description: 'Build structured data matrices, comparisons, and analytics' },
   { id: 'memory.vault', description: 'Store or retrieve user-specified facts and long-term context' },
@@ -200,10 +203,9 @@ Build the minimal execution DAG plan.`;
     if (!response.ok) throw new Error(`Planner LLM returned ${response.status}`);
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Planner LLM returned empty content');
-
-    const parsed = JSON.parse(content);
+    const content = data.choices?.[0]?.message?.content || '{}';
+    const cleaned = content.replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const parsed = JSON.parse(cleaned);
     if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error('Planner LLM returned invalid steps');
 
     // Attach specialist model to each step

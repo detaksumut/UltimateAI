@@ -122,6 +122,19 @@ Generate a revised execution strategy in STRICT JSON format:
       }
     };
   }
+
+  async replan({ failedPlan, executionHistory = [], attemptNumber = 1, failureReason = null }) {
+    const failedStep = executionHistory.slice(-1)[0]?.step || failedPlan?.steps?.[0];
+    const observedFailure = executionHistory.slice(-1)[0]?.observation || { reason: failureReason };
+    const res = await this.generateReplan({
+      originalGoal: failedPlan?.goal || '',
+      failedStep,
+      observedFailure,
+      executionHistory,
+      attempt: attemptNumber
+    });
+    return res.replacementPlan;
+  }
 }
 
 export const replanEngineInstance = new ReplanEngine();

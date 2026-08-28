@@ -1,0 +1,8 @@
+{
+  "query": "Jelaskan kesimpulan audit tata kelola data.",
+  "mode": "UNAVAILABLE",
+  "reason": "fetch failed",
+  "sourcesCount": 0,
+  "sources": [],
+  "latencyMs": 101
+}

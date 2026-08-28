@@ -1,0 +1,17 @@
+{
+  "artifactId": "art-1787902326237-ncteh",
+  "name": "search_1787902326237",
+  "currentVersion": 1,
+  "latestHash": "cd4e41c81d4b95c34aba4a2b089d1e069146745ebfb40598e4be798fb8b49e6c",
+  "lastUpdated": "2026-08-28T07:32:06.238Z",
+  "type": "RESEARCH_BRIEF",
+  "persistenceStatus": "PERSISTED",
+  "history": [
+    {
+      "version": 1,
+      "hash": "cd4e41c81d4b95c34aba4a2b089d1e069146745ebfb40598e4be798fb8b49e6c",
+      "timestamp": "2026-08-28T07:32:06.238Z",
+      "file": "content_v1.json"
+    }
+  ]
+}
