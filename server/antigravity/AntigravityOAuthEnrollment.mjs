@@ -47,6 +47,8 @@ function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest();
 }
 
+export const DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID = '1071006060469-rhbenckiv2kchmgakf7sm924k87mllkh.apps.googleusercontent.com';
+
 export class AntigravityOAuthEnrollment {
   constructor(
     vault = antigravityVaultInstance,
@@ -77,25 +79,17 @@ export class AntigravityOAuthEnrollment {
         if (match) rawId = decodeURIComponent(match[1]);
       }
     }
+
+    // Zero-friction built-in default if unconfigured or placeholder
+    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => rawId.toLowerCase().includes(p));
+    if (!rawId || isPlaceholder) {
+      rawId = DEFAULT_ANTIGRAVITY_DESKTOP_CLIENT_ID;
+    }
+
     const clientId = rawId.trim();
     const clientSecret = (env.ANTIGRAVITY_OAUTH_CLIENT_SECRET || '').trim();
 
-    if (!clientId) {
-      return {
-        valid: false,
-        clientIdPresent: false,
-        clientIdFormatValid: false,
-        clientSecretPresent: Boolean(clientSecret),
-        redirectMode: 'LOOPBACK',
-        scopesConfigured: Boolean(env.ANTIGRAVITY_OAUTH_SCOPES),
-        error: 'AUTH_CONFIGURATION_MISSING',
-        message: 'ANTIGRAVITY_OAUTH_CLIENT_ID environment variable is missing.'
-      };
-    }
-
-    // Check for known placeholder values
-    const isPlaceholder = KNOWN_PLACEHOLDERS.some(p => clientId.toLowerCase().includes(p));
-    if (isPlaceholder || !GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
+    if (!GOOGLE_CLIENT_ID_REGEX.test(clientId)) {
       return {
         valid: false,
         clientIdPresent: true,

@@ -44,9 +44,6 @@ export default function ConnectionsModal({ isOpen, onClose }) {
             if (configRes.ok) {
               const cfg = await configRes.json();
               setOauthConfigValid(cfg.valid);
-              if (!cfg.valid) {
-                setShowConfigBox(true);
-              }
             }
           } catch {}
 
