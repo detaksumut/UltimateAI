@@ -327,14 +327,21 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                           })}
                         </div>
                       ) : (
-                        <div className="p-3 rounded-xl bg-black/30 border border-[#212533] text-[11px] font-mono text-slate-400 space-y-1">
-                          <div className="text-cyan-300 font-semibold flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Akun Terotentikasi di Vault</span>
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                          {(slot.models || []).map((modelId) => (
+                            <div key={modelId} className="flex items-center justify-between text-[11px] font-mono py-1 px-2 rounded-lg bg-[#14161f] border border-[#212533]">
+                              <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400/60 flex-shrink-0"></span>
+                                <span className="text-slate-300 truncate">{modelId}</span>
+                              </div>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">
+                                READY (STANDBY)
+                              </span>
+                            </div>
+                          ))}
+                          <div className="mt-2 p-2 rounded-lg bg-black/30 border border-[#212533] text-[10px] font-mono text-slate-400">
+                            Telemetri kuota upstream Google akan dicatat otomatis pada request chat pertama.
                           </div>
-                          <p className="text-[10px] text-slate-400">
-                            Telemetry quota upstream ({quotaSource}) akan dicatat otomatis pada request inferensi pertama melalui Local Router.
-                          </p>
                         </div>
                       )}
                     </div>
