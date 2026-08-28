@@ -78,6 +78,10 @@ export class JinAudioQueue {
     };
 
     this.audioElement.onerror = (e) => {
+      // Ignore reset/empty src errors on stop
+      if (!this.audioElement.src || this.audioElement.src === '' || this.audioElement.src === window?.location?.href) {
+        return;
+      }
       console.error(`[AUDIO_QUEUE] ❌ AUDIO_PLAYBACK_FAILED on segment ${this.currentIndex}:`, this.audioElement.error?.message || e);
       this._cleanupCurrentSegmentUrl();
       this._playNextSegment();
@@ -151,6 +155,9 @@ export class JinAudioQueue {
     try {
       if (!item.audioDataUrl) {
         const synthResult = await this.provider.synthesize(item.text);
+        if (!synthResult || !synthResult.audioDataUrl) {
+          throw new Error('AUDIO_SOURCE_EMPTY: Neural TTS did not produce audioDataUrl');
+        }
         item.audioDataUrl = synthResult.audioDataUrl;
         item.audioBlob = synthResult.audioBlob;
         item.mimeType = synthResult.mimeType;
@@ -167,20 +174,20 @@ export class JinAudioQueue {
       // Pipeline pre-fetch next segment in background
       if (index + 1 < this.queue.length && !this.queue[index + 1].audioDataUrl) {
         this.provider.synthesize(this.queue[index + 1].text).then(res => {
-          if (this.queue[index + 1]) {
+          if (this.queue[index + 1] && res?.audioDataUrl) {
             this.queue[index + 1].audioDataUrl = res.audioDataUrl;
             this.queue[index + 1].audioBlob = res.audioBlob;
             this.queue[index + 1].mimeType = res.mimeType;
             this.queue[index + 1].status = 'READY';
-            if (res.audioDataUrl && res.audioDataUrl.startsWith('blob:')) {
+            if (res.audioDataUrl.startsWith('blob:')) {
               this.activeObjectUrls.add(res.audioDataUrl);
             }
           }
         }).catch(() => {});
       }
 
-      // Play audio on HTMLAudioElement
-      if (this.audioElement && item.audioDataUrl) {
+      // Play audio on HTMLAudioElement ONLY if valid non-empty audio source exists
+      if (this.audioElement && item.audioDataUrl && item.audioDataUrl.trim().length > 5) {
         this.audioElement.src = item.audioDataUrl;
         this.isPlaying = true;
         this._emitState({ isPlaying: true, currentIndex: index });

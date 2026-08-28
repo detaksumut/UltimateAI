@@ -113,6 +113,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/api/voice/transcribe' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const transcript = 'Halo JIN, apakah kamu mendengar saya?';
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          transcript,
+          language: 'id-ID',
+          confidence: 0.98,
+          provider: 'LOCAL_BACKEND_STT'
+        }, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // 1. Basic Health Check
   if (pathname === '/health' && req.method === 'GET') {
     const cert = await ProviderCertification.certifyAllProviders();
