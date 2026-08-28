@@ -61,22 +61,23 @@ export default function ChatSimulator() {
   });
 
   // Handle Text/Voice Prompts through SimulatorOrchestrator
-  const handleExecutePrompt = async (promptText) => {
+  const handleExecutePrompt = async (promptText, options = {}) => {
     try {
       // Auto-detect intent and switch simulator display mode
-      const lower = promptText.toLowerCase();
+      const lower = (promptText || '').toLowerCase();
       if (lower.includes('cari') || lower.includes('search') || lower.includes('global')) {
         setSimulatorMode('SEARCH');
       } else if (lower.includes('buat') || lower.includes('aplikasi') || lower.includes('app') || lower.includes('build')) {
         setSimulatorMode('APP_PREVIEW');
-      } else if (lower.includes('analisis') || lower.includes('risiko') || lower.includes('insight')) {
-        setSimulatorMode('INSIGHTS');
+      } else if (lower.includes('analisis') || lower.includes('risiko') || lower.includes('insight') || options.attachedImage) {
+        setSimulatorMode('CONVERSATION');
       } else {
         setSimulatorMode('CONVERSATION');
       }
 
       refreshMessages();
       await simulatorOrchestratorInstance.executeUserPrompt(promptText, {
+        attachedImage: options.attachedImage || null,
         onStreamChunk: (_, fullText) => {
           setLatestResponse(fullText);
           refreshMessages();

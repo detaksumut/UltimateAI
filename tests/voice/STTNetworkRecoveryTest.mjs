@@ -39,8 +39,8 @@ console.log('══════════════════════�
 
 const stt = new SpeechToText();
 
-test('Default STT active provider is BROWSER_STT', () => {
-  assert.strictEqual(stt.activeProviderName, 'BROWSER_STT');
+test('Default STT active provider is LOCAL_BACKEND_STT', () => {
+  assert.strictEqual(stt.activeProviderName, 'LOCAL_BACKEND_STT');
 });
 
 await asyncTest('Network error triggers seamless switch to LOCAL_BACKEND_STT', async () => {

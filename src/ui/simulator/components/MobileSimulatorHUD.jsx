@@ -199,6 +199,17 @@ export default function MobileSimulatorHUD({
                 <div className="space-y-2 text-xs font-sans select-text">
                   {lastUserMessage && (
                     <div className="group relative bg-blue-600/25 border border-blue-500/30 rounded-xl p-2.5 text-right text-slate-200 text-[11px] select-text selection:bg-cyan-500/40 selection:text-white cursor-text">
+                      {messages.filter(m => m.role === 'user').slice(-1)[0]?.imageUrl && (
+                        <div className="flex justify-end mb-2">
+                          <img 
+                            src={messages.filter(m => m.role === 'user').slice(-1)[0].imageUrl} 
+                            alt="User Attachment" 
+                            className="max-w-[160px] max-h-[120px] object-cover rounded-lg border border-cyan-400/50 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                            onClick={() => window.open(messages.filter(m => m.role === 'user').slice(-1)[0].imageUrl, '_blank')}
+                            title="Klik untuk membuka gambar"
+                          />
+                        </div>
+                      )}
                       <p className="whitespace-pre-wrap select-text selection:bg-cyan-500/40 selection:text-white">{lastUserMessage}</p>
                       <button
                         onClick={() => handleCopyText(lastUserMessage, 'user-msg')}

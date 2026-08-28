@@ -87,6 +87,7 @@ You maintain full awareness of conversation history, user corrections, and activ
       role,
       content,
       metadata,
+      imageUrl: metadata?.imageUrl || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -135,13 +136,14 @@ You maintain full awareness of conversation history, user corrections, and activ
   /**
    * Builds the chat payload for direct dispatch to AgentRuntime / LocalRouter.
    * The system prompt includes the conversation context and task state.
-   * Intent is provided by the caller from SemanticIntentEngine, NOT derived from keywords.
+   * Supports multimodal image payloads seamlessly.
    *
    * @param {string} userMessage - Current user utterance
-   * @param {string} [resolvedIntent] - Intent from SemanticIntentEngine (optional label for context)
+   * @param {string} [resolvedIntent] - Intent from SemanticIntentEngine
+   * @param {Object} [options] - { imageUrl }
    * @returns {Object} { messages, intent, context, retrievedMemories }
    */
-  buildPayload(userMessage, resolvedIntent = null) {
+  buildPayload(userMessage, resolvedIntent = null, options = {}) {
     const context = contextManagerInstance.getContext();
     const relevantMemories = this.retrieveRelevantMemories(userMessage);
     const memoryString = relevantMemories.map(f => `[${f.category}] ${f.key}: ${f.value}`).join('; ');
@@ -162,13 +164,39 @@ You maintain full awareness of conversation history, user corrections, and activ
 [Runtime Context: Domain=${context.activeDomain}, User=${context.userRole}]${taskBlock}${constraintBlock}${correctionBlock}
 ${memoryString ? `[Retrieved Knowledge Context: ${memoryString}]` : ''}`;
 
-    const historyMessages = this.history.map(m => ({ role: m.role, content: m.content }));
-    const lastHistory = historyMessages[historyMessages.length - 1];
+    const historyMessages = this.history.map(m => {
+      if (m.imageUrl) {
+        return {
+          role: m.role,
+          content: [
+            { type: 'text', text: m.content || 'Gambar terlampir' },
+            { type: 'image_url', image_url: { url: m.imageUrl } }
+          ]
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+
+    const lastHistory = this.history[this.history.length - 1];
 
     // Include userMessage only if not already the last item in history
-    const finalMessages = (lastHistory && lastHistory.role === 'user' && lastHistory.content === userMessage)
-      ? [{ role: 'system', content: augmentedSystemPrompt }, ...historyMessages]
-      : [{ role: 'system', content: augmentedSystemPrompt }, ...historyMessages, { role: 'user', content: userMessage }];
+    let finalMessages;
+    if (lastHistory && lastHistory.role === 'user' && lastHistory.content === userMessage) {
+      finalMessages = [{ role: 'system', content: augmentedSystemPrompt }, ...historyMessages];
+    } else {
+      const userPayloadContent = options.imageUrl
+        ? [
+            { type: 'text', text: userMessage || 'Analisis gambar ini' },
+            { type: 'image_url', image_url: { url: options.imageUrl } }
+          ]
+        : (userMessage || '');
+
+      finalMessages = [
+        { role: 'system', content: augmentedSystemPrompt },
+        ...historyMessages,
+        { role: 'user', content: userPayloadContent }
+      ];
+    }
 
     return { messages: finalMessages, intent, context, retrievedMemories: relevantMemories };
   }

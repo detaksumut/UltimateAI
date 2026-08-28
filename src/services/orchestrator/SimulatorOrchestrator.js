@@ -28,15 +28,16 @@ export class SimulatorOrchestrator {
   /**
    * Execute user command via voice or text input
    */
-  async executeUserPrompt(promptText, { onStreamChunk, onResponseReady, isVoiceTrigger = false } = {}) {
-    if (!promptText || !promptText.trim()) return;
+  async executeUserPrompt(promptText, { onStreamChunk, onResponseReady, isVoiceTrigger = false, attachedImage = null } = {}) {
+    if (!promptText && !attachedImage) return;
 
-    console.log(`[CHAT] INPUT_RECEIVED | IsVoice: ${isVoiceTrigger} | Content: "${promptText.trim()}"`);
+    const cleanPrompt = (promptText || '').trim() || (attachedImage ? 'Analisis gambar ini' : '');
+    console.log(`[CHAT] INPUT_RECEIVED | IsVoice: ${isVoiceTrigger} | Content: "${cleanPrompt}" | HasImage: ${Boolean(attachedImage)}`);
 
     // 1. Check for verbal resume of interrupted speech
-    if (/^lanjutkan\b|^teruskan\b|^lanjut\b/i.test(promptText.trim()) && this.voice.hasResidualContext()) {
+    if (/^lanjutkan\b|^teruskan\b|^lanjut\b/i.test(cleanPrompt) && this.voice.hasResidualContext()) {
       console.log('[CHAT] 🔁 Resuming interrupted speech context from JinAudioQueue');
-      this.conversation.addMessage('user', promptText);
+      this.conversation.addMessage('user', cleanPrompt);
       this.voice.resume({
         onEnd: () => {
           this.avatar.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED });
@@ -45,14 +46,14 @@ export class SimulatorOrchestrator {
       return;
     }
 
-    // 2. Record in conversation history
-    this.conversation.addMessage('user', promptText);
+    // 2. Record in conversation history with image metadata
+    this.conversation.addMessage('user', cleanPrompt, { imageUrl: attachedImage });
 
     // 3. Dispatch state to Avatar: PROCESSING
     this.avatar.dispatch({ type: AVATAR_EVENTS.REQUEST_STARTED });
 
     // 4. Build payload with context and memory
-    const { messages } = this.conversation.buildPayload(promptText);
+    const { messages } = this.conversation.buildPayload(cleanPrompt, null, { imageUrl: attachedImage });
     console.log(`[CHAT] AGENT_DISPATCHED | Messages Count: ${messages.length}`);
 
     try {
