@@ -85,6 +85,10 @@ export class AntigravityModelRegistry {
     }
 
     switch (capability) {
+      case 'MULTIMODAL_VISION':
+      case 'IMAGE_ANALYSIS':
+      case 'VISION':
+        return ANTIGRAVITY_MODELS['gemini-2.5-flash'];
       case 'CODE_GENERATION':
       case 'APP_SYNTHESIS':
         return ANTIGRAVITY_MODELS['claude-sonnet-4.6-thinking'];

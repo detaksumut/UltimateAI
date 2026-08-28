@@ -97,10 +97,45 @@ export class AntigravityCloudCodeTransport {
 
     const contents = messages
       .filter(m => m.role !== 'system')
-      .map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }));
+      .map(m => {
+        const role = m.role === 'assistant' ? 'model' : 'user';
+        let parts = [];
+
+        if (Array.isArray(m.content)) {
+          for (const item of m.content) {
+            if (typeof item === 'string') {
+              parts.push({ text: item });
+            } else if (item?.type === 'text') {
+              parts.push({ text: item.text || '' });
+            } else if (item?.type === 'image_url' && item.image_url?.url) {
+              const url = item.image_url.url;
+              if (url.startsWith('data:')) {
+                const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+                if (matches) {
+                  parts.push({
+                    inlineData: {
+                      mimeType: matches[1],
+                      data: matches[2]
+                    }
+                  });
+                }
+              }
+            } else if (item?.inlineData) {
+              parts.push({ inlineData: item.inlineData });
+            }
+          }
+        } else if (typeof m.content === 'string') {
+          parts.push({ text: m.content });
+        } else if (m.content) {
+          parts.push({ text: JSON.stringify(m.content) });
+        }
+
+        if (parts.length === 0) {
+          parts = [{ text: '' }];
+        }
+
+        return { role, parts };
+      });
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content || '';
     
@@ -141,6 +176,7 @@ export class AntigravityCloudCodeTransport {
 
     if (!response.ok) {
       const errText = await response.text();
+      console.error('[CLOUD_CODE_TRANSPORT] Upstream Response Error:', response.status, errText);
       this._parseAndRecordError(connection.id, modelId, response.status, errText);
       throw new Error(`Antigravity CodeAssist Error (${response.status}): ${errText}`);
     }

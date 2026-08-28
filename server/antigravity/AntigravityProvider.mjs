@@ -32,13 +32,24 @@ export class AntigravityProvider {
    * Main sendChat interface with automatic sticky rollover retry
    */
   async sendChat({ messages, stream = false, model = 'auto', capability = 'FAST_CHAT', temperature = 0.7 }, onChunk = null) {
+    const hasImage = messages.some(m => {
+      if (m.imageUrl || m.metadata?.imageUrl) return true;
+      if (Array.isArray(m.content)) {
+        return m.content.some(part => part.type === 'image_url' || part.inlineData || part.inline_data);
+      }
+      return false;
+    });
+
+    const effectiveCapability = hasImage ? 'MULTIMODAL_VISION' : capability;
+    const effectiveModel = (hasImage && model === 'auto') ? 'gemini-2.5-flash' : model;
+
     let attempts = 0;
     const maxAttempts = 3;
     let lastError = null;
 
     while (attempts < maxAttempts) {
       attempts++;
-      const selection = this.selector.selectConnection(capability, model === 'auto' ? null : model);
+      const selection = this.selector.selectConnection(effectiveCapability, effectiveModel === 'auto' ? null : effectiveModel);
 
       try {
         const transportResult = await this.transport.executeChat({

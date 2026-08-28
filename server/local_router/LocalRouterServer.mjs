@@ -441,10 +441,13 @@ export function createLocalRouterServer() {
       const messages = payload.messages || [];
       const model = payload.model || 'auto';
       const capability = payload.capability || 'FAST_CHAT';
-      const userPrompt = messages.filter(m => m.role === 'user').pop()?.content || '';
+      const rawUserContent = messages.filter(m => m.role === 'user').pop()?.content;
+      const userPrompt = Array.isArray(rawUserContent)
+        ? rawUserContent.map(p => p.text || (p.type === 'image_url' ? '[Gambar Terlampir]' : '')).filter(Boolean).join(' ')
+        : (typeof rawUserContent === 'string' ? rawUserContent : '');
 
       const task = runtimeObservabilityInstance.startTask({
-        userGoal: userPrompt,
+        userGoal: userPrompt || 'Percakapan Multimodal',
         capability,
         requestedModel: model
       });
@@ -480,6 +483,7 @@ export function createLocalRouterServer() {
           res.write('data: [DONE]\n\n');
           res.end();
         } catch (err) {
+          console.error('[LOCAL_ROUTER] Chat error (stream):', err);
           runtimeObservabilityInstance.failTask(task.taskId, err);
           const errData = JSON.stringify({ error: { message: err.message, type: 'local_router_stream_error' } });
           res.write(`data: ${errData}\n\n`);
@@ -527,6 +531,7 @@ export function createLocalRouterServer() {
             provenance
           }, null, 2));
         } catch (err) {
+          console.error('[LOCAL_ROUTER] Chat error (non-stream):', err);
           runtimeObservabilityInstance.failTask(task.taskId, err);
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
