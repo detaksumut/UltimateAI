@@ -294,54 +294,46 @@ export class AntigravityEnrollmentSessionManager {
       return;
     }
 
-    // Send response IMMEDIATELY before processing — prevents blank page
-    const successHtml = `<!DOCTYPE html>
+    // Process FIRST, then respond — ensures enrollment is complete before browser redirects back
+    let enrollmentResult = null;
+    let enrollmentError = null;
+    try {
+      enrollmentResult = await this._processAuthorizationCode(enrollmentId, code);
+    } catch (err) {
+      enrollmentError = err.message;
+      console.error('[Enrollment] Processing error:', err.message);
+    }
+
+    const successHtml = enrollmentError ? `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Antigravity — Gagal</title>
+  <style>* { margin: 0; padding: 0; box-sizing: border-box; } body { background: #090d16; color: #f87171; font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; } .card { text-align: center; padding: 40px 60px; border: 1px solid #450a0a; border-radius: 16px; background: #0d1117; }</style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <h1 style="color:#f87171;margin-bottom:12px">Enrollment Gagal</h1>
+    <p style="color:#94a3b8;margin-bottom:20px">${enrollmentError}</p>
+    <p style="color:#475569;font-size:12px">Tutup tab ini dan coba lagi.</p>
+  </div>
+</body>
+</html>` : `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <title>Antigravity — Terhubung!</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #090d16;
-      color: #22d3ee;
-      font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-    }
-    .card {
-      text-align: center;
-      padding: 40px 60px;
-      border: 1px solid #1e3a5f;
-      border-radius: 16px;
-      background: #0d1117;
-      box-shadow: 0 0 60px rgba(34, 211, 238, 0.15);
-    }
+    body { background: #090d16; color: #22d3ee; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    .card { text-align: center; padding: 40px 60px; border: 1px solid #1e3a5f; border-radius: 16px; background: #0d1117; box-shadow: 0 0 60px rgba(34, 211, 238, 0.15); }
     .icon { font-size: 48px; margin-bottom: 16px; }
     h1 { font-size: 22px; font-weight: 700; color: #22d3ee; margin-bottom: 8px; }
     p { font-size: 14px; color: #94a3b8; margin-bottom: 20px; }
-    .badge {
-      display: inline-block;
-      padding: 6px 16px;
-      background: #0f3d2e;
-      border: 1px solid #22c55e;
-      border-radius: 20px;
-      color: #4ade80;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 24px;
-    }
+    .badge { display: inline-block; padding: 6px 16px; background: #0f3d2e; border: 1px solid #22c55e; border-radius: 20px; color: #4ade80; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
     .redirect { font-size: 12px; color: #475569; }
-    .bar {
-      height: 3px;
-      background: linear-gradient(90deg, #22d3ee, #3b82f6);
-      border-radius: 2px;
-      margin-top: 20px;
-      animation: fill 2s linear forwards;
-    }
+    .bar { height: 3px; background: linear-gradient(90deg, #22d3ee, #3b82f6); border-radius: 2px; margin-top: 20px; animation: fill 1.5s linear forwards; }
     @keyframes fill { from { width: 0% } to { width: 100% } }
   </style>
 </head>
@@ -357,27 +349,19 @@ export class AntigravityEnrollmentSessionManager {
   <script>
     try {
       if (window.opener) {
-        window.opener.postMessage({ type: 'ANTIGRAVITY_AUTH_SUCCESS' }, '*');
+        window.opener.postMessage({ type: 'ANTIGRAVITY_AUTH_SUCCESS', connectionId: '${enrollmentResult?.connectionId || ''}' }, '*');
       }
     } catch(e) {}
     setTimeout(() => {
       try { window.close(); } catch(e) {}
-      // Fallback: redirect to main app if window.close() blocked
-      setTimeout(() => {
-        window.location.href = 'http://localhost:5177/simulator';
-      }, 300);
-    }, 2000);
+      setTimeout(() => { window.location.href = 'http://localhost:5177/simulator'; }, 300);
+    }, 1500);
   </script>
 </body>
 </html>`;
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.writeHead(enrollmentError ? 500 : 200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(successHtml);
-
-    // Process token exchange & Cloud Code onboarding asynchronously in backend
-    this._processAuthorizationCode(enrollmentId, code).catch(err => {
-      console.error('[Enrollment] Processing error:', err.message);
-    });
   }
 
   /**

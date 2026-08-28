@@ -84,6 +84,19 @@ export default function ConnectionsModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  // Listen for auth success postMessage from OAuth popup window
+  useEffect(() => {
+    const handleAuthMessage = (event) => {
+      if (event.data?.type === 'ANTIGRAVITY_AUTH_SUCCESS') {
+        setConnectingSlot(null);
+        setTimeout(() => fetchLiveState(), 500);
+        setTimeout(() => fetchLiveState(), 2000);
+      }
+    };
+    window.addEventListener('message', handleAuthMessage);
+    return () => window.removeEventListener('message', handleAuthMessage);
+  }, []);
+
   const handleStartConnect = async (connectionId) => {
     setConnectingSlot(connectionId);
     try {
