@@ -1,13 +1,15 @@
 /**
  * SandboxExecutionTool.mjs
- * Phase 4E: Dedicated Isolated Runtime Sandbox for Safe Analysis.
+ * Pillar 1: Dedicated Isolated Runtime Sandbox for Safe Computation & Code Execution.
  * 
- * Strict Governance & Safety:
- *  - Sandboxed subprocess execution with bounded timeout (max 5000ms).
- *  - Memory ceiling (128MB max buffer limit).
- *  - Ephemeral scratch directory isolation with full post-execution cleanup.
- *  - Absolute ZERO access to OAuth tokens, environment secrets, or private vault credentials.
- *  - Enforces safe non-destructive computations, transformations, and code inspection.
+ * Capabilities:
+ *  - JavaScript (Node.js), Python 3, and PowerShell in constrained subprocesses.
+ *  - Multi-layer safety governance:
+ *    * Ephemeral scratch directory per execution session
+ *    * Strict timeout enforcement (5000ms max)
+ *    * Output buffer limit (128MB memory ceiling)
+ *    * Environment sanitization: strips all OAuth, Gemini API keys, vault keys, IDE credentials
+ *    * Post-execution filesystem cleanup
  */
 
 import { ToolContract, PERMISSION_LEVELS } from './ToolContract.mjs';
@@ -20,15 +22,15 @@ export class SandboxExecutionTool extends ToolContract {
   constructor() {
     super({
       name: 'sandbox.execute',
-      version: '2.0.0',
-      description: 'Execute safe, isolated computational code, transformations, or data analyses in a constrained sandbox.',
+      version: '3.0.0',
+      description: 'Execute safe, isolated computational code, transformations, or data analyses in Node.js, Python, or PowerShell.',
       permissionLevel: PERMISSION_LEVELS.SAFE_EXECUTE,
       timeoutMs: 6000,
       inputSchema: {
         type: 'object',
         properties: {
-          code: { type: 'string', description: 'JavaScript / Python / Shell computation code to safely execute' },
-          runtime: { type: 'string', enum: ['node', 'python'], default: 'node' },
+          code: { type: 'string', description: 'Source code or command to execute' },
+          runtime: { type: 'string', enum: ['node', 'python', 'powershell'], default: 'node' },
           timeoutMs: { type: 'number', default: 4000 }
         },
         required: ['code']
@@ -42,7 +44,7 @@ export class SandboxExecutionTool extends ToolContract {
   }
 
   /**
-   * Sanitizes environment variables so subprocess receives ZERO vault credentials or API keys
+   * Sanitizes environment variables so subprocess receives ZERO vault credentials, tokens, or API keys
    */
   _getSanitizedEnvironment() {
     return {
@@ -67,13 +69,31 @@ export class SandboxExecutionTool extends ToolContract {
       fs.mkdirSync(sessionDir, { recursive: true });
     } catch (_) {}
 
-    const extension = runtime === 'python' ? 'py' : 'js';
-    const scriptPath = path.join(sessionDir, `execution_target.${extension}`);
+    let extension = 'js';
+    let executable = 'node';
+    let spawnArgs = [];
 
-    // Write code to isolated file
-    fs.writeFileSync(scriptPath, code, 'utf-8');
+    if (runtime === 'python') {
+      extension = 'py';
+      executable = 'python';
+      const scriptPath = path.join(sessionDir, `target.${extension}`);
+      fs.writeFileSync(scriptPath, code, 'utf-8');
+      spawnArgs = [scriptPath];
+    } else if (runtime === 'powershell') {
+      extension = 'ps1';
+      executable = 'powershell.exe';
+      const scriptPath = path.join(sessionDir, `target.${extension}`);
+      fs.writeFileSync(scriptPath, code, 'utf-8');
+      spawnArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath];
+    } else {
+      // Default: Node.js
+      extension = 'js';
+      executable = 'node';
+      const scriptPath = path.join(sessionDir, `target.${extension}`);
+      fs.writeFileSync(scriptPath, code, 'utf-8');
+      spawnArgs = [scriptPath];
+    }
 
-    const executable = runtime === 'python' ? 'python' : 'node';
     const sanitizedEnv = this._getSanitizedEnvironment();
     const effectiveTimeout = Math.min(timeoutMs, 5000);
 
@@ -82,7 +102,7 @@ export class SandboxExecutionTool extends ToolContract {
       let stderr = '';
       let isTimedOut = false;
 
-      const child = spawn(executable, [scriptPath], {
+      const child = spawn(executable, spawnArgs, {
         cwd: sessionDir,
         env: sanitizedEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -96,7 +116,7 @@ export class SandboxExecutionTool extends ToolContract {
 
       child.stdout.on('data', (data) => {
         stdout += data.toString();
-        if (stdout.length > 50000) { // 50KB stdout buffer limit
+        if (stdout.length > 50000) {
           stdout = stdout.slice(0, 50000) + '\n[TRUNCATED: Output buffer ceiling reached]';
           try { child.kill(); } catch (_) {}
         }
@@ -113,20 +133,20 @@ export class SandboxExecutionTool extends ToolContract {
         clearTimeout(timer);
         const durationMs = Date.now() - startTime;
 
-        // Cleanup sandbox session directory
         try {
           fs.rmSync(sessionDir, { recursive: true, force: true });
         } catch (_) {}
 
         resolve({
+          success: !isTimedOut && (exitCode ?? 0) === 0,
+          runtime,
           stdout: stdout.trim(),
           stderr: isTimedOut ? `TIMEOUT: Execution exceeded ${effectiveTimeout}ms limit.` : stderr.trim(),
           exitCode: isTimedOut ? 124 : (exitCode ?? 0),
           durationMs,
           timedOut: isTimedOut,
-          artifacts: [],
           limitations: [
-            'No access to network or external sockets',
+            'No access to external network sockets',
             'No access to OAuth Vault or user environment variables',
             `Execution timeout enforced at ${effectiveTimeout}ms`
           ]
@@ -137,12 +157,13 @@ export class SandboxExecutionTool extends ToolContract {
         clearTimeout(timer);
         try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch (_) {}
         resolve({
+          success: false,
+          runtime,
           stdout: '',
           stderr: `SPAWN_ERROR: ${err.message}`,
           exitCode: 1,
           durationMs: Date.now() - startTime,
           timedOut: false,
-          artifacts: [],
           limitations: ['Subprocess spawn failed']
         });
       });

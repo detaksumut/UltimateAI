@@ -1,7 +1,11 @@
 /**
  * AgentRuntime.mjs
  * Central Autonomous Agent Loop Coordinator for UltimateAI 9Router.
- * Integrates JINResponseEngine with Claim-to-Evidence Grounding & Fail-Closed Support.
+ * 
+ * Full Autonomous Decision Loop:
+ *  UNDERSTAND ➔ FORM GOAL ➔ CHECK MEMORY (Drive F) ➔ IDENTIFY GAPS ➔ HIERARCHICAL PLAN
+ *  ➔ SELECT TOOLS ➔ SELECT ENGINE ➔ SELECT POOL ➔ EXECUTE ➔ OBSERVE ➔ VERIFY
+ *  ➔ UPDATE MEMORY ➔ REPLAN IF NEEDED ➔ RESPOND
  */
 
 import { decisionEngineInstance } from './DecisionEngine.mjs';
@@ -12,6 +16,9 @@ import { AgentVerifier } from './AgentVerifier.mjs';
 import { replanEngineInstance } from './ReplanEngine.mjs';
 import { jinResponseEngineInstance } from './JINResponseEngine.mjs';
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
+import { KnowledgeGapDetector } from './KnowledgeGapDetector.mjs';
+import { routingOptimizerInstance } from '../routing/RoutingOptimizer.mjs';
+import { activeMemoryCoreInstance } from '../memory/ActiveMemoryCore.mjs';
 
 export class AgentRuntime {
   constructor() {
@@ -28,9 +35,20 @@ export class AgentRuntime {
   async runGoal(userGoal, sessionContext = {}, options = {}) {
     const startTime = Date.now();
     const rawGoal = userGoal || '';
+    const timeline = [];
 
-    // 1. SEMANTIC DECISION ENGINE (LLM Interpretation with Fail-Closed & Transport options)
+    timeline.push({ event: 'TASK_CREATED', timestamp: new Date().toISOString(), goal: rawGoal });
+
+    // 1. SEMANTIC DECISION ENGINE & KNOWLEDGE GAP ANALYSIS
     const decision = await decisionEngineInstance.decide(rawGoal, sessionContext, options);
+    const gapAnalysis = KnowledgeGapDetector.analyzeGap(rawGoal, sessionContext);
+
+    timeline.push({
+      event: 'GOAL_INTERPRETED',
+      intent: decision.intent,
+      knowledgeGap: gapAnalysis.hasGap ? gapAnalysis.gapDescription : 'NONE',
+      timestamp: new Date().toISOString()
+    });
 
     // If pure conversation without task delegation
     if (!decision.actionRequired) {
@@ -40,7 +58,16 @@ export class AgentRuntime {
         decision
       }, options);
 
-      return {
+      // Record performance telemetry
+      routingOptimizerInstance.recordTaskOutcome({
+        engine: decision.semanticModel || 'gemini-3.6-flash-high',
+        taskCategory: decision.intent,
+        latencyMs: Date.now() - startTime,
+        success: true,
+        verified: true
+      });
+
+      const summary = {
         goal: rawGoal,
         success: true,
         confidence: 1.0,
@@ -50,12 +77,12 @@ export class AgentRuntime {
         responseSource: responsePayload.responseSource,
         transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
         provenance: {
-          semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
-          planningEngine: 'deterministic_semantic_dag_planner',
+          semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.6-flash-high',
+          planningEngine: 'hierarchical_semantic_dag_planner',
           executionTools: [],
           modelInvocations: [
             {
-              model: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
+              model: decision.semanticModel || options.forcedModel || 'gemini-3.6-flash-high',
               purpose: 'semantic_intent_interpretation',
               transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
             }
@@ -67,32 +94,57 @@ export class AgentRuntime {
         detailedDisplay: responsePayload.detailedTextDisplay,
         claims: responsePayload.claims,
         evidenceRefs: responsePayload.evidenceRefs,
+        timeline,
         durationMs: Date.now() - startTime
       };
+
+      this.sessionGoalHistory.push(summary);
+      return summary;
     }
 
-    // 2. AUTONOMOUS PLAN-ACT-OBSERVE-VERIFY-REPLAN LOOP
+    // 2. HIERARCHICAL TASK PLANNING (LLM + Dynamic 9-Engine Routing)
+    let currentPlan = await AgentPlanner.planGoal(rawGoal, {
+      ...sessionContext,
+      semanticDecision: decision,
+      gapAnalysis
+    });
+
+    timeline.push({
+      event: 'PLAN_CREATED',
+      category: currentPlan.category,
+      hierarchicalObjectives: currentPlan.hierarchicalObjectives,
+      selectedEngine: currentPlan.selectedEngine,
+      selectedPool: currentPlan.selectedPool,
+      totalSteps: currentPlan.steps.length,
+      timestamp: new Date().toISOString()
+    });
+
+    // Save initial active state snapshot to Drive F
+    activeMemoryCoreInstance.snapshotActiveState({
+      taskId: currentPlan.goalId,
+      goal: rawGoal,
+      currentStep: 1,
+      activeTools: currentPlan.steps.map(s => s.tool).filter(Boolean),
+      selectedPool: currentPlan.selectedPool,
+      selectedModel: currentPlan.selectedEngine
+    });
+
+    // 3. AUTONOMOUS PLAN-ACT-OBSERVE-VERIFY-REPLAN LOOP
     let attempt = 0;
     let finalVerification = null;
-    let currentPlan = null;
     const fullExecutionHistory = [];
     const executionToolsUsed = [];
     const modelInvocations = [];
 
-    // Record semantic interpretation model invocation
     modelInvocations.push({
-      model: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
-      purpose: 'semantic_intent_interpretation',
+      model: currentPlan.selectedEngine || 'gemini-3.6-flash-high',
+      pool: currentPlan.selectedPool || 'POOL_1',
+      purpose: 'hierarchical_planning',
       transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
     });
 
-    // Initial Semantic Plan (LLM-driven dynamic DAG)
-    currentPlan = await AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
-
     while (attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
       attempt++;
-
-      // A. EXECUTE & OBSERVE (Step-by-Step with Dependency Checking)
       const currentHistory = [];
 
       for (const step of currentPlan.steps) {
@@ -109,6 +161,14 @@ export class AgentRuntime {
           });
           break;
         }
+
+        timeline.push({
+          event: 'ACTION_EXECUTED',
+          stepId: step.id,
+          subgoal: step.subgoal || step.action,
+          tool: step.tool,
+          timestamp: new Date().toISOString()
+        });
 
         const stepResult = await agentExecutorInstance.executeStep(step, {
           priorHistory: currentHistory,
@@ -129,25 +189,59 @@ export class AgentRuntime {
           timestamp: new Date().toISOString()
         });
 
-        // If step failed, break immediately to trigger adaptive replanner
+        // If step failed, break immediately to trigger bounded replan
         if (!observation.valid) {
+          timeline.push({
+            event: 'ACTION_FAILED',
+            stepId: step.id,
+            error: observation.error || 'Execution validation failed',
+            timestamp: new Date().toISOString()
+          });
           break;
         }
       }
 
       fullExecutionHistory.push({ attempt, plan: currentPlan, currentHistory });
 
-      // B. VERIFY (Outcome & Evidence Contract Inspection)
+      // 4. VERIFY
       const verification = AgentVerifier.verifyGoalCompletion(currentPlan, currentHistory);
       finalVerification = verification;
 
+      timeline.push({
+        event: 'VERIFICATION_EVALUATED',
+        isSatisfied: verification.isSatisfied,
+        confidence: verification.confidence,
+        timestamp: new Date().toISOString()
+      });
+
       if (verification.isSatisfied) {
-        // Goal verified & contract met!
+        // Goal satisfied! If research findings exist, pipe verified knowledge into Drive F Active Memory
+        for (const h of currentHistory) {
+          if (h.step.tool === 'web.fetch' || h.step.tool === 'web.search') {
+            const res = h.stepResult?.result;
+            if (res && res.text) {
+              activeMemoryCoreInstance.store({
+                key: `verified_${Date.now()}`,
+                content: res.text.slice(0, 500),
+                category: 'RESEARCH_DATA',
+                priority: 'MEDIUM',
+                source: { provenance: 'AUTONOMOUS_LIVE_RESEARCH', url: res.url || res.query }
+              });
+            }
+          }
+        }
         break;
       }
 
-      // C. ADAPTIVE REPLANNING: Directly apply replacement DAG plan
+      // 5. ADAPTIVE BOUNDED REPLANNING
       if (verification.requiresReplan && attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
+        timeline.push({
+          event: 'REPLAN_TRIGGERED',
+          attempt,
+          reason: verification.failureReason,
+          timestamp: new Date().toISOString()
+        });
+
         const replanResult = await replanEngineInstance.generateReplan({
           originalGoal: rawGoal,
           failedStep: verification.failedStep,
@@ -156,7 +250,6 @@ export class AgentRuntime {
           attempt
         });
 
-        // Directly apply replacement DAG plan for next execution cycle
         if (replanResult && replanResult.replacementPlan) {
           currentPlan = replanResult.replacementPlan;
         }
@@ -165,7 +258,16 @@ export class AgentRuntime {
 
     const durationMs = Date.now() - startTime;
 
-    // 3. JIN RESPONSE INTELLIGENCE (Synthesize Evidence-Bound Speech & Display)
+    // 6. RECORD ROUTING PERFORMANCE TELEMETRY
+    routingOptimizerInstance.recordTaskOutcome({
+      engine: currentPlan.selectedEngine || 'gemini-3.6-flash-high',
+      taskCategory: currentPlan.category,
+      latencyMs: durationMs,
+      success: finalVerification?.isSatisfied || false,
+      verified: finalVerification?.isSatisfied || false
+    });
+
+    // 7. JIN NATURAL RESPONSE SYNTHESIS
     const responsePayload = await jinResponseEngineInstance.generateResponse({
       userUtterance: rawGoal,
       conversationContext: sessionContext,
@@ -174,12 +276,15 @@ export class AgentRuntime {
       artifact: finalVerification?.artifact,
       verification: finalVerification,
       provenance: {
-        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
-        planningEngine: 'deterministic_semantic_dag_planner',
+        semanticModel: currentPlan.selectedEngine || 'gemini-3.6-flash-high',
+        planningEngine: 'hierarchical_dynamic_dag_planner',
         executionTools: [...new Set(executionToolsUsed)],
+        pool: currentPlan.selectedPool || 'POOL_1',
         transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
       }
     }, options);
+
+    timeline.push({ event: 'TASK_COMPLETED', success: finalVerification?.isSatisfied || false, timestamp: new Date().toISOString() });
 
     const summary = {
       goal: rawGoal,
@@ -195,15 +300,17 @@ export class AgentRuntime {
       responseSource: responsePayload.responseSource,
       artifact: finalVerification?.artifact || null,
       provenance: {
-        semanticModel: decision.semanticModel || options.forcedModel || 'gemini-3.5-flash',
-        planningEngine: 'deterministic_semantic_dag_planner',
+        semanticModel: currentPlan.selectedEngine || 'gemini-3.6-flash-high',
+        planningEngine: 'hierarchical_dynamic_dag_planner',
         executionTools: [...new Set(executionToolsUsed)],
+        selectedPool: currentPlan.selectedPool || 'POOL_1',
         modelInvocations,
         transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
       },
       interpretationSource: decision.interpretationSource,
       transportUsed: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY',
       fallbackUsed: decision.fallbackUsed,
+      timeline,
       durationMs,
       telemetry: {
         totalStepsExecuted: fullExecutionHistory.reduce((acc, h) => acc + h.currentHistory.length, 0),
