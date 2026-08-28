@@ -29,22 +29,27 @@ export class ContextManager {
     this.notify();
   }
 
-  detectIntent(input) {
-    const text = input.toLowerCase();
-    let intent = 'GENERAL_CONVERSATION';
-
-    if (text.includes('buat') || text.includes('build') || text.includes('create') || text.includes('aplikasi') || text.includes('app')) {
-      intent = 'APP_GENERATION';
-    } else if (text.includes('cari') || text.includes('search') || text.includes('google') || text.includes('global')) {
-      intent = 'GLOBAL_SEARCH';
-    } else if (text.includes('analisis') || text.includes('analyze') || text.includes('hitung') || text.includes('data')) {
-      intent = 'DATA_ANALYSIS';
-    } else if (text.includes('ingat') || text.includes('simpan') || text.includes('vault') || text.includes('memory')) {
-      intent = 'MEMORY_VAULT';
-    }
-
+  /**
+   * Accepts the LLM-resolved intent from SemanticIntentEngine and records it.
+   * Does NOT use keyword detection — intent comes from the LLM reasoning engine.
+   * @param {string} resolvedIntent - Intent string from SemanticIntentEngine
+   * @returns {string} intent
+   */
+  recordIntent(resolvedIntent) {
+    const intent = resolvedIntent || 'GENERAL_CONVERSATION';
     this.updateContext({ currentIntent: intent });
     return intent;
+  }
+
+  /**
+   * @deprecated Use recordIntent(resolvedIntent) instead.
+   * This method is kept ONLY for legacy callers.
+   * It NO LONGER performs keyword-based intent detection.
+   */
+  detectIntent(input) {
+    // Intent detection is performed by the LLM-based SemanticIntentEngine.
+    // This method is a passthrough returning the last known intent.
+    return this.context.currentIntent || 'GENERAL_CONVERSATION';
   }
 
   subscribe(callback) {

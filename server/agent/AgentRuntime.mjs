@@ -86,8 +86,8 @@ export class AgentRuntime {
       transport: decision.transportUsed || options.certificationTransport || 'NINE_ROUTER_PROXY'
     });
 
-    // Initial Semantic Plan
-    currentPlan = AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
+    // Initial Semantic Plan (LLM-driven dynamic DAG)
+    currentPlan = await AgentPlanner.planGoal(rawGoal, { ...sessionContext, semanticDecision: decision });
 
     while (attempt < JIN_OPERATING_DOCTRINE.GOVERNANCE.MAX_REPLAN_ATTEMPTS) {
       attempt++;

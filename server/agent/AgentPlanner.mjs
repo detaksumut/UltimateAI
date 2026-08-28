@@ -1,324 +1,295 @@
 /**
  * AgentPlanner.mjs
- * True Semantic DAG Execution Graph Planner for JIN AI Agent.
- * Constructs execution plans driven by semantic intent, capability resolution, and evidence contracts.
+ * Dynamic LLM-driven DAG Planner for JIN AI Agent.
+ *
+ * ARCHITECTURE RULE:
+ * - Hardcoded workflow templates per intent are FORBIDDEN.
+ * - The planner reads the semantic goal, available tools, context, and constraints,
+ *   then asks the LLM to construct the execution plan as a DAG.
+ * - Tool selection emerges from reasoning, not from if/switch blocks.
+ * - The only structural fallback is a single-step web.search when LLM is offline.
  */
 
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 
+const PLANNER_PROXY_URL = process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
+
+const AVAILABLE_TOOLS_MANIFEST = [
+  { id: 'web.search', description: 'Real-time web search for current events, news, and external information' },
+  { id: 'doc.analyze', description: 'Analyze and extract insight from user-provided document text' },
+  { id: 'data.matrix_generator', description: 'Build structured data matrices, comparisons, and analytics' },
+  { id: 'memory.vault', description: 'Store or retrieve user-specified facts and long-term context' },
+  { id: 'intel.multilayer_search', description: 'Multi-layer intelligence search across surface and deep web' },
+  { id: 'media.video_resolver', description: 'Resolve and play video or audio media content' },
+  { id: 'spec.blueprint_architect', description: 'Design software specifications and architecture' },
+  { id: 'code.synthesizer', description: 'Generate code artifacts from specifications' },
+  { id: 'ui.render_app_sandbox', description: 'Render and preview a UI or application in sandbox' }
+];
+
 export class AgentPlanner {
   /**
-   * Constructs an execution graph driven purely by semantic intent & constraints
-   * @param {string} goal - High-level user goal
-   * @param {Object} context - Semantic decision, entities, constraints, memory
+   * Constructs a dynamic execution DAG plan from semantic goal and context.
+   * Attempts LLM-generated plan first; uses minimal structural fallback only offline.
+   *
+   * @param {string} goal - User's raw utterance
+   * @param {Object} context - { semanticDecision, documentText, constraints, activeTask, recentTurns, ... }
    * @returns {Object} plan - { goalId, goal, category, steps, evidenceContract }
    */
-  static planGoal(goal, context = {}) {
+  static async planGoal(goal, context = {}) {
     const raw = goal || '';
     const semantic = context.semanticDecision || {
       intent: 'RESEARCH_QUESTION',
       goal: raw,
-      entities: [raw],
-      toolsNeeded: ['web.search']
+      entities: [],
+      toolsNeeded: ['web.search'],
+      constraints: [],
+      toolReason: 'No semantic decision provided.',
+      freshDataRequired: false,
+      isCorrecting: false,
+      isContinuing: false
     };
 
     const goalId = `goal-${Date.now()}`;
-    const intent = semantic.intent || 'RESEARCH_QUESTION';
-    const graph = [];
 
-    // 1. CONVERSATION / CASUAL CHAT (Direct LLM reasoning, no external tools)
-    if (intent === 'CASUAL_CHAT' || intent === 'CONVERSATION') {
-      graph.push({
-        id: 'S1',
-        action: 'CONVERSATIONAL_REASONING',
-        tool: null,
-        specialistModel: 'gemini-3.6-flash-high',
-        params: { userUtterance: semantic.goal || raw },
-        dependsOn: [],
-        successCriteria: 'coherent_response_synthesized',
-        evidenceContract: 'natural_dialogue'
-      });
-
+    // 1. CASUAL CHAT — Always direct LLM response, no tools
+    if (semantic.intent === 'CASUAL_CHAT' || semantic.intent === 'CONVERSATION') {
       return {
         goalId,
         goal: semantic.goal || raw,
         category: 'CONVERSATION',
-        steps: graph,
+        steps: [{
+          id: 'S1',
+          action: 'CONVERSATIONAL_REASONING',
+          tool: null,
+          specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+          params: { userUtterance: semantic.goal || raw },
+          dependsOn: [],
+          successCriteria: 'coherent_response_synthesized',
+          evidenceContract: 'natural_dialogue'
+        }],
         evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
       };
     }
 
-    // 2. DOCUMENT ANALYSIS (doc.analyze)
-    if (intent === 'DOCUMENT_ANALYSIS') {
-      graph.push({
-        id: 'S1',
-        action: 'EXTRACT_DOCUMENT_INTELLIGENCE',
-        tool: 'doc.analyze',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: {
-          documentText: context.documentText || semantic.documentText || raw,
-          query: semantic.query || raw,
-          fileName: context.fileName || 'analysis_document.txt',
-          maxChunks: 5
-        },
-        dependsOn: [],
-        successCriteria: 'document_chunks_ranked',
-        evidenceContract: 'semantic_chunks'
-      });
-
-      graph.push({
-        id: 'S2',
-        action: 'SYNTHESIZE_DOCUMENT_INSIGHTS',
-        tool: 'data.matrix_generator',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { targetMode: 'INSIGHTS' },
-        dependsOn: ['S1'],
-        successCriteria: 'insights_matrix_synthesized',
-        evidenceContract: 'data_matrix_artifact'
-      });
-
+    // 2. CONSTRAINT UPDATE — Acknowledge and update state only
+    if (semantic.intent === 'CONSTRAINT_UPDATE') {
       return {
         goalId,
         goal: semantic.goal || raw,
-        category: 'DOCUMENT_ANALYSIS',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'DATA_MODEL', minSteps: 2 }
+        category: 'CONSTRAINT_UPDATE',
+        steps: [{
+          id: 'S1',
+          action: 'ACKNOWLEDGE_CONSTRAINT',
+          tool: null,
+          specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+          params: { constraint: raw, constraints: semantic.constraints || [] },
+          dependsOn: [],
+          successCriteria: 'constraint_acknowledged',
+          evidenceContract: 'constraint_record'
+        }],
+        evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
       };
     }
 
-    // 3. WEB SEARCH & INTELLIGENCE (web.search)
-    if (intent === 'WEB_SEARCH' || intent === 'RESEARCH_QUESTION') {
-      graph.push({
-        id: 'S1',
-        action: 'EXECUTE_WEB_SEARCH',
-        tool: 'web.search',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: semantic.query || semantic.goal || raw, maxResults: 5 },
-        dependsOn: [],
-        successCriteria: 'sources_retrieved',
-        evidenceContract: 'verified_web_sources'
-      });
-
+    // 3. NEEDSCLARIFICATION — Ask the user for missing information
+    if (semantic.needsClarification && semantic.clarificationQuestion) {
       return {
         goalId,
         goal: semantic.goal || raw,
-        category: 'WEB_SEARCH',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'SEARCH_RESULTS', minSteps: 1 }
+        category: 'CLARIFICATION',
+        steps: [{
+          id: 'S1',
+          action: 'ASK_CLARIFICATION',
+          tool: null,
+          specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
+          params: {
+            question: semantic.clarificationQuestion,
+            reason: semantic.reason
+          },
+          dependsOn: [],
+          successCriteria: 'clarification_question_delivered',
+          evidenceContract: 'clarification_request'
+        }],
+        evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
       };
     }
 
-    // 4. MEMORY STORE & RETRIEVAL (memory.vault)
-    if (intent === 'MEMORY_STORE') {
-      graph.push({
-        id: 'S1',
-        action: 'PERSIST_USER_FACT',
-        tool: 'memory.vault',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: {
-          action: 'STORE',
-          content: semantic.memoryContent || raw,
-          key: semantic.memoryKey || 'user_fact',
-          tier: 'LONG_TERM'
-        },
-        dependsOn: [],
-        successCriteria: 'memory_persisted',
-        evidenceContract: 'memory_record'
-      });
-
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'MEMORY_STORE',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'MEMORY_DATA', minSteps: 1 }
-      };
+    // 4. LLM-DRIVEN DYNAMIC PLAN GENERATION
+    try {
+      const plan = await AgentPlanner._generateLLMPlan(goalId, raw, semantic, context);
+      if (plan && plan.steps && plan.steps.length > 0) {
+        return plan;
+      }
+    } catch (err) {
+      // LLM plan generation failed — fall through to structural fallback
+      console.warn('[AgentPlanner] LLM plan generation failed, using structural fallback:', err.message);
     }
 
-    if (intent === 'MEMORY_RETRIEVAL') {
-      graph.push({
-        id: 'S1',
-        action: 'RECALL_USER_MEMORIES',
-        tool: 'memory.vault',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: {
-          action: 'QUERY',
-          query: semantic.query || raw
-        },
-        dependsOn: [],
-        successCriteria: 'memories_recalled',
-        evidenceContract: 'memory_matches'
-      });
+    // 5. STRUCTURAL FALLBACK — Minimal offline-safe plan based on semantic decision
+    return AgentPlanner._structuralFallbackPlan(goalId, raw, semantic, context);
+  }
 
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'MEMORY_RETRIEVAL',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'MEMORY_DATA', minSteps: 1 }
-      };
+  /**
+   * Asks the LLM to generate the actual execution DAG plan.
+   */
+  static async _generateLLMPlan(goalId, raw, semantic, context) {
+    const systemPrompt = `You are the Execution Planner for JIN AI Agent.
+Given the user's goal and semantic analysis, create a minimal, efficient execution plan as a DAG.
+
+RULES:
+1. Only include steps that are strictly necessary to achieve the goal.
+2. Use ONLY tools from the available tools manifest.
+3. Respect all active constraints (e.g., "no internet search", "use document only").
+4. Each step must have a clear reason for being included.
+5. Steps can depend on previous steps; use dependsOn to express this.
+6. If the goal can be answered from conversation context alone, produce zero tool steps.
+7. Do NOT add steps just because they "might be useful".
+
+Available tools:
+${AVAILABLE_TOOLS_MANIFEST.map(t => `- ${t.id}: ${t.description}`).join('\n')}
+
+Output STRICT valid JSON:
+{
+  "category": "<category_name>",
+  "planReason": "<why this plan serves the goal>",
+  "steps": [
+    {
+      "id": "S1",
+      "action": "<ACTION_NAME>",
+      "tool": "<tool_id or null>",
+      "params": { "<key>": "<value>" },
+      "dependsOn": [],
+      "successCriteria": "<what makes this step successful>",
+      "reason": "<why this step is needed>"
     }
+  ],
+  "evidenceContract": {
+    "requiredArtifactType": "<type>",
+    "minSteps": <number>
+  }
+}`;
 
-    // 5. MULTI-STEP AGENT TASK (Plan ➔ Document ➔ Search ➔ Matrix ➔ Recommendation)
-    if (intent === 'MULTI_STEP_TASK' || intent === 'DEEP_ANALYSIS') {
-      graph.push({
-        id: 'S1',
-        action: 'INSPECT_AND_CHUNK_DOCUMENT',
-        tool: 'doc.analyze',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: {
-          documentText: context.documentText || 'Dokumen Kinerja AI: Retensi +25%, Latensi -40ms, Cost Efisiensi 35%.',
-          query: raw,
-          fileName: 'operational_report.pdf'
-        },
-        dependsOn: [],
-        successCriteria: 'document_chunks_ready',
-        evidenceContract: 'doc_chunks'
-      });
+    const userMessage = `USER GOAL: "${raw}"
 
-      graph.push({
-        id: 'S2',
-        action: 'EXTERNAL_BENCHMARK_SEARCH',
-        tool: 'web.search',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: 'AI benchmark retention industry standards 2026', maxResults: 3 },
-        dependsOn: ['S1'],
-        successCriteria: 'benchmark_sources_found',
-        evidenceContract: 'industry_benchmarks'
-      });
+SEMANTIC ANALYSIS:
+${JSON.stringify(semantic, null, 2)}
 
-      graph.push({
-        id: 'S3',
-        action: 'SYNTHESIZE_STRATEGIC_MATRIX',
-        tool: 'data.matrix_generator',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { targetMode: 'INSIGHTS' },
-        dependsOn: ['S2'],
-        successCriteria: 'comparative_matrix_ready',
-        evidenceContract: 'strategic_matrix'
-      });
+ACTIVE CONSTRAINTS: ${(semantic.constraints || []).join(', ') || 'None'}
 
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'MULTI_STEP_TASK',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'DATA_MODEL', minSteps: 3 }
-      };
-    }
+DOCUMENT AVAILABLE: ${context.documentText ? 'Yes' : 'No'}
 
-    // 6. APPLICATION & PROTOTYPE SYNTHESIS INTENT
-    if (intent === 'APP_SYNTHESIS') {
-      graph.push({
-        id: 'S1',
-        action: 'ARCHITECTURAL_BLUEPRINT',
-        tool: 'spec.blueprint_architect',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { concept: semantic.goal || raw, entities: semantic.entities },
-        dependsOn: [],
-        successCriteria: 'blueprint_schema_validated',
-        evidenceContract: 'structural_spec'
-      });
-      graph.push({
-        id: 'S2',
-        action: 'CODE_SYNTHESIS',
-        tool: 'code.synthesizer',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.CODE_ENGINEERING[0],
-        params: { framework: 'React', concept: semantic.goal || raw },
-        dependsOn: ['S1'],
-        successCriteria: 'code_artifact_generated',
-        evidenceContract: 'jsx_code_string'
-      });
-      graph.push({
-        id: 'S3',
-        action: 'SANDBOX_VERIFICATION',
-        tool: 'ui.render_app_sandbox',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.CODE_ENGINEERING[0],
-        params: { targetMode: 'APP_PREVIEW' },
-        dependsOn: ['S2'],
-        successCriteria: 'no_critical_runtime_error',
-        evidenceContract: 'render_ready_flag'
-      });
+ACTIVE TASK STATE: ${context.activeTask ? JSON.stringify(context.activeTask) : 'None'}
 
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'APP_SYNTHESIS',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'CODE', minSteps: 3 }
-      };
-    }
+Build the minimal execution DAG plan.`;
 
-    // 7. LIVE NEWS / BREAKING EVENT INTENT
-    if (intent === 'LIVE_NEWS') {
-      graph.push({
-        id: 'S1',
-        action: 'HARVEST_LIVE_NEWS',
-        tool: 'intel.multilayer_search',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: semantic.goal || raw, layer: 'SURFACE_WEB', entities: semantic.entities },
-        dependsOn: [],
-        successCriteria: 'sources_available',
-        evidenceContract: 'verified_news_nodes'
-      });
-      graph.push({
-        id: 'S2',
-        action: 'RESOLVE_TOP_MEDIA_STREAM',
-        tool: 'media.video_resolver',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-        params: { query: semantic.goal || raw },
-        dependsOn: ['S1'],
-        successCriteria: 'video_id_resolved',
-        evidenceContract: 'top_ranked_stream'
-      });
-      graph.push({
-        id: 'S3',
-        action: 'RENDER_LIVE_HUD',
-        tool: 'ui.render_media_hud',
-        specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-        params: { targetMode: 'MEDIA' },
-        dependsOn: ['S2'],
-        successCriteria: 'media_rendered_on_hud',
-        evidenceContract: 'hud_state_updated'
-      });
-
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'LIVE_NEWS',
-        steps: graph,
-        evidenceContract: { requiredArtifactType: 'MEDIA_STREAM', minSteps: 3 }
-      };
-    }
-
-    // 8. DEFAULT STRUCTURED DATA & ANALYTICS
-    graph.push({
-      id: 'S1',
-      action: 'EXTRACT_METRIC_DATASET',
-      tool: 'web.search',
-      specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0],
-      params: { query: semantic.goal || raw },
-      dependsOn: [],
-      successCriteria: 'raw_data_extracted',
-      evidenceContract: 'tabular_dataset'
+    const response = await fetch(`${PLANNER_PROXY_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0] || 'gemini-3.6-flash-high',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.05,
+        response_format: { type: 'json_object' }
+      }),
+      signal: AbortSignal.timeout(5000)
     });
-    graph.push({
-      id: 'S2',
-      action: 'STRUCTURED_MATRIX_SYNTHESIS',
-      tool: 'data.matrix_generator',
-      specialistModel: JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.DEEP_REASONING[0],
-      params: { targetMode: 'INSIGHTS' },
-      dependsOn: ['S1'],
-      successCriteria: 'data_matrix_validated',
-      evidenceContract: 'data_matrix_artifact'
-    });
+
+    if (!response.ok) throw new Error(`Planner LLM returned ${response.status}`);
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Planner LLM returned empty content');
+
+    const parsed = JSON.parse(content);
+    if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error('Planner LLM returned invalid steps');
+
+    // Attach specialist model to each step
+    const defaultModel = JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0];
+    parsed.steps = parsed.steps.map(step => ({
+      ...step,
+      specialistModel: step.specialistModel || defaultModel
+    }));
 
     return {
       goalId,
       goal: semantic.goal || raw,
-      category: 'DATA_ANALYTICS',
-      steps: graph,
-      evidenceContract: { requiredArtifactType: 'DATA_MATRIX', minSteps: 2 }
+      category: parsed.category || 'DYNAMIC_TASK',
+      planReason: parsed.planReason || '',
+      steps: parsed.steps,
+      evidenceContract: parsed.evidenceContract || { requiredArtifactType: 'RESULT', minSteps: 1 }
+    };
+  }
+
+  /**
+   * Structural fallback: uses the toolsNeeded from semantic decision.
+   * Does NOT hardcode tool chains per intent string.
+   */
+  static _structuralFallbackPlan(goalId, raw, semantic, context) {
+    const toolsNeeded = semantic.toolsNeeded || ['web.search'];
+    const constraints = semantic.constraints || [];
+    const defaultModel = JIN_OPERATING_DOCTRINE.SPECIALIST_ROUTING_POLICY.FAST_RESEARCH[0];
+
+    // Respect user constraint: no internet search
+    const noInternet = constraints.some(c => /jangan.*internet|tidak.*internet|hanya.*dokumen/i.test(c));
+
+    const steps = [];
+    let prevId = null;
+
+    for (let i = 0; i < toolsNeeded.length; i++) {
+      const tool = toolsNeeded[i];
+
+      // Skip internet tools if constraint says no internet
+      if (noInternet && (tool === 'web.search' || tool === 'intel.multilayer_search')) {
+        continue;
+      }
+
+      const stepId = `S${i + 1}`;
+      const step = {
+        id: stepId,
+        action: `EXECUTE_${tool.toUpperCase().replace(/\./g, '_')}`,
+        tool,
+        specialistModel: defaultModel,
+        params: {
+          query: semantic.goal || raw,
+          userUtterance: raw,
+          documentText: context.documentText || null
+        },
+        dependsOn: prevId ? [prevId] : [],
+        successCriteria: `${tool}_result_available`,
+        evidenceContract: `${tool}_evidence`
+      };
+
+      steps.push(step);
+      prevId = stepId;
+    }
+
+    // If all steps were blocked by constraints, use direct reasoning
+    if (steps.length === 0) {
+      steps.push({
+        id: 'S1',
+        action: 'REASON_FROM_CONTEXT',
+        tool: null,
+        specialistModel: defaultModel,
+        params: { userUtterance: raw, constraints, activeTask: context.activeTask },
+        dependsOn: [],
+        successCriteria: 'contextual_response_generated',
+        evidenceContract: 'reasoning_only'
+      });
+    }
+
+    return {
+      goalId,
+      goal: semantic.goal || raw,
+      category: semantic.intent || 'RESEARCH_QUESTION',
+      planReason: `Structural fallback plan based on semantic decision (LLM planner unavailable). Tools: ${toolsNeeded.join(', ')}`,
+      steps,
+      evidenceContract: {
+        requiredArtifactType: 'RESULT',
+        minSteps: 1
+      }
     };
   }
 }
