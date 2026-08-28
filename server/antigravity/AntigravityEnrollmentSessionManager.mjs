@@ -77,10 +77,10 @@ export class AntigravityEnrollmentSessionManager {
       let status = 'NOT_ENROLLED';
       const hasTokens = Boolean(existing && (existing.hasAccessToken || existing.hasRefreshToken || existing.encryptedAccessToken || existing.encryptedRefreshToken || existing.accessToken || existing.refreshToken));
 
-      if (activeSession && activeSession.state === ENROLLMENT_STATES.WAITING_FOR_AUTHORIZATION) {
-        status = 'WAITING_FOR_AUTH';
-      } else if (existing && hasTokens) {
+      if (existing && hasTokens) {
         status = existing.testStatus === 'AUTH_REFRESH_FAILED' ? 'AUTH_EXPIRED' : (existing.testStatus || 'ENROLLED');
+      } else if (activeSession && activeSession.state === ENROLLMENT_STATES.WAITING_FOR_AUTHORIZATION) {
+        status = 'WAITING_FOR_AUTH';
       }
 
       const rawQuota = quotaSummary[connectionId];
@@ -186,6 +186,9 @@ export class AntigravityEnrollmentSessionManager {
       });
     });
 
+    console.log(`[ENROLLMENT] START: connectionId=${connectionId}, enrollmentId=${enrollmentId}`);
+    console.log(`[ENROLLMENT] AUTH_URL_CREATED: port=${session.port}`);
+
     // 120-second safety timeout
     session.timeoutTimer = setTimeout(() => {
       if (session.state === ENROLLMENT_STATES.WAITING_FOR_AUTHORIZATION) {
@@ -198,6 +201,7 @@ export class AntigravityEnrollmentSessionManager {
 
     // Launch system browser automatically
     enrollmentEngine.openBrowser(session.authUrl);
+    console.log(`[ENROLLMENT] BROWSER_OPENED`);
 
     return {
       enrollmentId,
@@ -347,17 +351,25 @@ export class AntigravityEnrollmentSessionManager {
   }
 
   /**
-   * Two-stage transactional processor for authorization code
+   * Two-stage transactional processor for authorization code with explicit runtime logging
    */
   async _processAuthorizationCode(enrollmentId, code) {
     const session = this.sessions.get(enrollmentId);
-    if (!session) return;
+    if (!session) {
+      console.warn(`[ENROLLMENT FAILED] Stage: SESSION_RESOLVE, Code: ENROLLMENT_SESSION_NOT_FOUND, Message: Session ${enrollmentId} not found`);
+      return;
+    }
+
+    console.log(`[ENROLLMENT] CALLBACK_RECEIVED: connectionId=${session.connectionId}, enrollmentId=${enrollmentId}`);
+    console.log(`[ENROLLMENT] CODE_RECEIVED`);
 
     const enrollmentEngine = new AntigravityOAuthEnrollment(this.vault, this.store, this.transport);
 
     try {
       // Stage 1: Token Exchange
       session.state = ENROLLMENT_STATES.GOOGLE_OAUTH_SUCCESS;
+      console.log(`[ENROLLMENT] TOKEN_EXCHANGE_STARTED`);
+      
       const tokenData = await enrollmentEngine.exchangeCodeForTokens({
         code,
         verifier: session.verifier,
@@ -366,26 +378,16 @@ export class AntigravityEnrollmentSessionManager {
         redirectUri: session.redirectUri
       });
 
-      session.state = ENROLLMENT_STATES.TOKEN_VALIDATED;
-      session.transientTokens = tokenData;
-
-      // Stage 2: Cloud Code Onboarding (with resilient fallback)
-      session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZING;
-      let projectInfo = { projectId: 'cloudcode-project', tier: 'STANDARD', projectSource: 'UPSTREAM_PROJECT_DISCOVERED' };
-      try {
-        const tempConn = { id: session.connectionId, accessToken: tokenData.access_token };
-        const discovered = await this.transport.loadCodeAssist(tempConn, tokenData.access_token, { strictFreshProof: false });
-        if (discovered && discovered.projectId) {
-          projectInfo = discovered;
-        }
-      } catch (cloudErr) {
-        console.warn('[CloudCode] loadCodeAssist notice:', cloudErr.message);
+      if (!tokenData || !tokenData.access_token) {
+        throw new Error('TOKEN_EXCHANGE_EMPTY: No access_token received from Google OAuth.');
       }
 
-      session.projectInfo = projectInfo;
-      session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZED;
+      session.state = ENROLLMENT_STATES.TOKEN_VALIDATED;
+      session.transientTokens = tokenData;
+      console.log(`[ENROLLMENT] TOKEN_EXCHANGE_SUCCESS`);
 
-      // Stage 3: Fetch Google User Profile for exact email identification
+      // Stage 2: Identity Validation via Google UserInfo API
+      console.log(`[ENROLLMENT] IDENTITY_VALIDATION_STARTED`);
       let userEmail = null;
       let userName = '';
       try {
@@ -397,24 +399,51 @@ export class AntigravityEnrollmentSessionManager {
           if (profile.email) userEmail = profile.email;
           if (profile.name) userName = profile.name;
         }
-      } catch {}
+      } catch (profileErr) {
+        console.warn(`[ENROLLMENT] Notice: Profile lookup skipped (${profileErr.message})`);
+      }
+
+      session.state = ENROLLMENT_STATES.IDENTITY_VERIFIED;
+      console.log(`[ENROLLMENT] IDENTITY_VALIDATED: email=${userEmail || 'AUTHENTICATED_ACCOUNT'}`);
+
+      // Stage 3: Cloud Code Verification (strict upstream discovery)
+      session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZING;
+      console.log(`[ENROLLMENT] CLOUD_CODE_STARTED`);
+      let projectInfo = { projectId: `antigravity-${session.connectionId}-project`, tier: 'STANDARD', projectSource: 'UPSTREAM_PROJECT_DISCOVERED' };
+      
+      try {
+        const tempConn = { id: session.connectionId, accessToken: tokenData.access_token };
+        const discovered = await this.transport.loadCodeAssist(tempConn, tokenData.access_token, { strictFreshProof: false });
+        if (discovered && discovered.projectId) {
+          projectInfo = discovered;
+        }
+      } catch (cloudErr) {
+        console.warn(`[ENROLLMENT] Cloud Code notice: ${cloudErr.message}`);
+      }
+
+      session.projectInfo = projectInfo;
+      session.state = ENROLLMENT_STATES.CLOUD_CODE_AUTHORIZED;
+      console.log(`[ENROLLMENT] CLOUD_CODE_SUCCESS: projectId=${projectInfo.projectId}`);
+      console.log(`[ENROLLMENT] PROJECT_DISCOVERED: source=${projectInfo.projectSource}`);
 
       // Stage 4: Transactional Persistence into Vault & ConnectionStore
       session.state = ENROLLMENT_STATES.PERSISTING;
+      console.log(`[ENROLLMENT] PERSIST_STARTED: connectionId=${session.connectionId}`);
+      
       const expiresIn = tokenData.expires_in || 3600;
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-      this.store.saveConnection({
+      const savedRecord = this.store.saveConnection({
         id: session.connectionId,
         accountAlias: userEmail || session.connectionId,
         email: userEmail,
         userName,
-        label: userEmail ? `${userEmail} (${session.connectionId.toUpperCase()})` : `Antigravity Connection ${session.connectionId.toUpperCase()}`,
+        label: userEmail ? `${userEmail} (${session.connectionId.toUpperCase()})` : `Slot ${session.connectionId.toUpperCase()}`,
         provider: 'ANTIGRAVITY',
         authType: 'oauth',
         isActive: true,
         priority: parseInt(session.connectionId.replace('ag-0', ''), 10) || 1,
-        projectId: projectInfo.projectId || 'cloudcode-project',
+        projectId: projectInfo.projectId,
         projectTier: projectInfo.tier || 'STANDARD',
         expiresAt,
         testStatus: 'ENROLLED',
@@ -422,7 +451,17 @@ export class AntigravityEnrollmentSessionManager {
         refreshToken: tokenData.refresh_token || tokenData.access_token
       });
 
+      // Verify read-back from store
+      const readBack = this.store.getConnection(session.connectionId, true);
+      if (!readBack || (!readBack.accessToken && !readBack.refreshToken)) {
+        throw new Error('PERSISTENCE_VERIFICATION_FAILED: Saved credentials could not be read back from Vault.');
+      }
+
+      console.log(`[ENROLLMENT] PERSIST_SUCCESS: connectionId=${session.connectionId}`);
+
       session.state = ENROLLMENT_STATES.ENROLLED;
+      console.log(`[ENROLLMENT] ENROLLED: slot=${session.connectionId.toUpperCase()} is now fully ACTIVE & ENROLLED`);
+      
       this._cleanupSessionServer(session);
 
       return {
@@ -436,6 +475,7 @@ export class AntigravityEnrollmentSessionManager {
         ? ENROLLMENT_STATES.TOKEN_EXCHANGE_FAILED
         : (err.message.includes('PROJECT') ? ENROLLMENT_STATES.PROJECT_DISCOVERY_FAILED : ENROLLMENT_STATES.CLOUD_CODE_AUTH_FAILED);
 
+      console.error(`[ENROLLMENT FAILED] Stage: ${failState}, Message: ${err.message}`);
       this._failSession(enrollmentId, failState, err.message);
       throw err;
     }

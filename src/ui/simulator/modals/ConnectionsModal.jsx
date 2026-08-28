@@ -102,6 +102,29 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           window.open(data.authUrl, '_blank');
         }
       }
+
+      // Live enrollment polling
+      if (data.enrollmentId) {
+        const pollId = setInterval(async () => {
+          try {
+            const pollRes = await fetch(`${activeEndpoint}/api/antigravity/enrollments/${data.enrollmentId}`);
+            if (pollRes.ok) {
+              const pollData = await pollRes.json();
+              if (pollData.state === 'ENROLLED') {
+                clearInterval(pollId);
+                fetchLiveState();
+              } else if (pollData.state && (pollData.state.includes('FAILED') || pollData.state.includes('TIMEOUT') || pollData.state.includes('ERROR'))) {
+                clearInterval(pollId);
+                setErrorMsg(`[ENROLLMENT FAILED] ${pollData.state}: ${pollData.error || 'Otorisasi gagal'}`);
+                fetchLiveState();
+              }
+            }
+          } catch {}
+        }, 1000);
+
+        setTimeout(() => clearInterval(pollId), 120000);
+      }
+
       fetchLiveState();
     } catch (err) {
       setErrorMsg(`Gagal menghubungkan ${connectionId.toUpperCase()}: ${err.message}`);
