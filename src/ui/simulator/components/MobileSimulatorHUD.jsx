@@ -83,16 +83,18 @@ export default function MobileSimulatorHUD({
   const isImageQuery = lowerQuery.includes('gambar') || lowerQuery.includes('foto') || lowerQuery.includes('image') || lowerQuery.includes('visual');
   const isDataQuery = lowerQuery.includes('data') || lowerQuery.includes('tabel') || lowerQuery.includes('grafik') || lowerQuery.includes('chart') || lowerQuery.includes('statistik');
 
-  // Auto switch tab and stream source if specific media is requested
+  // Auto switch tab and stream source if specific media, search, or data is requested
   useEffect(() => {
-    if (isNewsQuery) {
-      setSelectedVideoId('fJ9rUzIMcZQ'); // Kompas TV Official Live News
+    if (!lastUserMessage) return;
+
+    if (isNewsQuery || isMusicQuery || isVideoQuery || isImageQuery) {
+      if (isNewsQuery) setSelectedVideoId('fJ9rUzIMcZQ');
+      else if (isMusicQuery) setSelectedVideoId('vr0qNXmkUJ8');
       setCurrentTab('MEDIA');
-    } else if (isMusicQuery) {
-      setSelectedVideoId('vr0qNXmkUJ8'); // Avicii / DJ Heaven
-      setCurrentTab('MEDIA');
-    } else if (isVideoQuery || isImageQuery || isDataQuery) {
-      setCurrentTab('MEDIA');
+    } else if (lowerQuery.includes('cari') || lowerQuery.includes('search') || lowerQuery.includes('web') || lowerQuery.includes('googl') || lowerQuery.includes('riset')) {
+      setCurrentTab('SEARCH');
+    } else if (isDataQuery || lowerQuery.includes('analisis') || lowerQuery.includes('hitung') || lowerQuery.includes('metrik') || lowerQuery.includes('audit')) {
+      setCurrentTab('INSIGHTS');
     }
   }, [lastUserMessage]);
 

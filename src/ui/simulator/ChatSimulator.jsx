@@ -122,15 +122,12 @@ export default function ChatSimulator() {
       setSimulatorMode('CONVERSATION');
     } else if (action === 'search') {
       setSimulatorMode('SEARCH');
-      handleExecutePrompt('Lakukan global search mengenai data tren riset AI global.');
     } else if (action === 'analyze') {
       setIsAnalyzeModalOpen(true);
     } else if (action === 'deep_analysis') {
       setSimulatorMode('INSIGHTS');
-      handleExecutePrompt('Lakukan deep analysis multi-source reasoning pada dataset aktif.');
     } else if (action === 'generate') {
       setSimulatorMode('APP_PREVIEW');
-      handleExecutePrompt('Buatkan purwarupa aplikasi monitoring riset interaktif.');
     } else if (action === 'vault') {
       setIsMemoryModalOpen(true);
     } else if (action === 'feed') {
