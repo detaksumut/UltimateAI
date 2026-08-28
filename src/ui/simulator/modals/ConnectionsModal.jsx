@@ -130,9 +130,13 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleRefresh = async (connectionId) => {
     try {
-      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
+      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`/api/antigravity/connections/${connectionId}/refresh`, { method: 'POST' });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Refresh gagal');
+      setErrorMsg(null);
       fetchLiveState();
     } catch (err) {
       setErrorMsg(`Refresh gagal: ${err.message}`);
@@ -141,7 +145,10 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleToggle = async (connectionId) => {
     try {
-      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
+      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`/api/antigravity/connections/${connectionId}/toggle`, { method: 'POST' });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Toggle gagal');
       setErrorMsg(null);
@@ -154,7 +161,10 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   const handleDisconnect = async (connectionId) => {
     if (!confirm(`Hapus dan putuskan koneksi ${connectionId.toUpperCase()} dari Pool Antigravity?`)) return;
     try {
-      const res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
+      let res = await fetch(`${activeEndpoint}/api/antigravity/connections/${connectionId}`, { method: 'DELETE' }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`/api/antigravity/connections/${connectionId}`, { method: 'DELETE' });
+      }
       if (!res.ok) throw new Error('Disconnect gagal');
       setErrorMsg(null);
       fetchLiveState();
