@@ -54,21 +54,48 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
 
   return (
     <aside
-      className="w-64 flex-shrink-0 h-full flex flex-col justify-between p-4 text-slate-300 select-none relative"
+      className="w-64 flex-shrink-0 h-full flex flex-col justify-between p-4 text-slate-300 select-none relative my-1 ml-1 rounded-2xl"
       style={{
-        background: 'transparent',
-        borderRight: '1px solid rgba(255,255,255,0.15)',
-        boxShadow: 'inset -2px 0 8px rgba(0,242,254,0.06), 1px 0 0 rgba(255,255,255,0.04)'
+        background: 'linear-gradient(160deg, rgba(255,255,255,0.13) 0%, rgba(180,220,255,0.04) 40%, rgba(255,255,255,0.06) 100%)',
+        border: '2px solid rgba(255,255,255,0.35)',
+        /* Thick 3D Crystal Slab illusion: top-left highlight + bottom-right deep shadow + ambient glow */
+        boxShadow: [
+          /* Outer ambient glow */
+          '0 0 40px rgba(0,242,254,0.18)',
+          /* Deep right shadow — simulates 3D thickness */
+          '6px 0 18px rgba(0,0,0,0.55)',
+          /* Deep bottom shadow */
+          '0 8px 24px rgba(0,0,0,0.60)',
+          /* Top specular reflection */
+          'inset 0 3px 8px rgba(255,255,255,0.55)',
+          /* Left inner bevel light */
+          'inset 3px 0 8px rgba(255,255,255,0.22)',
+          /* Bottom inner depth shadow */
+          'inset 0 -4px 10px rgba(0,0,0,0.50)',
+          /* Right inner depth shadow */
+          'inset -3px 0 8px rgba(0,0,0,0.35)',
+          /* Cyan edge glow */
+          '0 0 60px rgba(0,242,254,0.10)'
+        ].join(',')
       }}
     >
-      {/* Crystal Top Specular Rim */}
-      <div className="absolute top-0 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none"></div>
+      {/* Crystal Top Specular Rim - thick bright line */}
+      <div className="absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r from-transparent via-white/90 to-transparent pointer-events-none rounded-t-2xl"></div>
 
-      {/* Crystal Corner Brackets */}
-      <div className="absolute top-1 left-1 w-3 h-3 border-t border-l border-cyan-400/70 rounded-tl pointer-events-none" style={{boxShadow:'0 0 6px rgba(0,242,254,0.4)'}}></div>
-      <div className="absolute top-1 right-1 w-3 h-3 border-t border-r border-cyan-400/70 rounded-tr pointer-events-none" style={{boxShadow:'0 0 6px rgba(0,242,254,0.4)'}}></div>
-      <div className="absolute bottom-1 left-1 w-3 h-3 border-b border-l border-cyan-400/40 rounded-bl pointer-events-none"></div>
-      <div className="absolute bottom-1 right-1 w-3 h-3 border-b border-r border-cyan-400/40 rounded-br pointer-events-none"></div>
+      {/* Diagonal prismatic sheen across the crystal face */}
+      <div className="absolute inset-0 bg-[linear-gradient(125deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.02)_30%,transparent_55%)] pointer-events-none rounded-2xl"></div>
+
+      {/* Thick 3D Left Edge — simulates crystal slab thickness */}
+      <div className="absolute top-6 bottom-6 left-0 w-[3px] bg-gradient-to-b from-white/80 via-white/50 to-white/20 rounded-l-2xl pointer-events-none"></div>
+
+      {/* Bottom Edge depth shadow */}
+      <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-gradient-to-r from-transparent via-cyan-300/30 to-transparent pointer-events-none rounded-b-2xl"></div>
+
+      {/* Crystal Corner Brackets - Bright & Glowing */}
+      <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-400/90 rounded-tl-lg pointer-events-none" style={{boxShadow:'0 0 10px rgba(0,242,254,0.7), 0 0 20px rgba(0,242,254,0.3)'}}></div>
+      <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-400/90 rounded-tr-lg pointer-events-none" style={{boxShadow:'0 0 10px rgba(0,242,254,0.7), 0 0 20px rgba(0,242,254,0.3)'}}></div>
+      <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400/50 rounded-bl-lg pointer-events-none" style={{boxShadow:'0 0 6px rgba(0,242,254,0.3)'}}></div>
+      <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400/50 rounded-br-lg pointer-events-none" style={{boxShadow:'0 0 6px rgba(0,242,254,0.3)'}}></div>
 
       <div className="flex flex-col gap-5 overflow-y-auto custom-scrollbar pr-1 z-10">
 
