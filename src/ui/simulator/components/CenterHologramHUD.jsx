@@ -1,6 +1,5 @@
 import React from 'react';
 import { Bell, Settings, Download, Cpu, Volume2 } from 'lucide-react';
-import StatusCards from './StatusCards.jsx';
 import CyberAppStudioGrid from './CyberAppStudioGrid.jsx';
 import CyberHUDVoiceBar from './CyberHUDVoiceBar.jsx';
 import { textToSpeechInstance } from '../../../services/voice/TextToSpeech.js';
@@ -98,11 +97,6 @@ export default function CenterHologramHUD({
             <Settings className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
-
-      {/* 4 Status Cards HUD Overlay */}
-      <div className="flex-shrink-0">
-        <StatusCards avatarState={avatarState} isSpeaking={isSpeaking} spectrum={spectrum} />
       </div>
 
       {/* Center 2x3 Cyber App Studio Cards Grid */}
