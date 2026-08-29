@@ -286,10 +286,15 @@ export default function MobileSimulatorHUD({
   };
 
   return (
-    <div className="w-80 lg:w-96 flex-shrink-0 h-full flex flex-col p-3.5 my-1 mr-2 rounded-3xl bg-gradient-to-b from-white/[0.12] via-slate-900/60 to-black/85 border-2 border-white/30 text-slate-300 select-none overflow-y-auto custom-scrollbar backdrop-blur-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.45),inset_0_-2px_4px_rgba(0,0,0,0.7),0_0_35px_rgba(0,242,254,0.18)] relative">
-      {/* Thick Crystal Top Specular Light Facet & Diagonal Prismatic Sheen */}
+    <div className="w-80 lg:w-96 flex-shrink-0 h-full flex flex-col p-3.5 my-1 mr-2 rounded-3xl border-2 border-white/25 text-slate-300 select-none overflow-y-auto custom-scrollbar relative"
+      style={{
+        background: 'transparent',
+        boxShadow: '0 0 40px rgba(0,242,254,0.15), 0 0 80px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.30), inset 0 -2px 4px rgba(0,0,0,0.2)'
+      }}>
+      {/* Crystal Top Specular Rim */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none rounded-t-3xl"></div>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_35%,transparent_60%)] pointer-events-none rounded-3xl"></div>
+      {/* Crystal Prismatic Sheen Top-Left */}
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.01)_30%,transparent_55%)] pointer-events-none rounded-3xl"></div>
 
       {/* Thick Crystal Faceted Corner Brackets */}
       <div className="absolute top-1 left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-cyan-400/80 rounded-tl-lg pointer-events-none shadow-[0_0_8px_#00f2fe]"></div>
@@ -346,18 +351,16 @@ export default function MobileSimulatorHUD({
         </div>
       </div>
 
-      {/* === CRYSTAL PHONE BODY - Pure Transparent Crystal === */}
-      <div className="flex-1 w-full relative z-10 min-h-[480px] flex flex-col" style={{filter:'drop-shadow(0 0 30px rgba(0,242,254,0.35)) drop-shadow(0 0 12px rgba(200,220,255,0.25))'}}>
+      {/* === CRYSTAL PHONE BODY - Fully Transparent === */}
+      <div className="flex-1 w-full relative z-10 min-h-[480px] flex flex-col"
+        style={{filter:'drop-shadow(0 0 30px rgba(0,242,254,0.35)) drop-shadow(0 0 12px rgba(200,220,255,0.25))'}}>
 
-        {/* Outer Crystal Phone Shell - Pure Transparent Crystal */}
-        {/* Main transparent glass shell */}
+        {/* Crystal Phone Outline Only - no fill, pure glass frame */}
         <div className="absolute inset-0 rounded-[44px] pointer-events-none"
           style={{
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 30%, rgba(180,220,255,0.06) 70%, rgba(255,255,255,0.10) 100%)',
-            border: '2px solid rgba(255,255,255,0.45)',
-            backdropFilter: 'blur(2px)',
-            WebkitBackdropFilter: 'blur(2px)',
-            boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.60), inset 0 -3px 6px rgba(180,220,255,0.20), inset 2px 0 5px rgba(255,255,255,0.22), inset -2px 0 5px rgba(255,255,255,0.12)'
+            background: 'transparent',
+            border: '2px solid rgba(255,255,255,0.50)',
+            boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.45), inset 0 -2px 5px rgba(200,220,255,0.15), inset 2px 0 5px rgba(255,255,255,0.18), inset -2px 0 4px rgba(255,255,255,0.10)'
           }}>
         </div>
 
@@ -395,14 +398,12 @@ export default function MobileSimulatorHUD({
           </div>
         </div>
 
-        {/* Inner Screen - Pure Crystal Transparent Glass */}
+        {/* Inner Screen - Fully Transparent Crystal Screen */}
         <div className="flex-1 flex flex-col mx-2 my-2 rounded-[36px] overflow-hidden relative"
           style={{
-            background: 'linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(150,200,255,0.05) 50%, rgba(255,255,255,0.06) 100%)',
-            backdropFilter: 'blur(0px)',
-            WebkitBackdropFilter: 'blur(0px)',
-            border: '1px solid rgba(255,255,255,0.30)',
-            boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.35), inset 0 -2px 8px rgba(180,220,255,0.15), 0 0 20px rgba(0,242,254,0.12)'
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.22)',
+            boxShadow: 'inset 0 2px 8px rgba(255,255,255,0.28), inset 0 -1px 4px rgba(200,220,255,0.10), 0 0 15px rgba(0,242,254,0.08)'
           }}>
 
           {/* Crystal Dynamic Island */}
