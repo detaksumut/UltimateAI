@@ -8,8 +8,8 @@ export default function Hologram3DCanvas({ type, colorHex, isHovered = false }) 
     const container = mountRef.current;
     if (!container) return;
 
-    const width = container.clientWidth || 240;
-    const height = container.clientHeight || 150;
+    const width = container.clientWidth || 200;
+    const height = container.clientHeight || 200;
 
     // 1. Scene & Camera Setup (Centered & Zoomed Closer for Bolder 3D Visibility)
     const scene = new THREE.Scene();
@@ -288,7 +288,7 @@ export default function Hologram3DCanvas({ type, colorHex, isHovered = false }) 
   return (
     <div
       ref={mountRef}
-      className="w-full h-44 sm:h-48 flex items-center justify-center relative cursor-grab active:cursor-grabbing select-none"
+      className="w-full h-full flex items-center justify-center relative cursor-grab active:cursor-grabbing select-none"
     />
   );
 }
