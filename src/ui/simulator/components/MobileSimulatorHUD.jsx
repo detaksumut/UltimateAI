@@ -346,12 +346,19 @@ export default function MobileSimulatorHUD({
         </div>
       </div>
 
-      {/* === CRYSTAL PHONE BODY === */}
-      <div className="flex-1 w-full relative z-10 min-h-[480px] flex flex-col" style={{filter:'drop-shadow(0 0 28px rgba(0,242,254,0.22))drop-shadow(0 0 55px rgba(0,0,0,0.95))'}}>
+      {/* === CRYSTAL PHONE BODY - Pure Transparent Crystal === */}
+      <div className="flex-1 w-full relative z-10 min-h-[480px] flex flex-col" style={{filter:'drop-shadow(0 0 30px rgba(0,242,254,0.35)) drop-shadow(0 0 12px rgba(200,220,255,0.25))'}}>
 
-        {/* Outer Crystal Phone Shell - Thick Prismatic Glass Body */}
-        <div className="absolute inset-0 rounded-[44px] bg-gradient-to-br from-white/[0.18] via-slate-900/55 to-black/90 border-2 border-white/35 pointer-events-none"
-          style={{boxShadow:'inset 0 3px 7px rgba(255,255,255,0.55),inset 0 -4px 8px rgba(0,0,0,0.85),inset 2px 0 4px rgba(255,255,255,0.18),inset -2px 0 4px rgba(255,255,255,0.08),0 30px 80px rgba(0,0,0,0.95)'}}>
+        {/* Outer Crystal Phone Shell - Pure Transparent Crystal */}
+        {/* Main transparent glass shell */}
+        <div className="absolute inset-0 rounded-[44px] pointer-events-none"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 30%, rgba(180,220,255,0.06) 70%, rgba(255,255,255,0.10) 100%)',
+            border: '2px solid rgba(255,255,255,0.45)',
+            backdropFilter: 'blur(2px)',
+            WebkitBackdropFilter: 'blur(2px)',
+            boxShadow: 'inset 0 3px 8px rgba(255,255,255,0.60), inset 0 -3px 6px rgba(180,220,255,0.20), inset 2px 0 5px rgba(255,255,255,0.22), inset -2px 0 5px rgba(255,255,255,0.12)'
+          }}>
         </div>
 
         {/* Crystal Prismatic Edge Sheen - left bevel */}
@@ -388,14 +395,14 @@ export default function MobileSimulatorHUD({
           </div>
         </div>
 
-        {/* Inner Screen Area - Crystal Glass Screen (transparan bercahaya) */}
+        {/* Inner Screen - Pure Crystal Transparent Glass */}
         <div className="flex-1 flex flex-col mx-2 my-2 rounded-[36px] overflow-hidden relative"
           style={{
-            background: 'linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(10,20,50,0.45) 40%, rgba(5,8,20,0.55) 100%)',
-            backdropFilter: 'blur(28px)',
-            WebkitBackdropFilter: 'blur(28px)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            boxShadow: 'inset 0 2px 8px rgba(255,255,255,0.22), inset 0 -3px 10px rgba(0,0,0,0.5), inset 1px 0 3px rgba(255,255,255,0.12), 0 0 25px rgba(0,242,254,0.1)'
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(150,200,255,0.05) 50%, rgba(255,255,255,0.06) 100%)',
+            backdropFilter: 'blur(0px)',
+            WebkitBackdropFilter: 'blur(0px)',
+            border: '1px solid rgba(255,255,255,0.30)',
+            boxShadow: 'inset 0 2px 10px rgba(255,255,255,0.35), inset 0 -2px 8px rgba(180,220,255,0.15), 0 0 20px rgba(0,242,254,0.12)'
           }}>
 
           {/* Crystal Dynamic Island */}
@@ -407,9 +414,9 @@ export default function MobileSimulatorHUD({
             </div>
           </div>
 
-        {/* Intelligence Mode Tabs (5 Tabs: DIALOG, MEDIA, SEARCH, INSIGHTS, APP) */}
+        {/* Intelligence Mode Tabs - Crystal Glass */}
         <div className="flex items-center justify-between gap-1 p-1 rounded-xl mb-2 z-10 text-[9px] font-mono"
-          style={{background:'rgba(10,20,50,0.55)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'inset 0 1px 3px rgba(255,255,255,0.18),inset 0 -1px 2px rgba(0,0,0,0.4)'}}>
+          style={{background:'rgba(255,255,255,0.08)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(255,255,255,0.25)',boxShadow:'inset 0 1px 4px rgba(255,255,255,0.30),inset 0 -1px 2px rgba(180,220,255,0.10)'}}>
           <button
             onClick={() => handleTabClick('CONVERSATION')}
             className={`flex-1 py-1 rounded-lg transition-all ${
@@ -454,7 +461,7 @@ export default function MobileSimulatorHUD({
         </div>
 
         {/* Phone Inner Screen Content */}
-        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar px-1 z-10">
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar crystal-scroll px-1 z-10 crystal-phone-screen">
           
           {/* TAB 1: CONVERSATION */}
           {currentTab === 'CONVERSATION' && (

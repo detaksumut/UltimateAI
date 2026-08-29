@@ -113,3 +113,47 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 229, 255, 0.6);
 }
+
+/* ============================================================ */
+/* CRYSTAL PHONE SCREEN - Ultra Transparent Glass Overrides     */
+/* All inner content cards inside the crystal phone screen      */
+/* ============================================================ */
+.crystal-phone-screen {
+  position: relative;
+}
+
+/* Override all dark card backgrounds inside crystal phone screen */
+.crystal-phone-screen [class*="bg-slate-9"],
+.crystal-phone-screen [class*="bg-slate-8"],
+.crystal-phone-screen [class*="bg-slate-7"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Crystal card style for content panels inside the phone */
+.crystal-card {
+  background: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Crystal card hover effect */
+.crystal-card:hover {
+  background: rgba(255, 255, 255, 0.11) !important;
+  border-color: rgba(0, 242, 254, 0.30) !important;
+}
+
+/* Crystal scrollbar for phone screen */
+.crystal-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+.crystal-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+.crystal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
