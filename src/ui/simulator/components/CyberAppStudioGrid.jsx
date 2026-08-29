@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Hologram3DCanvas from './Hologram3DCanvas.jsx';
+import OuterOrbitalDustCanvas from './OuterOrbitalDustCanvas.jsx';
 
 export default function CyberAppStudioGrid({ onSelectApp }) {
   const apps = [
@@ -9,6 +10,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'IMAGE STUDIO',
       description: 'Create, edit, and generate stunning images with AI',
       colorHex: 0x00f2fe,
+      colorCss: '#00f2fe',
       theme: {
         orbBorder: 'border-cyan-400/50 group-hover:border-cyan-300',
         text: 'text-cyan-300',
@@ -24,6 +26,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'DOCUMENT STUDIO',
       description: 'Create, edit, and manage documents intelligently',
       colorHex: 0xa855f7,
+      colorCss: '#a855f7',
       theme: {
         orbBorder: 'border-purple-400/50 group-hover:border-purple-300',
         text: 'text-purple-300',
@@ -39,6 +42,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'DATA LAB',
       description: 'Analyze, visualize, and extract insights from any data',
       colorHex: 0x10b981,
+      colorCss: '#10b981',
       theme: {
         orbBorder: 'border-emerald-400/50 group-hover:border-emerald-300',
         text: 'text-emerald-300',
@@ -54,6 +58,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'CODE LAB',
       description: 'Write, debug, and optimize code with AI assistance',
       colorHex: 0xf59e0b,
+      colorCss: '#f59e0b',
       theme: {
         orbBorder: 'border-amber-400/50 group-hover:border-amber-300',
         text: 'text-amber-300',
@@ -69,6 +74,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'MEDIA STUDIO',
       description: 'Create, edit, and produce media content',
       colorHex: 0xec4899,
+      colorCss: '#ec4899',
       theme: {
         orbBorder: 'border-pink-400/50 group-hover:border-pink-300',
         text: 'text-pink-300',
@@ -84,6 +90,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
       title: 'KNOWLEDGE LAB',
       description: 'Deep research, multi-agent memory, and verified insights',
       colorHex: 0x0ea5e9,
+      colorCss: '#0ea5e9',
       theme: {
         orbBorder: 'border-sky-400/50 group-hover:border-sky-300',
         text: 'text-sky-300',
@@ -110,7 +117,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
         <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent via-cyan-500/40 to-cyan-400"></div>
       </div>
 
-      {/* 2x3 Grid of Luminous 3D Crystal Spheres / Bola-Bola Kristal */}
+      {/* 2x3 Grid of Luminous 3D Crystal Spheres with Swirling Outer Orbital Dust */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl mx-auto flex-1">
         {apps.map((app) => (
           <div
@@ -128,8 +135,11 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
               </span>
             </div>
 
-            {/* Main Spherical 3D Crystal Ball / Bola Kristal Container */}
+            {/* Main Spherical 3D Crystal Ball / Bola Kristal Container with Outer Orbital Dust */}
             <div className="relative w-44 h-44 sm:w-48 sm:h-48 my-1 flex items-center justify-center">
+              {/* 3D Swirling Outer Orbital Dust Cloud Canvas */}
+              <OuterOrbitalDustCanvas colorHex={app.colorCss} />
+
               {/* Outer Pulsing Orbital Halo */}
               <div
                 className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none filter blur-xl"
@@ -142,7 +152,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
 
               {/* The Crystal Glass Sphere Body */}
               <div
-                className={`relative w-full h-full rounded-full border-2 ${app.theme.orbBorder} bg-gradient-to-br from-white/15 via-slate-900/60 to-black/80 backdrop-blur-2xl shadow-[0_15px_45px_rgba(0,0,0,0.85),inset_0_6px_14px_rgba(255,255,255,0.45),inset_0_-8px_20px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center transition-all duration-500`}
+                className={`relative w-full h-full rounded-full border-2 ${app.theme.orbBorder} bg-gradient-to-br from-white/15 via-slate-900/60 to-black/80 backdrop-blur-2xl shadow-[0_15px_45px_rgba(0,0,0,0.85),inset_0_6px_14px_rgba(255,255,255,0.45),inset_0_-8px_20px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center transition-all duration-500 z-10`}
               >
                 {/* Spherical Glare Lens Specular Reflection (Top-Left Curved Light) */}
                 <div className="absolute top-2 left-3 w-16 h-10 rounded-full bg-gradient-to-br from-white/70 via-white/20 to-transparent transform -rotate-45 pointer-events-none blur-[1px]"></div>
