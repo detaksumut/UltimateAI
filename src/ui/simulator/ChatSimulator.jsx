@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './simulator.css';
 import LeftSidebarHUD from './components/LeftSidebarHUD.jsx';
 import CenterHologramHUD from './components/CenterHologramHUD.jsx';
-import VoiceConsole from './components/VoiceConsole.jsx';
-import BottomStatusToolbar from './components/BottomStatusToolbar.jsx';
 import MobileSimulatorHUD from './components/MobileSimulatorHUD.jsx';
 
 // Interactive Modals
@@ -145,6 +143,26 @@ export default function ChatSimulator() {
     }
   };
 
+  const handleSelectApp = (app) => {
+    if (!app) return;
+    if (app.id === 'DOCUMENT_STUDIO') {
+      setIsAnalyzeModalOpen(true);
+    } else if (app.id === 'DATA_LAB') {
+      setSimulatorMode('INSIGHTS');
+    } else if (app.id === 'CODE_LAB') {
+      setSimulatorMode('APP_PREVIEW');
+    } else if (app.id === 'MEDIA_STUDIO') {
+      setSimulatorMode('MEDIA');
+    } else if (app.id === 'KNOWLEDGE_LAB') {
+      setSimulatorMode('SEARCH');
+    } else if (app.id === 'IMAGE_STUDIO') {
+      setSimulatorMode('MEDIA');
+    }
+    if (app.actionPrompt) {
+      handleExecutePrompt(app.actionPrompt);
+    }
+  };
+
   return (
     <div className="w-screen h-screen bg-[#060a14] text-slate-100 flex overflow-hidden font-sans cyber-bg">
       {/* 1. Left Sidebar Navigation HUD */}
@@ -154,31 +172,20 @@ export default function ChatSimulator() {
         onActionClick={handleSidebarAction}
       />
 
-      {/* 2. Center JIN Hologram HUD & Voice Command Console */}
-      <main className="flex-1 h-full flex flex-col justify-between py-2 overflow-hidden relative">
+      {/* 2. Center 6-App Cyber Studio HUD & Voice Command Console */}
+      <main className="flex-1 h-full flex flex-col justify-between py-1 overflow-hidden relative">
         <CenterHologramHUD
           avatarState={avatarState}
           audioMetrics={audioMetrics}
           onSettingsClick={() => setIsControlModalOpen(true)}
           onNotificationClick={() => setIsActivityDrawerOpen(true)}
           onOpenCertDashboard={() => setIsCertModalOpen(true)}
+          onSelectApp={handleSelectApp}
+          isListening={isListening}
+          onMicClick={handleMicToggle}
+          onSubmitText={handleExecutePrompt}
+          liveTranscript={liveTranscript}
         />
-
-        <div className="w-full flex flex-col items-center gap-2 pb-2">
-          <VoiceConsole
-            avatarState={avatarState}
-            isListening={isListening}
-            onMicClick={handleMicToggle}
-            onSubmitText={handleExecutePrompt}
-            spectrum={audioMetrics.spectrum}
-            liveTranscript={liveTranscript}
-          />
-
-          <BottomStatusToolbar
-            onQuickCommand={() => handleExecutePrompt('Jelaskan kapabilitas orkestrasi 9Router saat ini.')}
-            onVoiceSettings={() => setIsControlModalOpen(true)}
-          />
-        </div>
       </main>
 
       {/* 3. Right Mobile Simulator Frame (Live Intelligence Display) */}

@@ -1,9 +1,22 @@
 import React from 'react';
-import { Bell, Settings, Download, Cpu, ShieldCheck, Volume2 } from 'lucide-react';
+import { Bell, Settings, Download, Cpu, Volume2 } from 'lucide-react';
 import StatusCards from './StatusCards.jsx';
+import CyberAppStudioGrid from './CyberAppStudioGrid.jsx';
+import CyberHUDVoiceBar from './CyberHUDVoiceBar.jsx';
 import { textToSpeechInstance } from '../../../services/voice/TextToSpeech.js';
 
-export default function CenterHologramHUD({ avatarState, audioMetrics, onSettingsClick, onNotificationClick, onOpenCertDashboard }) {
+export default function CenterHologramHUD({
+  avatarState,
+  audioMetrics,
+  onSettingsClick,
+  onNotificationClick,
+  onOpenCertDashboard,
+  onSelectApp,
+  isListening,
+  onMicClick,
+  onSubmitText,
+  liveTranscript
+}) {
   const isSpeaking = avatarState === 'SPEAKING';
   const { spectrum = [] } = audioMetrics || {};
 
@@ -12,9 +25,9 @@ export default function CenterHologramHUD({ avatarState, audioMetrics, onSetting
   };
 
   return (
-    <div className="relative flex-1 h-full flex flex-col items-center justify-between px-6 pt-3 pb-0 select-none overflow-hidden">
-      {/* Top Header Bar with Grid to Prevent Any Text Overlapping */}
-      <div className="w-full grid grid-cols-3 items-center z-20 px-2 py-1 border-b border-cyan-500/15 pb-2">
+    <div className="relative flex-1 h-full flex flex-col justify-between px-4 sm:px-6 pt-2 pb-1 select-none overflow-hidden">
+      {/* Top Header Bar with Grid */}
+      <div className="w-full grid grid-cols-3 items-center z-20 px-2 py-1 border-b border-cyan-500/15 pb-2 flex-shrink-0">
         {/* Left: System Badge */}
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
@@ -32,7 +45,7 @@ export default function CenterHologramHUD({ avatarState, audioMetrics, onSetting
             J . I . N &nbsp; C O R E
           </div>
           <div className="text-[8px] font-mono tracking-[0.2em] text-cyan-400/80 uppercase">
-            AUTONOMOUS CYBER-HUD
+            AUTONOMOUS CYBER-STUDIO HUD
           </div>
         </div>
 
@@ -88,45 +101,22 @@ export default function CenterHologramHUD({ avatarState, audioMetrics, onSetting
       </div>
 
       {/* 4 Status Cards HUD Overlay */}
-      <StatusCards avatarState={avatarState} isSpeaking={isSpeaking} spectrum={spectrum} />
-
-      {/* Main Cyber Command Telemetry & Intelligence Mission Control */}
-      <div className="relative w-full max-w-2xl flex-1 flex flex-col items-center justify-center px-4 py-2">
-        <div className="w-full bg-slate-950/40 border border-cyan-500/20 rounded-2xl p-4 sm:p-6 backdrop-blur-md shadow-[0_0_30px_rgba(0,229,255,0.06)] flex flex-col items-center justify-center text-center relative overflow-hidden">
-          {/* Subtle Cyber Grid Background */}
-          <div className="absolute inset-0 bg-[radial-gradient(#00e5ff_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
-
-          <div className="flex items-center gap-2 mb-2 z-10">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#00e5ff] animate-pulse"></span>
-            <span className="text-xs font-mono font-bold tracking-[0.25em] text-cyan-300 uppercase">
-              AUTONOMOUS MISSION CONTROL
-            </span>
-          </div>
-
-          <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-white font-sans uppercase mb-2 z-10">
-            UltimateAI Multi-Agent System
-          </h2>
-
-          <p className="text-xs text-slate-400 max-w-lg leading-relaxed z-10">
-            Sistem orkestrasi kecerdasan terpadu dengan 9Router v2.0, deteksi instan dokumen 70+ halaman, dan pipeline data analitis visual. JIN aktif di pojok kanan atas.
-          </p>
-
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-md mt-4 z-10 text-[10px] font-mono">
-            <div className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/30 flex flex-col items-center">
-              <span className="text-slate-400">ROUTER</span>
-              <span className="text-cyan-300 font-bold mt-0.5">9ROUTER v2.0</span>
-            </div>
-            <div className="p-2 rounded-lg bg-purple-950/30 border border-purple-500/30 flex flex-col items-center">
-              <span className="text-slate-400">SPEECH GATE</span>
-              <span className="text-purple-300 font-bold mt-0.5">ACTIVE</span>
-            </div>
-            <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/30 flex flex-col items-center">
-              <span className="text-slate-400">STATUS</span>
-              <span className="text-emerald-300 font-bold mt-0.5">{avatarState || 'READY'}</span>
-            </div>
-          </div>
-        </div>
+      <div className="flex-shrink-0">
+        <StatusCards avatarState={avatarState} isSpeaking={isSpeaking} spectrum={spectrum} />
       </div>
+
+      {/* Center 2x3 Cyber App Studio Cards Grid */}
+      <CyberAppStudioGrid onSelectApp={onSelectApp} />
+
+      {/* Bottom Futuristic Cyber-HUD Voice Bar */}
+      <CyberHUDVoiceBar
+        avatarState={avatarState}
+        isListening={isListening}
+        onMicClick={onMicClick}
+        onSubmitText={onSubmitText}
+        spectrum={spectrum}
+        liveTranscript={liveTranscript}
+      />
     </div>
   );
 }
