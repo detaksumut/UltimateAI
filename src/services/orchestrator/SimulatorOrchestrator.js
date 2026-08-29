@@ -10,6 +10,7 @@ import { jinAvatarController } from '../avatar/JinAvatarController.js';
 import { AVATAR_EVENTS } from '../avatar/JinAvatarStates.js';
 import { voiceControllerInstance } from '../voice/VoiceController.js';
 import { speechDecisionGateInstance } from '../voice/SpeechDecisionGate.js';
+import { displaySpeechSeparationEngineInstance } from '../voice/DisplaySpeechSeparationEngine.js';
 
 export class SimulatorOrchestrator {
   constructor() {
@@ -18,6 +19,7 @@ export class SimulatorOrchestrator {
     this.avatar = jinAvatarController;
     this.voice = voiceControllerInstance;
     this.gate = speechDecisionGateInstance;
+    this.separator = displaySpeechSeparationEngineInstance;
 
     // Connect barge-in listener defensively
     if (this.voice && typeof this.voice.setBargeInHandler === 'function') {
@@ -72,23 +74,32 @@ export class SimulatorOrchestrator {
       );
 
       const responseText = result.text || '';
-      console.log(`[CHAT] RESPONSE_RECEIVED | Output Length: ${responseText.length} chars`);
+      console.log(`[CHAT] RESPONSE_RECEIVED | Raw Output Length: ${responseText.length} chars`);
+
+      // SEPARATION ENGINE: Separate Display Content (Screen) from Speech Content (Voice)
+      const separated = this.separator.separate(responseText, cleanPrompt);
+      const displayContent = separated.displayContent;
+      const speechContent = separated.speechContent;
+
+      console.log(`[CHAT] SEPARATION_APPLIED | Display: ${displayContent.length} chars | Speech: ${speechContent.length} chars | Ratio: ${separated.speechToDisplayRatio}`);
       
-      // 7. Add assistant message to conversation history
-      this.conversation.addMessage('assistant', responseText, {
-        routing: result.routing
+      // 7. Add assistant message to conversation history (Full display content on screen)
+      this.conversation.addMessage('assistant', displayContent, {
+        routing: result.routing,
+        speechContent,
+        speechToDisplayRatio: separated.speechToDisplayRatio
       });
 
       if (onResponseReady) {
-        onResponseReady(responseText, result.routing);
+        onResponseReady(displayContent, result.routing);
       }
       
       console.log('[VOG] JIN_RESPONSE_RECEIVED');
 
-      // 8. Transition avatar: SPEAKING via Voice Engine (Pass through Hard Speech Gate)
+      // 8. Transition avatar: SPEAKING via Voice Engine (Pass concise speechContent to Hard Speech Gate)
       this.avatar.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY });
 
-      this.voice.speak(responseText, {
+      this.voice.speak(speechContent, {
         interactionId,
         userPrompt: cleanPrompt,
         isVoiceTrigger,

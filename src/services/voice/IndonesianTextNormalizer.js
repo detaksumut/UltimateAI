@@ -139,7 +139,33 @@ export class IndonesianTextNormalizer {
       return `${numberToWords(parseInt(d, 10))} ${monthName} ${this.yearToWords(parseInt(y, 10))}`;
     });
 
-    // 6. Currency: Rp 1.250.000 or Rp1250000
+    // 6. Currency with Units: Rp18.500/kg, Rp 20.000/liter, Rp 10.000/porsi, etc.
+    t = t.replace(/Rp\.?\s*([\d.,]+)\s*\/\s*(kg|kilogram|liter|ltr|porsi|butir|ekor|bungkus|buah|kotak|bulan|tahun|hari|jam|orang|pack)/gi, (_, num, unit) => {
+      const clean = num.replace(/[.,]/g, '').replace(/\D/g, '');
+      const val = parseInt(clean, 10);
+      const unitMap = {
+        'kg': 'per kilogram',
+        'kilogram': 'per kilogram',
+        'liter': 'per liter',
+        'ltr': 'per liter',
+        'porsi': 'per porsi',
+        'butir': 'per butir',
+        'ekor': 'per ekor',
+        'bungkus': 'per bungkus',
+        'buah': 'per buah',
+        'kotak': 'per kotak',
+        'bulan': 'per bulan',
+        'tahun': 'per tahun',
+        'hari': 'per hari',
+        'jam': 'per jam',
+        'orang': 'per orang',
+        'pack': 'per pack'
+      };
+      const unitText = unitMap[unit.toLowerCase()] || `per ${unit}`;
+      return isNaN(val) ? `sejumlah rupiah ${unitText}` : `${numberToWords(val)} rupiah ${unitText}`;
+    });
+
+    // 6B. General Currency: Rp 1.250.000 or Rp1250000
     t = t.replace(/Rp\.?\s*([\d.,]+)/gi, (_, num) => {
       const clean = num.replace(/[.,]/g, '').replace(/\D/g, '');
       const val = parseInt(clean, 10);
@@ -177,12 +203,16 @@ export class IndonesianTextNormalizer {
       t = t.replace(regex, expansion);
     }
 
-    // 12. Clean residual special characters
+    // 12. Clean residual special characters and punctuation symbols (never speak punctuation names)
     t = t.replace(/[•·→↓↑←▼▸►]/g, '');
-    t = t.replace(/\|/g, ',');
-    t = t.replace(/—/g, ',');
+    t = t.replace(/[:;]/g, ', ');
+    t = t.replace(/\|/g, ', ');
+    t = t.replace(/—/g, ', ');
+    t = t.replace(/[\/\\#*_{}[\]()<>~^]/g, ' ');
     t = t.replace(/\s{2,}/g, ' ');
     t = t.trim();
+
+    return t;
 
     return t;
   }
