@@ -388,9 +388,15 @@ export default function MobileSimulatorHUD({
           </div>
         </div>
 
-        {/* Inner Screen Area - Dark Crystal Screen with content */}
-        <div className="flex-1 flex flex-col mx-2 my-2 rounded-[36px] overflow-hidden bg-[#050811]/95 relative"
-          style={{boxShadow:'inset 0 0 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(255,255,255,0.08)'}}>
+        {/* Inner Screen Area - Crystal Glass Screen (transparan bercahaya) */}
+        <div className="flex-1 flex flex-col mx-2 my-2 rounded-[36px] overflow-hidden relative"
+          style={{
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.09) 0%, rgba(10,20,50,0.45) 40%, rgba(5,8,20,0.55) 100%)',
+            backdropFilter: 'blur(28px)',
+            WebkitBackdropFilter: 'blur(28px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            boxShadow: 'inset 0 2px 8px rgba(255,255,255,0.22), inset 0 -3px 10px rgba(0,0,0,0.5), inset 1px 0 3px rgba(255,255,255,0.12), 0 0 25px rgba(0,242,254,0.1)'
+          }}>
 
           {/* Crystal Dynamic Island */}
           <div className="w-full flex justify-center pt-1.5 pb-1 z-10 flex-shrink-0">
@@ -402,7 +408,8 @@ export default function MobileSimulatorHUD({
           </div>
 
         {/* Intelligence Mode Tabs (5 Tabs: DIALOG, MEDIA, SEARCH, INSIGHTS, APP) */}
-        <div className="flex items-center justify-between gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mb-2 z-10 text-[9px] font-mono">
+        <div className="flex items-center justify-between gap-1 p-1 rounded-xl mb-2 z-10 text-[9px] font-mono"
+          style={{background:'rgba(10,20,50,0.55)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',border:'1px solid rgba(255,255,255,0.12)',boxShadow:'inset 0 1px 3px rgba(255,255,255,0.18),inset 0 -1px 2px rgba(0,0,0,0.4)'}}>
           <button
             onClick={() => handleTabClick('CONVERSATION')}
             className={`flex-1 py-1 rounded-lg transition-all ${
