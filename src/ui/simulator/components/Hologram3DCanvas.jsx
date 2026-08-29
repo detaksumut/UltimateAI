@@ -190,26 +190,79 @@ export default function Hologram3DCanvas({ type, colorHex, isHovered = false }) 
 
     scene.add(modelGroup);
 
-    // 6. Holographic Particles Cloud
-    const particleCount = 28;
+    // 6. Enhanced Luminous Cyber Sparks System
+    // Generate custom glowing circular spark texture
+    const sparkCanvas = document.createElement('canvas');
+    sparkCanvas.width = 32;
+    sparkCanvas.height = 32;
+    const ctx = sparkCanvas.getContext('2d');
+    const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+    grad.addColorStop(0.7, 'rgba(0, 242, 254, 0.4)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(16, 16, 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    const sparkTexture = new THREE.CanvasTexture(sparkCanvas);
+
+    // Primary Neon Cyber Sparks (Swirling around the 3D model)
+    const particleCount = 75;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
+    const particleSpeeds = new Float32Array(particleCount);
+    const particleRadii = new Float32Array(particleCount);
+    const particleAngles = new Float32Array(particleCount);
 
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      particlePositions[i] = (Math.random() - 0.5) * 2.2;
-      particlePositions[i + 1] = Math.random() * 2 - 0.8;
-      particlePositions[i + 2] = (Math.random() - 0.5) * 2.2;
+    for (let i = 0; i < particleCount; i++) {
+      particleRadii[i] = 0.4 + Math.random() * 1.3;
+      particleAngles[i] = Math.random() * Math.PI * 2;
+      particleSpeeds[i] = 0.015 + Math.random() * 0.025;
+
+      const idx = i * 3;
+      particlePositions[idx] = Math.cos(particleAngles[i]) * particleRadii[i];
+      particlePositions[idx + 1] = (Math.random() - 0.5) * 2.2;
+      particlePositions[idx + 2] = Math.sin(particleAngles[i]) * particleRadii[i];
     }
 
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
     const particleMat = new THREE.PointsMaterial({
       color: colorHex,
-      size: 0.04,
+      map: sparkTexture,
+      size: 0.14,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
     const particles = new THREE.Points(particleGeo, particleMat);
     scene.add(particles);
+
+    // Secondary Quantum White Sparks (Fast floating micro-sparks)
+    const whiteCount = 35;
+    const whiteGeo = new THREE.BufferGeometry();
+    const whitePositions = new Float32Array(whiteCount * 3);
+
+    for (let i = 0; i < whiteCount * 3; i += 3) {
+      whitePositions[i] = (Math.random() - 0.5) * 2.4;
+      whitePositions[i + 1] = Math.random() * 2.4 - 1.2;
+      whitePositions[i + 2] = (Math.random() - 0.5) * 2.4;
+    }
+
+    whiteGeo.setAttribute('position', new THREE.BufferAttribute(whitePositions, 3));
+    const whiteMat = new THREE.PointsMaterial({
+      color: 0xffffff,
+      map: sparkTexture,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const whiteSparks = new THREE.Points(whiteGeo, whiteMat);
+    scene.add(whiteSparks);
 
     // 7. Mouse Parallax Tracking
     let mouseX = 0;
@@ -227,7 +280,7 @@ export default function Hologram3DCanvas({ type, colorHex, isHovered = false }) 
 
     container.addEventListener('mousemove', handleMouseMove);
 
-    // 8. 60 FPS Render Loop with dynamic 3D rotations
+    // 8. 60 FPS Render Loop with dynamic 3D rotations & swirling cyber sparks
     let animId;
     const clock = new THREE.Clock();
 
@@ -244,18 +297,34 @@ export default function Hologram3DCanvas({ type, colorHex, isHovered = false }) 
       ring1.rotation.z += 0.008;
       ring2.rotation.z -= 0.012;
 
-      // Floating particles rise upwards
-      const positions = particleGeo.attributes.position.array;
-      for (let i = 1; i < particleCount * 3; i += 3) {
-        positions[i] += 0.006;
-        if (positions[i] > 1.2) positions[i] = -0.8;
+      // 1. Swirling Primary Cyber Sparks Animation
+      const pos = particleGeo.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        particleAngles[i] += particleSpeeds[i];
+        const idx = i * 3;
+        pos[idx] = Math.cos(particleAngles[i]) * particleRadii[i];
+        pos[idx + 1] += 0.012; // Rise upwards
+        pos[idx + 2] = Math.sin(particleAngles[i]) * particleRadii[i];
+
+        if (pos[idx + 1] > 1.3) {
+          pos[idx + 1] = -1.1;
+          particleRadii[i] = 0.4 + Math.random() * 1.3;
+        }
       }
       particleGeo.attributes.position.needsUpdate = true;
 
+      // 2. Rising Secondary Quantum White Sparks Animation
+      const whitePos = whiteGeo.attributes.position.array;
+      for (let i = 1; i < whiteCount * 3; i += 3) {
+        whitePos[i] += 0.015;
+        if (whitePos[i] > 1.4) whitePos[i] = -1.2;
+      }
+      whiteGeo.attributes.position.needsUpdate = true;
+
       // Mouse Parallax Smooth Interpolation
-      camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.08;
-      camera.position.y += (1.8 + mouseY * 0.3 - camera.position.y) * 0.08;
-      camera.lookAt(0, 0.1, 0);
+      camera.position.x += (mouseX * 0.4 - camera.position.x) * 0.08;
+      camera.position.y += (0.6 + mouseY * 0.25 - camera.position.y) * 0.08;
+      camera.lookAt(0, -0.05, 0);
 
       renderer.render(scene, camera);
     };
