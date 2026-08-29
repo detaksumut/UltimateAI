@@ -1,12 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 
-export default function LiveHologramAvatar({ avatarState, audioMetrics }) {
+export default function LiveHologramAvatar({ avatarState, audioMetrics, size = 'default', className = '' }) {
   const canvasRef = useRef(null);
   const { mouthGlow = 0, volume = 0.1, orbitSpeed = 1.0 } = audioMetrics || {};
 
   const isSpeaking = avatarState === 'SPEAKING';
   const isProcessing = avatarState === 'PROCESSING';
   const isListening = avatarState === 'LISTENING';
+  const isPanelSize = size === 'panel';
 
   // Live Particle System (Cyber Dust / Hologram Energy Field)
   useEffect(() => {
@@ -67,8 +68,20 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics }) {
     };
   }, [avatarState, isSpeaking, isProcessing, isListening]);
 
+  const containerSize = isPanelSize
+    ? 'w-60 h-60 sm:w-68 sm:h-68'
+    : 'w-80 h-80 md:w-96 md:h-96';
+
+  const avatarImgSize = isPanelSize
+    ? 'w-52 h-52 sm:w-60 sm:h-60'
+    : 'w-72 h-72 md:w-84 md:h-84';
+
+  const pedestalSize = isPanelSize
+    ? 'w-72 h-20 -bottom-4'
+    : 'w-96 h-28 -bottom-8';
+
   return (
-    <div className="relative w-80 h-80 md:w-96 md:h-96 flex items-center justify-center select-none">
+    <div className={`relative ${containerSize} flex items-center justify-center select-none ${className}`}>
       {/* Background Holographic Live Particle Canvas */}
       <canvas
         ref={canvasRef}
@@ -149,7 +162,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics }) {
       />
 
       {/* Pure Transparent Neon JIN Line-Art Avatar (NO BOX / NO CHECKERBOARD) */}
-      <div className="relative z-10 w-72 h-72 md:w-84 md:h-84 flex items-center justify-center hologram-avatar-container">
+      <div className={`relative z-10 ${avatarImgSize} flex items-center justify-center hologram-avatar-container`}>
         <img
           src="/genie-bg.png"
           alt="Live JIN Hologram"
@@ -171,24 +184,24 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics }) {
             className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-75"
             style={{ opacity: Math.max(0.2, mouthGlow) }}
           >
-            <div className="w-24 h-16 rounded-full bg-cyan-300/40 blur-md translate-y-10 shadow-[0_0_25px_#00e5ff]"></div>
+            <div className="w-20 h-14 rounded-full bg-cyan-300/40 blur-md translate-y-8 shadow-[0_0_25px_#00e5ff]"></div>
           </div>
         )}
 
         {/* Live Listening Audio Focus Beacon */}
         {isListening && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-48 h-48 rounded-full border border-cyan-400/40 animate-ping opacity-40"></div>
+            <div className="w-40 h-40 rounded-full border border-cyan-400/40 animate-ping opacity-40"></div>
           </div>
         )}
       </div>
 
       {/* Concentric Glowing Hologram Ripple Base Pedestal */}
-      <div className="absolute -bottom-8 w-96 h-28 flex items-center justify-center pointer-events-none z-0">
-        <div className="absolute w-84 h-20 rounded-[100%] border border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_35px_rgba(0,229,255,0.6)] ripple-circle-1"></div>
-        <div className="absolute w-64 h-14 rounded-[100%] border border-blue-400/50 ripple-circle-2"></div>
-        <div className="absolute w-44 h-10 rounded-[100%] border border-cyan-300/60 ripple-circle-3"></div>
-        <div className="absolute w-28 h-5 rounded-[100%] bg-cyan-400/90 blur-md shadow-[0_0_30px_#00e5ff]"></div>
+      <div className={`absolute ${pedestalSize} flex items-center justify-center pointer-events-none z-0`}>
+        <div className="absolute w-[90%] h-[70%] rounded-[100%] border border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_35px_rgba(0,229,255,0.6)] ripple-circle-1"></div>
+        <div className="absolute w-[70%] h-[50%] rounded-[100%] border border-blue-400/50 ripple-circle-2"></div>
+        <div className="absolute w-[50%] h-[35%] rounded-[100%] border border-cyan-300/60 ripple-circle-3"></div>
+        <div className="absolute w-[30%] h-[20%] rounded-[100%] bg-cyan-400/90 blur-md shadow-[0_0_30px_#00e5ff]"></div>
       </div>
     </div>
   );

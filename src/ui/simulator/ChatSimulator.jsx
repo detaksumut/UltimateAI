@@ -183,6 +183,8 @@ export default function ChatSimulator() {
 
       {/* 3. Right Mobile Simulator Frame (Live Intelligence Display) */}
       <MobileSimulatorHUD
+        avatarState={avatarState}
+        audioMetrics={audioMetrics}
         messages={messages}
         latestResponse={latestResponse}
         isProcessing={isProcessing}

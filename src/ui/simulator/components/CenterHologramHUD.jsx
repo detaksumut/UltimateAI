@@ -1,7 +1,6 @@
 import React from 'react';
 import { Bell, Settings, Download, Cpu, ShieldCheck, Volume2 } from 'lucide-react';
 import StatusCards from './StatusCards.jsx';
-import LiveHologramAvatar from './LiveHologramAvatar.jsx';
 import { textToSpeechInstance } from '../../../services/voice/TextToSpeech.js';
 
 export default function CenterHologramHUD({ avatarState, audioMetrics, onSettingsClick, onNotificationClick, onOpenCertDashboard }) {
@@ -91,23 +90,42 @@ export default function CenterHologramHUD({ avatarState, audioMetrics, onSetting
       {/* 4 Status Cards HUD Overlay */}
       <StatusCards avatarState={avatarState} isSpeaking={isSpeaking} spectrum={spectrum} />
 
-      {/* Main Holographic Centerpiece */}
-      <div className="relative w-full max-w-xl flex-1 flex flex-col items-center justify-center -mt-2">
-        {/* Hologram Header Title with Cool JIN Acronym */}
-        <div className="text-center mb-1 z-10">
-          <h2 className="text-3xl sm:text-4xl font-black tracking-[0.3em] text-cyan-400 font-sans uppercase drop-shadow-[0_0_25px_rgba(0,229,255,0.9)]">
-            J I N
-          </h2>
-          <p className="text-[10px] sm:text-[11px] tracking-[0.25em] text-cyan-300 font-mono font-bold mt-0.5">
-            JOINT INTELLIGENCE NEURAL-INTERFACE
-          </p>
-          <p className="text-[8px] tracking-[0.3em] text-slate-400 font-mono mt-0.5">
-            [ JUST-IN-TIME INFERENCE NETWORK ]
-          </p>
-        </div>
+      {/* Main Cyber Command Telemetry & Intelligence Mission Control */}
+      <div className="relative w-full max-w-2xl flex-1 flex flex-col items-center justify-center px-4 py-2">
+        <div className="w-full bg-slate-950/40 border border-cyan-500/20 rounded-2xl p-4 sm:p-6 backdrop-blur-md shadow-[0_0_30px_rgba(0,229,255,0.06)] flex flex-col items-center justify-center text-center relative overflow-hidden">
+          {/* Subtle Cyber Grid Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(#00e5ff_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
 
-        {/* Live Hologram Avatar (Canvas Particles + SVG Orbit + genie-bg.png + Audio Reactive Pulse) */}
-        <LiveHologramAvatar avatarState={avatarState} audioMetrics={audioMetrics} />
+          <div className="flex items-center gap-2 mb-2 z-10">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#00e5ff] animate-pulse"></span>
+            <span className="text-xs font-mono font-bold tracking-[0.25em] text-cyan-300 uppercase">
+              AUTONOMOUS MISSION CONTROL
+            </span>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-white font-sans uppercase mb-2 z-10">
+            UltimateAI Multi-Agent System
+          </h2>
+
+          <p className="text-xs text-slate-400 max-w-lg leading-relaxed z-10">
+            Sistem orkestrasi kecerdasan terpadu dengan 9Router v2.0, deteksi instan dokumen 70+ halaman, dan pipeline data analitis visual. JIN aktif di pojok kanan atas.
+          </p>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-md mt-4 z-10 text-[10px] font-mono">
+            <div className="p-2 rounded-lg bg-cyan-950/30 border border-cyan-500/30 flex flex-col items-center">
+              <span className="text-slate-400">ROUTER</span>
+              <span className="text-cyan-300 font-bold mt-0.5">9ROUTER v2.0</span>
+            </div>
+            <div className="p-2 rounded-lg bg-purple-950/30 border border-purple-500/30 flex flex-col items-center">
+              <span className="text-slate-400">SPEECH GATE</span>
+              <span className="text-purple-300 font-bold mt-0.5">ACTIVE</span>
+            </div>
+            <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/30 flex flex-col items-center">
+              <span className="text-slate-400">STATUS</span>
+              <span className="text-emerald-300 font-bold mt-0.5">{avatarState || 'READY'}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
