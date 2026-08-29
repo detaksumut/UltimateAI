@@ -55,9 +55,9 @@
 }
 
 .glass-hud-panel {
-  background: rgba(8, 14, 28, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(6, 11, 24, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(0, 229, 255, 0.16);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
 }

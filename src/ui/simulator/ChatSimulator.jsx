@@ -3,6 +3,7 @@ import './simulator.css';
 import LeftSidebarHUD from './components/LeftSidebarHUD.jsx';
 import CenterHologramHUD from './components/CenterHologramHUD.jsx';
 import MobileSimulatorHUD from './components/MobileSimulatorHUD.jsx';
+import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx';
 
 // Interactive Modals
 import AnalyzeDataModal from './modals/AnalyzeDataModal.jsx';
@@ -164,16 +165,21 @@ export default function ChatSimulator() {
   };
 
   return (
-    <div className="w-screen h-screen bg-[#060a14] text-slate-100 flex overflow-hidden font-sans cyber-bg">
+    <div className="w-screen h-screen bg-[#040711] text-slate-100 flex overflow-hidden font-sans relative">
+      {/* Dynamic Deep Universe, Galaxy, Planets, Stars & Meteors Cosmos Background */}
+      <UniverseCosmosBackground />
+
       {/* 1. Left Sidebar Navigation HUD */}
-      <LeftSidebarHUD
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onActionClick={handleSidebarAction}
-      />
+      <div className="z-10 h-full">
+        <LeftSidebarHUD
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onActionClick={handleSidebarAction}
+        />
+      </div>
 
       {/* 2. Center 6-App Cyber Studio HUD & Voice Command Console */}
-      <main className="flex-1 h-full flex flex-col justify-between py-1 overflow-hidden relative">
+      <main className="flex-1 h-full flex flex-col justify-between py-1 overflow-hidden relative z-10">
         <CenterHologramHUD
           avatarState={avatarState}
           audioMetrics={audioMetrics}
