@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NineRouterClient.js
  * Client communication layer for UltimateAI 9Router.
  * Implements streaming, reasoning telemetry, and safe fallback.
@@ -39,8 +39,8 @@ export class NineRouterClient {
    */
   async routeAndExecute(messages, options = {}, onChunk = null) {
     const baseEndpoint = this.endpoint.replace(/\/+$/, '');
-    const endpoint = baseEndpoint.endsWith('/v1') 
-      ? `${baseEndpoint}/chat/completions` 
+    const endpoint = baseEndpoint.endsWith('/v1')
+      ? `${baseEndpoint}/chat/completions`
       : `${baseEndpoint}/v1/chat/completions`;
 
     const payload = {
@@ -57,7 +57,8 @@ export class NineRouterClient {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(7000)
       });
 
       if (!response.ok) {
@@ -70,16 +71,20 @@ export class NineRouterClient {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        let buffer = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(l => l.trim().startsWith('data: '));
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Preserve incomplete trailing line across chunks
 
           for (const line of lines) {
-            const jsonStr = line.replace(/^data:\s*/, '').trim();
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
             if (jsonStr === '[DONE]') continue;
             try {
               const parsed = JSON.parse(jsonStr);
@@ -89,7 +94,7 @@ export class NineRouterClient {
                 onChunk(content, fullText);
               }
             } catch {
-              // Non-fatal stream decode error
+              // Ignore partial JSON parsing errors
             }
           }
         }
@@ -102,7 +107,7 @@ export class NineRouterClient {
     } catch (err) {
       console.warn('9Router connection fallback:', err.message);
       routerStatusInstance.updateHealth(false);
-      
+
       // Fallback local intelligence synthesis
       return this.fallbackSynthesis(messages, onChunk);
     }
@@ -159,6 +164,70 @@ export class NineRouterClient {
       return `Halo! Saya JIN. Saya siap membantu mengeksekusi pencarian berita, data, pemutaran media, atau pembuatan aplikasi instan. Apa yang ingin kita kerjakan?`;
     }
     return `Instruksi "${raw}" telah dieksekusi secara langsung oleh sistem UltimateAI.`;
+  }
+
+  /**
+   * Generate an AI image from a text prompt.
+   * Attempts Gemini Imagen via the local router proxy, falls back to a
+   * contextually-relevant high-res Unsplash photo so IMAGE STUDIO always
+   * has something meaningful to display.
+   *
+   * @param {string} prompt - The image generation prompt
+   * @returns {Promise<{imageUrl: string, isAI: boolean}>}
+   */
+  async generateImage(prompt) {
+    const cleanPrompt = (prompt || 'futuristic AI visual').trim();
+
+    // â”€â”€ 1. Try the local router proxy endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    try {
+      const response = await fetch('/api/ultimateai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: cleanPrompt, n: 1, size: '1024x1024' }),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Gemini Imagen returns: data.images[0].bytesBase64Encoded  OR  data.url
+        const base64 = data?.images?.[0]?.bytesBase64Encoded;
+        if (base64) {
+          return { imageUrl: `data:image/png;base64,${base64}`, isAI: true };
+        }
+        const url = data?.url || data?.data?.[0]?.url;
+        if (url) {
+          return { imageUrl: url, isAI: true };
+        }
+      }
+    } catch {
+      // Proxy unreachable â€” fall through to smart Unsplash fallback
+    }
+
+    // â”€â”€ 2. Contextual Unsplash fallback (always works, always relevant) â”€â”€â”€
+    const k = cleanPrompt.toLowerCase();
+    let unsplashUrl;
+    if (k.includes('antariksa') || k.includes('galaxy') || k.includes('space') || k.includes('cosmos') || k.includes('bintang') || k.includes('planet') || k.includes('nebula')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('futuristik') || k.includes('robot') || k.includes('cyber') || k.includes('neon') || k.includes('tech') || k.includes('ai')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('gunung') || k.includes('mountain') || k.includes('alam') || k.includes('nature') || k.includes('hutan') || k.includes('sunrise')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('laut') || k.includes('ocean') || k.includes('pantai') || k.includes('beach') || k.includes('wave') || k.includes('air')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('kota') || k.includes('city') || k.includes('building') || k.includes('arsitektur') || k.includes('gedung')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('abstrak') || k.includes('abstract') || k.includes('seni') || k.includes('art') || k.includes('lukisan') || k.includes('warna')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('orang') || k.includes('manusia') || k.includes('person') || k.includes('wajah') || k.includes('potret') || k.includes('portrait')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1552058544-f2b08422138a?auto=format&fit=crop&w=1400&q=90';
+    } else if (k.includes('makanan') || k.includes('food') || k.includes('kuliner') || k.includes('masakan')) {
+      unsplashUrl = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1400&q=90';
+    } else {
+      // Default: beautiful generative art gradient
+      unsplashUrl = 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1400&q=90';
+    }
+
+    return { imageUrl: unsplashUrl, isAI: false };
   }
 }
 

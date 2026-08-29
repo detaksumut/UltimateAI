@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "id": "MEM-CORE-001",
     "key": "system_identity",
@@ -86,5 +86,115 @@
     "createdAt": "2026-08-28T07:34:27.712Z",
     "lastAccessedAt": "2026-08-28T07:34:27.715Z",
     "accessCount": 2
+  },
+  {
+    "id": "MEM-1787941549510-PYD1",
+    "key": "operator_preference",
+    "content": "Operator Rahman mengaktifkan penyimpanan lokal terisolasi di Drive F:",
+    "tier": "LONG_TERM",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T18:25:49.510Z",
+    "lastAccessedAt": "2026-08-28T18:25:49.511Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787943259737-3Y90",
+    "key": "security_doctrine",
+    "content": "Dilarang keras mengekspos token OAuth atau vault keys ke eksternal.",
+    "tier": "OPERATIONAL_RULE",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T18:54:19.737Z",
+    "lastAccessedAt": "2026-08-28T18:54:19.737Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787943259767-WF94",
+    "key": "temp_fact",
+    "content": "Protokol pengujian fase 3 sementara.",
+    "tier": "GENERAL_FACT",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T18:54:19.767Z",
+    "lastAccessedAt": "2026-08-28T18:54:19.767Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787944781295-XNQP",
+    "key": "panos_cve_advisory",
+    "content": "Palo Alto Networks merilis advisory CVE-2024-3400 dengan tingkat keparahan CRITICAL.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.98,
+    "provenance": "LIVE_INTELLIGENCE_RESEARCH",
+    "createdAt": "2026-08-28T19:19:41.295Z",
+    "lastAccessedAt": "2026-08-28T19:19:41.295Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787944821998-SI0P",
+    "key": "verified_1787944821996",
+    "content": "ðŸŽµ\nUltimateAI\n\nINTELLIGENCE BEYOND LIMITS\n\nJIN CORE\nTALK TO JIN\nVoice conversation\nCHAT WITH JIN\nText conversation\nINTELLIGENCE\nGLOBAL SEARCH\nSearch anything\nANALYZE DATA\nUpload & analyze files\nDEEP ANALYSIS\nMulti-source reasoning\nCREATE & GENERATE\nImages, reports, content\nMEMORY & ACTIVITY\nMEMORY VAULT\nSaved knowledge\nACTIVITY FEED\nLive system activity\nSYSTEM\nCONNECTIONS\nAntigravity OAuth (7 slots)\nCONTROL CENTER\nSystem & preferences\nRAHMAN\nEnterprise Plan\nADMIN\n9ROUTER v2.0\nâ— ONLINE\nJ . I . N",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "AUTONOMOUS_LIVE_RESEARCH",
+    "createdAt": "2026-08-28T19:20:21.998Z",
+    "lastAccessedAt": "2026-08-28T19:20:21.998Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787944822045-ICDI",
+    "key": "quantum_protocol",
+    "content": "Protokol enkripsi quantum-resistant diluncurkan pada kuartal 4 dengan key-size 4096-bit-1787944822032.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-08-28T19:20:22.045Z",
+    "lastAccessedAt": "2026-08-28T19:20:22.045Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787946009561-JJ17",
+    "key": "daemon_diff_src_regulatory_bi",
+    "content": "Pembaruan proaktif sumber https://bi.go.id/peraturan/pbi_2026.html: PBI No. 28/2026 menetapkan ketentuan baru giro wajib minimum sebesar 7.5%.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "PROACTIVE_BACKGROUND_DAEMON",
+    "createdAt": "2026-08-28T19:40:09.561Z",
+    "lastAccessedAt": "2026-08-28T19:40:09.561Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787946009574-JFSC",
+    "key": "daemon_diff_src_regulatory_bi",
+    "content": "Pembaruan proaktif sumber https://bi.go.id/peraturan/pbi_2026.html: PBI No. 28/2026 direvisi menetapkan ketentuan baru giro wajib minimum sebesar 8.0%.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "PROACTIVE_BACKGROUND_DAEMON",
+    "createdAt": "2026-08-28T19:40:09.574Z",
+    "lastAccessedAt": "2026-08-28T19:40:09.574Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787946059516-9QO0",
+    "key": "daemon_diff_src_regulatory_bi",
+    "content": "Pembaruan proaktif sumber https://bi.go.id/peraturan/pbi_2026.html: PBI No. 28/2026 menetapkan ketentuan baru giro wajib minimum sebesar 7.5%.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "PROACTIVE_BACKGROUND_DAEMON",
+    "createdAt": "2026-08-28T19:40:59.516Z",
+    "lastAccessedAt": "2026-08-28T19:40:59.516Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1787946059532-3145",
+    "key": "daemon_diff_src_regulatory_bi",
+    "content": "Pembaruan proaktif sumber https://bi.go.id/peraturan/pbi_2026.html: PBI No. 28/2026 direvisi menetapkan ketentuan baru giro wajib minimum sebesar 8.0%.",
+    "tier": "RESEARCH_DATA",
+    "confidence": 0.95,
+    "provenance": "PROACTIVE_BACKGROUND_DAEMON",
+    "createdAt": "2026-08-28T19:40:59.532Z",
+    "lastAccessedAt": "2026-08-28T19:40:59.532Z",
+    "accessCount": 1
   }
 ]

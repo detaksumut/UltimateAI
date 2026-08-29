@@ -1,4 +1,4 @@
-node_modules
+﻿node_modules
 .env
 dist
 generated
@@ -25,3 +25,17 @@ storage/voice/*
 *.ogg
 *.flac
 *.m4a
+# Runtime-generated artifacts
+artifacts/
+
+# Temporary debug scripts
+scratch/
+
+# Test output
+test-results/
+
+# Local runtime system state
+.system/
+
+# Local routing optimizer telemetry
+server/data/routing_performance_history.json

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Database, Search, Plus, Trash2, Pin, PinOff, RefreshCw } from 'lucide-react';
 import { memoryStoreInstance, MEMORY_CATEGORIES } from '../../../services/conversation/MemoryStore.js';
 
@@ -42,8 +42,8 @@ export default function MemoryVaultExplorer({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="relative w-full max-w-3xl bg-[#0a101f] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,229,255,0.2)] text-slate-200 select-none flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="relative w-full max-w-3xl bg-[#0a101f] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,229,255,0.2)] text-slate-200 select-none flex flex-col max-h-[85vh] overflow-hidden z-[101]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">

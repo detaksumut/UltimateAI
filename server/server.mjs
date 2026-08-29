@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UltimateAI 9Router Backend Server (server.mjs)
  * Modular AI Gateway with Provider Certification & Tool Governance.
  * Port: 20128
@@ -14,6 +14,10 @@ import { GatewayTelemetry } from './telemetry/GatewayTelemetry.mjs';
 
 import { agentRuntimeInstance } from './agent/AgentRuntime.mjs';
 import { loadPersistedOAuthConfig } from './antigravity/AntigravityOAuthEnrollment.mjs';
+import { engineeringRuntimeInstance } from './engineering/EngineeringRuntime.mjs';
+import { frontendTelemetryGatewayInstance } from './engineering/observer/FrontendTelemetryGateway.mjs';
+import { incidentQueueInstance } from './engineering/queue/IncidentQueue.mjs';
+import { createIncidentTicket, IncidentSeverity } from './engineering/types/IncidentTypes.mjs';
 
 loadPersistedOAuthConfig();
 
@@ -60,6 +64,93 @@ const server = http.createServer(async (req, res) => {
       `);
       return;
     }
+  }
+
+  // =====================================================
+  // ENGINEERING AGENT API (Self-Healing System Runtime)
+  // =====================================================
+
+  // E1. POST /api/engineering/telemetry â€” Real frontend error ingestion
+  if (pathname === '/api/engineering/telemetry' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const result = frontendTelemetryGatewayInstance.processTelemetry(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, result }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // E2. GET /api/engineering/status â€” Live Engineering Runtime health + metrics
+  if (pathname === '/api/engineering/status' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(engineeringRuntimeInstance.getStatus(), null, 2));
+    return;
+  }
+
+  // E3. GET /api/engineering/incidents â€” Full incident queue (for HUD display)
+  if (pathname === '/api/engineering/incidents' && req.method === 'GET') {
+    const incidents = incidentQueueInstance.getAllIncidents();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ incidents, total: incidents.length }, null, 2));
+    return;
+  }
+
+  // E4. POST /api/engineering/approve â€” Human Level-3 approval gate: apply validated fix
+  if (pathname === '/api/engineering/approve' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { incidentId } = JSON.parse(body || '{}');
+        if (!incidentId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'incidentId is required' }));
+          return;
+        }
+        const result = await engineeringRuntimeInstance.applyAndDeployFix(incidentId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // E5. POST /api/engineering/inject-synthetic â€” For testing: inject a synthetic incident
+  if (pathname === '/api/engineering/inject-synthetic' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const ticket = createIncidentTicket({
+          source: payload.source || 'frontend',
+          category: payload.category || 'DOM_INTERACTION_FAILURE',
+          errorMessage: payload.errorMessage || 'Synthetic test incident injected for pipeline validation',
+          targetComponent: payload.targetComponent || 'LeftSidebarHUD',
+          elementSelector: payload.selector || '#btn-nav-memory_vault',
+          severity: IncidentSeverity.HIGH,
+          metadata: { synthetic: true }
+        });
+        const enqueued = incidentQueueInstance.enqueue(ticket);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, ticket: enqueued }, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
   }
 
   // 1. Autonomous Agent Execution Endpoint (POST /api/agent/run)
@@ -177,7 +268,7 @@ const server = http.createServer(async (req, res) => {
   if ((pathname === '/api/quota' || pathname === '/api/pools' || pathname === '/api/dashboard/quota') && req.method === 'GET') {
     const { antigravityConnectionStoreInstance } = await import('./antigravity/AntigravityConnectionStore.mjs');
     const { antigravityQuotaTrackerInstance } = await import('./antigravity/AntigravityQuotaTracker.mjs');
-    
+
     const connections = antigravityConnectionStoreInstance.getAllConnections(false);
     const quotaState = antigravityQuotaTrackerInstance.getQuotaSummary();
 
@@ -402,11 +493,11 @@ server.listen(PORT, async () => {
     const { createLocalRouterServer } = await import('./local_router/LocalRouterServer.mjs');
     const localRouter = createLocalRouterServer();
     localRouter.listen(20200, '127.0.0.1', () => {
-      console.log(`⚡ ULTIMATEAI LOCAL ROUTER LIVE ON http://127.0.0.1:20200`);
+      console.log(`âš¡ ULTIMATEAI LOCAL ROUTER LIVE ON http://127.0.0.1:20200`);
     });
     localRouter.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.log(`⚡ UltimateAI Local Router on 127.0.0.1:20200 is already active.`);
+        console.log(`âš¡ UltimateAI Local Router on 127.0.0.1:20200 is already active.`);
       } else {
         console.warn(`Local Router startup notice:`, err.message);
       }

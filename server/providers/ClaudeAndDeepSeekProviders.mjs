@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ClaudeProvider.mjs & DeepSeekProvider.mjs
  * Native Anthropic & DeepSeek Adapters for 9Router.
  */
@@ -37,7 +37,7 @@ export class ClaudeProvider extends BaseProvider {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 2048,
+        max_tokens: 8192,
         system: systemMessage,
         messages: userMessages,
         temperature

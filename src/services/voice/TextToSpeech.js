@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TextToSpeech.js (Neural Indonesian Edition)
  *
  * SPECIFICATION COMPLIANCE:
@@ -79,7 +79,7 @@ export class TextToSpeech {
       return;
     }
 
-    console.log(`[TTS] 🎙️ Synthesizing Neural Indonesian Speech | Text Length: ${text.length} chars`);
+    console.log(`[TTS] ðŸŽ™ï¸ Synthesizing Neural Indonesian Speech | Text Length: ${text.length} chars`);
     return this.audioQueue.speak(text, options);
   }
 
@@ -109,6 +109,21 @@ export class TextToSpeech {
     this.neuralProvider.setAudioPrompt(promptPath);
     this.state.voiceReferenceConfigured = Boolean(promptPath);
     this._notifyListeners();
+  }
+
+  /**
+   * Select best available voice configuration.
+   * For Neural Indonesian TTS, returns the preconfigured Neural speaker.
+   * Called by ControlCenterModal on open to populate voice status.
+   */
+  selectBestVoice() {
+    const voiceStatus = this.neuralProvider.getVoiceStatus();
+    this.state.speaker = voiceStatus.speaker;
+    this.state.language = voiceStatus.language || 'id-ID';
+    this.state.status = voiceStatus.status || 'READY';
+    this.state.voiceReferenceConfigured = voiceStatus.audioPromptConfigured;
+    this._notifyListeners();
+    return voiceStatus;
   }
 
   getDiagnostics() {

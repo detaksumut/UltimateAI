@@ -1,4 +1,4 @@
-/* src/ui/simulator/simulator.css - Futuristic Cyber-HUD J.A.R.V.I.S Theme */
+﻿/* src/ui/simulator/simulator.css - Futuristic Cyber-HUD J.A.R.V.I.S Theme */
 
 @keyframes pulseGlow {
   0%, 100% {
@@ -156,4 +156,40 @@
 .crystal-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.20) !important;
   border-radius: 4px;
+}
+
+/* ============================================================ */
+/* CYBER CRYSTAL GLASS PODS & HARDWARE ACCELERATION             */
+/* ============================================================ */
+.cyber-hud-card {
+  position: relative;
+  background: radial-gradient(circle at 75% 65%, rgba(10, 25, 55, 0.7) 0%, rgba(6, 14, 32, 0.88) 50%, rgba(2, 6, 18, 0.96) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.cyber-hud-card:hover {
+  transform: translateY(-4px) scale(1.02) translateZ(0);
+}
+
+.cyber-hud-card-border {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* Global hardware acceleration for smooth menus & modals */
+button, select, input, .glass-hud-panel, .glass-hud-card {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+canvas {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }

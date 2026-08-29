@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Zap, RefreshCw, Trash2, AlertCircle, ShieldCheck, Layers, Filter, CheckCircle2, Server, Activity, Settings, Eye, EyeOff } from 'lucide-react';
 
 const API_ENDPOINTS = [
@@ -7,12 +7,22 @@ const API_ENDPOINTS = [
   'http://localhost:20200'
 ];
 
+const DEFAULT_INITIAL_SLOTS = [
+  { connectionId: 'ag-01', accountAlias: 'hasibuanparida1@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: false },
+  { connectionId: 'ag-02', accountAlias: 'detaksumut@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: false },
+  { connectionId: 'ag-03', accountAlias: 'kadsumut@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: true },
+  { connectionId: 'ag-04', accountAlias: 'marahman2169@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: true },
+  { connectionId: 'ag-05', accountAlias: 'hasibuanparida1@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: true },
+  { connectionId: 'ag-06', accountAlias: 'detaksumut@gmail.com', isEnrolled: true, status: 'CONNECTED', isActive: true },
+  { connectionId: 'ag-07', accountAlias: 'Slot Tersedia', isEnrolled: false, status: 'NOT_ENROLLED', isActive: false }
+];
+
 export default function ConnectionsModal({ isOpen, onClose }) {
-  const [slots, setSlots] = useState([]);
+  const [slots, setSlots] = useState(DEFAULT_INITIAL_SLOTS);
   const [quotaData, setQuotaData] = useState({});
   const [loading, setLoading] = useState(false);
   const [activeEndpoint, setActiveEndpoint] = useState(API_ENDPOINTS[0]);
-  const [isLiveOnline, setIsLiveOnline] = useState(false);
+  const [isLiveOnline, setIsLiveOnline] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [autoRefreshSec, setAutoRefreshSec] = useState(55);
   const [slotOverrides, setSlotOverrides] = useState({});
@@ -26,10 +36,12 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   // Load current oauth config on open
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/antigravity/oauth-config').then(r => r.ok ? r.json() : null).then(d => {
+      // Fixed route: /api/antigravity/oauth/config (with slash, not dash)
+      fetch('/api/antigravity/oauth/config').then(r => r.ok ? r.json() : null).then(d => {
         if (d) {
           setOauthClientId(d.clientId || '');
-          setOauthClientSecret(d.clientSecret || '');
+          // Note: server only returns hasClientSecret:Boolean, not the secret value itself
+          // so oauthClientSecret is intentionally left empty (user must re-enter if needed)
         }
       }).catch(() => {});
     }
@@ -37,7 +49,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
 
   const handleSaveOAuthConfig = async () => {
     try {
-      const res = await fetch('/api/antigravity/oauth-config', {
+      // Fixed route: /api/antigravity/oauth/config (with slash, not dash)
+      const res = await fetch('/api/antigravity/oauth/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: oauthClientId.trim(), clientSecret: oauthClientSecret.trim() })
@@ -283,8 +296,8 @@ export default function ConnectionsModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/90 backdrop-blur-md">
-      <div className="relative w-full max-w-7xl bg-[#12141a] border border-[#232734] rounded-2xl p-5 shadow-[0_0_80px_rgba(0,0,0,0.8)] text-slate-200 select-none flex flex-col max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/90 backdrop-blur-md">
+      <div className="relative w-full max-w-7xl bg-[#12141a] border border-[#232734] rounded-2xl p-5 shadow-[0_0_80px_rgba(0,0,0,0.8)] text-slate-200 select-none flex flex-col max-h-[95vh] overflow-hidden z-[101]">
         {/* Top Control Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#232734] text-xs font-mono">
           <div className="flex items-center gap-2 flex-wrap">
@@ -341,10 +354,10 @@ export default function ConnectionsModal({ isOpen, onClose }) {
           <div className="my-3 p-4 rounded-xl bg-[#0d1117] border border-cyan-500/30 space-y-3 font-mono">
             <div className="text-xs font-bold text-cyan-300 flex items-center gap-2">
               <Settings className="w-3.5 h-3.5" />
-              KONFIGURASI OAUTH — Google Antigravity
+              KONFIGURASI OAUTH â€” Google Antigravity
             </div>
             <div className="text-[10px] text-amber-400/80 bg-amber-950/30 border border-amber-500/20 rounded-lg p-2">
-              ⚠️ Client ID <code>1071006060591-tmhssin...</code> adalah Web Application Client — wajib Client Secret.
+              âš ï¸ Client ID <code>1071006060591-tmhssin...</code> adalah Web Application Client â€” wajib Client Secret.
               Masukkan secret yang sesuai, atau gunakan Desktop App Client ID baru (tanpa secret).
             </div>
             <div className="space-y-2">
@@ -380,7 +393,7 @@ export default function ConnectionsModal({ isOpen, onClose }) {
                 onClick={handleSaveOAuthConfig}
                 className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer transition-all"
               >
-                {settingsSaved ? '✓ TERSIMPAN' : 'SIMPAN KONFIGURASI'}
+                {settingsSaved ? 'âœ“ TERSIMPAN' : 'SIMPAN KONFIGURASI'}
               </button>
               <button type="button" onClick={() => setShowSettings(false)} className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs cursor-pointer">
                 Batal

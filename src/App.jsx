@@ -1,9 +1,10 @@
-// src/App.jsx – Main application with routing
+﻿// src/App.jsx â€“ Main application with routing
 import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ChatSimulator from './ui/simulator/ChatSimulator';
 import MyProjects from './pages/MyProjects';
 import GeneratedApps from './pages/GeneratedApps';
+import ResearchBuilder from './pages/ResearchBuilder';
 
 function BackgroundMusic() {
   const audioRef = useRef(null);
@@ -68,7 +69,7 @@ function BackgroundMusic() {
           color: 'white',
         }}
       >
-        {muted ? '🔇' : '🎵'}
+        {muted ? 'ðŸ”‡' : 'ðŸŽµ'}
       </button>
     </>
   );
@@ -83,6 +84,7 @@ function App() {
         <Route path="/simulator" element={<ChatSimulator />} />
         <Route path="/my-projects" element={<MyProjects />} />
         <Route path="/generated-apps" element={<GeneratedApps />} />
+        <Route path="/research-builder" element={<ResearchBuilder />} />
       </Routes>
     </Router>
   );

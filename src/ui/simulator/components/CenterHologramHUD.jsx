@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Bell, Settings, Download, Cpu, Volume2 } from 'lucide-react';
 import CyberAppStudioGrid from './CyberAppStudioGrid.jsx';
 import CyberHUDVoiceBar from './CyberHUDVoiceBar.jsx';
@@ -24,7 +24,7 @@ export default function CenterHologramHUD({
   };
 
   return (
-    <div className="relative flex-1 h-full flex flex-col justify-between px-4 sm:px-6 pt-2 pb-1 select-none overflow-hidden">
+    <div className="relative flex-1 h-full flex flex-col justify-between px-4 sm:px-6 pt-2 pb-2 select-none overflow-hidden">
       {/* Top Header Bar with Grid */}
       <div className="w-full grid grid-cols-3 items-center z-20 px-2 py-1 border-b border-cyan-500/15 pb-2 flex-shrink-0">
         {/* Left: System Badge */}
@@ -34,7 +34,7 @@ export default function CenterHologramHUD({
             <span className="font-bold">9ROUTER v2.0</span>
           </span>
           <span className="hidden sm:inline-block text-[9px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/30">
-            ● ONLINE
+            â— ONLINE
           </span>
         </div>
 
@@ -102,7 +102,7 @@ export default function CenterHologramHUD({
       {/* Center 2x3 Cyber App Studio Cards Grid */}
       <CyberAppStudioGrid onSelectApp={onSelectApp} />
 
-      {/* Bottom Futuristic Cyber-HUD Voice Bar */}
+      {/* Bottom Futuristic Cyber-HUD Voice & Multi-File Console */}
       <CyberHUDVoiceBar
         avatarState={avatarState}
         isListening={isListening}

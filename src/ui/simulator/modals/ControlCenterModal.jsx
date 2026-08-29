@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  X, Settings, Cpu, Globe, Shield, Check, Layers, Activity, 
-  Server, Zap, RefreshCw, Power, AlertTriangle, ArrowRight, 
+﻿import React, { useState, useEffect } from 'react';
+import {
+  X, Settings, Cpu, Globe, Shield, Check, Layers, Activity,
+  Server, Zap, RefreshCw, Power, AlertTriangle, ArrowRight,
   Clock, Database, Eye, Terminal, CheckCircle2, XCircle, AlertCircle,
   Volume2, VolumeX
 } from 'lucide-react';
@@ -31,15 +31,16 @@ export default function ControlCenterModal({ isOpen, onClose }) {
         const data = await res.json();
         setSnapshot(data);
       }
-    } catch (err) {
-      console.warn('Could not fetch Control Center snapshot:', err.message);
+    } catch {
+      // Silently ignore â€” LocalRouter may not be running; UI shows fallback defaults
     }
   };
 
   useEffect(() => {
     if (isOpen) {
       fetchSnapshot();
-      const interval = setInterval(fetchSnapshot, 2000);
+      // Poll every 5s (reduced from 2s) to avoid console spam when LocalRouter is offline
+      const interval = setInterval(fetchSnapshot, 5000);
 
       // Subscribe to TTS state updates
       const unsubTTS = textToSpeechInstance.subscribeState((state) => {
@@ -58,6 +59,7 @@ export default function ControlCenterModal({ isOpen, onClose }) {
       };
     }
   }, [isOpen]);
+
 
   if (!isOpen) return null;
 
@@ -121,9 +123,9 @@ export default function ControlCenterModal({ isOpen, onClose }) {
   const alerts = snapshot?.alerts || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-lg">
-      <div className="relative w-full max-w-6xl bg-[#090e1c] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_60px_rgba(0,229,255,0.25)] text-slate-200 select-none flex flex-col max-h-[90vh] overflow-hidden">
-        
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-lg">
+      <div className="relative w-full max-w-6xl bg-[#090e1c] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_60px_rgba(0,229,255,0.25)] text-slate-200 select-none flex flex-col max-h-[90vh] overflow-hidden z-[101]">
+
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -136,11 +138,11 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   ULTIMATEAI RUNTIME CONTROL CENTER
                 </h2>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold uppercase ${
-                  overview.systemHealth === 'LIVE' 
+                  overview.systemHealth === 'LIVE'
                     ? 'bg-emerald-950/80 text-emerald-400 border-emerald-700/60 animate-pulse'
                     : 'bg-amber-950/80 text-amber-400 border-amber-700/60'
                 }`}>
-                  ● {overview.systemHealth}
+                  â— {overview.systemHealth}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -174,10 +176,10 @@ export default function ControlCenterModal({ isOpen, onClose }) {
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 pt-3 pb-2 border-b border-slate-800/80 flex-shrink-0">
           {[
-            { id: 'overview', label: '📊 System Overview & Pipeline' },
-            { id: 'pools', label: '🌊 7 Antigravity Pools' },
-            { id: 'tasks', label: '📈 Task History & Telemetry' },
-            { id: 'events', label: '📜 Live Event Stream' }
+            { id: 'overview', label: 'ðŸ“Š System Overview & Pipeline' },
+            { id: 'pools', label: 'ðŸŒŠ 7 Antigravity Pools' },
+            { id: 'tasks', label: 'ðŸ“ˆ Task History & Telemetry' },
+            { id: 'events', label: 'ðŸ“œ Live Event Stream' }
           ].map(t => (
             <button
               key={t.id}
@@ -195,7 +197,7 @@ export default function ControlCenterModal({ isOpen, onClose }) {
 
         {/* Tab Contents */}
         <div className="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-5">
-          
+
           {/* TAB 1: OVERVIEW & PIPELINE */}
           {activeTab === 'overview' && (
             <div className="space-y-5">
@@ -281,10 +283,10 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   <Volume2 className="w-4 h-4 text-violet-400" />
                   <span className="text-[11px] font-bold text-violet-400 tracking-wider uppercase">TTS / Voice Engine</span>
                   {ttsState.playing && (
-                    <span className="ml-auto text-[10px] bg-violet-900/60 border border-violet-600/50 text-violet-300 px-2 py-0.5 rounded-full animate-pulse">▶ SPEAKING</span>
+                    <span className="ml-auto text-[10px] bg-violet-900/60 border border-violet-600/50 text-violet-300 px-2 py-0.5 rounded-full animate-pulse">â–¶ SPEAKING</span>
                   )}
                   {ttsState.interrupted && !ttsState.playing && (
-                    <span className="ml-auto text-[10px] bg-amber-900/60 border border-amber-600/50 text-amber-300 px-2 py-0.5 rounded-full">⚡ BARGE-IN</span>
+                    <span className="ml-auto text-[10px] bg-amber-900/60 border border-amber-600/50 text-amber-300 px-2 py-0.5 rounded-full">âš¡ BARGE-IN</span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
@@ -328,7 +330,7 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   <div className="bg-[#111827] rounded-xl p-2.5">
                     <div className="text-slate-500 text-[9px] uppercase mb-1">BARGE-IN RESIDUAL</div>
                     <div className={`font-bold text-[10px] ${ttsState.interrupted ? 'text-amber-300' : 'text-slate-500'}`}>
-                      {ttsState.interrupted ? '⚡ PRESERVED' : 'NONE'}
+                      {ttsState.interrupted ? 'âš¡ PRESERVED' : 'NONE'}
                     </div>
                   </div>
                 </div>
@@ -410,7 +412,7 @@ export default function ControlCenterModal({ isOpen, onClose }) {
                   ) : (
                     <div className="text-xs text-slate-400 font-mono bg-[#141b30] p-6 rounded-2xl border border-slate-800 text-center">
                       <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-2 opacity-80" />
-                      Runtime Standby — Menunggu permintaan agen berikutnya.
+                      Runtime Standby â€” Menunggu permintaan agen berikutnya.
                     </div>
                   )}
                 </div>

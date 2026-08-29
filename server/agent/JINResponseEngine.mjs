@@ -1,10 +1,10 @@
-/**
+﻿/**
  * JINResponseEngine.mjs
  * Production-Grade Evidence-Bound Response Authority & Conversational Synthesis Engine for JIN.
- * 
+ *
  * CORE CONTRACT:
  *  - ZERO-HALLUCINATION / UNKNOWN-FIRST POLICY
- *  - "NO EVIDENCE ➔ NO FACT ➔ NO CLAUSE ➔ NO SPEECH"
+ *  - "NO EVIDENCE âž” NO FACT âž” NO CLAUSE âž” NO SPEECH"
  *  - Distinguishes source types: LIVE_WEB, USER_INPUT, DOCUMENT, MEMORY, COMPUTED, UNKNOWN
  *  - If data is absent: responds "Saya tidak memiliki data yang cukup untuk memastikan hal tersebut."
  *  - Dual-Channel safety: concise natural voice TTS and sanitized rich HUD display.
@@ -12,6 +12,8 @@
 
 import { ClaimValidator } from './ClaimValidator.mjs';
 import { config } from '../config/env.mjs';
+import { responseGroundingGuardInstance } from '../grounding/ResponseGroundingGuard.mjs';
+import { getCapabilityPromptContext } from '../grounding/CapabilityRegistry.mjs';
 
 function sanitizeOutput(val) {
   if (typeof val !== 'string') return String(val ?? '');
@@ -76,10 +78,14 @@ export class JINResponseEngine {
       };
     }
 
-    const systemPrompt = `You are JIN, the intelligent, warm, and highly capable AI partner in UltimateAI.
+    const systemPrompt = `You are JIN, the intelligent, warm, grounded, and highly capable AI partner in UltimateAI.
 Respond naturally, empathetically, and conversationally in Indonesian.
-CRITICAL RULE: Never fabricate facts, statistics, fake URLs, or non-existent document numbers.
-If information is unknown, explicitly state "Saya tidak memiliki data yang cukup untuk memastikan hal tersebut."`;
+CORE GROUNDING RULES:
+1. MINIMUM SUFFICIENT RESPONSE: For simple requests or greetings (e.g. asking to upload audio or transcribing), answer directly, warmly, and concisely without lecturing the user about internal architectures.
+2. NO INVENTED SUBSYSTEM NAMES: Never invent names like "Audio Ingestion Pipeline", "SpeechSense Pro", "Cognitive Matrix", "Ultimate Analysis Core", etc.
+3. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
+
+${getCapabilityPromptContext()}`;
 
     try {
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
@@ -101,9 +107,13 @@ If information is unknown, explicitly state "Saya tidak memiliki data yang cukup
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content?.trim();
         if (content) {
+          // Apply Response Grounding Guard
+          const grounded = responseGroundingGuardInstance.guard(content, raw, conversationContext);
+          const finalContent = grounded.cleanedText || content;
+
           return {
-            naturalVoiceSpeech: content.split('\n')[0] || content,
-            detailedTextDisplay: content,
+            naturalVoiceSpeech: finalContent.split('\n')[0] || finalContent,
+            detailedTextDisplay: finalContent,
             responseMode: 'NATURAL_CONVERSATION',
             responseSource: 'PRIMARY_LLM_RESPONSE',
             sourceType: 'MODEL_KNOWLEDGE',

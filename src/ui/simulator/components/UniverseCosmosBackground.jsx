@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 
 export default function UniverseCosmosBackground() {
   const canvasRef = useRef(null);
@@ -7,7 +7,7 @@ export default function UniverseCosmosBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     let animId;
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
@@ -22,7 +22,7 @@ export default function UniverseCosmosBackground() {
       targetMouseY = e.clientY;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const handleResize = () => {
       if (!canvas) return;
@@ -30,27 +30,23 @@ export default function UniverseCosmosBackground() {
       height = canvas.height = window.innerHeight;
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize, { passive: true });
 
-    // 1. Starfield Generation (280 stars with depth layers)
-    const starCount = 280;
+    // 1. Starfield Generation (Optimized 110 stars with pre-grouped depth)
+    const starCount = 110;
     const stars = Array.from({ length: starCount }).map(() => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      baseX: Math.random() * width,
-      baseY: Math.random() * height,
-      size: Math.random() * 1.8 + 0.4,
-      depth: Math.random() * 0.8 + 0.2, // Parallax depth factor
-      alpha: Math.random() * 0.8 + 0.2,
-      twinkleSpeed: Math.random() * 0.03 + 0.01,
+      size: Math.random() * 1.5 + 0.5,
+      depth: Math.random() * 0.7 + 0.3,
+      alpha: Math.random() * 0.7 + 0.3,
+      twinkleSpeed: Math.random() * 0.02 + 0.01,
       twinklePhase: Math.random() * Math.PI * 2,
       color:
-        Math.random() > 0.8
+        Math.random() > 0.75
           ? '#38bdf8'
-          : Math.random() > 0.6
+          : Math.random() > 0.5
           ? '#c084fc'
-          : Math.random() > 0.4
-          ? '#fef08a'
           : '#ffffff'
     }));
 
@@ -124,56 +120,8 @@ export default function UniverseCosmosBackground() {
       // A. Deep Universe Space Gradient Base
       const universeGrad = ctx.createLinearGradient(0, 0, width, height);
       universeGrad.addColorStop(0, '#040711');
-      universeGrad.addColorStop(0.35, '#070b1a');
-      universeGrad.addColorStop(0.7, '#0a0d24');
-      universeGrad.addColorStop(1, '#050714');
-      ctx.fillStyle = universeGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      // B. Ambient Deep Cosmic Nebulae Clouds (Purple, Indigo, Cyan glows)
-      // Nebula 1: Top-Right Cyan Stardust
-      const neb1 = ctx.createRadialGradient(
-        width * 0.8 + offsetX * 0.5,
-        height * 0.25 + offsetY * 0.5,
-        20,
-        width * 0.8 + offsetX * 0.5,
-        height * 0.25 + offsetY * 0.5,
-        width * 0.45
-      );
-      neb1.addColorStop(0, 'rgba(0, 242, 254, 0.12)');
-      neb1.addColorStop(0.5, 'rgba(30, 58, 138, 0.08)');
-      neb1.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = neb1;
-      ctx.fillRect(0, 0, width, height);
-
-      // Nebula 2: Bottom-Left Magenta Deep Cosmic Veil
-      const neb2 = ctx.createRadialGradient(
-        width * 0.2 - offsetX * 0.5,
-        height * 0.75 - offsetY * 0.5,
-        30,
-        width * 0.2 - offsetX * 0.5,
-        height * 0.75 - offsetY * 0.5,
-        width * 0.4
-      );
-      neb2.addColorStop(0, 'rgba(168, 85, 247, 0.14)');
-      neb2.addColorStop(0.5, 'rgba(112, 26, 117, 0.06)');
-      neb2.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = neb2;
-      ctx.fillRect(0, 0, width, height);
-
-      // Nebula 3: Center Ambient Electric Glow
-      const neb3 = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.45,
-        10,
-        width * 0.5,
-        height * 0.45,
-        width * 0.5
-      );
-      neb3.addColorStop(0, 'rgba(59, 130, 246, 0.08)');
-      neb3.addColorStop(0.6, 'rgba(15, 23, 42, 0.03)');
-      neb3.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = neb3;
+      // B. Space Background Clear
+      ctx.fillStyle = '#040711';
       ctx.fillRect(0, 0, width, height);
 
       // C. Rotating Andromeda Spiral Galaxy

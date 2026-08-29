@@ -1,61 +1,56 @@
-import React from 'react';
-import { 
-  Brain, Mic, MessageSquare, Globe, BarChart2, Share2, 
+﻿import React from 'react';
+import {
+  Brain, Mic, MessageSquare, Globe, BarChart2, Share2,
   Sparkles, Database, Activity, Settings, ChevronRight, User, Zap
 } from 'lucide-react';
+import CyberHUDVoiceBar from './CyberHUDVoiceBar.jsx';
 
-export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick }) {
-  const activeClass = 'border border-cyan-400/70 text-white shadow-[0_0_15px_rgba(0,229,255,0.35),inset_0_1.5px_3px_rgba(255,255,255,0.35)]';
-  const hoverClass = 'border border-transparent hover:border-white/20 hover:text-white hover:shadow-[0_0_10px_rgba(0,229,255,0.15),inset_0_1px_2px_rgba(255,255,255,0.15)]';
-  const activeBg = 'rgba(0,229,255,0.12)';
-  const hoverBg = 'rgba(255,255,255,0.05)';
+const ACTIVE_CLASS = 'bg-cyan-500/20 border border-cyan-400/70 text-white shadow-[0_0_15px_rgba(0,229,255,0.35),inset_0_1.5px_3px_rgba(255,255,255,0.35)]';
+const HOVER_CLASS = 'border border-transparent hover:border-white/20 hover:bg-white/[0.08] text-slate-300 hover:text-white';
 
-  const NavItem = ({ id, icon: Icon, iconColor = 'text-cyan-300', label, sub, onClick }) => {
-    const isActive = activeTab === id;
-    return (
-      <button
-        onClick={onClick}
-        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 transition-all duration-200 relative group ${isActive ? activeClass : hoverClass}`}
-        style={{
-          background: isActive ? activeBg : 'transparent',
-        }}
-        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = hoverBg; }}
-        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+const NavItem = React.memo(function NavItem({ id, icon: Icon, iconColor = 'text-cyan-300', label, sub, isActive, onClick }) {
+  return (
+    <button
+      type="button"
+      id={`btn-nav-${id}`}
+      onClick={onClick}
+      className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 transition-transform duration-100 relative z-40 cursor-pointer active:scale-[0.96] hover:scale-[1.01] pointer-events-auto select-none ${
+        isActive ? ACTIVE_CLASS : HOVER_CLASS
+      }`}
+    >
+      <div
+        className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 pointer-events-none transition-colors ${iconColor} ${
+          isActive ? 'bg-cyan-500/25 border border-cyan-400/40 shadow-[0_0_8px_rgba(0,229,255,0.3)]' : 'bg-white/[0.05] border border-white/10'
+        }`}
       >
-        {/* Crystal Icon Block */}
-        <div
-          className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${iconColor}`}
-          style={{
-            background: isActive
-              ? 'linear-gradient(135deg, rgba(0,229,255,0.30), rgba(100,200,255,0.10))'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03))',
-            border: isActive ? '1px solid rgba(0,229,255,0.60)' : '1px solid rgba(255,255,255,0.20)',
-            boxShadow: isActive
-              ? 'inset 0 1.5px 3px rgba(255,255,255,0.45), 0 0 10px rgba(0,229,255,0.35)'
-              : 'inset 0 1px 2px rgba(255,255,255,0.25)',
-          }}
-        >
-          <Icon className="w-3.5 h-3.5" />
-        </div>
-        <div className="overflow-hidden">
-          <div className="text-xs font-semibold tracking-wide truncate">{label}</div>
-          {sub && <div className="text-[9px] text-slate-400 font-mono truncate">{sub}</div>}
-        </div>
-      </button>
-    );
-  };
+        <Icon className="w-3.5 h-3.5" />
+      </div>
+      <div className="overflow-hidden pointer-events-none">
+        <div className="text-xs font-semibold tracking-wide truncate">{label}</div>
+        {sub && <div className="text-[9px] text-slate-400 font-mono truncate">{sub}</div>}
+      </div>
+    </button>
+  );
+});
 
-  const SectionLabel = ({ dot, color, children }) => (
+const SectionLabel = React.memo(function SectionLabel({ dot, color, children }) {
+  return (
     <span className="text-[9px] font-bold text-cyan-400/80 tracking-widest uppercase px-2 mb-0.5 flex items-center gap-1.5">
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} style={{ boxShadow: `0 0 6px ${color}` }}></span>
       {children}
     </span>
   );
+});
+
+const LeftSidebarHUD = React.memo(function LeftSidebarHUD({
+  activeTab,
+  onActionClick
+}) {
 
   return (
     /* Outer Crystal Panel Frame - exactly identical to Right Panel */
-    <div 
-      className="w-72 lg:w-80 flex-shrink-0 h-full flex flex-col p-3.5 my-1 ml-2 rounded-3xl border-2 border-white/25 text-slate-300 select-none overflow-y-auto custom-scrollbar relative"
+    <div
+      className="w-72 lg:w-80 flex-shrink-0 h-full flex flex-col p-3.5 my-1 ml-2 rounded-3xl border-2 border-white/25 text-slate-300 select-none overflow-y-auto custom-scrollbar relative z-30"
       style={{
         background: 'transparent',
         boxShadow: '0 0 40px rgba(0,242,254,0.15), 0 0 80px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.30), inset 0 -2px 4px rgba(0,0,0,0.2)'
@@ -63,7 +58,7 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
     >
       {/* Crystal Top Specular Rim */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none rounded-t-3xl"></div>
-      
+
       {/* Crystal Prismatic Sheen Top-Left */}
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.01)_30%,transparent_55%)] pointer-events-none rounded-3xl"></div>
 
@@ -76,7 +71,7 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
       {/* ========================================================================= */}
       {/* 1. TOP LEFT BRAND HEADER CRYSTAL VAULT (Symmetric to JIN top box)        */}
       {/* ========================================================================= */}
-      <div 
+      <div
         className="w-full flex flex-col items-center justify-center pt-2.5 pb-2 px-3 border-2 border-cyan-400/40 rounded-2xl mb-3 relative overflow-hidden flex-shrink-0"
         style={{
           background: 'transparent',
@@ -93,27 +88,27 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
             style={{
               background: 'linear-gradient(135deg, rgba(0,229,255,0.25), rgba(168,85,247,0.15))',
               border: '1.5px solid rgba(0,229,255,0.60)',
-              boxShadow: 'inset 0 1.5px 3px rgba(255,255,255,0.40), 0 0 14px rgba(0,229,255,0.35)'
+              boxShadow: 'inset 0 1.5px 3px rgba(255,255,255,0.40), 0 0 10px rgba(0,229,255,0.30)'
             }}
           >
-            <Brain className="w-4 h-4 text-cyan-300 drop-shadow-[0_0_6px_#00e5ff]" />
+            <Brain className="w-4 h-4 text-cyan-300" />
           </div>
-          <div className="text-left">
-            <h1 className="text-base font-black tracking-wide text-white leading-tight drop-shadow-[0_0_10px_rgba(0,229,255,0.8)]">
-              Ultimate<span className="text-cyan-400">AI</span>
-            </h1>
-            <p className="text-[8px] tracking-[0.2em] text-cyan-300 font-mono font-bold">
+          <div>
+            <div className="text-xs font-bold text-white tracking-widest font-mono drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]">
+              UltimateAI
+            </div>
+            <div className="text-[8px] text-cyan-300/80 font-mono tracking-wider">
               INTELLIGENCE BEYOND LIMITS
-            </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. MIDDLE CRYSTAL SLAB - INTELLIGENCE MENU CONTAINER (Symmetric to Phone) */}
+      {/* 2. MIDDLE NAVIGATION MENU CRYSTAL VAULT                                   */}
       {/* ========================================================================= */}
-      <div 
-        className="flex-1 w-full relative z-10 flex flex-col p-2 rounded-2xl border-2 border-white/30 mb-3 overflow-hidden"
+      <div
+        className="flex-1 w-full relative z-30 flex flex-col p-2 rounded-2xl border-2 border-white/30 mb-3 overflow-hidden pointer-events-auto"
         style={{
           background: 'transparent',
           boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.35), inset 0 -2px 5px rgba(0,0,0,0.3), 0 0 20px rgba(0,242,254,0.12)'
@@ -124,7 +119,7 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
         <div className="absolute top-4 bottom-4 left-0 w-[2px] bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
 
         {/* Scrollable Navigation List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-3.5 z-10">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-3.5 relative z-30 pointer-events-auto">
 
           {/* Section: JIN CORE */}
           <div className="flex flex-col gap-1">
@@ -135,7 +130,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-cyan-300"
               label="TALK TO JIN"
               sub="Voice conversation"
-              onClick={() => { setActiveTab('talk_to_jin'); onActionClick?.('talk'); }}
+              isActive={activeTab === 'talk_to_jin'}
+              onClick={() => onActionClick?.('talk')}
             />
             <NavItem
               id="chat_with_jin"
@@ -143,44 +139,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-slate-300"
               label="CHAT WITH JIN"
               sub="Text conversation"
-              onClick={() => { setActiveTab('chat_with_jin'); onActionClick?.('chat'); }}
-            />
-          </div>
-
-          {/* Section: INTELLIGENCE */}
-          <div className="flex flex-col gap-1">
-            <SectionLabel dot="bg-emerald-400" color="#10b981">INTELLIGENCE</SectionLabel>
-            <NavItem
-              id="global_search"
-              icon={Globe}
-              iconColor="text-emerald-400"
-              label="GLOBAL SEARCH"
-              sub="Search anything"
-              onClick={() => { setActiveTab('global_search'); onActionClick?.('search'); }}
-            />
-            <NavItem
-              id="analyze_data"
-              icon={BarChart2}
-              iconColor="text-cyan-400"
-              label="ANALYZE DATA"
-              sub="Upload & analyze files"
-              onClick={() => { setActiveTab('analyze_data'); onActionClick?.('analyze'); }}
-            />
-            <NavItem
-              id="deep_analysis"
-              icon={Share2}
-              iconColor="text-cyan-400"
-              label="DEEP ANALYSIS"
-              sub="Multi-source reasoning"
-              onClick={() => { setActiveTab('deep_analysis'); onActionClick?.('deep_analysis'); }}
-            />
-            <NavItem
-              id="create_generate"
-              icon={Sparkles}
-              iconColor="text-cyan-300"
-              label="CREATE & GENERATE"
-              sub="Images, reports, content"
-              onClick={() => { setActiveTab('create_generate'); onActionClick?.('generate'); }}
+              isActive={activeTab === 'chat_with_jin'}
+              onClick={() => onActionClick?.('chat')}
             />
           </div>
 
@@ -193,7 +153,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-purple-400"
               label="MEMORY VAULT"
               sub="Saved knowledge"
-              onClick={() => { setActiveTab('memory_vault'); onActionClick?.('vault'); }}
+              isActive={activeTab === 'memory_vault'}
+              onClick={() => onActionClick?.('vault')}
             />
             <NavItem
               id="activity_feed"
@@ -201,7 +162,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-emerald-400"
               label="ACTIVITY FEED"
               sub="Live system activity"
-              onClick={() => { setActiveTab('activity_feed'); onActionClick?.('feed'); }}
+              isActive={activeTab === 'activity_feed'}
+              onClick={() => onActionClick?.('feed')}
             />
           </div>
 
@@ -214,7 +176,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-cyan-400"
               label="CONNECTIONS"
               sub="Antigravity OAuth (7 slots)"
-              onClick={() => { setActiveTab('connections'); onActionClick?.('connections'); }}
+              isActive={activeTab === 'connections'}
+              onClick={() => onActionClick?.('connections')}
             />
             <NavItem
               id="control_center"
@@ -222,7 +185,8 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
               iconColor="text-purple-400"
               label="CONTROL CENTER"
               sub="System & preferences"
-              onClick={() => { setActiveTab('control_center'); onActionClick?.('control'); }}
+              isActive={activeTab === 'control_center'}
+              onClick={() => onActionClick?.('control')}
             />
           </div>
         </div>
@@ -231,8 +195,14 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
       {/* ========================================================================= */}
       {/* 3. BOTTOM USER PROFILE CRYSTAL VAULT                                      */}
       {/* ========================================================================= */}
-      <div
-        className="w-full flex items-center justify-between p-2.5 rounded-2xl border-2 border-cyan-400/35 relative z-10 flex-shrink-0"
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onActionClick?.('control');
+        }}
+        className="w-full flex items-center justify-between p-2.5 rounded-2xl border-2 border-cyan-400/35 relative z-30 flex-shrink-0 cursor-pointer hover:border-cyan-400/80 transition-all hover:scale-[1.02] active:scale-[0.98] pointer-events-auto"
         style={{
           background: 'transparent',
           boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.30), 0 0 15px rgba(0,242,254,0.15)'
@@ -271,7 +241,9 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
           </div>
         </div>
         <ChevronRight className="w-4 h-4 text-slate-400" />
-      </div>
+      </button>
     </div>
   );
-}
+});
+
+export default LeftSidebarHUD;

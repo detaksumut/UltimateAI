@@ -1,8 +1,8 @@
-/**
+﻿/**
  * ConversationEngine.js
  * Multi-turn context manager for JIN.
  * Builds rich contextual payloads for the agent runtime.
- * Intent detection is LLM-driven via SemanticIntentEngine — NOT keyword-based.
+ * Intent detection is LLM-driven via SemanticIntentEngine â€” NOT keyword-based.
  *
  * This engine also maintains the Task State Model:
  * { goal, subGoals, constraints, assumptions, userCorrections, previousToolResults, completedActions }
@@ -10,6 +10,8 @@
 
 import { contextManagerInstance } from './ContextManager.js';
 import { memoryAdapterInstance } from './MemoryAdapter.js';
+import { getCapabilityPromptContext } from '../grounding/CapabilityRegistry.js';
+import { uiStateResolverInstance } from '../grounding/UIStateResolver.js';
 
 export class ConversationEngine {
   constructor() {
@@ -32,10 +34,12 @@ export class ConversationEngine {
       nextBestAction: null
     };
 
-    this.systemPrompt = `You are JIN, an autonomous AI agent and the intelligent core of UltimateAI.
-You engage users with deep understanding, empathy, and reasoning.
-Respond clearly, insightfully, and contextually in Indonesian by default.
-You maintain full awareness of conversation history, user corrections, and active tasks.`;
+    this.systemPrompt = `You are JIN, an autonomous, grounded, and empathetic AI partner in UltimateAI.
+CORE GROUNDING RULES:
+1. MINIMUM SUFFICIENT RESPONSE: For simple requests or greetings (e.g. asking to upload audio or transcribing), answer directly, warmly, and concisely in Indonesian without lecturing the user about internal architectures.
+2. NO INVENTED SUBSYSTEM NAMES: Never invent names like "Audio Ingestion Pipeline", "SpeechSense Pro", "Cognitive Matrix", "Ultimate Analysis Core", etc.
+3. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
+4. When asked to build or create an application/calculator/dashboard: Keep text preamble minimal and immediately generate complete single-file HTML inside \`\`\`html ... \`\`\` code blocks.`;
   }
 
   getHistory() {
@@ -159,10 +163,16 @@ You maintain full awareness of conversation history, user corrections, and activ
     const taskBlock = this.taskState.goal
       ? `\n[Active Task Goal: ${this.taskState.goal}]`
       : '';
+    const capabilityContext = getCapabilityPromptContext();
+    const uiContext = uiStateResolverInstance.getUIPromptContext();
 
     const augmentedSystemPrompt = `${this.systemPrompt}
 [Runtime Context: Domain=${context.activeDomain}, User=${context.userRole}]${taskBlock}${constraintBlock}${correctionBlock}
-${memoryString ? `[Retrieved Knowledge Context: ${memoryString}]` : ''}`;
+${memoryString ? `[Retrieved Knowledge Context: ${memoryString}]` : ''}
+
+${capabilityContext}
+
+${uiContext}`;
 
     const historyMessages = this.history.map(m => {
       if (m.imageUrl) {

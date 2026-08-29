@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+﻿import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { providerRegistryInstance } from './server/providers/ProviderRegistry.mjs';
 import { ChatCompletionService } from './server/services/ChatCompletionService.mjs';
@@ -98,9 +98,103 @@ function nineRouterGatewayPlugin() {
                   }
                 }));
               }
+
+            } catch (err) {
+              console.error('[ChatCompletion] Error:', err);
+
+              if (!res.headersSent) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+              }
+
+              if (!res.writableEnded) {
+                res.end(JSON.stringify({
+                  error: {
+                    message: err.message || 'Internal server error'
+                  }
+                }));
+              }
+            }
+          });
+          return;
+        }
+
+                // 2B. Record Research & Non-Research Analysis to Drive F:
+        if ((req.url === '/api/ultimateai/record-research' || req.url === '/api/ultimateai/record-document') && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const fs = await import('fs');
+              const path = await import('path');
+              const payload = JSON.parse(body || '{}');
+
+              const isNonResearch = payload.category === 'NON_RESEARCH' || payload.type === 'NON_RESEARCH';
+              const docName = (payload.documentTitle || (isNonResearch ? 'Dokumen_Non_Riset' : 'Dokumen_Riset')).replace(/[^a-zA-Z0-9_-]/g, '_');
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const filePrefix = isNonResearch ? 'NonRiset' : 'Riset';
+              const fileName = `${filePrefix}_${docName}_${timestamp}.md`;
+
+              // Primary Target: Drive F:\ (Dedicated folders)
+              const primaryDir = isNonResearch ? 'F:\\UltimateAI_NonResearch_Reports' : 'F:\\UltimateAI_Research_Reports';
+              // Fallback: Local workspace directory
+              const fallbackDir = path.resolve(process.cwd(), isNonResearch ? 'UltimateAI_NonResearch_Reports' : 'UltimateAI_Research_Reports');
+
+              let targetDir = primaryDir;
+              try {
+                if (!fs.existsSync(primaryDir)) {
+                  fs.mkdirSync(primaryDir, { recursive: true });
+                }
+              } catch {
+                targetDir = fallbackDir;
+                if (!fs.existsSync(fallbackDir)) {
+                  fs.mkdirSync(fallbackDir, { recursive: true });
+                }
+              }
+
+              const fullPath = path.join(targetDir, fileName);
+              const headerTitle = isNonResearch
+                ? 'ðŸ“‘ LAPORAN HASIL ANALISIS DOKUMEN GENERAL (NON-RISET) JIN AI'
+                : 'ðŸ“‘ LAPORAN HASIL ANALISIS RISET JIN AI';
+              const engineSubtitle = isNonResearch
+                ? 'UltimateAI Knowledge & Policy Intelligence Engine v2.0'
+                : 'UltimateAI Research Intelligence Engine v2.0';
+
+              const markdownContent = [
+                `# ${headerTitle}`,
+                `> **${engineSubtitle}**`,
+                `- **Nama Dokumen**: ${payload.documentTitle || 'Dokumen'}`,
+                `- **Kategori**: ${isNonResearch ? 'Dokumen General / Non-Riset (SK, Regulasi, Berita Ekonomi, dll)' : 'Dokumen Riset & Penelitian'}`,
+                `- **Tanggal Analisis**: ${new Date().toLocaleString('id-ID')}`,
+                `- **Ukuran Dokumen**: ${payload.documentSize || 'N/A'}`,
+                `- **Lokasi Rekaman**: \`${fullPath}\``,
+                ``,
+                `---`,
+                ``,
+                `## ðŸ” HASIL ANALISIS LENGKAP`,
+                ``,
+                payload.analysisContent || 'Tidak ada konten analisis yang disertakan.',
+                ``,
+                `---`,
+                `*Direkam secara otomatis oleh JIN Autonomous Core ke ${fullPath}*`
+              ].join('\n');
+
+              fs.writeFileSync(fullPath, markdownContent, 'utf8');
+
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.end(JSON.stringify({
+                success: true,
+                savedPath: fullPath,
+                fileName: fileName,
+                category: isNonResearch ? 'NON_RESEARCH' : 'RESEARCH',
+                timestamp: new Date().toISOString()
+              }));
             } catch (err) {
               res.statusCode = 500;
               res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
               res.end(JSON.stringify({ error: err.message }));
             }
           });
@@ -146,26 +240,90 @@ function nineRouterGatewayPlugin() {
               try {
                 await antigravityEnrollmentSessionManagerInstance.processManualCallback(state || '', req.url);
                 res.setHeader('Content-Type', 'text/html');
-                res.end(`
-                  <!DOCTYPE html>
-                  <html>
-                    <body style="background:#090d16;color:#22d3ee;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-                      <div style="text-align:center;">
-                        <h2>Antigravity OAuth Berhasil!</h2>
-                        <p>Akun Google telah terhubung ke Pool Antigravity. Anda dapat menutup tab ini.</p>
-                      </div>
-                      <script>setTimeout(() => window.close(), 1500);</script>
-                    </body>
-                  </html>
-                `);
-              } catch (err) {
-                res.statusCode = 400;
-                res.setHeader('Content-Type', 'text/html');
-                res.end(`<h2>Otorisasi Gagal</h2><p>${err.message}</p>`);
+                res.end(`<html><body><script>window.opener?.postMessage({type:'ANTIGRAVITY_AUTH_SUCCESS'},'*');window.close();</script></body></html>`);
+              } catch (e) {
+                res.statusCode = 500;
+                res.end(e.message);
               }
               return;
             }
           }
+        }
+
+        // 4. Engineering Agent Runtime Endpoints (/api/engineering/*)
+        if (req.url.startsWith('/api/engineering/')) {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+          if (req.method === 'OPTIONS') {
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+
+          const pathname = req.url.split('?')[0];
+          const { engineeringRuntimeInstance } = await import('./server/engineering/EngineeringRuntime.mjs');
+          const { frontendTelemetryGatewayInstance } = await import('./server/engineering/observer/FrontendTelemetryGateway.mjs');
+          const { incidentQueueInstance } = await import('./server/engineering/queue/IncidentQueue.mjs');
+
+          // POST /api/engineering/telemetry
+          if (pathname === '/api/engineering/telemetry' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', () => {
+              try {
+                const payload = JSON.parse(body || '{}');
+                const result = frontendTelemetryGatewayInstance.processTelemetry(payload);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ ok: true, result }));
+              } catch (err) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            });
+            return;
+          }
+
+          // GET /api/engineering/status
+          if (pathname === '/api/engineering/status' && req.method === 'GET') {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(engineeringRuntimeInstance.getStatus(), null, 2));
+            return;
+          }
+
+          // GET /api/engineering/incidents
+          if (pathname === '/api/engineering/incidents' && req.method === 'GET') {
+            const incidents = incidentQueueInstance.getAllIncidents();
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ incidents, total: incidents.length }, null, 2));
+            return;
+          }
+
+          // POST /api/engineering/approve
+          if (pathname === '/api/engineering/approve' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+              try {
+                const { incidentId } = JSON.parse(body || '{}');
+                const result = await engineeringRuntimeInstance.applyAndDeployFix(incidentId);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(result, null, 2));
+              } catch (err) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            });
+            return;
+          }
+        }
+        // 3B. Additional Antigravity Connection Endpoints
+        if (req.url.startsWith('/api/antigravity/')) {
+          const { antigravityEnrollmentSessionManagerInstance } = await import('./server/antigravity/AntigravityEnrollmentSessionManager.mjs');
+          const pathname = req.url.split('?')[0];
 
           // GET /api/antigravity/enrollments/:enrollmentId
           const getEnrollMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)$/);
@@ -295,6 +453,7 @@ function nineRouterGatewayPlugin() {
             }
             return;
           }
+
         }
 
         next();
@@ -305,7 +464,7 @@ function nineRouterGatewayPlugin() {
         try {
           const router = createLocalRouterServer();
           router.listen(20200, '127.0.0.1', () => {
-            console.log('\x1b[36m⚡ [Vite Bootstrap] UltimateAI Local Router Live on http://127.0.0.1:20200\x1b[0m');
+            console.log('\x1b[36mâš¡ [Vite Bootstrap] UltimateAI Local Router Live on http://127.0.0.1:20200\x1b[0m');
           });
           router.on('error', (err) => {
             if (err.code !== 'EADDRINUSE') console.warn('Local router warning:', err.message);

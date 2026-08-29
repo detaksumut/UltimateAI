@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GeminiProvider.mjs
  * Google Gemini 2.0 Native Adapter with upstream streaming support.
  */
@@ -35,7 +35,7 @@ export class GeminiProvider extends BaseProvider {
       contents,
       generationConfig: {
         temperature: temperature,
-        maxOutputTokens: 2048
+        maxOutputTokens: 8192
       }
     };
 

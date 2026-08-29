@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { X, UploadCloud, FileText, CheckCircle, AlertCircle, Trash2, ArrowRight } from 'lucide-react';
 import { ContentExtractor } from '../../../services/analysis/ContentExtractor.js';
 import { documentContextManagerInstance } from '../../../services/analysis/DocumentContextManager.js';
@@ -21,7 +21,7 @@ export default function AnalyzeDataModal({ isOpen, onClose, onAnalyzeDocument })
     try {
       const file = files[0];
       const extracted = await ContentExtractor.extractFromFile(file);
-      
+
       // Save to document context manager
       const saved = documentContextManagerInstance.addDocument(extracted);
       setExtractedDocs(prev => [saved, ...prev]);
@@ -61,8 +61,8 @@ export default function AnalyzeDataModal({ isOpen, onClose, onAnalyzeDocument })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="relative w-full max-w-2xl bg-[#0a101f] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,229,255,0.2)] text-slate-200 select-none flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="relative w-full max-w-2xl bg-[#0a101f] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,229,255,0.2)] text-slate-200 select-none flex flex-col max-h-[85vh] overflow-hidden z-[101]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -137,8 +137,8 @@ export default function AnalyzeDataModal({ isOpen, onClose, onAnalyzeDocument })
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-500/30">
-                  <span>📄 {selectedDoc.charCount?.toLocaleString('id-ID') || 0} Karakter</span>
-                  <span>•</span>
+                  <span>ðŸ“„ {selectedDoc.charCount?.toLocaleString('id-ID') || 0} Karakter</span>
+                  <span>â€¢</span>
                   <span>{selectedDoc.wordCount?.toLocaleString('id-ID') || 0} Kata</span>
                 </div>
               </div>

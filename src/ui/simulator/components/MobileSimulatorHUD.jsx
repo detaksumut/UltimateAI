@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Smartphone, ChevronDown, MessageSquare, Globe, Shield, 
+﻿import React, { useState, useEffect, useRef } from 'react';
+import {
+  Smartphone, ChevronDown, MessageSquare, Globe, Shield,
   Layers, AlertTriangle, CheckCircle, ExternalLink, Play, Pause,
   SkipBack, SkipForward, Volume2, VolumeX, RotateCcw, Upload,
   Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music,
@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import AppSandboxRenderer from './AppSandboxRenderer.jsx';
 import LiveHologramAvatar from './LiveHologramAvatar.jsx';
-import { documentContextManagerInstance } from '../../../services/analysis/DocumentContextManager.js';
 
 export default function MobileSimulatorHUD({
   avatarState,
@@ -16,11 +15,11 @@ export default function MobileSimulatorHUD({
   messages = [],
   latestResponse,
   isProcessing,
-  activeMode = 'CONVERSATION', // 'CONVERSATION' | 'SEARCH' | 'MEDIA' | 'INSIGHTS' | 'APP_PREVIEW'
+  activeMode = 'CONVERSATION', // 'CONVERSATION' | 'SEARCH' | 'MEDIA' | 'APP_PREVIEW'
   onModeChange,
   generatedAppCode = null,
   liveSearchSources = [],
-  onAnalyzeDocument
+  conversationTrigger = 0 // increments each plain chat â†’ forces CONVERSATION tab
 }) {
   const [selectedDevice, setSelectedDevice] = useState('iPhone 15');
   const [currentTab, setCurrentTab] = useState(activeMode);
@@ -28,18 +27,6 @@ export default function MobileSimulatorHUD({
   const [selectedVideoId, setSelectedVideoId] = useState('vr0qNXmkUJ8');
   const [customVideoInput, setCustomVideoInput] = useState('');
   const [copiedId, setCopiedId] = useState(null);
-  const [uploadedDocs, setUploadedDocs] = useState([]);
-
-  // Subscribe to uploaded documents
-  useEffect(() => {
-    const unsub = documentContextManagerInstance.subscribe((docs) => {
-      setUploadedDocs(docs || []);
-      if (docs && docs.length > 0) {
-        setCurrentTab('INSIGHTS');
-      }
-    });
-    return unsub;
-  }, []);
 
   const extractYouTubeId = (input) => {
     if (!input || typeof input !== 'string') return null;
@@ -75,9 +62,10 @@ export default function MobileSimulatorHUD({
   const [audioVolume, setAudioVolume] = useState(85);
   const [currentAudioTrack, setCurrentAudioTrack] = useState({
     title: 'Kala Cinta Menggoda',
-    artist: 'Chrisye • Master Remaster',
+    artist: 'Chrisye â€¢ Master Remaster',
     sourceType: 'CHRISYE_STREAM',
-    url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg'
+    // Public domain ambient audio â€” paste your own URL or stream link below
+    url: 'https://archive.org/download/testmp3testfile/mpthreetest.mp3'
   });
   const [customAudioInput, setCustomAudioInput] = useState('');
 
@@ -165,6 +153,13 @@ export default function MobileSimulatorHUD({
     if (activeMode) setCurrentTab(activeMode);
   }, [activeMode]);
 
+  // Force CONVERSATION tab every time a plain chat message is sent
+  useEffect(() => {
+    if (conversationTrigger > 0) {
+      setCurrentTab('CONVERSATION');
+    }
+  }, [conversationTrigger]);
+
   const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
   const lastAssistantMessage = messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || latestResponse || 'Halo! Saya JIN. Saya siap membantu simulasi, pencarian data, serta visualisasi gambar dan video.';
 
@@ -204,7 +199,7 @@ export default function MobileSimulatorHUD({
       } else {
         setInternalSources([
           {
-            title: `Riset: ${q}`,
+            title: `Pencarian: ${q}`,
             url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
             domain: 'google.com',
             category: 'NEWS'
@@ -223,60 +218,36 @@ export default function MobileSimulatorHUD({
     }
   };
 
-  // Extract HTML / UI code from lastAssistantMessage or generatedAppCode prop
+  // Extract HTML / UI code from lastAssistantMessage or generatedAppCode prop (strictly for app/program testing)
   const extractedAppCode = React.useMemo(() => {
+    // If the last query was clearly an image request, never extract app code
+    const isImageQuery = /gambar|image|foto|lukis|lukisan|wallpaper|artwork|visual/i.test(lastUserMessage);
+    if (isImageQuery) return null;
+
     if (generatedAppCode) return generatedAppCode;
     if (!lastAssistantMessage || typeof lastAssistantMessage !== 'string') return null;
 
-    // 1. Markdown code block (allows unclosed trailing ticks)
+    // 1. Markdown code block specifically for HTML/UI/App
     const match = lastAssistantMessage.match(/```(?:html|xml|ui|javascript|js)?\s*([\s\S]*?)(?:```|$)/i);
-    if (match && match[1] && (match[1].includes('<') || match[1].includes('document.') || match[1].includes('function'))) {
+    if (match && match[1] && (match[1].includes('<div') || match[1].includes('<button') || match[1].includes('<form') || match[1].includes('<canvas') || match[1].includes('document.') || match[1].includes('function'))) {
       return match[1].trim();
     }
 
     // 2. Raw HTML tags
-    const rawMatch = lastAssistantMessage.match(/(<!DOCTYPE html>[\s\S]*|<\/?(?:form|html|div|table|section|main)[\s\S]*>)/i);
+    const rawMatch = lastAssistantMessage.match(/(<!DOCTYPE html>[\s\S]*|<\/?(?:form|html|div|table|section|main|canvas)[\s\S]*>)/i);
     if (rawMatch && rawMatch[1]) {
       return rawMatch[1].trim();
     }
 
     return null;
-  }, [generatedAppCode, lastAssistantMessage]);
+  }, [generatedAppCode, lastAssistantMessage, lastUserMessage]);
 
-  // Auto switch to APP_PREVIEW when app code is detected
+  // Maintain active tab from prop without forced override
   useEffect(() => {
-    if (extractedAppCode) {
-      setCurrentTab('APP_PREVIEW');
+    if (activeMode) {
+      setCurrentTab(activeMode);
     }
-  }, [extractedAppCode]);
-
-  // Auto-detect YouTube links from assistant or user text
-  useEffect(() => {
-    const textToCheck = `${lastAssistantMessage} ${lastUserMessage}`;
-    const foundId = extractYouTubeId(textToCheck);
-    if (foundId && foundId !== selectedVideoId) {
-      setSelectedVideoId(foundId);
-      setCurrentTab('MEDIA');
-    }
-  }, [lastAssistantMessage, lastUserMessage]);
-
-  // Auto switch tab and stream source if specific media, search, or data is requested
-  useEffect(() => {
-    if (!lastUserMessage) return;
-
-    if (isNewsQuery || isMusicQuery || isVideoQuery || isImageQuery) {
-      if (isNewsQuery) setSelectedVideoId('fJ9rUzIMcZQ');
-      else if (isMusicQuery) setSelectedVideoId('vr0qNXmkUJ8');
-      setCurrentTab('MEDIA');
-    } else if (lowerQuery.includes('cari') || lowerQuery.includes('search') || lowerQuery.includes('web') || lowerQuery.includes('googl') || lowerQuery.includes('riset')) {
-      setCurrentTab('SEARCH');
-      handleTriggerWebSearch(lastUserMessage);
-    } else if (lowerQuery.includes('buat') || lowerQuery.includes('aplikasi') || lowerQuery.includes('form') || lowerQuery.includes('kalkulator') || lowerQuery.includes('ui')) {
-      setCurrentTab('APP_PREVIEW');
-    } else if (isDataQuery || lowerQuery.includes('analisis') || lowerQuery.includes('hitung') || lowerQuery.includes('metrik') || lowerQuery.includes('audit')) {
-      setCurrentTab('INSIGHTS');
-    }
-  }, [lastUserMessage]);
+  }, [activeMode]);
 
   const displaySources = (liveSearchSources && liveSearchSources.length > 0) ? liveSearchSources : internalSources;
 
@@ -448,14 +419,6 @@ export default function MobileSimulatorHUD({
             WEB
           </button>
           <button
-            onClick={() => handleTabClick('INSIGHTS')}
-            className={`flex-1 py-1 rounded-lg transition-all ${
-              currentTab === 'INSIGHTS' ? 'bg-cyan-600/80 text-white font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            DATA
-          </button>
-          <button
             onClick={() => handleTabClick('APP_PREVIEW')}
             className={`flex-1 py-1 rounded-lg transition-all ${
               currentTab === 'APP_PREVIEW' ? 'bg-purple-600/80 text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-slate-400 hover:text-white'
@@ -467,7 +430,7 @@ export default function MobileSimulatorHUD({
 
         {/* Phone Inner Screen Content */}
         <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar crystal-scroll px-1 z-10 crystal-phone-screen">
-          
+
           {/* TAB 1: CONVERSATION */}
           {currentTab === 'CONVERSATION' && (
             <div className="space-y-3 select-text">
@@ -499,9 +462,9 @@ export default function MobileSimulatorHUD({
                     <div className="group relative bg-blue-600/25 border border-blue-500/30 rounded-xl p-2.5 text-right text-slate-200 text-[11px] select-text selection:bg-cyan-500/40 selection:text-white cursor-text">
                       {messages.filter(m => m.role === 'user').slice(-1)[0]?.imageUrl && (
                         <div className="flex justify-end mb-2">
-                          <img 
-                            src={messages.filter(m => m.role === 'user').slice(-1)[0].imageUrl} 
-                            alt="User Attachment" 
+                          <img
+                            src={messages.filter(m => m.role === 'user').slice(-1)[0].imageUrl}
+                            alt="User Attachment"
                             className="max-w-[160px] max-h-[120px] object-cover rounded-lg border border-cyan-400/50 shadow-md cursor-pointer hover:scale-105 transition-transform"
                             onClick={() => window.open(messages.filter(m => m.role === 'user').slice(-1)[0].imageUrl, '_blank')}
                             title="Klik untuk membuka gambar"
@@ -537,7 +500,7 @@ export default function MobileSimulatorHUD({
                               onClick={() => handleTabClick('APP_PREVIEW')}
                               className="py-1 px-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(168,85,247,0.5)] transition-all animate-pulse"
                             >
-                              <span>📱 Coba di Tab APP UI ➔</span>
+                              <span>ðŸ“± Coba di Tab APP UI âž”</span>
                             </button>
                           ) : <div />}
                           <button
@@ -572,25 +535,25 @@ export default function MobileSimulatorHUD({
                   onClick={() => setActiveMediaType('VIDEO')}
                   className={`flex-1 py-1 rounded-lg ${activeMediaType === 'VIDEO' ? 'bg-red-950/80 border border-red-500/40 text-red-300 font-bold' : 'text-slate-400'}`}
                 >
-                  ▶ VIDEO
+                  â–¶ VIDEO
                 </button>
                 <button
                   onClick={() => setActiveMediaType('AUDIO')}
                   className={`flex-1 py-1 rounded-lg ${activeMediaType === 'AUDIO' ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold' : 'text-slate-400'}`}
                 >
-                  🎵 AUDIO
+                  ðŸŽµ AUDIO
                 </button>
                 <button
                   onClick={() => setActiveMediaType('IMAGE')}
                   className={`flex-1 py-1 rounded-lg ${activeMediaType === 'IMAGE' ? 'bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold' : 'text-slate-400'}`}
                 >
-                  🖼 GAMBAR
+                  ðŸ–¼ GAMBAR
                 </button>
                 <button
                   onClick={() => setActiveMediaType('DATA')}
                   className={`flex-1 py-1 rounded-lg ${activeMediaType === 'DATA' ? 'bg-purple-950/80 border border-purple-500/40 text-purple-300 font-bold' : 'text-slate-400'}`}
                 >
-                  📊 DATA
+                  ðŸ“Š DATA
                 </button>
               </div>
 
@@ -614,7 +577,7 @@ export default function MobileSimulatorHUD({
                       </div>
                     </div>
                     <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${isNewsQuery ? 'bg-red-500/20 text-red-300 animate-pulse' : 'bg-cyan-500/20 text-cyan-300'}`}>
-                      {isNewsQuery ? '🔴 1 VIDEO TERPILIH' : 'HD 1080p'}
+                      {isNewsQuery ? 'ðŸ”´ 1 VIDEO TERPILIH' : 'HD 1080p'}
                     </span>
                   </div>
 
@@ -622,7 +585,7 @@ export default function MobileSimulatorHUD({
                   <div className="bg-slate-950/80 rounded-xl p-2 mb-2 border border-slate-800 flex flex-col gap-1">
                     <div className="flex items-center justify-between text-[9px]">
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
-                        <span>⭐ DIPILIH JIN:</span>
+                        <span>â­ DIPILIH JIN:</span>
                         <span className="text-slate-200">{isNewsQuery ? 'KOMPAS TV / Tribun Network' : 'Video Resmi Pilihan'}</span>
                       </span>
                       <span className="text-[8px] text-slate-400 font-mono">Verified Media</span>
@@ -642,7 +605,7 @@ export default function MobileSimulatorHUD({
                           : 'bg-slate-800/90 text-slate-300 hover:text-white'
                       }`}
                     >
-                      🔴 Kompas TV Live
+                      ðŸ”´ Kompas TV Live
                     </button>
                     <button
                       onClick={() => setSelectedVideoId('60ItHLz5WEA')}
@@ -652,7 +615,7 @@ export default function MobileSimulatorHUD({
                           : 'bg-slate-800/90 text-slate-300 hover:text-white'
                       }`}
                     >
-                      🔴 CNN Indonesia Live
+                      ðŸ”´ CNN Indonesia Live
                     </button>
                     <button
                       onClick={() => setSelectedVideoId('vr0qNXmkUJ8')}
@@ -662,7 +625,7 @@ export default function MobileSimulatorHUD({
                           : 'bg-slate-800/90 text-slate-300 hover:text-white'
                       }`}
                     >
-                      🔴 TVOne / MetroTV Live
+                      ðŸ”´ TVOne / MetroTV Live
                     </button>
                   </div>
 
@@ -682,7 +645,7 @@ export default function MobileSimulatorHUD({
                       onClick={() => handleApplyVideoLink(customVideoInput)}
                       className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
                     >
-                      <span>⏎ Putar</span>
+                      <span>âŽ Putar</span>
                     </button>
                   </div>
 
@@ -756,7 +719,7 @@ export default function MobileSimulatorHUD({
                       </div>
                     </div>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 font-mono">
-                      🟢 0 MP3 DISK
+                      ðŸŸ¢ 0 MP3 DISK
                     </span>
                   </div>
 
@@ -776,7 +739,7 @@ export default function MobileSimulatorHUD({
                       onClick={() => handleApplyAudioLink(customAudioInput)}
                       className="px-2.5 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
                     >
-                      <span>⏎ Putar</span>
+                      <span>âŽ Putar</span>
                     </button>
                   </div>
 
@@ -799,7 +762,7 @@ export default function MobileSimulatorHUD({
                             className={`w-0.5 rounded-full bg-cyan-400 transition-all ${
                               isPlayingAudio ? 'animate-pulse' : 'opacity-30'
                             }`}
-                            style={{ 
+                            style={{
                               height: isPlayingAudio ? `${h}%` : '20%',
                               backgroundColor: isPlayingAudio && i % 2 === 0 ? '#00f2fe' : '#8b5cf6'
                             }}
@@ -903,11 +866,11 @@ export default function MobileSimulatorHUD({
                     </div>
                     <div className="grid grid-cols-1 gap-1">
                       {[
-                        { title: 'Kala Cinta Menggoda', artist: 'Chrisye • Master Remaster', dur: 225, url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg' },
-                        { title: 'Seperti Yang Kau Minta', artist: 'Chrisye • Acoustic Stream', dur: 252, url: 'https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg' },
-                        { title: 'Pelangi', artist: 'Chrisye • Digital Audio', dur: 210, url: 'https://actions.google.com/sounds/v1/ambiences/meadow_morning.ogg' },
-                        { title: 'Nightwave Plaza Synth Radio', artist: 'Citypop • Live Stream 24h', dur: Infinity, url: 'https://radio.plaza.one/mp3' },
-                        { title: 'Prambors Hits Radio', artist: 'Pop Indo • Live Stream', dur: Infinity, url: 'https://stream.zeno.fm/f3wvbbqmdg8uv' }
+                        { title: 'Kala Cinta Menggoda', artist: 'Chrisye â€¢ Master Remaster', dur: 225, url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg' },
+                        { title: 'Seperti Yang Kau Minta', artist: 'Chrisye â€¢ Acoustic Stream', dur: 252, url: 'https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg' },
+                        { title: 'Pelangi', artist: 'Chrisye â€¢ Digital Audio', dur: 210, url: 'https://actions.google.com/sounds/v1/ambiences/meadow_morning.ogg' },
+                        { title: 'Nightwave Plaza Synth Radio', artist: 'Citypop â€¢ Live Stream 24h', dur: Infinity, url: 'https://radio.plaza.one/mp3' },
+                        { title: 'Prambors Hits Radio', artist: 'Pop Indo â€¢ Live Stream', dur: Infinity, url: 'https://stream.zeno.fm/f3wvbbqmdg8uv' }
                       ].map((item, idx) => (
                         <button
                           key={idx}
@@ -937,7 +900,7 @@ export default function MobileSimulatorHUD({
                         >
                           <div className="truncate">
                             <span className="font-bold">{item.title}</span>
-                            <span className="text-[8px] text-slate-500 ml-1.5">({item.artist.split('•')[1]?.trim() || item.artist})</span>
+                            <span className="text-[8px] text-slate-500 ml-1.5">({item.artist.split('â€¢')[1]?.trim() || item.artist})</span>
                           </div>
                           <span className="font-mono text-[8px] text-slate-400 flex-shrink-0 ml-1">
                             {formatAudioTime(item.dur)}
@@ -949,7 +912,7 @@ export default function MobileSimulatorHUD({
 
                   {/* Air-Gapped Clean Disk Storage Note */}
                   <div className="mt-2 text-[8px] text-slate-400 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60 flex items-center justify-between">
-                    <span>🛡️ Status Disk: 0 file MP3 fisik tersimpan</span>
+                    <span>ðŸ›¡ï¸ Status Disk: 0 file MP3 fisik tersimpan</span>
                     <span className="text-emerald-400 font-bold font-mono">100% CLEAN IN-MEMORY</span>
                   </div>
                 </div>
@@ -1071,14 +1034,14 @@ export default function MobileSimulatorHUD({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleTriggerWebSearch(customSearchQuery);
                     }}
-                    placeholder="Ketik topik riset / berita lalu tekan Enter..."
+                    placeholder="Ketik kata kunci pencarian web lalu tekan Enter..."
                     className="flex-1 bg-transparent text-[10px] text-white placeholder-slate-500 focus:outline-none px-1.5 font-sans"
                   />
                   <button
                     onClick={() => handleTriggerWebSearch(customSearchQuery)}
                     className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
                   >
-                    <span>🔍 Riset</span>
+                    <span>ðŸ” Cari</span>
                   </button>
                 </div>
 
@@ -1123,89 +1086,7 @@ export default function MobileSimulatorHUD({
             </div>
           )}
 
-          {/* TAB 4: DATA & DOCUMENT PIPELINE */}
-          {currentTab === 'INSIGHTS' && (
-            <div className="space-y-2.5">
-              <div className="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
-                      <Database className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white tracking-wide">DATA & DOKUMEN PIPELINE</div>
-                      <div className="text-[8px] text-cyan-400 font-mono">Live Ingested Documents</div>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
-                    {uploadedDocs.length} DOKUMEN AKTIF
-                  </span>
-                </div>
-
-                {/* Uploaded Documents List */}
-                {uploadedDocs.length > 0 ? (
-                  <div className="space-y-2">
-                    {uploadedDocs.map((doc, idx) => (
-                      <div key={doc.id || idx} className="bg-slate-950/90 rounded-xl p-2.5 border border-cyan-500/30 space-y-2 shadow-inner">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                            <FileText className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                            <span className="text-[11px] font-bold text-white truncate">{doc.fileName}</span>
-                            <span className="text-[8px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono flex-shrink-0">
-                              {doc.type}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => documentContextManagerInstance.removeDocument(doc.id)}
-                            className="p-1 text-slate-500 hover:text-red-400 transition-all ml-1 flex-shrink-0"
-                            title="Hapus Dokumen"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {/* Document Stats Badge */}
-                        <div className="flex items-center gap-2 text-[8px] font-mono text-slate-400 bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800">
-                          <span>📦 {(doc.size / 1024).toFixed(1)} KB</span>
-                          <span>•</span>
-                          <span>📄 {doc.content?.length?.toLocaleString('id-ID') || 0} Karakter</span>
-                          <span>•</span>
-                          <span className="text-emerald-400 font-bold">100% TERBACA</span>
-                        </div>
-
-                        {/* Extracted Text Content Preview Box */}
-                        <div className="bg-slate-900/90 rounded-lg p-2 font-mono text-[9.5px] text-slate-200 max-h-52 overflow-y-auto custom-scrollbar whitespace-pre-wrap select-text leading-relaxed border border-slate-800/80">
-                          {doc.content || doc.preview}
-                        </div>
-
-                        {/* Direct Button: Instruct JIN to analyze content */}
-                        {onAnalyzeDocument && (
-                          <button
-                            onClick={() => onAnalyzeDocument(doc)}
-                            className="w-full py-1.5 px-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                          >
-                            <span>🔍 Instruksikan JIN Analisis Isi 10 Halaman Ini</span>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/90 text-center flex flex-col items-center justify-center gap-2 font-sans my-1">
-                    <div className="w-8 h-8 rounded-full bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="text-[11px] font-bold text-slate-200 font-mono">Belum Ada Dokumen Terunggah</div>
-                    <p className="text-[9px] text-slate-400 leading-relaxed max-w-[220px]">
-                      Klik menu <b>ANALYZE DATA</b> di sidebar kiri untuk mengunggah berkas Word (.docx), PDF, atau CSV agar isi dokumennya dapat dibaca dan dianalisis JIN di sini.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: LIVE APP PROTOTYPE SANDBOX */}
+          {/* TAB 4: LIVE APP PROTOTYPE SANDBOX */}
           {currentTab === 'APP_PREVIEW' && (
             <div className="w-full h-full min-h-[260px] rounded-2xl overflow-hidden border border-purple-500/30 shadow-inner">
               <AppSandboxRenderer appCode={extractedAppCode} />
@@ -1219,7 +1100,6 @@ export default function MobileSimulatorHUD({
               <button onClick={() => setCurrentTab('CONVERSATION')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'CONVERSATION' ? 'bg-blue-400 scale-125 shadow-[0_0_6px_#60a5fa]' : 'bg-slate-600/60'}`} />
               <button onClick={() => setCurrentTab('MEDIA')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'MEDIA' ? 'bg-pink-400 scale-125 shadow-[0_0_6px_#f472b6]' : 'bg-slate-600/60'}`} />
               <button onClick={() => setCurrentTab('SEARCH')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'SEARCH' ? 'bg-emerald-400 scale-125 shadow-[0_0_6px_#34d399]' : 'bg-slate-600/60'}`} />
-              <button onClick={() => setCurrentTab('INSIGHTS')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'INSIGHTS' ? 'bg-cyan-400 scale-125 shadow-[0_0_6px_#22d3ee]' : 'bg-slate-600/60'}`} />
               <button onClick={() => setCurrentTab('APP_PREVIEW')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'APP_PREVIEW' ? 'bg-purple-400 scale-125 shadow-[0_0_6px_#c084fc]' : 'bg-slate-600/60'}`} />
             </div>
             {/* Crystal Home Bar Pill */}

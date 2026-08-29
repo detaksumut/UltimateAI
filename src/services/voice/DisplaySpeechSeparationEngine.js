@@ -1,24 +1,19 @@
-/**
+﻿/**
  * DisplaySpeechSeparationEngine.js
- * ULTIMATEAI — DISPLAY-SPEECH SEPARATION ARCHITECTURE
- * 
+ * ULTIMATEAI â€” DISPLAY-SPEECH SEPARATION ARCHITECTURE
+ *
  * CORE INVARIANT:
  * DISPLAY CONTENT != SPEECH CONTENT
  *
  * Pipelines:
- * RAW DATA / ANALYSIS → DISPLAY RENDERER (Full Visual Data: Tables, Charts, Code, Citations)
- *                     → USER-RELEVANT INSIGHTS → SPEECH RENDERER → TTS (Concise Human Spoken Summary)
+ * RAW DATA / ANALYSIS â†’ DISPLAY RENDERER (Full Visual Data: Tables, Charts, Code, Citations)
+ *                     â†’ USER-RELEVANT INSIGHTS â†’ SPEECH RENDERER â†’ TTS (Concise Human Spoken Summary)
  */
 
 import { indonesianTextNormalizerInstance } from './IndonesianTextNormalizer.js';
-
-export const RESPONSE_MODALITIES = {
-  TEXT_ONLY: 'TEXT_ONLY',
-  SPEECH_ONLY: 'SPEECH_ONLY',
-  TEXT_AND_SPEECH: 'TEXT_AND_SPEECH',
-  ARTIFACT_ONLY: 'ARTIFACT_ONLY',
-  NO_OUTPUT: 'NO_OUTPUT'
-};
+// Fix 9: Import RESPONSE_MODALITIES from canonical source (SpeechDecisionGate) â€” avoid duplicate definition
+import { RESPONSE_MODALITIES } from './SpeechDecisionGate.js';
+export { RESPONSE_MODALITIES };
 
 export class TableSpeechSummarizer {
   /**
