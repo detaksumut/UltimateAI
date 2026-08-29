@@ -63,58 +63,78 @@ export default function LeftSidebarHUD({ activeTab, setActiveTab, onActionClick 
     <aside
       className="w-64 flex-shrink-0 h-full flex flex-col justify-between p-4 text-slate-300 select-none relative my-1 ml-2 rounded-3xl"
       style={{
-        filter: 'drop-shadow(6px 0 20px rgba(0,0,0,0.6)) drop-shadow(0 0 35px rgba(0,242,254,0.2))',
+        filter: 'drop-shadow(12px 0 30px rgba(0,0,0,0.85)) drop-shadow(0 15px 40px rgba(0,0,0,0.9)) drop-shadow(0 0 45px rgba(0,242,254,0.3))',
       }}
     >
-      {/* 1. Main 3D Crystal Body Shell */}
+      {/* 1. Main Ultra-Thick 3D Crystal Body Shell */}
       <div 
         className="absolute inset-0 rounded-3xl pointer-events-none"
         style={{
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 40%, rgba(180,220,255,0.03) 100%)',
-          border: '2px solid rgba(255,255,255,0.35)',
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 35%, rgba(180,220,255,0.04) 100%)',
+          border: '2.5px solid rgba(255,255,255,0.55)',
           boxShadow: [
-            /* 3D Top-Left Specular Lighting */
-            'inset 0 3px 6px rgba(255,255,255,0.55)',
-            'inset 3px 0 6px rgba(255,255,255,0.30)',
-            /* 3D Right & Bottom Depth Extrusion / Bevel Shadows */
-            'inset -4px 0 8px rgba(0,242,254,0.15)',
-            'inset 0 -4px 10px rgba(0,0,0,0.55)',
-            /* Ambient Inset Glow */
-            'inset 0 0 20px rgba(0,242,254,0.08)',
-            /* Outer 3D Edge Bevel */
-            '0 0 25px rgba(0,242,254,0.15)'
+            /* 3D Top-Left Specular Lighting (Heavy Glass Reflection) */
+            'inset 0 4px 10px rgba(255,255,255,0.75)',
+            'inset 4px 0 10px rgba(255,255,255,0.45)',
+            /* 3D Right & Bottom Heavy Slab Depth Extrusions */
+            'inset -7px 0 16px rgba(0,0,0,0.80)',
+            'inset 0 -7px 18px rgba(0,0,0,0.85)',
+            /* Intermediate Prismatic Glow */
+            'inset -3px 0 8px rgba(0,242,254,0.35)',
+            /* Ambient Inset Luminescence */
+            'inset 0 0 35px rgba(0,242,254,0.12)',
+            /* Outer Edge Bevel Rim */
+            '0 0 30px rgba(0,242,254,0.25)'
           ].join(',')
         }}
       />
 
-      {/* 2. 3D Beveled Crystal Edge - Right Side Slab Extrusion (gives 3D physical thickness) */}
+      {/* 2. Inner Chamfer Rim - Double Crystal Layer */}
       <div 
-        className="absolute top-4 bottom-4 right-[-3px] w-[4px] rounded-r-full pointer-events-none"
+        className="absolute inset-[3px] rounded-[22px] pointer-events-none border border-cyan-400/25"
         style={{
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(0,242,254,0.4) 50%, rgba(168,85,247,0.3) 100%)',
-          boxShadow: '0 0 10px rgba(0,242,254,0.5)'
+          boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.3), inset -2px 0 4px rgba(0,0,0,0.4)'
         }}
       />
 
-      {/* 3. 3D Beveled Crystal Edge - Left Specular Light Ridge */}
+      {/* 3. Massive 3D Slab Extrusion - Right Edge Thickness (Heavy 3D Crystal Block) */}
       <div 
-        className="absolute top-6 bottom-6 left-0 w-[3px] rounded-l-full pointer-events-none"
+        className="absolute top-3 bottom-3 right-[-5px] w-[6px] rounded-r-full pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.2) 70%, transparent 100%)'
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.9) 0%, rgba(0,242,254,0.7) 40%, rgba(168,85,247,0.5) 80%, rgba(0,242,254,0.3) 100%)',
+          boxShadow: '2px 0 14px rgba(0,242,254,0.6), inset -1px 0 2px rgba(255,255,255,0.8)'
         }}
       />
 
-      {/* 4. Crystal Top Specular Prism Rim */}
-      <div className="absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r from-transparent via-white to-transparent pointer-events-none rounded-t-3xl shadow-[0_0_8px_#ffffff]"></div>
+      {/* 4. Massive 3D Slab Extrusion - Bottom Edge Thickness */}
+      <div 
+        className="absolute bottom-[-4px] left-6 right-6 h-[5px] rounded-b-full pointer-events-none"
+        style={{
+          background: 'linear-gradient(to right, transparent 0%, rgba(0,242,254,0.5) 30%, rgba(168,85,247,0.6) 70%, transparent 100%)',
+          boxShadow: '0 3px 12px rgba(0,242,254,0.4)'
+        }}
+      />
 
-      {/* 5. Diagonal Prismatic Light Flare Overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.01)_35%,transparent_60%)] pointer-events-none rounded-3xl"></div>
+      {/* 5. 3D Specular Light Ridge - Left Edge */}
+      <div 
+        className="absolute top-5 bottom-5 left-0 w-[4px] rounded-l-full pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 60%, transparent 100%)',
+          boxShadow: '0 0 10px rgba(255,255,255,0.6)'
+        }}
+      />
 
-      {/* 6. Thick 3D Crystal Corner Brackets with Neon Glow */}
-      <div className="absolute top-1.5 left-1.5 w-4 h-4 border-t-2 border-l-2 border-cyan-300 rounded-tl-lg pointer-events-none shadow-[0_0_12px_#00f2fe]"></div>
-      <div className="absolute top-1.5 right-1.5 w-4 h-4 border-t-2 border-r-2 border-cyan-300 rounded-tr-lg pointer-events-none shadow-[0_0_12px_#00f2fe]"></div>
-      <div className="absolute bottom-1.5 left-1.5 w-4 h-4 border-b-2 border-l-2 border-cyan-400/70 rounded-bl-lg pointer-events-none shadow-[0_0_8px_#00f2fe]"></div>
-      <div className="absolute bottom-1.5 right-1.5 w-4 h-4 border-b-2 border-r-2 border-cyan-400/70 rounded-br-lg pointer-events-none shadow-[0_0_8px_#00f2fe]"></div>
+      {/* 6. Crystal Top Specular Prism Rim with High Luminance */}
+      <div className="absolute top-0 left-4 right-4 h-[2.5px] bg-gradient-to-r from-transparent via-white to-transparent pointer-events-none rounded-t-3xl shadow-[0_0_12px_#ffffff,0_0_24px_rgba(0,242,254,0.6)]"></div>
+
+      {/* 7. Diagonal Prismatic Light Flare Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.01)_35%,transparent_60%)] pointer-events-none rounded-3xl"></div>
+
+      {/* 8. Chunky 3D Crystal Corner Brackets with Heavy Glow */}
+      <div className="absolute top-1 left-1 w-5 h-5 border-t-[3px] border-l-[3px] border-cyan-300 rounded-tl-xl pointer-events-none shadow-[0_0_15px_#00f2fe,inset_0_1px_2px_#fff]"></div>
+      <div className="absolute top-1 right-1 w-5 h-5 border-t-[3px] border-r-[3px] border-cyan-300 rounded-tr-xl pointer-events-none shadow-[0_0_15px_#00f2fe,inset_0_1px_2px_#fff]"></div>
+      <div className="absolute bottom-1 left-1 w-5 h-5 border-b-[3px] border-l-[3px] border-cyan-400/80 rounded-bl-xl pointer-events-none shadow-[0_0_10px_#00f2fe]"></div>
+      <div className="absolute bottom-1 right-1 w-5 h-5 border-b-[3px] border-r-[3px] border-cyan-400/80 rounded-br-xl pointer-events-none shadow-[0_0_10px_#00f2fe]"></div>
 
       {/* Content Area */}
       <div className="flex flex-col gap-5 overflow-y-auto custom-scrollbar pr-1 z-10 relative">
