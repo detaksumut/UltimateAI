@@ -286,25 +286,40 @@ export default function MobileSimulatorHUD({
   };
 
   return (
-    <div className="w-80 lg:w-96 flex-shrink-0 h-full flex flex-col p-3 glass-hud-panel border-l border-cyan-500/20 text-slate-300 select-none overflow-y-auto custom-scrollbar">
-      {/* 1. TOP RIGHT JIN CYBER-HUD AVATAR (Pojok Kanan Atas) */}
-      <div className="w-full flex flex-col items-center justify-center pt-2 pb-1 bg-slate-950/60 border border-cyan-500/30 rounded-2xl mb-3 shadow-[0_0_20px_rgba(0,229,255,0.08)] relative overflow-hidden flex-shrink-0">
+    <div className="w-80 lg:w-96 flex-shrink-0 h-full flex flex-col p-3.5 my-1 mr-2 rounded-3xl bg-gradient-to-b from-white/[0.12] via-slate-900/60 to-black/85 border-2 border-white/30 text-slate-300 select-none overflow-y-auto custom-scrollbar backdrop-blur-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.45),inset_0_-2px_4px_rgba(0,0,0,0.7),0_0_35px_rgba(0,242,254,0.18)] relative">
+      {/* Thick Crystal Top Specular Light Facet & Diagonal Prismatic Sheen */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none rounded-t-3xl"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_35%,transparent_60%)] pointer-events-none rounded-3xl"></div>
+
+      {/* Thick Crystal Faceted Corner Brackets */}
+      <div className="absolute top-1 left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-cyan-400/80 rounded-tl-lg pointer-events-none shadow-[0_0_8px_#00f2fe]"></div>
+      <div className="absolute top-1 right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-cyan-400/80 rounded-tr-lg pointer-events-none shadow-[0_0_8px_#00f2fe]"></div>
+      <div className="absolute bottom-1 left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-cyan-400/60 rounded-bl-lg pointer-events-none"></div>
+      <div className="absolute bottom-1 right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-cyan-400/60 rounded-br-lg pointer-events-none"></div>
+
+      {/* 1. TOP RIGHT JIN THICK CRYSTAL VAULT (Pojok Kanan Atas - Kotak Kristal Tebal) */}
+      <div className="w-full flex flex-col items-center justify-center pt-2 pb-1 bg-gradient-to-br from-white/[0.14] via-slate-950/70 to-black/90 border-2 border-cyan-400/40 rounded-2xl mb-3 shadow-[0_10px_35px_rgba(0,0,0,0.8),inset_0_2.5px_5px_rgba(255,255,255,0.45),inset_0_-3px_6px_rgba(0,0,0,0.7),0_0_20px_rgba(0,242,254,0.15)] relative overflow-hidden flex-shrink-0 backdrop-blur-2xl">
+        {/* Crystal Bevel Top Highlight */}
+        <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent pointer-events-none"></div>
+
         {/* Hologram Header Title */}
         <div className="text-center z-10 mb-0.5">
-          <h2 className="text-2xl font-black tracking-[0.25em] text-cyan-400 font-sans uppercase drop-shadow-[0_0_18px_rgba(0,229,255,0.9)]">
-            J I N
-          </h2>
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="text-2xl font-black tracking-[0.25em] text-cyan-400 font-sans uppercase drop-shadow-[0_0_18px_rgba(0,229,255,0.9)]">
+              J I N
+            </h2>
+          </div>
           <p className="text-[8px] tracking-[0.2em] text-cyan-300 font-mono font-bold">
             JOINT INTELLIGENCE NEURAL-INTERFACE
           </p>
         </div>
 
-        {/* Live Hologram Avatar (Full visual animations, rings, particles, mouth glow) */}
+        {/* Live Hologram Avatar (Full visual animations, rings, particles, mouth glow preserved 100%) */}
         <LiveHologramAvatar avatarState={avatarState} audioMetrics={audioMetrics} size="panel" />
       </div>
 
       {/* Simulator Top Header */}
-      <div className="flex items-center justify-between mb-2 px-1 flex-shrink-0">
+      <div className="flex items-center justify-between mb-2 px-1 flex-shrink-0 z-10">
         <div className="flex items-center gap-2">
           <Smartphone className="w-4 h-4 text-cyan-400" />
           <span className="text-xs font-mono font-bold tracking-widest text-white uppercase">SIMULATOR HUD</span>
@@ -331,8 +346,8 @@ export default function MobileSimulatorHUD({
         </div>
       </div>
 
-      {/* Realistic Phone Bezel Frame */}
-      <div className="flex-1 w-full bg-[#050811] rounded-[42px] p-3.5 border-4 border-slate-800 shadow-[0_0_40px_rgba(0,0,0,0.9)] flex flex-col justify-between overflow-hidden relative min-h-[480px]">
+      {/* Realistic Thick Crystal Phone Bezel Frame */}
+      <div className="flex-1 w-full bg-[#050811]/90 rounded-[42px] p-3.5 border-4 border-slate-800/90 shadow-[0_0_40px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.25)] flex flex-col justify-between overflow-hidden relative min-h-[480px] backdrop-blur-xl z-10">
         {/* Dynamic Island */}
         <div className="w-full flex justify-center pt-0.5 pb-2 z-10">
           <div className="w-24 h-5 bg-black rounded-full border border-slate-800/90 flex items-center justify-between px-2.5 shadow-inner">
