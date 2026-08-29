@@ -7,15 +7,15 @@
 import JSZip from 'jszip';
 
 export class ContentExtractor {
-  static MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB Limit
-  static MAX_CONTEXT_CHARS = 15000; // 15,000 chars context window budget per document
-  static EXTRACTION_TIMEOUT_MS = 10000;
+  static MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB Limit
+  static MAX_CONTEXT_CHARS = 200000; // 200,000 chars context window budget (up to 70+ pages)
+  static EXTRACTION_TIMEOUT_MS = 15000;
 
   static async extractFromFile(file) {
     if (!file) throw new Error('No file provided');
 
     if (file.size > this.MAX_FILE_SIZE) {
-      throw new Error(`File melampaui batas maksimal 15MB (${(file.size / (1024 * 1024)).toFixed(1)}MB). Mohon unggah dokumen yang lebih ringkas.`);
+      throw new Error(`File melampaui batas maksimal 25MB (${(file.size / (1024 * 1024)).toFixed(1)}MB). Mohon unggah dokumen yang lebih ringkas.`);
     }
 
     const fileName = file.name;
@@ -46,7 +46,7 @@ export class ContentExtractor {
   }
 
   /**
-   * Process Microsoft Word (.docx) files cleanly using JSZip & XML DOM parsing
+   * Process Microsoft Word (.docx) files cleanly using JSZip & comprehensive XML DOM parsing
    */
   static async processDocx(file) {
     return new Promise((resolve, reject) => {
@@ -61,26 +61,56 @@ export class ContentExtractor {
         try {
           const arrayBuffer = e.target.result;
           const zip = await JSZip.loadAsync(arrayBuffer);
-          const docXmlFile = zip.file('word/document.xml');
+          
+          // Gather all relevant XML content files in the Word document (document, footnotes, headers, footers)
+          const xmlFiles = Object.keys(zip.files).filter(name => 
+            name.startsWith('word/') && 
+            name.endsWith('.xml') && 
+            !name.includes('theme') && 
+            !name.includes('styles') &&
+            !name.includes('settings') && 
+            !name.includes('webSettings') &&
+            !name.includes('fontTable')
+          );
 
-          if (!docXmlFile) {
-            throw new Error('Format DOCX tidak valid (komponen word/document.xml tidak ditemukan).');
+          if (xmlFiles.length === 0) {
+            throw new Error('Format DOCX tidak valid (komponen word/*.xml tidak ditemukan).');
           }
 
-          const xmlContent = await docXmlFile.async('text');
+          // Prioritize word/document.xml first
+          xmlFiles.sort((a, b) => (a === 'word/document.xml' ? -1 : b === 'word/document.xml' ? 1 : 0));
 
-          // Parse paragraphs and tables from Word XML
           const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
-          const paragraphs = Array.from(xmlDoc.getElementsByTagName('w:p'));
+          const allParagraphs = [];
 
-          const textLines = paragraphs.map(p => {
-            const textNodes = Array.from(p.getElementsByTagName('w:t'));
-            return textNodes.map(t => t.textContent).join('');
-          }).filter(line => line.trim().length > 0);
+          for (const xmlFileName of xmlFiles) {
+            const xmlContent = await zip.file(xmlFileName).async('text');
+            const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
 
-          const fullText = textLines.join('\n\n');
+            // Extract all paragraphs (including those inside tables and content controls)
+            const pElements = Array.from(xmlDoc.getElementsByTagName('w:p'));
+            
+            for (const p of pElements) {
+              const textNodes = Array.from(p.getElementsByTagName('w:t'));
+              const pText = textNodes.map(t => t.textContent).join('');
+              if (pText.trim().length > 0) {
+                allParagraphs.push(pText.trim());
+              }
+            }
+
+            // Fallback: If DOM parser found no paragraphs, extract all <w:t> tags directly
+            if (pElements.length === 0) {
+              const matches = xmlContent.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi) || [];
+              const rawLines = matches.map(m => m.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+              if (rawLines.length > 0) {
+                allParagraphs.push(...rawLines);
+              }
+            }
+          }
+
+          const fullText = allParagraphs.join('\n\n');
           const charCount = fullText.length;
+          const wordCount = fullText.split(/\s+/).filter(Boolean).length;
           const isTruncated = charCount > this.MAX_CONTEXT_CHARS;
           const content = isTruncated 
             ? fullText.substring(0, this.MAX_CONTEXT_CHARS) + `\n\n[...Konten dokumen Word diringkas: Total ${charCount} karakter...]` 
@@ -91,9 +121,11 @@ export class ContentExtractor {
             type: 'application/docx',
             size: file.size,
             charCount,
+            wordCount,
+            paragraphCount: allParagraphs.length,
             isTruncated,
             content,
-            preview: (fullText.substring(0, 350) || 'Dokumen Word siap dianalisis.') + (fullText.length > 350 ? '...' : '')
+            preview: fullText // Deliver full document text without artificial 350-char slice!
           });
         } catch (err) {
           reject(new Error(`Gagal mengekstrak teks DOCX: ${err.message}`));

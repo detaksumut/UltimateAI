@@ -131,19 +131,21 @@ export default function AnalyzeDataModal({ isOpen, onClose, onAnalyzeDocument })
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-white">{selectedDoc.fileName}</span>
+                  <span className="text-xs font-bold text-white truncate max-w-[280px]">{selectedDoc.fileName}</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
                     {selectedDoc.type}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {(selectedDoc.size / 1024).toFixed(1)} KB
-                </span>
+                <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-500/30">
+                  <span>📄 {selectedDoc.charCount?.toLocaleString('id-ID') || 0} Karakter</span>
+                  <span>•</span>
+                  <span>{selectedDoc.wordCount?.toLocaleString('id-ID') || 0} Kata</span>
+                </div>
               </div>
 
-              {/* Extraction Preview Box */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 font-mono text-[11px] text-slate-300 max-h-36 overflow-y-auto custom-scrollbar whitespace-pre-wrap">
-                {selectedDoc.preview}
+              {/* Full Document Extraction Viewer Box */}
+              <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 font-mono text-[11px] text-slate-200 max-h-56 overflow-y-auto custom-scrollbar whitespace-pre-wrap select-text leading-relaxed">
+                {selectedDoc.preview || selectedDoc.content}
               </div>
             </div>
           )}

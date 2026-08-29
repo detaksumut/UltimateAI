@@ -9,6 +9,7 @@ import { nineRouterClient } from '../router/NineRouterClient.js';
 import { jinAvatarController } from '../avatar/JinAvatarController.js';
 import { AVATAR_EVENTS } from '../avatar/JinAvatarStates.js';
 import { voiceControllerInstance } from '../voice/VoiceController.js';
+import { speechDecisionGateInstance } from '../voice/SpeechDecisionGate.js';
 
 export class SimulatorOrchestrator {
   constructor() {
@@ -16,6 +17,7 @@ export class SimulatorOrchestrator {
     this.router = nineRouterClient;
     this.avatar = jinAvatarController;
     this.voice = voiceControllerInstance;
+    this.gate = speechDecisionGateInstance;
 
     // Connect barge-in listener defensively
     if (this.voice && typeof this.voice.setBargeInHandler === 'function') {
@@ -46,18 +48,21 @@ export class SimulatorOrchestrator {
       return;
     }
 
-    // 2. Record in conversation history with image metadata
+    // 2. Authorize Speech Interaction Window
+    const interactionId = this.gate.beginUserInteraction(`INT-${Date.now()}`);
+
+    // 3. Record in conversation history with image metadata
     this.conversation.addMessage('user', cleanPrompt, { imageUrl: attachedImage });
 
-    // 3. Dispatch state to Avatar: PROCESSING
+    // 4. Dispatch state to Avatar: PROCESSING
     this.avatar.dispatch({ type: AVATAR_EVENTS.REQUEST_STARTED });
 
-    // 4. Build payload with context and memory
+    // 5. Build payload with context and memory
     const { messages } = this.conversation.buildPayload(cleanPrompt, null, { imageUrl: attachedImage });
     console.log(`[CHAT] AGENT_DISPATCHED | Messages Count: ${messages.length}`);
 
     try {
-      // 4. Send to 9Router / LocalRouter with streaming callback
+      // 6. Send to 9Router / LocalRouter with streaming callback
       const result = await this.router.routeAndExecute(
         messages,
         {},
@@ -69,7 +74,7 @@ export class SimulatorOrchestrator {
       const responseText = result.text || '';
       console.log(`[CHAT] RESPONSE_RECEIVED | Output Length: ${responseText.length} chars`);
       
-      // 5. Add assistant message to conversation history
+      // 7. Add assistant message to conversation history
       this.conversation.addMessage('assistant', responseText, {
         routing: result.routing
       });
@@ -80,21 +85,28 @@ export class SimulatorOrchestrator {
       
       console.log('[VOG] JIN_RESPONSE_RECEIVED');
 
-      // 6. Transition avatar: SPEAKING via Voice Engine
+      // 8. Transition avatar: SPEAKING via Voice Engine (Pass through Hard Speech Gate)
       this.avatar.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY });
 
       this.voice.speak(responseText, {
+        interactionId,
+        userPrompt: cleanPrompt,
+        isVoiceTrigger,
+        eventType: 'USER_RESPONSE',
         onEnd: () => {
           this.avatar.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED });
+          this.gate.endUserInteraction(interactionId);
         },
         onError: () => {
           this.avatar.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED });
+          this.gate.endUserInteraction(interactionId);
         }
       });
 
       return result;
     } catch (err) {
       console.error('SimulatorOrchestrator execution error:', err);
+      this.gate.endUserInteraction(interactionId);
       this.avatar.dispatch({ type: AVATAR_EVENTS.FAILURE, error: err.message });
       setTimeout(() => {
         this.avatar.dispatch({ type: AVATAR_EVENTS.RESET });

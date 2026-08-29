@@ -143,7 +143,7 @@ export class AntigravityCloudCodeTransport {
       contents,
       generationConfig: {
         temperature,
-        maxOutputTokens: 2048
+        maxOutputTokens: 8192
       }
     };
 
@@ -188,18 +188,23 @@ export class AntigravityCloudCodeTransport {
     const decoder = new TextDecoder('utf-8');
     let fullText = '';
     let attestedModel = null;
+    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunkText = decoder.decode(value, { stream: true });
-      const lines = chunkText.split('\n');
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Preserve incomplete trailing line across TCP chunk boundaries
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
           try {
-            const json = JSON.parse(line.substring(6));
+            const jsonStr = trimmed.substring(6).trim();
+            if (jsonStr === '[DONE]') continue;
+            const json = JSON.parse(jsonStr);
             const candidate = json.response?.candidates?.[0] || json.candidates?.[0];
             const token = candidate?.content?.parts?.[0]?.text || '';
             
@@ -218,7 +223,7 @@ export class AntigravityCloudCodeTransport {
               if (onChunk && stream) onChunk(token);
             }
           } catch {
-            // Partial line
+            // Partial or malformed line
           }
         }
       }

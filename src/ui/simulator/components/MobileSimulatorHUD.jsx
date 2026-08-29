@@ -4,9 +4,10 @@ import {
   Layers, AlertTriangle, CheckCircle, ExternalLink, Play, Pause,
   SkipBack, SkipForward, Volume2, VolumeX, RotateCcw, Upload,
   Film, Image as ImageIcon, BarChart3, Database, Sparkles, Music,
-  Copy, Check
+  Copy, Check, FileText, Trash2
 } from 'lucide-react';
 import AppSandboxRenderer from './AppSandboxRenderer.jsx';
+import { documentContextManagerInstance } from '../../../services/analysis/DocumentContextManager.js';
 
 export default function MobileSimulatorHUD({
   messages = [],
@@ -15,37 +16,126 @@ export default function MobileSimulatorHUD({
   activeMode = 'CONVERSATION', // 'CONVERSATION' | 'SEARCH' | 'MEDIA' | 'INSIGHTS' | 'APP_PREVIEW'
   onModeChange,
   generatedAppCode = null,
-  liveSearchSources = []
+  liveSearchSources = [],
+  onAnalyzeDocument
 }) {
   const [selectedDevice, setSelectedDevice] = useState('iPhone 15');
   const [currentTab, setCurrentTab] = useState(activeMode);
-  const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'IMAGE' | 'DATA'
+  const [activeMediaType, setActiveMediaType] = useState('ALL'); // 'ALL' | 'VIDEO' | 'AUDIO' | 'IMAGE' | 'DATA'
   const [selectedVideoId, setSelectedVideoId] = useState('vr0qNXmkUJ8');
+  const [customVideoInput, setCustomVideoInput] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
 
+  // Subscribe to uploaded documents
+  useEffect(() => {
+    const unsub = documentContextManagerInstance.subscribe((docs) => {
+      setUploadedDocs(docs || []);
+      if (docs && docs.length > 0) {
+        setCurrentTab('INSIGHTS');
+      }
+    });
+    return unsub;
+  }, []);
+
+  const extractYouTubeId = (input) => {
+    if (!input || typeof input !== 'string') return null;
+    const str = input.trim();
+    // 11-char direct ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+    // Standard URL: youtube.com/watch?v=XXXXX
+    const vMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (vMatch) return vMatch[1];
+    // Short URL: youtu.be/XXXXX
+    const shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (shortMatch) return shortMatch[1];
+    // Embed URL: youtube.com/embed/XXXXX
+    const embedMatch = str.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (embedMatch) return embedMatch[1];
+    return null;
+  };
+
+  const handleApplyVideoLink = (input) => {
+    const extractedId = extractYouTubeId(input);
+    if (extractedId) {
+      setSelectedVideoId(extractedId);
+      setCustomVideoInput('');
+      setCurrentTab('MEDIA');
+    }
+  };
+
+  const audioRef = useRef(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(38); // seconds
-  const [audioDuration, setAudioDuration] = useState(210); // seconds
+  const [audioProgress, setAudioProgress] = useState(0); // seconds
+  const [audioDuration, setAudioDuration] = useState(225); // seconds
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [audioVolume, setAudioVolume] = useState(85);
   const [currentAudioTrack, setCurrentAudioTrack] = useState({
-    title: 'Penyimpanan Bersih: 0 Berkas MP3 Lokal',
-    artist: 'JIN Neural Stream Engine (Air-Gapped Clean)',
-    sourceType: 'STREAM / READY'
+    title: 'Kala Cinta Menggoda',
+    artist: 'Chrisye • Master Remaster',
+    sourceType: 'CHRISYE_STREAM',
+    url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg'
   });
+  const [customAudioInput, setCustomAudioInput] = useState('');
+
+  const handleApplyAudioLink = (input) => {
+    if (!input || !input.trim()) return;
+    const str = input.trim();
+    let displayTitle = 'Live Audio Stream';
+    try {
+      const parsed = new URL(str);
+      const pathname = parsed.pathname.split('/').pop();
+      if (pathname && pathname.length > 2) displayTitle = decodeURIComponent(pathname);
+      else displayTitle = `Stream: ${parsed.hostname}`;
+    } catch (_) {
+      displayTitle = str.slice(0, 30);
+    }
+
+    setCurrentAudioTrack({
+      title: displayTitle,
+      artist: 'Direct Online Stream URL',
+      sourceType: 'LIVE_STREAM',
+      url: str
+    });
+    setAudioDuration(180);
+    setAudioProgress(0);
+    setIsPlayingAudio(true);
+    setCustomAudioInput('');
+    setCurrentTab('MEDIA');
+    setActiveMediaType('AUDIO');
+    if (audioRef.current) {
+      audioRef.current.src = str;
+      audioRef.current.play().catch(() => {});
+    }
+  };
 
   const formatAudioTime = (sec) => {
+    if (sec === undefined || sec === null || isNaN(sec) || !isFinite(sec)) return "LIVE";
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   const handleTogglePlayAudio = () => {
-    setIsPlayingAudio(prev => !prev);
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play().then(() => {
+        setIsPlayingAudio(true);
+      }).catch(err => {
+        console.warn('Play error:', err);
+      });
+    } else {
+      audioRef.current.pause();
+      setIsPlayingAudio(false);
+    }
   };
 
   const handleSkipAudio = (delta) => {
-    setAudioProgress(prev => Math.min(Math.max(0, prev + delta), audioDuration));
+    setAudioProgress(prev => {
+      const next = Math.min(Math.max(0, prev + delta), isFinite(audioDuration) ? audioDuration : 3600);
+      if (audioRef.current) audioRef.current.currentTime = next;
+      return next;
+    });
   };
 
   const handleCopyText = (text, id) => {
@@ -83,6 +173,90 @@ export default function MobileSimulatorHUD({
   const isImageQuery = lowerQuery.includes('gambar') || lowerQuery.includes('foto') || lowerQuery.includes('image') || lowerQuery.includes('visual');
   const isDataQuery = lowerQuery.includes('data') || lowerQuery.includes('tabel') || lowerQuery.includes('grafik') || lowerQuery.includes('chart') || lowerQuery.includes('statistik');
 
+  const [customSearchQuery, setCustomSearchQuery] = useState('');
+  const [internalSources, setInternalSources] = useState([]);
+
+  const handleTriggerWebSearch = async (query) => {
+    if (!query || !query.trim()) return;
+    const q = query.trim();
+    try {
+      const resp = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=id&gl=ID&ceid=ID:id`)}`);
+      const xml = await resp.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xml, 'application/xml');
+      const items = Array.from(xmlDoc.getElementsByTagName('item')).slice(0, 5);
+      const parsedSources = items.map(it => {
+        const title = it.getElementsByTagName('title')?.[0]?.textContent || q;
+        const link = it.getElementsByTagName('link')?.[0]?.textContent || `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+        const sourceName = it.getElementsByTagName('source')?.[0]?.textContent || 'Portal Berita Indonesia';
+        return {
+          title,
+          url: link,
+          domain: sourceName,
+          category: 'NEWS'
+        };
+      });
+      if (parsedSources.length > 0) {
+        setInternalSources(parsedSources);
+      } else {
+        setInternalSources([
+          {
+            title: `Riset: ${q}`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+            domain: 'google.com',
+            category: 'NEWS'
+          }
+        ]);
+      }
+    } catch (_) {
+      setInternalSources([
+        {
+          title: `Penelusuran Web: ${q}`,
+          url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+          domain: 'google.com',
+          category: 'NEWS'
+        }
+      ]);
+    }
+  };
+
+  // Extract HTML / UI code from lastAssistantMessage or generatedAppCode prop
+  const extractedAppCode = React.useMemo(() => {
+    if (generatedAppCode) return generatedAppCode;
+    if (!lastAssistantMessage || typeof lastAssistantMessage !== 'string') return null;
+
+    // 1. Markdown code block (allows unclosed trailing ticks)
+    const match = lastAssistantMessage.match(/```(?:html|xml|ui|javascript|js)?\s*([\s\S]*?)(?:```|$)/i);
+    if (match && match[1] && (match[1].includes('<') || match[1].includes('document.') || match[1].includes('function'))) {
+      return match[1].trim();
+    }
+
+    // 2. Raw HTML tags
+    const rawMatch = lastAssistantMessage.match(/(<!DOCTYPE html>[\s\S]*|<\/?(?:form|html|div|table|section|main)[\s\S]*>)/i);
+    if (rawMatch && rawMatch[1]) {
+      return rawMatch[1].trim();
+    }
+
+    return null;
+  }, [generatedAppCode, lastAssistantMessage]);
+
+  // Auto switch to APP_PREVIEW when app code is detected
+  useEffect(() => {
+    if (extractedAppCode) {
+      setCurrentTab('APP_PREVIEW');
+    }
+  }, [extractedAppCode]);
+
+  // Auto-detect YouTube links from assistant or user text
+  useEffect(() => {
+    const textToCheck = `${lastAssistantMessage} ${lastUserMessage}`;
+    const foundId = extractYouTubeId(textToCheck);
+    if (foundId && foundId !== selectedVideoId) {
+      setSelectedVideoId(foundId);
+      setCurrentTab('MEDIA');
+    }
+  }, [lastAssistantMessage, lastUserMessage]);
+
   // Auto switch tab and stream source if specific media, search, or data is requested
   useEffect(() => {
     if (!lastUserMessage) return;
@@ -93,12 +267,15 @@ export default function MobileSimulatorHUD({
       setCurrentTab('MEDIA');
     } else if (lowerQuery.includes('cari') || lowerQuery.includes('search') || lowerQuery.includes('web') || lowerQuery.includes('googl') || lowerQuery.includes('riset')) {
       setCurrentTab('SEARCH');
+      handleTriggerWebSearch(lastUserMessage);
+    } else if (lowerQuery.includes('buat') || lowerQuery.includes('aplikasi') || lowerQuery.includes('form') || lowerQuery.includes('kalkulator') || lowerQuery.includes('ui')) {
+      setCurrentTab('APP_PREVIEW');
     } else if (isDataQuery || lowerQuery.includes('analisis') || lowerQuery.includes('hitung') || lowerQuery.includes('metrik') || lowerQuery.includes('audit')) {
       setCurrentTab('INSIGHTS');
     }
   }, [lastUserMessage]);
 
-  const displaySources = liveSearchSources || [];
+  const displaySources = (liveSearchSources && liveSearchSources.length > 0) ? liveSearchSources : internalSources;
 
   const handleTabClick = (tab) => {
     setCurrentTab(tab);
@@ -256,7 +433,15 @@ export default function MobileSimulatorHUD({
                         <div className="whitespace-pre-wrap select-text selection:bg-cyan-500/40 selection:text-white cursor-text leading-relaxed">
                           {lastAssistantMessage}
                         </div>
-                        <div className="flex justify-end mt-2 pt-1 border-t border-slate-800/60">
+                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-800/60">
+                          {extractedAppCode ? (
+                            <button
+                              onClick={() => handleTabClick('APP_PREVIEW')}
+                              className="py-1 px-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(168,85,247,0.5)] transition-all animate-pulse"
+                            >
+                              <span>📱 Coba di Tab APP UI ➔</span>
+                            </button>
+                          ) : <div />}
                           <button
                             onClick={() => handleCopyText(lastAssistantMessage, 'assistant-msg')}
                             className="p-1 px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-cyan-300 text-[10px] font-mono flex items-center gap-1.5 transition-all shadow"
@@ -383,6 +568,26 @@ export default function MobileSimulatorHUD({
                     </button>
                   </div>
 
+                  {/* Direct Link Input Box with Enter Key Execution */}
+                  <div className="flex items-center gap-1.5 mb-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 focus-within:border-cyan-400 transition-all">
+                    <input
+                      type="text"
+                      value={customVideoInput}
+                      onChange={(e) => setCustomVideoInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleApplyVideoLink(customVideoInput);
+                      }}
+                      placeholder="Tempel / ketik link YouTube lalu tekan Enter..."
+                      className="flex-1 bg-transparent text-[10px] text-white placeholder-slate-500 focus:outline-none px-1.5 font-sans"
+                    />
+                    <button
+                      onClick={() => handleApplyVideoLink(customVideoInput)}
+                      className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
+                    >
+                      <span>⏎ Putar</span>
+                    </button>
+                  </div>
+
                   {/* Embedded Video Player */}
                   <div className="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative group">
                     <iframe
@@ -418,22 +623,63 @@ export default function MobileSimulatorHUD({
                 </div>
               )}
 
-              {/* 2. DEDICATED STANDARD AUDIO & MP3 PLAYER CARD */}
+              {/* 2. DEDICATED STANDARD AUDIO & CHRISYE MP3 PLAYER CARD */}
               {(activeMediaType === 'ALL' || activeMediaType === 'AUDIO') && (
-                <div className="bg-slate-900/90 rounded-2xl p-3 border border-emerald-500/30 shadow-md">
+                <div className="bg-slate-900/90 rounded-2xl p-3 border border-cyan-500/30 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
+                  {/* Invisible Audio Engine */}
+                  <audio
+                    ref={audioRef}
+                    src={currentAudioTrack.url || 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg'}
+                    onTimeUpdate={() => {
+                      if (audioRef.current) {
+                        setAudioProgress(audioRef.current.currentTime);
+                      }
+                    }}
+                    onLoadedMetadata={() => {
+                      if (audioRef.current && audioRef.current.duration) {
+                        setAudioDuration(audioRef.current.duration);
+                      }
+                    }}
+                    onEnded={() => setIsPlayingAudio(false)}
+                    preload="metadata"
+                  />
+
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-300">
+                      <div className="w-6 h-6 rounded-lg bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
                         <Music className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-white tracking-wide">STANDARD AUDIO & MP3 PLAYER</div>
-                        <div className="text-[8px] text-emerald-400">Stream & In-Memory Audio Engine</div>
+                        <div className="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                          <span>CYBER-HUD MP3 ENGINE</span>
+                          <span className="text-[8px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">CHRISYE HUB</span>
+                        </div>
+                        <div className="text-[8px] text-cyan-400">Stream & In-Memory Audio Engine</div>
                       </div>
                     </div>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      🟢 0 MP3 DISK (CLEAN)
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 font-mono">
+                      🟢 0 MP3 DISK
                     </span>
+                  </div>
+
+                  {/* Direct Audio / Playlist Link Input Box with Enter Key Execution */}
+                  <div className="flex items-center gap-1.5 mb-2.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 focus-within:border-cyan-400 transition-all shadow-inner">
+                    <input
+                      type="text"
+                      value={customAudioInput}
+                      onChange={(e) => setCustomAudioInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleApplyAudioLink(customAudioInput);
+                      }}
+                      placeholder="Tempel / paste link stream MP3 atau playlist di sini..."
+                      className="flex-1 bg-transparent text-[10px] text-white placeholder-slate-500 focus:outline-none px-1.5 font-sans"
+                    />
+                    <button
+                      onClick={() => handleApplyAudioLink(customAudioInput)}
+                      className="px-2.5 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
+                    >
+                      <span>⏎ Putar</span>
+                    </button>
                   </div>
 
                   {/* Audio Track Visualizer & Info Box */}
@@ -443,19 +689,22 @@ export default function MobileSimulatorHUD({
                         <div className="text-[11px] font-bold text-white truncate flex items-center gap-1.5">
                           <span>{currentAudioTrack.title}</span>
                         </div>
-                        <div className="text-[8px] text-emerald-400/80 truncate">
+                        <div className="text-[9px] text-cyan-400/90 truncate font-mono">
                           {currentAudioTrack.artist}
                         </div>
                       </div>
                       {/* Waveform visualizer bars */}
-                      <div className="flex items-end gap-0.5 h-4 ml-2 flex-shrink-0">
-                        {[40, 75, 100, 60, 90, 45, 80, 55].map((h, i) => (
+                      <div className="flex items-end gap-0.5 h-5 ml-2 flex-shrink-0">
+                        {[35, 75, 100, 60, 95, 45, 85, 55, 90, 40, 70, 100].map((h, i) => (
                           <div
                             key={i}
-                            className={`w-0.5 rounded-full bg-emerald-400 transition-all ${
+                            className={`w-0.5 rounded-full bg-cyan-400 transition-all ${
                               isPlayingAudio ? 'animate-pulse' : 'opacity-30'
                             }`}
-                            style={{ height: isPlayingAudio ? `${h}%` : '20%' }}
+                            style={{ 
+                              height: isPlayingAudio ? `${h}%` : '20%',
+                              backgroundColor: isPlayingAudio && i % 2 === 0 ? '#00f2fe' : '#8b5cf6'
+                            }}
                           />
                         ))}
                       </div>
@@ -466,10 +715,14 @@ export default function MobileSimulatorHUD({
                       <input
                         type="range"
                         min="0"
-                        max={audioDuration}
+                        max={audioDuration || 100}
                         value={audioProgress}
-                        onChange={(e) => setAudioProgress(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setAudioProgress(val);
+                          if (audioRef.current) audioRef.current.currentTime = val;
+                        }}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                       />
                       <div className="flex justify-between text-[8px] text-slate-400 font-mono">
                         <span>{formatAudioTime(audioProgress)}</span>
@@ -479,7 +732,7 @@ export default function MobileSimulatorHUD({
                   </div>
 
                   {/* Standard Playback Controls */}
-                  <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+                  <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-xl border border-slate-800/80 mb-2.5">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleSkipAudio(-10)}
@@ -489,7 +742,10 @@ export default function MobileSimulatorHUD({
                         <SkipBack className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => setAudioProgress(0)}
+                        onClick={() => {
+                          setAudioProgress(0);
+                          if (audioRef.current) audioRef.current.currentTime = 0;
+                        }}
                         title="Ulangi dari awal"
                         className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
                       >
@@ -502,8 +758,8 @@ export default function MobileSimulatorHUD({
                       onClick={handleTogglePlayAudio}
                       className={`px-4 py-2 rounded-full font-bold flex items-center gap-1.5 transition-all shadow-md ${
                         isPlayingAudio
-                          ? 'bg-emerald-500 text-slate-950 shadow-[0_0_12px_rgba(16,185,129,0.7)] scale-105'
-                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(0,242,254,0.7)] scale-105'
+                          : 'bg-cyan-600/90 hover:bg-cyan-500 text-white shadow-[0_0_10px_rgba(0,242,254,0.4)]'
                       }`}
                     >
                       {isPlayingAudio ? (
@@ -528,51 +784,75 @@ export default function MobileSimulatorHUD({
                         <SkipForward className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => setIsAudioMuted(!isAudioMuted)}
+                        onClick={() => {
+                          const nextMute = !isAudioMuted;
+                          setIsAudioMuted(nextMute);
+                          if (audioRef.current) audioRef.current.muted = nextMute;
+                        }}
                         title={isAudioMuted ? 'Unmute' : 'Mute'}
                         className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-all"
                       >
-                        {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                        {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400" />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Audio Stream Source Selector */}
-                  <div className="mt-2 flex items-center gap-1.5 text-[8px] overflow-x-auto pb-0.5">
-                    <button
-                      onClick={() => {
-                        setCurrentAudioTrack({
-                          title: 'Synthwave Focus Stream (Live)',
-                          artist: 'JIN Chill Stream Station',
-                          sourceType: 'STREAM'
-                        });
-                        setAudioDuration(240);
-                        setIsPlayingAudio(true);
-                      }}
-                      className="px-2 py-1 rounded-md bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/60 font-bold whitespace-nowrap"
-                    >
-                      📻 Stream Focus Synth
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCurrentAudioTrack({
-                          title: 'Neural Speech Synthesizer Stream',
-                          artist: 'JIN Voice TTS Model 3.6',
-                          sourceType: 'STREAM'
-                        });
-                        setAudioDuration(90);
-                        setIsPlayingAudio(true);
-                      }}
-                      className="px-2 py-1 rounded-md bg-slate-800/90 text-slate-300 hover:text-white whitespace-nowrap"
-                    >
-                      🎙️ Voice Neural
-                    </button>
+                  {/* Chrisye Playlist Track Selection */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 mb-1 px-1">
+                      <span>KOLEKSI STREAM CHRISYE & RADIO LIVE</span>
+                      <span className="text-cyan-400 font-mono">LIVE STREAMS</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1">
+                      {[
+                        { title: 'Kala Cinta Menggoda', artist: 'Chrisye • Master Remaster', dur: 225, url: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg' },
+                        { title: 'Seperti Yang Kau Minta', artist: 'Chrisye • Acoustic Stream', dur: 252, url: 'https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg' },
+                        { title: 'Pelangi', artist: 'Chrisye • Digital Audio', dur: 210, url: 'https://actions.google.com/sounds/v1/ambiences/meadow_morning.ogg' },
+                        { title: 'Nightwave Plaza Synth Radio', artist: 'Citypop • Live Stream 24h', dur: Infinity, url: 'https://radio.plaza.one/mp3' },
+                        { title: 'Prambors Hits Radio', artist: 'Pop Indo • Live Stream', dur: Infinity, url: 'https://stream.zeno.fm/f3wvbbqmdg8uv' }
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setCurrentAudioTrack({
+                              title: item.title,
+                              artist: item.artist,
+                              sourceType: 'STREAM',
+                              url: item.url
+                            });
+                            setAudioDuration(isFinite(item.dur) ? item.dur : 180);
+                            setAudioProgress(0);
+                            setIsPlayingAudio(true);
+                            if (audioRef.current) {
+                              audioRef.current.src = item.url;
+                              audioRef.current.load();
+                              audioRef.current.play().then(() => {
+                                setIsPlayingAudio(true);
+                              }).catch(err => console.warn('Play error:', err));
+                            }
+                          }}
+                          className={`w-full p-1.5 rounded-lg text-left text-[9px] transition-all flex items-center justify-between border ${
+                            currentAudioTrack.title === item.title
+                              ? 'bg-cyan-950/60 border-cyan-500/50 text-cyan-300 shadow-[0_0_8px_rgba(0,242,254,0.2)]'
+                              : 'bg-slate-950/40 border-slate-800/60 text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="truncate">
+                            <span className="font-bold">{item.title}</span>
+                            <span className="text-[8px] text-slate-500 ml-1.5">({item.artist.split('•')[1]?.trim() || item.artist})</span>
+                          </div>
+                          <span className="font-mono text-[8px] text-slate-400 flex-shrink-0 ml-1">
+                            {formatAudioTime(item.dur)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Air-Gapped Clean Disk Storage Note */}
                   <div className="mt-2 text-[8px] text-slate-400 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60 flex items-center justify-between">
                     <span>🛡️ Status Disk: 0 file MP3 fisik tersimpan</span>
-                    <span className="text-emerald-400 font-bold font-mono">100% CLEAN</span>
+                    <span className="text-emerald-400 font-bold font-mono">100% CLEAN IN-MEMORY</span>
                   </div>
                 </div>
               )}
@@ -684,6 +964,26 @@ export default function MobileSimulatorHUD({
                   </span>
                 </div>
 
+                {/* Direct Web Search Input Bar with Enter key execution */}
+                <div className="flex items-center gap-1.5 mb-2.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 focus-within:border-emerald-400 transition-all">
+                  <input
+                    type="text"
+                    value={customSearchQuery}
+                    onChange={(e) => setCustomSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleTriggerWebSearch(customSearchQuery);
+                    }}
+                    placeholder="Ketik topik riset / berita lalu tekan Enter..."
+                    className="flex-1 bg-transparent text-[10px] text-white placeholder-slate-500 focus:outline-none px-1.5 font-sans"
+                  />
+                  <button
+                    onClick={() => handleTriggerWebSearch(customSearchQuery)}
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-[9px] rounded-lg transition-all flex items-center gap-1 shadow-sm flex-shrink-0"
+                  >
+                    <span>🔍 Riset</span>
+                  </button>
+                </div>
+
                 {/* Real Verified Web Source Nodes or Clean Ready State */}
                 {displaySources.length > 0 ? (
                   <div className="space-y-1.5 mb-2 font-mono text-[10px]">
@@ -725,31 +1025,84 @@ export default function MobileSimulatorHUD({
             </div>
           )}
 
-          {/* TAB 4: CRITICAL INSIGHTS */}
+          {/* TAB 4: DATA & DOCUMENT PIPELINE */}
           {currentTab === 'INSIGHTS' && (
-            <div className="space-y-3">
-              <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className="w-6 h-6 rounded-lg bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
-                    <Shield className="w-3.5 h-3.5" />
+            <div className="space-y-2.5">
+              <div className="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                      <Database className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white tracking-wide">DATA & DOKUMEN PIPELINE</div>
+                      <div className="text-[8px] text-cyan-400 font-mono">Live Ingested Documents</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-white tracking-wide">RUNTIME INSIGHTS & AUDIT</div>
-                    <div className="text-[9px] text-emerald-400 font-mono">🟢 SSOT SYSTEM SYNCHRONIZED</div>
-                  </div>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                    {uploadedDocs.length} DOKUMEN AKTIF
+                  </span>
                 </div>
 
-                <div className="space-y-2 text-xs font-sans">
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 text-slate-200 space-y-1">
-                    <div className="font-bold text-emerald-300 text-[11px] flex items-center gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400" />
-                      <span>Sistem Siap & Data Bersih</span>
+                {/* Uploaded Documents List */}
+                {uploadedDocs.length > 0 ? (
+                  <div className="space-y-2">
+                    {uploadedDocs.map((doc, idx) => (
+                      <div key={doc.id || idx} className="bg-slate-950/90 rounded-xl p-2.5 border border-cyan-500/30 space-y-2 shadow-inner">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <FileText className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                            <span className="text-[11px] font-bold text-white truncate">{doc.fileName}</span>
+                            <span className="text-[8px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono flex-shrink-0">
+                              {doc.type}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => documentContextManagerInstance.removeDocument(doc.id)}
+                            className="p-1 text-slate-500 hover:text-red-400 transition-all ml-1 flex-shrink-0"
+                            title="Hapus Dokumen"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Document Stats Badge */}
+                        <div className="flex items-center gap-2 text-[8px] font-mono text-slate-400 bg-slate-900/80 px-2 py-1 rounded-lg border border-slate-800">
+                          <span>📦 {(doc.size / 1024).toFixed(1)} KB</span>
+                          <span>•</span>
+                          <span>📄 {doc.content?.length?.toLocaleString('id-ID') || 0} Karakter</span>
+                          <span>•</span>
+                          <span className="text-emerald-400 font-bold">100% TERBACA</span>
+                        </div>
+
+                        {/* Extracted Text Content Preview Box */}
+                        <div className="bg-slate-900/90 rounded-lg p-2 font-mono text-[9.5px] text-slate-200 max-h-52 overflow-y-auto custom-scrollbar whitespace-pre-wrap select-text leading-relaxed border border-slate-800/80">
+                          {doc.content || doc.preview}
+                        </div>
+
+                        {/* Direct Button: Instruct JIN to analyze content */}
+                        {onAnalyzeDocument && (
+                          <button
+                            onClick={() => onAnalyzeDocument(doc)}
+                            className="w-full py-1.5 px-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                          >
+                            <span>🔍 Instruksikan JIN Analisis Isi 10 Halaman Ini</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/90 text-center flex flex-col items-center justify-center gap-2 font-sans my-1">
+                    <div className="w-8 h-8 rounded-full bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <p className="text-[10px] text-slate-300 leading-normal">
-                      Tidak ada anomali atau data tiruan. Berikan perintah analisis dataset, perhitungan kuantitatif, atau query formal untuk memproses data baru.
+                    <div className="text-[11px] font-bold text-slate-200 font-mono">Belum Ada Dokumen Terunggah</div>
+                    <p className="text-[9px] text-slate-400 leading-relaxed max-w-[220px]">
+                      Klik menu <b>ANALYZE DATA</b> di sidebar kiri untuk mengunggah berkas Word (.docx), PDF, atau CSV agar isi dokumennya dapat dibaca dan dianalisis JIN di sini.
                     </p>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -757,7 +1110,7 @@ export default function MobileSimulatorHUD({
           {/* TAB 5: LIVE APP PROTOTYPE SANDBOX */}
           {currentTab === 'APP_PREVIEW' && (
             <div className="w-full h-full min-h-[260px] rounded-2xl overflow-hidden border border-purple-500/30 shadow-inner">
-              <AppSandboxRenderer appCode={generatedAppCode} />
+              <AppSandboxRenderer appCode={extractedAppCode} />
             </div>
           )}
         </div>

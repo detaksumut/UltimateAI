@@ -9,6 +9,7 @@ import { jinAvatarControllerInstance } from '../avatar/JinAvatarController.js';
 import { AVATAR_EVENTS, AVATAR_STATES } from '../avatar/JinAvatarStates.js';
 import { conversationSessionControllerInstance } from './ConversationSessionController.js';
 import { wakeWordEngineInstance } from './WakeWordEngine.js';
+import { speechDecisionGateInstance, SPEECH_DECISIONS } from './SpeechDecisionGate.js';
 
 export class VoiceController {
   constructor() {
@@ -17,6 +18,7 @@ export class VoiceController {
     this.fsm = jinAvatarControllerInstance;
     this.sessionController = conversationSessionControllerInstance;
     this.wakeWord = wakeWordEngineInstance;
+    this.gate = speechDecisionGateInstance;
     this.bargeInHandler = null;
 
     // Connect wake word listener safely
@@ -39,7 +41,7 @@ export class VoiceController {
   handleUserBargeIn() {
     // Only trigger barge-in if TTS is actively speaking
     if (this.tts.isPlaying) {
-      console.log('[VOICE] ⚡ Active Speech Barge-In detected, stopping TTS.');
+      console.log('[VOICE] ⚡ Active Speech Barge-In detected, stopping TTS silently without fillers.');
       this.tts.stop();
       this.sessionController.handleBargeIn('USER_BARGE_IN_TRIGGERED');
       if (this.bargeInHandler) {
@@ -106,8 +108,28 @@ export class VoiceController {
     const onEnd = typeof callbackEnd === 'function' ? callbackEnd : (typeof options === 'object' ? options?.onEnd : null);
     const sessionId = this.sessionController.getActiveSessionId();
 
-    return this.tts.speak(
+    // HARD SPEECH GATE: Enforce System-Level Speech Authorization
+    const gateDecision = this.gate.shouldSpeak({
+      type: options?.eventType || 'USER_RESPONSE',
+      interactionId: options?.interactionId || sessionId,
+      userPrompt: options?.userPrompt || '',
       text,
+      isVoiceTrigger: Boolean(options?.isVoiceTrigger),
+      isCritical: Boolean(options?.isCritical),
+      criticalType: options?.criticalType || null,
+      modality: options?.modality || null
+    });
+
+    if (gateDecision.decision === SPEECH_DECISIONS.NO_SPEECH) {
+      console.log(`[VOICE_GATE] 🔇 Speech Dropped (Default Silence) | Reason: ${gateDecision.reason}`);
+      if (onEnd) onEnd();
+      return;
+    }
+
+    const speakText = gateDecision.speechText || text;
+
+    return this.tts.speak(
+      speakText,
       {
         onStart: () => {
           this.fsm.dispatch({ type: AVATAR_EVENTS.RESPONSE_READY, sessionId });

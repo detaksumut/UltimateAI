@@ -122,7 +122,7 @@ export class AntigravityTransport {
     const systemInstruction = messages.find(m => m.role === 'system')?.content || '';
     const payload = {
       contents,
-      generationConfig: { temperature, maxOutputTokens: 2048 }
+      generationConfig: { temperature, maxOutputTokens: 8192 }
     };
 
     if (systemInstruction) {
@@ -155,18 +155,23 @@ export class AntigravityTransport {
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let fullText = '';
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunkText = decoder.decode(value, { stream: true });
-        const lines = chunkText.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Preserve incomplete trailing line across TCP boundaries
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
             try {
-              const json = JSON.parse(line.substring(6));
+              const jsonStr = trimmed.substring(6).trim();
+              if (jsonStr === '[DONE]') continue;
+              const json = JSON.parse(jsonStr);
               const token = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
               if (token) {
                 fullText += token;
@@ -210,7 +215,7 @@ export class AntigravityTransport {
 
     const payload = {
       model: targetModel,
-      max_tokens: 2048,
+      max_tokens: 8192,
       temperature,
       messages: userMessages.map(m => ({ role: m.role, content: m.content })),
       stream
