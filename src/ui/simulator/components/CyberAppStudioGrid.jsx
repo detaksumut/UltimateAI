@@ -134,7 +134,7 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
               style={{ background: `radial-gradient(circle at center, ${app.theme.glow} 0%, transparent 75%)` }}
             />
 
-            {/* Top Text Header & Crystal Action Button */}
+            {/* Top Text Header */}
             <div className="z-10 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h3 className={`text-xs font-mono font-black tracking-wider ${app.theme.text} uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]`}>
@@ -148,18 +148,21 @@ export default function CyberAppStudioGrid({ onSelectApp }) {
               <p className="text-[10px] text-slate-300 mt-1 leading-snug drop-shadow-sm font-sans">
                 {app.description}
               </p>
-              
+            </div>
+
+            {/* Real 3D Interactive WebGL Hologram Canvas (Centered & Prominent) */}
+            <div className="w-full flex-1 flex items-center justify-center my-1 z-0 group-hover:brightness-125 transition-all duration-300">
+              <Hologram3DCanvas type={app.id} colorHex={app.colorHex} />
+            </div>
+
+            {/* Bottom Crystal Action Button (Centered) */}
+            <div className="w-full flex items-center justify-center z-10 flex-shrink-0 mt-1">
               <button
-                className={`mt-2 px-2.5 py-1 rounded-lg border border-white/30 ${app.theme.btnBg} text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-md shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.4)] transition-all duration-300 group-hover:scale-105`}
+                className={`w-full py-1.5 rounded-lg border border-white/30 ${app.theme.btnBg} text-[10px] font-mono font-bold flex items-center justify-center gap-1.5 backdrop-blur-md shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.4)] transition-all duration-300 group-hover:scale-[1.02]`}
               >
                 <span>OPEN STUDIO</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
-            </div>
-
-            {/* Real 3D Interactive WebGL Hologram Canvas Inside Crystal Box */}
-            <div className="w-full flex items-center justify-center mt-1 z-0 group-hover:brightness-125 transition-all duration-300">
-              <Hologram3DCanvas type={app.id} colorHex={app.colorHex} />
             </div>
           </div>
         ))}
