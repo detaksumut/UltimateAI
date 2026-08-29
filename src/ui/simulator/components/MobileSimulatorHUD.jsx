@@ -346,15 +346,60 @@ export default function MobileSimulatorHUD({
         </div>
       </div>
 
-      {/* Realistic Thick Crystal Phone Bezel Frame */}
-      <div className="flex-1 w-full bg-[#050811]/90 rounded-[42px] p-3.5 border-4 border-slate-800/90 shadow-[0_0_40px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.25)] flex flex-col justify-between overflow-hidden relative min-h-[480px] backdrop-blur-xl z-10">
-        {/* Dynamic Island */}
-        <div className="w-full flex justify-center pt-0.5 pb-2 z-10">
-          <div className="w-24 h-5 bg-black rounded-full border border-slate-800/90 flex items-center justify-between px-2.5 shadow-inner">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700"></span>
-            <span className="w-2 h-2 rounded-full bg-cyan-400/90 shadow-[0_0_8px_#00e5ff] animate-pulse"></span>
+      {/* === CRYSTAL PHONE BODY === */}
+      <div className="flex-1 w-full relative z-10 min-h-[480px] flex flex-col" style={{filter:'drop-shadow(0 0 28px rgba(0,242,254,0.22))drop-shadow(0 0 55px rgba(0,0,0,0.95))'}}>
+
+        {/* Outer Crystal Phone Shell - Thick Prismatic Glass Body */}
+        <div className="absolute inset-0 rounded-[44px] bg-gradient-to-br from-white/[0.18] via-slate-900/55 to-black/90 border-2 border-white/35 pointer-events-none"
+          style={{boxShadow:'inset 0 3px 7px rgba(255,255,255,0.55),inset 0 -4px 8px rgba(0,0,0,0.85),inset 2px 0 4px rgba(255,255,255,0.18),inset -2px 0 4px rgba(255,255,255,0.08),0 30px 80px rgba(0,0,0,0.95)'}}>
+        </div>
+
+        {/* Crystal Prismatic Edge Sheen - left bevel */}
+        <div className="absolute top-8 bottom-8 left-0 w-[3px] rounded-l-full bg-gradient-to-b from-transparent via-white/60 to-transparent pointer-events-none"></div>
+        {/* Crystal right bevel */}
+        <div className="absolute top-8 bottom-8 right-0 w-[2px] rounded-r-full bg-gradient-to-b from-transparent via-white/25 to-transparent pointer-events-none"></div>
+
+        {/* Crystal Top Specular Rim */}
+        <div className="absolute top-0 left-8 right-8 h-[2px] rounded-full bg-gradient-to-r from-transparent via-white/85 to-transparent pointer-events-none"></div>
+
+        {/* Crystal Bottom Rim */}
+        <div className="absolute bottom-0 left-10 right-10 h-[1.5px] rounded-full bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent pointer-events-none"></div>
+
+        {/* Crystal Side Buttons - Power Button Right */}
+        <div className="absolute right-[-5px] top-[22%] w-[5px] h-10 rounded-r-lg pointer-events-none"
+          style={{background:'linear-gradient(to right,rgba(255,255,255,0.05),rgba(255,255,255,0.35),rgba(255,255,255,0.05))',boxShadow:'inset 0 1px 2px rgba(255,255,255,0.5),0 0 8px rgba(0,242,254,0.4)'}}>
+        </div>
+        {/* Volume Up Button Left */}
+        <div className="absolute left-[-5px] top-[18%] w-[5px] h-7 rounded-l-lg pointer-events-none"
+          style={{background:'linear-gradient(to left,rgba(255,255,255,0.05),rgba(255,255,255,0.3),rgba(255,255,255,0.05))',boxShadow:'inset 0 1px 2px rgba(255,255,255,0.45),0 0 6px rgba(0,242,254,0.3)'}}>
+        </div>
+        {/* Volume Down Button Left */}
+        <div className="absolute left-[-5px] top-[27%] w-[5px] h-7 rounded-l-lg pointer-events-none"
+          style={{background:'linear-gradient(to left,rgba(255,255,255,0.05),rgba(255,255,255,0.3),rgba(255,255,255,0.05))',boxShadow:'inset 0 1px 2px rgba(255,255,255,0.45),0 0 6px rgba(0,242,254,0.3)'}}>
+        </div>
+
+        {/* Crystal Camera Module - Top Back */}
+        <div className="absolute top-2.5 right-5 flex gap-1.5 pointer-events-none">
+          <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-slate-700 via-slate-900 to-black border border-white/20 shadow-[0_0_6px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.3)]"
+            style={{boxShadow:'0 0 8px rgba(0,242,254,0.25), inset 0 1px 2px rgba(255,255,255,0.35)'}}>
+          </div>
+          <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-slate-600 to-black border border-white/15 self-center"
+            style={{boxShadow:'0 0 5px rgba(168,85,247,0.3), inset 0 1px 2px rgba(255,255,255,0.25)'}}>
           </div>
         </div>
+
+        {/* Inner Screen Area - Dark Crystal Screen with content */}
+        <div className="flex-1 flex flex-col mx-2 my-2 rounded-[36px] overflow-hidden bg-[#050811]/95 relative"
+          style={{boxShadow:'inset 0 0 30px rgba(0,0,0,0.9), inset 0 2px 6px rgba(255,255,255,0.08)'}}>
+
+          {/* Crystal Dynamic Island */}
+          <div className="w-full flex justify-center pt-1.5 pb-1 z-10 flex-shrink-0">
+            <div className="w-24 h-5 rounded-full flex items-center justify-between px-2.5 shadow-inner"
+              style={{background:'linear-gradient(135deg,rgba(255,255,255,0.12),rgba(0,0,0,0.9))',border:'1px solid rgba(255,255,255,0.25)',boxShadow:'inset 0 1px 3px rgba(255,255,255,0.3),inset 0 -1px 2px rgba(0,0,0,0.7),0 0 10px rgba(0,242,254,0.2)'}}>
+              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-slate-600 to-black border border-white/20" style={{boxShadow:'inset 0 1px 2px rgba(255,255,255,0.4)'}}></span>
+              <span className="w-2 h-2 rounded-full bg-cyan-400/90 shadow-[0_0_8px_#00e5ff] animate-pulse"></span>
+            </div>
+          </div>
 
         {/* Intelligence Mode Tabs (5 Tabs: DIALOG, MEDIA, SEARCH, INSIGHTS, APP) */}
         <div className="flex items-center justify-between gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 mb-2 z-10 text-[9px] font-mono">
@@ -1149,18 +1194,21 @@ export default function MobileSimulatorHUD({
           )}
         </div>
 
-        {/* iPhone Bottom Pagination */}
-        <div className="w-full flex flex-col items-center gap-1.5 pt-2 pb-0.5 z-10">
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setCurrentTab('CONVERSATION')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'CONVERSATION' ? 'bg-blue-400 scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('MEDIA')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'MEDIA' ? 'bg-pink-400 scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('SEARCH')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'SEARCH' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('INSIGHTS')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'INSIGHTS' ? 'bg-cyan-400 scale-125' : 'bg-slate-600'}`} />
-            <button onClick={() => setCurrentTab('APP_PREVIEW')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'APP_PREVIEW' ? 'bg-purple-400 scale-125' : 'bg-slate-600'}`} />
+          {/* Crystal Bottom Pagination */}
+          <div className="w-full flex flex-col items-center gap-1.5 pt-2 pb-1.5 z-10 flex-shrink-0">
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setCurrentTab('CONVERSATION')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'CONVERSATION' ? 'bg-blue-400 scale-125 shadow-[0_0_6px_#60a5fa]' : 'bg-slate-600/60'}`} />
+              <button onClick={() => setCurrentTab('MEDIA')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'MEDIA' ? 'bg-pink-400 scale-125 shadow-[0_0_6px_#f472b6]' : 'bg-slate-600/60'}`} />
+              <button onClick={() => setCurrentTab('SEARCH')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'SEARCH' ? 'bg-emerald-400 scale-125 shadow-[0_0_6px_#34d399]' : 'bg-slate-600/60'}`} />
+              <button onClick={() => setCurrentTab('INSIGHTS')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'INSIGHTS' ? 'bg-cyan-400 scale-125 shadow-[0_0_6px_#22d3ee]' : 'bg-slate-600/60'}`} />
+              <button onClick={() => setCurrentTab('APP_PREVIEW')} className={`w-1.5 h-1.5 rounded-full transition-all ${currentTab === 'APP_PREVIEW' ? 'bg-purple-400 scale-125 shadow-[0_0_6px_#c084fc]' : 'bg-slate-600/60'}`} />
+            </div>
+            {/* Crystal Home Bar Pill */}
+            <div className="w-28 h-1 rounded-full" style={{background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)',boxShadow:'0 0 6px rgba(0,242,254,0.3)'}}></div>
           </div>
-          <div className="w-28 h-1 bg-slate-600 rounded-full"></div>
-        </div>
-      </div>
+
+        </div>{/* end inner screen */}
+      </div>{/* end crystal phone body */}
     </div>
   );
 }
