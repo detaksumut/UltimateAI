@@ -302,8 +302,12 @@ export default function MobileSimulatorHUD({
       <div className="absolute bottom-1 left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-cyan-400/60 rounded-bl-lg pointer-events-none"></div>
       <div className="absolute bottom-1 right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-cyan-400/60 rounded-br-lg pointer-events-none"></div>
 
-      {/* 1. TOP RIGHT JIN THICK CRYSTAL VAULT (Pojok Kanan Atas - Kotak Kristal Tebal) */}
-      <div className="w-full flex flex-col items-center justify-center pt-2 pb-1 bg-gradient-to-br from-white/[0.14] via-slate-950/70 to-black/90 border-2 border-cyan-400/40 rounded-2xl mb-3 shadow-[0_10px_35px_rgba(0,0,0,0.8),inset_0_2.5px_5px_rgba(255,255,255,0.45),inset_0_-3px_6px_rgba(0,0,0,0.7),0_0_20px_rgba(0,242,254,0.15)] relative overflow-hidden flex-shrink-0 backdrop-blur-2xl">
+      {/* 1. TOP RIGHT JIN CRYSTAL PANEL - Transparent Background */}
+      <div className="w-full flex flex-col items-center justify-center pt-2 pb-1 border-2 border-cyan-400/40 rounded-2xl mb-3 relative overflow-hidden flex-shrink-0"
+        style={{
+          background: 'transparent',
+          boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.30), inset 0 -2px 4px rgba(0,242,254,0.10), 0 0 20px rgba(0,242,254,0.18)'
+        }}>
         {/* Crystal Bevel Top Highlight */}
         <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent pointer-events-none"></div>
 
