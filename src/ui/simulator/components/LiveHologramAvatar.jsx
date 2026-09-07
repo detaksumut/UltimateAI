@@ -1,6 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import LiveMouthViseme from './LiveMouthViseme.jsx';
 import LiveFaceMimic from './LiveFaceMimic.jsx';
+import LiveJeannieHologram from './LiveJeannieHologram.jsx';
+import LiveChromaVideo from './LiveChromaVideo.jsx';
+import { magicChimeEngineInstance } from '../../../services/audio/MagicChimeEngine.js';
+import { Sparkles, Moon, Sun, ArrowUpRight, Volume2, Play } from 'lucide-react';
 
 export default function LiveHologramAvatar({ avatarState, audioMetrics, size = 'default', className = '', modalOpen = false }) {
   const canvasRef = useRef(null);
@@ -22,32 +26,137 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
   const isPanelSize = size === 'panel';
   const isCenterSize = size === 'center';
 
-  // Genie-Into-Lamp FSM: every time a popup mounts, JIN spirals down into the pedestal
-  // ("lamp") below; when the popup closes, JIN re-emerges in a bright swirl.
-  const [lampPhase, setLampPhase] = useState('IDLE');
-  const prevModalOpen = useRef(modalOpen);
+  // Avatar Persona: 'JEANNIE' (1970s I Dream of Jeannie) or 'JIN' (Classic Genie)
+  const [avatarPersona, setAvatarPersona] = useState('JEANNIE');
 
+  // Video loop states (Hellomaster.mp4 / Hedra AI Talking Avatar video loop)
+  const videoRef = useRef(null);
+  const [talkingVideoSrc, setTalkingVideoSrc] = useState('/Hellomaster.mp4');
+  const [hasVideoTalking, setHasVideoTalking] = useState(true);
+  const [hasVideoIdle, setHasVideoIdle] = useState(false);
+  const [isDemoPlaying, setIsDemoPlaying] = useState(false);
+
+  useEffect(() => {
+    // Check available AI generated video loops in /public
+    const candidates = ['/Hellomaster.mp4', '/hellomaster.mp4', '/jeannie-talk.mp4'];
+    let found = false;
+
+    const checkCandidate = async () => {
+      for (const src of candidates) {
+        try {
+          const res = await fetch(src, { method: 'HEAD' });
+          if (res.ok) {
+            setTalkingVideoSrc(src);
+            setHasVideoTalking(true);
+            found = true;
+            break;
+          }
+        } catch {
+          // ignore error
+        }
+      }
+      if (!found) setHasVideoTalking(false);
+    };
+
+    checkCandidate();
+
+    fetch('/jeannie-idle.mp4', { method: 'HEAD' })
+      .then(res => {
+        if (res.ok) setHasVideoIdle(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Jeannie Signature Sequence States
+  const [lampPhase, setLampPhase] = useState('IDLE'); // 'IDLE', 'ENTER', 'INSIDE', 'EMERGE'
+  const [isCrossingArms, setIsCrossingArms] = useState(false);
+  const [isNodding, setIsNodding] = useState(false);
+  const [isWinking, setIsWinking] = useState(false);
+
+  const prevModalOpen = useRef(modalOpen);
+  const prevSpeakingRef = useRef(isSpeaking);
+
+  // ═══ SIGNATURE ACTION 1: JINNY FOLDS ARMS, NODS, PLAYS CHIME & SUCKS INTO BOTTLE ═══
+  const triggerRestInBottle = useCallback(() => {
+    if (lampPhase === 'INSIDE' || lampPhase === 'ENTER') return;
+
+    // 1. Fold arms across chest + wink + head nod
+    setIsCrossingArms(true);
+    setIsWinking(true);
+    setIsNodding(true);
+
+    // 2. Play iconic 1970s Jeannie magic harp / chime glissando
+    magicChimeEngineInstance.playMagicChime();
+
+    // 3. After the magical nod (800ms), spiral vortex dissolve into bottle
+    const timer1 = setTimeout(() => {
+      setLampPhase('ENTER');
+      const timer2 = setTimeout(() => {
+        setLampPhase('INSIDE');
+        setIsCrossingArms(false);
+        setIsNodding(false);
+        setIsWinking(false);
+      }, 1100);
+      return () => clearTimeout(timer2);
+    }, 850);
+
+    return () => clearTimeout(timer1);
+  }, [lampPhase]);
+
+  // ═══ SIGNATURE ACTION 2: JINNY EMERGES BURSTING UP OUT OF BOTTLE WITH MAGENTA SMOKE ═══
+  const triggerSummonFromBottle = useCallback(() => {
+    if (lampPhase === 'IDLE' || lampPhase === 'EMERGE') return;
+
+    magicChimeEngineInstance.playMagicChime();
+    setLampPhase('EMERGE');
+    setIsCrossingArms(false);
+    setIsNodding(false);
+    setIsWinking(false);
+
+    const timer = setTimeout(() => {
+      setLampPhase('IDLE');
+    }, 1350);
+
+    return () => clearTimeout(timer);
+  }, [lampPhase]);
+
+  const playVideoDemo = useCallback(() => {
+    if (lampPhase === 'INSIDE') {
+      triggerSummonFromBottle();
+      setTimeout(() => {
+        setIsDemoPlaying(true);
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 900);
+      return;
+    }
+    setIsDemoPlaying(true);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [lampPhase, triggerSummonFromBottle]);
+
+  // Automatic Modal Open/Close handling
   useEffect(() => {
     if (prevModalOpen.current === modalOpen) return;
     prevModalOpen.current = modalOpen;
-    let enterTimer;
-    let exitTimer;
 
     if (modalOpen) {
-      // Suck JIN into the lamp hole
-      setLampPhase('ENTER');
-      enterTimer = setTimeout(() => setLampPhase('INSIDE'), 900);
+      triggerRestInBottle();
     } else {
-      // Unleash JIN back out of the lamp
-      setLampPhase('EMERGE');
-      exitTimer = setTimeout(() => setLampPhase('IDLE'), 1200);
+      triggerSummonFromBottle();
     }
+  }, [modalOpen, triggerRestInBottle, triggerSummonFromBottle]);
 
-    return () => {
-      clearTimeout(enterTimer);
-      clearTimeout(exitTimer);
-    };
-  }, [modalOpen]);
+  // Automatic Behavior: When user speaks / asks question while Jinny is inside bottle, summon her!
+  useEffect(() => {
+    if ((isProcessing || isSpeaking || isListening) && lampPhase === 'INSIDE') {
+      triggerSummonFromBottle();
+    }
+  }, [isProcessing, isSpeaking, isListening, lampPhase, triggerSummonFromBottle]);
 
   const lampClass =
     lampPhase === 'ENTER'
@@ -58,9 +167,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
       ? 'jin-lamp-inside'
       : '';
 
-  // Live Particle System (Cyber Dust / Hologram Energy Field)
-  // Saat lampPhase != IDLE, dust berubah jadi asap: ditarik masuk (ENTER/INSIDE)
-  // atau mengepul keluar (EMERGE) dari lubang lampu, mengikuti JIN.
+  // ═══ VIBRANT LIVE PARTICLE & JEANNIE SPIRAL SMOKE VORTEX CANVAS ═══
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -68,24 +175,25 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
     let animationFrameId;
     let last = performance.now();
 
-    const width = (canvas.width = 400);
-    const height = (canvas.height = 400);
+    const width = (canvas.width = 440);
+    const height = (canvas.height = 440);
     const holeX = width / 2;
-    const holeY = height + 30;
+    const holeY = height - 42; // Bottle neck location
 
     const seedAmbient = () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      radius: Math.random() * 1.6 + 0.8,
+      radius: Math.random() * 1.8 + 0.8,
       speedY: -(Math.random() * 0.7 + 0.3),
-      speedX: (Math.random() - 0.5) * 0.3,
+      speedX: (Math.random() - 0.5) * 0.4,
       opacity: Math.random() * 0.6 + 0.2,
       pulse: Math.random() * Math.PI,
       smokeT: 0,
-      smokeSeed: Math.random() * Math.PI
+      smokeSeed: Math.random() * Math.PI,
+      colorType: Math.random() > 0.4 ? 'magenta' : 'cyan'
     });
 
-    const particles = Array.from({ length: 36 }, seedAmbient);
+    const particles = Array.from({ length: 48 }, seedAmbient);
 
     let lastRenderTime = 0;
     const frameInterval = 1000 / 30; // 30 FPS throttle
@@ -105,63 +213,70 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
       const speedMult = isSpeaking ? 1.8 : isProcessing ? 2.4 : isListening ? 1.4 : 1.0;
 
       if (lampPhase === 'ENTER' || lampPhase === 'INSIDE') {
-        // SMOKE INHALED — dust ditarik spiral masuk ke lubang lampu
+        // ─── JEANNIE TORNADO SPIRAL VORTEX INTO BOTTLE ───
         particles.forEach((p, i) => {
           const dx = holeX - p.x;
           const dy = holeY - p.y;
           const dist = Math.hypot(dx, dy) || 1;
-          const pull = (230 + 90 * Math.sin(now / 180 + i)) * speedMult * dt;
+          const pull = (280 + 120 * Math.sin(now / 150 + i)) * speedMult * dt;
           const ux = dx / dist;
           const uy = dy / dist;
-          p.x += ux * pull - uy * pull * 0.9;
-          p.y += uy * pull + ux * pull * 0.9;
-          p.pulse += 0.05 * speedMult;
 
-          // respawn jauh saat tersedot habis ke lubang (asap terus mengalir)
-          if (dist < 12) {
-            p.x = 20 + Math.random() * (width - 40);
-            p.y = 24 + Math.random() * (height - 80);
-            p.opacity = Math.random() * 0.5 + 0.2;
-            p.radius = Math.random() * 2 + 1;
+          // Strong tangential spiral force (tornado corkscrew)
+          p.x += ux * pull - uy * pull * 1.35;
+          p.y += uy * pull + ux * pull * 1.35;
+          p.pulse += 0.08 * speedMult;
+
+          // Respawn in upper halo when sucked into the bottle neck
+          if (dist < 14) {
+            p.x = holeX + (Math.random() - 0.5) * 160;
+            p.y = 40 + Math.random() * 120;
+            p.opacity = Math.random() * 0.6 + 0.3;
+            p.radius = Math.random() * 2.5 + 1.0;
           }
 
           const near = 1 - Math.min(1, dist / 280);
-          const r = p.radius * (1 + near * 1.8);
-          const a = Math.max(0, (p.opacity + Math.sin(p.pulse) * 0.2) * (0.35 + near * 0.75) * (1 - near * 0.35));
-          const mix = near > 0.45 ? 1 : near / 0.45;
-          const rr = Math.round(0 + mix * 192);
-          const gg = Math.round(229 - mix * 97);
-          const bb = Math.round(255 - mix * 3);
+          const r = p.radius * (1 + near * 2.0);
+          const a = Math.max(0, (p.opacity + Math.sin(p.pulse) * 0.25) * (0.4 + near * 0.8) * (1 - near * 0.3));
+
+          // Color blend: Electric Magenta Pink & Glowing Cyan
+          const isPink = p.colorType === 'magenta' || avatarPersona === 'JEANNIE';
+          const rr = isPink ? Math.round(244 - near * 40) : Math.round(0 + near * 192);
+          const gg = isPink ? Math.round(63 + near * 80) : Math.round(229 - near * 97);
+          const bb = isPink ? Math.round(150 + near * 105) : 255;
+
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(0.001, r), 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${rr}, ${gg}, ${bb}, ${Math.max(0, Math.min(1, a))})`;
           ctx.fill();
         });
       } else if (lampPhase === 'EMERGE') {
-        // SMOKE BILLOWING — asap mengepul keluar dari lubang, membesar lalu memudar
+        // ─── JEANNIE SMOKE BURST OUT OF BOTTLE ───
         particles.forEach((p) => {
-          p.smokeT += dt * (34 + p.smokeSeed * 14) * speedMult;
+          p.smokeT += dt * (42 + p.smokeSeed * 18) * speedMult;
           const t = p.smokeT;
           if (t > 1) {
             p.smokeT = 0;
             p.smokeSeed = Math.random() * Math.PI;
             p.opacity = Math.random() * 0.5 + 0.3;
           }
-          p.x = holeX + Math.sin(t * 3.2 + p.smokeSeed) * (6 + t * 78);
-          p.y = holeY - t * (90 * speedMult) - Math.cos(t * 2.1 + p.smokeSeed) * (4 + t * 30);
-          const r = 1.2 + t * 9 + p.smokeSeed;
-          const a = Math.max(0, Math.min(1, Math.sin(t * Math.PI) * p.opacity * 1.1));
-          const mix = t;
-          const rr = Math.round(150 + mix * 80);
-          const gg = Math.round(205 + mix * 10);
-          const bb = Math.round(255);
+          p.x = holeX + Math.sin(t * 3.6 + p.smokeSeed) * (8 + t * 95);
+          p.y = holeY - t * (120 * speedMult) - Math.cos(t * 2.4 + p.smokeSeed) * (6 + t * 40);
+          const r = 1.5 + t * 11 + p.smokeSeed;
+          const a = Math.max(0, Math.min(1, Math.sin(t * Math.PI) * p.opacity * 1.25));
+
+          const isPink = avatarPersona === 'JEANNIE' || p.smokeSeed > 1.5;
+          const rr = isPink ? 244 : 0;
+          const gg = isPink ? Math.round(63 + t * 100) : 229;
+          const bb = 255;
+
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(0.001, r), 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${rr}, ${gg}, ${bb}, ${a})`;
           ctx.fill();
         });
       } else {
-        // IDLE — ambient cyber dust mengambang naik
+        // ─── IDLE AMBIENT CYBER DUST ───
         particles.forEach((p) => {
           p.y += p.speedY * speedMult;
           p.x += p.speedX * speedMult;
@@ -175,29 +290,27 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
           if (p.x > width) p.x = 0;
 
           const currentOpacity = p.opacity + Math.sin(p.pulse) * 0.25;
+          const isPink = avatarPersona === 'JEANNIE';
 
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(0.001, p.radius), 0, Math.PI * 2);
-          ctx.fillStyle = isProcessing
-            ? `rgba(192, 132, 252, ${Math.max(0.1, Math.min(1, currentOpacity))})`
-            : `rgba(0, 229, 255, ${Math.max(0.1, Math.min(1, currentOpacity))})`;
+          ctx.fillStyle = isPink
+            ? `rgba(244, 63, 94, ${Math.max(0.08, Math.min(0.9, currentOpacity))})`
+            : `rgba(0, 229, 255, ${Math.max(0.08, Math.min(0.9, currentOpacity))})`;
           ctx.fill();
         });
       }
     };
 
     animationFrameId = requestAnimationFrame(render);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [avatarState, isSpeaking, isProcessing, isListening, lampPhase]);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [avatarState, isSpeaking, isProcessing, isListening, lampPhase, avatarPersona]);
 
   const containerSize = isCenterSize
-    ? 'w-[420px] h-[420px] min-[1500px]:w-[480px] min-[1500px]:h-[480px]'
+    ? 'w-[420px] h-[440px] min-[1500px]:w-[480px] min-[1500px]:h-[480px]'
     : isPanelSize
-    ? 'w-60 h-60 sm:w-68 sm:h-68'
-    : 'w-80 h-80 md:w-96 md:h-96';
+    ? 'w-60 h-64 sm:w-68 sm:h-72'
+    : 'w-80 h-84 md:w-96 md:h-96';
 
   const avatarImgSize = isCenterSize
     ? 'w-[380px] h-[380px] min-[1500px]:w-[440px] min-[1500px]:h-[440px]'
@@ -206,16 +319,78 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
     : 'w-72 h-72 md:w-84 md:h-84';
 
   const pedestalSize = isCenterSize
-    ? 'w-[480px] h-32 -bottom-8'
+    ? 'w-[440px] h-32 -bottom-6'
     : isPanelSize
-    ? 'w-72 h-20 -bottom-4'
-    : 'w-96 h-28 -bottom-8';
-
-  // Floating hex data codes around the avatar
-  const hexCodes = ['0x4A494E', 'NEURAL', '0xFF00E5', 'SYNC', '0x00FFFF', 'ACTIVE', '0xDEAD', 'LINK', '0xBEEF', 'PULSE'];
+    ? 'w-68 h-20 -bottom-3'
+    : 'w-88 h-28 -bottom-6';
 
   return (
-    <div className={`relative ${containerSize} flex items-center justify-center select-none ${className}`}>
+    <div className={`relative ${containerSize} flex flex-col items-center justify-center select-none ${className}`}>
+      {/* ═══ INTERACTIVE AVATAR PERSONA & BOTTLE ACTION TOOLBAR ═══ */}
+      <div className="absolute -top-3 z-30 flex items-center gap-2 bg-[#040713]/85 backdrop-blur-md border border-cyan-400/25 px-3 py-1 rounded-full shadow-[0_0_16px_rgba(0,229,255,0.2)]">
+        {/* Toggle Persona: Jinny vs JIN */}
+        <button
+          type="button"
+          onClick={() => setAvatarPersona(p => (p === 'JEANNIE' ? 'JIN' : 'JEANNIE'))}
+          className="flex items-center gap-1.5 text-[9px] font-mono tracking-wider transition-all duration-200 hover:scale-105"
+          style={{
+            color: avatarPersona === 'JEANNIE' ? '#f43f5e' : '#00e5ff',
+            textShadow: avatarPersona === 'JEANNIE' ? '0 0 8px #f43f5e' : '0 0 8px #00e5ff'
+          }}
+          title="Ganti Avatar: Jinny (1970s Jeannie) atau JIN Klasik"
+        >
+          <Sparkles className="w-3 h-3" />
+          <span className="font-bold">{avatarPersona === 'JEANNIE' ? 'JINNY 70s' : 'JIN GENIE'}</span>
+        </button>
+
+        <span className="text-white/20 text-[9px]">|</span>
+
+        {/* Trigger Magic Bottle In/Out Action */}
+        <button
+          type="button"
+          onClick={lampPhase === 'INSIDE' ? triggerSummonFromBottle : triggerRestInBottle}
+          className="flex items-center gap-1 text-[8.5px] font-mono px-2 py-0.5 rounded-full transition-all duration-200 hover:brightness-125"
+          style={{
+            background: lampPhase === 'INSIDE' ? 'rgba(0,229,255,0.15)' : 'rgba(244,63,94,0.15)',
+            border: lampPhase === 'INSIDE' ? '1px solid rgba(0,229,255,0.4)' : '1px solid rgba(244,63,94,0.4)',
+            color: lampPhase === 'INSIDE' ? '#00e5ff' : '#f472b6'
+          }}
+          title={lampPhase === 'INSIDE' ? 'Panggil keluar dari botol' : 'Melipat tangan, mengangguk, lalu masuk botol'}
+        >
+          {lampPhase === 'INSIDE' ? (
+            <>
+              <Sun className="w-2.5 h-2.5" />
+              <span>PANGGIL</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-2.5 h-2.5" />
+              <span>MASUK BOTOL</span>
+            </>
+          )}
+        </button>
+
+        {/* Play Lipsync Video Demo (Hellomaster.mp4) */}
+        {avatarPersona === 'JEANNIE' && hasVideoTalking && (
+          <>
+            <span className="text-white/20 text-[9px]">|</span>
+            <button
+              type="button"
+              onClick={playVideoDemo}
+              className={`flex items-center gap-1 text-[8.5px] font-mono px-2 py-0.5 rounded-full transition-all duration-200 hover:brightness-125 ${
+                isDemoPlaying
+                  ? 'bg-amber-400 text-black font-bold shadow-[0_0_12px_#fbbf24]'
+                  : 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.3)]'
+              }`}
+              title="Putar video lip-sync Hellomaster.mp4"
+            >
+              <Play className="w-2.5 h-2.5 fill-current" />
+              <span>{isDemoPlaying ? 'PLAYING...' : 'HELLO MASTER'}</span>
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Background Holographic Live Particle Canvas */}
       <canvas
         ref={canvasRef}
@@ -227,151 +402,188 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
         className="absolute inset-0 w-full h-full pointer-events-none z-0"
         viewBox="0 0 400 400"
       >
-        {/* Outer Orbit */}
         <g
           className="orbit-ring-outer origin-center"
           style={{ animationDuration: `${Math.max(4, 18 / orbitSpeed)}s` }}
         >
-          <circle cx="200" cy="200" r="188" fill="none" stroke="#00e5ff" strokeWidth="0.5" strokeDasharray="2 6" strokeOpacity="0.2" />
-          <circle cx="200" cy="200" r="182" fill="none" stroke="#00e5ff" strokeWidth="1.2" strokeDasharray="8 12" strokeOpacity="0.35" />
-          <circle cx="200" cy="200" r="168" fill="none" stroke="#38bdf8" strokeWidth="0.8" strokeDasharray="40 80" strokeOpacity="0.4" />
-          {/* Data point markers on outer orbit */}
-          {[0, 60, 120, 180, 240, 300].map((deg) => (
-            <circle key={deg} cx={200 + 182 * Math.cos(deg * Math.PI / 180)} cy={200 + 182 * Math.sin(deg * Math.PI / 180)} r="2" fill="#00e5ff" fillOpacity="0.6" />
-          ))}
+          <circle cx="200" cy="200" r="186" fill="none" stroke={avatarPersona === 'JEANNIE' ? '#f43f5e' : '#00e5ff'} strokeWidth="0.6" strokeDasharray="2 6" strokeOpacity="0.25" />
+          <circle cx="200" cy="200" r="180" fill="none" stroke="#00e5ff" strokeWidth="1.2" strokeDasharray="8 12" strokeOpacity="0.35" />
         </g>
-
-        {/* Inner Counter-Rotating Orbit */}
         <g
           className="orbit-ring-inner origin-center"
           style={{ animationDuration: `${Math.max(3, 13 / orbitSpeed)}s` }}
         >
-          <circle cx="200" cy="200" r="148" fill="none" stroke="#60a5fa" strokeWidth="0.4" strokeDasharray="1 4" strokeOpacity="0.25" />
-          <circle cx="200" cy="200" r="140" fill="none" stroke="#60a5fa" strokeWidth="1" strokeDasharray="4 8" strokeOpacity="0.4" />
-          <circle cx="200" cy="200" r="120" fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeDasharray="20 40" strokeOpacity="0.5" />
-          {/* Data point markers on inner orbit */}
-          {[0, 90, 180, 270].map((deg) => (
-            <circle key={deg} cx={200 + 140 * Math.cos(deg * Math.PI / 180)} cy={200 + 140 * Math.sin(deg * Math.PI / 180)} r="1.5" fill="#c084fc" fillOpacity="0.5" />
-          ))}
+          <circle cx="200" cy="200" r="140" fill="none" stroke={avatarPersona === 'JEANNIE' ? '#f472b6' : '#60a5fa'} strokeWidth="1" strokeDasharray="4 8" strokeOpacity="0.4" />
         </g>
-
-        {/* Hexagonal grid hints */}
-        {[80, 160, 240, 320].map((r) => (
-          <polygon
-            key={r}
-            points={Array.from({ length: 6 }, (_, i) => {
-              const angle = (i * 60 - 30) * Math.PI / 180;
-              return `${200 + r * Math.cos(angle)},${200 + r * Math.sin(angle)}`;
-            }).join(' ')}
-            fill="none"
-            stroke="#00e5ff"
-            strokeWidth="0.3"
-            strokeOpacity="0.08"
-          />
-        ))}
       </svg>
 
       {/* Dynamic Ambient Energy Aura Glow */}
       <div
-        className="absolute inset-4 rounded-full transition-all duration-300 pointer-events-none z-0"
+        className="absolute inset-6 rounded-full transition-all duration-300 pointer-events-none z-0"
         style={{
           background: isProcessing
             ? 'radial-gradient(circle, rgba(168, 85, 247, 0.55) 0%, rgba(0,0,0,0) 70%)'
-            : isSpeaking
-            ? `radial-gradient(circle, rgba(0, 229, 255, ${0.5 + mouthGlow * 0.5}) 0%, rgba(0,0,0,0) 72%)`
-            : 'radial-gradient(circle, rgba(0, 229, 255, 0.4) 0%, rgba(0,0,0,0) 70%)',
+            : avatarPersona === 'JEANNIE'
+            ? `radial-gradient(circle, rgba(244, 63, 94, ${0.45 + mouthGlow * 0.45}) 0%, rgba(0,229,255,0.2) 45%, rgba(0,0,0,0) 72%)`
+            : `radial-gradient(circle, rgba(0, 229, 255, ${0.45 + mouthGlow * 0.45}) 0%, rgba(0,0,0,0) 70%)`,
           transform: `scale(${1 + volume * 0.25})`
         }}
       />
 
-      {/* Floating Hex Data Codes */}
-      {hexCodes.map((code, i) => {
-        const angle = (i / hexCodes.length) * Math.PI * 2;
-        const radius = isCenterSize ? 220 : 180;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
-        return (
-          <div
-            key={i}
-            className="absolute z-5 pointer-events-none font-mono text-[8px] tracking-wider"
-            style={{
-              left: `calc(50% + ${x}px)`,
-              top: `calc(50% + ${y}px)`,
-              color: i % 2 === 0 ? 'rgba(0,229,255,0.2)' : 'rgba(192,132,252,0.2)',
-              transform: 'translate(-50%, -50%)',
-              animation: `ambientDrift ${4 + i * 0.5}s ease-in-out infinite ${i * 0.3}s`
-            }}
-          >
-            {code}
-          </div>
-        );
-      })}
-
-      {/* Pure Transparent Neon JIN Line-Art Avatar */}
+      {/* ═══ AVATAR HOLOGRAM CONTAINER (APPLIES VORTEX SPIRAL ENTER/EMERGE/INSIDE) ═══ */}
       <div className={`relative z-10 ${avatarImgSize} flex items-center justify-center hologram-avatar-container ${lampClass}`}>
-        <img
-          src="/genie-bg.png"
-          alt="Live JIN Hologram"
-          className="w-full h-full select-none pointer-events-none transition-all duration-150"
-          style={{
-            transform: isSpeaking && jawOffset > 0.4 ? `translateY(${jawOffset * 0.35}px)` : 'none',
-            filter: isSpeaking
-              ? `drop-shadow(0 0 ${18 + mouthGlow * 28}px rgba(0, 229, 255, 0.95)) drop-shadow(0 0 35px rgba(168, 85, 247, 0.7)) brightness(${1.05 + mouthGlow * 0.35})`
-              : isProcessing
-              ? 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.95)) hue-rotate(45deg)'
-              : isListening
-              ? 'drop-shadow(0 0 25px rgba(0, 229, 255, 0.9)) brightness(1.15)'
-              : 'drop-shadow(0 0 16px rgba(0, 229, 255, 0.7)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.5))'
-          }}
-        />
+        {avatarPersona === 'JEANNIE' ? (
+          /* ─── REAL BARBARA EDEN AS JEANNIE 1970s LIVING HOLOGRAM ─── */
+          <div className="relative w-full h-full flex items-center justify-center scale-[0.82] -translate-y-2">
+            {/* Real Barbara Eden Avatar: Seamless AI Video Loop (Hellomaster.mp4) or Pristine Photo */}
+            {(isSpeaking || isDemoPlaying) && hasVideoTalking ? (
+              <LiveChromaVideo
+                src={talkingVideoSrc}
+                isPlaying={isSpeaking || isDemoPlaying}
+                isMuted={!isDemoPlaying}
+                isLoop={!isDemoPlaying}
+                isNodding={isNodding}
+                onEnded={() => {
+                  if (isDemoPlaying) setIsDemoPlaying(false);
+                }}
+              />
+            ) : !isSpeaking && !isDemoPlaying && hasVideoIdle ? (
+              <LiveChromaVideo
+                src="/jeannie-idle.mp4"
+                isPlaying={true}
+                isMuted={true}
+                isLoop={true}
+                isNodding={isNodding}
+              />
+            ) : (
+              <img
+                src="/jeannie-real.png"
+                alt="Barbara Eden as Jeannie"
+                className={`w-full h-full object-contain select-none pointer-events-none transition-all duration-300 ${
+                  isNodding ? 'jeannie-head-nod' : ''
+                }`}
+                style={{
+                  transform: isSpeaking
+                    ? `translateY(${Math.sin(Date.now() / 150) * 2.2}px) rotate(${Math.sin(Date.now() / 300) * 0.8}deg) scale(${1 + (volume || 0) * 0.025})`
+                    : 'none',
+                  filter: isSpeaking
+                    ? `drop-shadow(0 0 18px rgba(244, 63, 94, 0.95)) drop-shadow(0 0 38px rgba(0, 229, 255, 0.75)) brightness(${1.08 + mouthGlow * 0.2})`
+                    : isProcessing
+                    ? 'drop-shadow(0 0 28px rgba(192, 132, 252, 0.95)) hue-rotate(45deg)'
+                    : 'drop-shadow(0 0 18px rgba(244, 63, 94, 0.8)) drop-shadow(0 0 28px rgba(0, 229, 255, 0.5)) brightness(1.05)'
+                }}
+              />
+            )}
 
-        {/* Dynamic Holographic Facial Mimicry Engine (Eye Blinking, Eyebrows & Smiling Squint) */}
-        <LiveFaceMimic
-          blinkProgress={blinkProgress}
-          eyebrowRaise={eyebrowRaise}
-          eyeSquint={eyeSquint}
-          isSpeaking={isSpeaking}
-          isProcessing={isProcessing}
-          mouthGlow={mouthGlow}
-        />
+            {/* Subtle Holographic Vocal Resonance Glow on Smile/Mouth during speech */}
+            {isSpeaking && (
+              <div
+                className="absolute pointer-events-none z-10 transition-opacity duration-150"
+                style={{
+                  top: '34.5%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  opacity: Math.max(0.15, mouthGlow * 0.65)
+                }}
+              >
+                <div className="w-14 h-5 rounded-full bg-pink-400/20 blur-sm shadow-[0_0_16px_#f43f5e]" />
+              </div>
+            )}
 
-        {/* Dynamic Holographic Lip-Sync Engine (SVG Viseme Morphing) */}
-        <LiveMouthViseme
-          isSpeaking={isSpeaking}
-          aperture={aperture}
-          spread={spread}
-          mouthGlow={mouthGlow}
-          isProcessing={isProcessing}
-        />
-
-        {/* Live Speaking Frequency Glow on Beard / Mouth area */}
-        {isSpeaking && (
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-75"
-            style={{ opacity: Math.max(0.12, mouthGlow * 0.6) }}
-          >
-            <div className="w-20 h-11 rounded-full bg-cyan-400/20 blur-sm translate-y-[73px] shadow-[0_0_20px_#00e5ff]"></div>
+            {/* Magic Wink Sparkling Starburst over her right eye */}
+            {isWinking && (
+              <div
+                className="absolute z-20 pointer-events-none animate-ping"
+                style={{
+                  top: '26.7%',
+                  left: '54.5%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+              >
+                <div className="relative w-10 h-10 flex items-center justify-center">
+                  <div className="absolute w-8 h-1 bg-yellow-300 rounded-full shadow-[0_0_12px_#fbbf24]" />
+                  <div className="absolute w-1 h-8 bg-yellow-300 rounded-full shadow-[0_0_12px_#fbbf24]" />
+                  <div className="absolute w-5 h-5 rounded-full bg-white shadow-[0_0_16px_#ffffff]" />
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Live Listening Audio Focus Beacon - triple ring */}
-        {isListening && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-40 h-40 rounded-full border border-cyan-400/30 animate-ping opacity-30" style={{ animationDuration: '1.5s' }}></div>
-            <div className="absolute w-52 h-52 rounded-full border border-cyan-400/20 animate-ping opacity-20" style={{ animationDuration: '2s', animationDelay: '0.5s' }}></div>
-          </div>
+        ) : (
+          /* ─── CLASSIC JIN GENIE AVATAR (ORIGINAL) ─── */
+          <>
+            <img
+              src="/genie-bg.png"
+              alt="Live JIN Hologram"
+              className="w-full h-full select-none pointer-events-none transition-all duration-150"
+              style={{
+                transform: isSpeaking && jawOffset > 0.4 ? `translateY(${jawOffset * 0.35}px)` : 'none',
+                filter: isSpeaking
+                  ? `drop-shadow(0 0 ${18 + mouthGlow * 28}px rgba(0, 229, 255, 0.95)) drop-shadow(0 0 35px rgba(168, 85, 247, 0.7)) brightness(${1.05 + mouthGlow * 0.35})`
+                  : isProcessing
+                  ? 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.95)) hue-rotate(45deg)'
+                  : isListening
+                  ? 'drop-shadow(0 0 25px rgba(0, 229, 255, 0.9)) brightness(1.15)'
+                  : 'drop-shadow(0 0 16px rgba(0, 229, 255, 0.7)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.5))'
+              }}
+            />
+            <LiveFaceMimic
+              blinkProgress={blinkProgress}
+              eyebrowRaise={eyebrowRaise}
+              eyeSquint={eyeSquint}
+              isSpeaking={isSpeaking}
+              isProcessing={isProcessing}
+              mouthGlow={mouthGlow}
+            />
+            <LiveMouthViseme
+              isSpeaking={isSpeaking}
+              aperture={aperture}
+              spread={spread}
+              mouthGlow={mouthGlow}
+              isProcessing={isProcessing}
+            />
+          </>
         )}
       </div>
 
-      {/* Concentric Glowing Hologram Ripple Base Pedestal */}
-      <div className={`absolute ${pedestalSize} flex items-center justify-center pointer-events-none z-0`}>
-        <div className="absolute w-[95%] h-[80%] rounded-[100%] border border-cyan-400/20 ripple-circle-1" style={{ animationDelay: '0s' }}></div>
-        <div className="absolute w-[90%] h-[70%] rounded-[100%] border border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_35px_rgba(0,229,255,0.6)] ripple-circle-1"></div>
-        <div className="absolute w-[70%] h-[50%] rounded-[100%] border border-blue-400/50 ripple-circle-2"></div>
-        <div className="absolute w-[50%] h-[35%] rounded-[100%] border border-cyan-300/60 ripple-circle-3"></div>
-        <div className="absolute w-[30%] h-[20%] rounded-[100%] bg-cyan-400/90 blur-none shadow-[0_0_30px_#00e5ff]"></div>
-        {/* Pedestal glow ring */}
-        <div className="absolute w-[100%] h-[85%] rounded-[100%] bg-gradient-to-t from-cyan-500/10 to-transparent blur-sm"></div>
+      {/* ═══ ICONIC ANTIQUE JEANNIE BOTTLE & PEDESTAL ═══ */}
+      <div className={`absolute ${pedestalSize} flex flex-col items-center justify-center pointer-events-none z-10`}>
+        {/* Real Authentic 1970s Purple Jeannie Decanter Bottle */}
+        <div className="relative -top-2 h-28 flex items-center justify-center transition-all duration-300">
+          <img
+            src="/jeannie-bottle-real.png"
+            alt="Authentic 1970s Jeannie Bottle"
+            className="h-full object-contain select-none pointer-events-none"
+            style={{
+              filter: lampPhase === 'INSIDE'
+                ? 'drop-shadow(0 0 18px rgba(244, 63, 94, 0.95)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.8)) brightness(1.2)'
+                : 'drop-shadow(0 0 10px rgba(244, 63, 94, 0.6)) drop-shadow(0 0 16px rgba(0, 229, 255, 0.4))'
+            }}
+          />
+
+          {/* Magical Internal Heart-Glow when Jinny is sleeping inside the bottle */}
+          {lampPhase === 'INSIDE' && (
+            <div
+              className="absolute pointer-events-none animate-pulse"
+              style={{
+                bottom: '18px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(244,63,94,0.9) 0%, rgba(217,70,239,0.5) 50%, transparent 80%)',
+                filter: 'blur(4px) drop-shadow(0 0 16px #f43f5e)'
+              }}
+            />
+          )}
+
+          {/* Vapor / Smoke wisp floating from the top lip of the real bottle */}
+          <div
+            className="absolute -top-1 w-2.5 h-2.5 rounded-full bg-pink-400/60 blur-xs animate-ping"
+            style={{ animationDuration: '2s' }}
+          />
+        </div>
+
+        {/* Concentric Base Pedestal Rings */}
+        <div className="absolute w-[92%] h-[60%] -bottom-2 rounded-[100%] border border-cyan-400/30 bg-cyan-500/10 shadow-[0_0_25px_rgba(0,229,255,0.4)] ripple-circle-1" />
       </div>
     </div>
   );

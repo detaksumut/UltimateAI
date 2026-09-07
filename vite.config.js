@@ -206,7 +206,7 @@ function tavilyDriveFPlugin() {
   }
 
   // Autonomous Cron Timer (checks every 60 seconds for 07:00 WIB)
-  setInterval(() => {
+  const cronTimer = setInterval(() => {
     try {
       const now = new Date();
       // Format current time in Asia/Jakarta timezone
@@ -235,6 +235,7 @@ function tavilyDriveFPlugin() {
       console.warn('[ScheduleTimer] Error in cron tick:', e.message);
     }
   }, 60000);
+  if (cronTimer.unref) cronTimer.unref();
 
   return {
     name: 'tavily-drive-f-plugin',
@@ -836,6 +837,21 @@ function tavilyDriveFPlugin() {
 
 export default defineConfig({
   plugins: [react(), tavilyDriveFPlugin()],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) return 'vendor-three';
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  },
   server: {
     port: 5177,
     proxy: {
