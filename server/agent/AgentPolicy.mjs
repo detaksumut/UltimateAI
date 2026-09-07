@@ -15,10 +15,10 @@ export const JIN_OPERATING_DOCTRINE = {
   ],
 
   SPECIALIST_ROUTING_POLICY: {
-    FAST_RESEARCH: ['gemini-3.5-flash', 'gemini-3.0-flash'],
-    DEEP_REASONING: ['gemini-3.1-pro', 'gpt-oss-120b', 'deepseek-reasoner'],
-    CODE_ENGINEERING: ['claude-sonnet-4', 'claude-3-5-sonnet-20241022', 'claude-opus-4'],
-    LOCAL_FALLBACK: ['ollama-local', 'heuristic-synthesis']
+    FAST_RESEARCH: ['hermes3:8b', 'qwen3:8b'],
+    DEEP_REASONING: ['hermes3:8b', 'qwen3:8b'],
+    CODE_ENGINEERING: ['hermes3:8b', 'qwen3:8b'],
+    LOCAL_FALLBACK: ['hermes3:8b', 'qwen3:8b']
   },
 
   GOVERNANCE: {

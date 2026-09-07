@@ -1,9 +1,9 @@
-// electron/runtime.js — Process Manager for 9Router + Express
+// electron/runtime.js — Process Manager for Express Backend
 // ────────────────────────────────────────────────────────────
 // Manages child processes, health checks, auto-restart, and graceful shutdown.
 // ────────────────────────────────────────────────────────────
 
-const { fork, spawn } = require('child_process');
+const { fork } = require('child_process');
 const path = require('path');
 const http = require('http');
 
@@ -18,13 +18,10 @@ class RuntimeManager {
     this.isDev = isDev;
 
     this.expressProcess = null;
-    this.nineRouterProcess = null;
     this.expressPort = 3001;
-    this.nineRouterPort = 20128;
     this.healthInterval = null;
 
     this._expressRetries = 0;
-    this._nineRouterRetries = 0;
     this._stopping = false;
   }
 
@@ -32,61 +29,12 @@ class RuntimeManager {
   async start(onStatus) {
     this._stopping = false;
 
-    // Step 1: Start 9Router
-    onStatus?.('Starting AI Engine...');
-    await this._start9Router();
-    onStatus?.('AI Engine ready');
-
-    // Step 2: Start Express backend
+    // Start Express backend
     onStatus?.('Starting Research Platform...');
     await this._startExpress();
     onStatus?.('Research Platform ready');
 
     onStatus?.('Ready!');
-  }
-
-  // ── Start 9Router ───────────────────────────────────────────────────────
-  async _start9Router() {
-    return new Promise((resolve, reject) => {
-      const nineRouterPath = this.isDev
-        ? null // In dev, assume 9Router is running externally
-        : path.join(this.appPath, '..', 'runtime', '9router', '9router.exe');
-
-      if (this.isDev) {
-        // In development, 9Router should already be running
-        console.log('[Runtime] Dev mode: assuming 9Router is running externally on port', this.nineRouterPort);
-        resolve();
-        return;
-      }
-
-      try {
-        this.nineRouterProcess = spawn(nineRouterPath, [], {
-          cwd: path.dirname(nineRouterPath),
-          stdio: ['pipe', 'pipe', 'pipe'],
-          windowsHide: true,
-        });
-
-        this.nineRouterProcess.on('error', (err) => {
-          console.error('[Runtime] 9Router error:', err.message);
-        });
-
-        this.nineRouterProcess.on('exit', (code) => {
-          console.warn('[Runtime] 9Router exited with code', code);
-          if (!this._stopping && this._nineRouterRetries < MAX_RETRIES) {
-            this._nineRouterRetries++;
-            console.log(`[Runtime] Restarting 9Router (attempt ${this._nineRouterRetries}/${MAX_RETRIES})...`);
-            setTimeout(() => this._start9Router().catch(console.error), 2000);
-          }
-        });
-
-        // Wait for health check
-        this._waitForService(this.nineRouterPort, '/health', STARTUP_TIMEOUT_MS)
-          .then(resolve)
-          .catch(reject);
-      } catch (err) {
-        reject(new Error(`Failed to start 9Router: ${err.message}`));
-      }
-    });
   }
 
   // ── Start Express ───────────────────────────────────────────────────────
@@ -105,7 +53,6 @@ class RuntimeManager {
       const env = {
         ...process.env,
         PORT: String(this.expressPort),
-        NINE_ROUTER_URL: `http://localhost:${this.nineRouterPort}/v1`,
         NODE_ENV: this.isDev ? 'development' : 'production',
         ULTIMATEAI_DATA_PATH: this.userDataPath,
       };
@@ -150,7 +97,7 @@ class RuntimeManager {
 
     this.healthInterval = setInterval(async () => {
       const expressOk = await this._ping(this.expressPort, '/api/projects');
-      const healthy = expressOk; // 9Router health is checked indirectly through Express
+      const healthy = expressOk;
 
       if (healthy !== lastHealthy) {
         lastHealthy = healthy;
@@ -168,17 +115,11 @@ class RuntimeManager {
       this.healthInterval = null;
     }
 
-    // Graceful shutdown: Express first, then 9Router
+    // Graceful shutdown: Express
     if (this.expressProcess) {
       this.expressProcess.kill('SIGTERM');
       await this._waitForExit(this.expressProcess, 5000);
       this.expressProcess = null;
-    }
-
-    if (this.nineRouterProcess) {
-      this.nineRouterProcess.kill('SIGTERM');
-      await this._waitForExit(this.nineRouterProcess, 5000);
-      this.nineRouterProcess = null;
     }
   }
 
@@ -186,9 +127,7 @@ class RuntimeManager {
   getStatus() {
     return {
       express: this.expressProcess && !this.expressProcess.killed ? 'running' : 'stopped',
-      nineRouter: this.isDev ? 'external' : (this.nineRouterProcess && !this.nineRouterProcess.killed ? 'running' : 'stopped'),
       expressPort: this.expressPort,
-      nineRouterPort: this.nineRouterPort,
     };
   }
 

@@ -1,6 +1,6 @@
 /**
  * GatewayTelemetry.mjs
- * Genuine, un-fabricated server-side execution telemetry logger for 9Router Gateway.
+ * Genuine, un-fabricated server-side execution telemetry logger for Local Router Gateway.
  */
 
 export class GatewayTelemetry {
@@ -12,7 +12,7 @@ export class GatewayTelemetry {
       ...payload
     };
     
-    console.log(`[9ROUTER TELEMETRY ${timestamp}] [${type}]`, JSON.stringify(payload));
+    console.log(`[LOCAL ROUTER TELEMETRY ${timestamp}] [${type}]`, JSON.stringify(payload));
     return entry;
   }
 }

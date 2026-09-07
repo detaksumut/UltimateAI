@@ -12,7 +12,14 @@ export function useAudioAnalyzer(avatarState = 'IDLE') {
     mouthGlow: 0,
     orbitSpeed: 1.0,
     spectrum: [10, 15, 12, 18, 14, 16, 12, 10],
-    state: avatarState
+    state: avatarState,
+    aperture: 0,
+    spread: 1.0,
+    jawOffset: 0,
+    blinkProgress: 0,
+    eyebrowRaise: 0,
+    eyeSquint: 0,
+    isSpeaking: false
   });
 
   useEffect(() => {

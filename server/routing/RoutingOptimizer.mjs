@@ -1,36 +1,27 @@
 /**
  * RoutingOptimizer.mjs
- * Pillar 4: Dynamic 9-Engine Routing Optimization & Performance Learning Engine.
+ * Dynamic Local Routing Optimization & Performance Learning Engine for UltimateAI.
  * 
- * Scores and selects candidate specialist models and Antigravity pools based on:
+ * Scores and selects candidate local models based on:
  *  - Task complexity (0.0 - 1.0)
  *  - Reasoning depth required
  *  - Latency fit
  *  - Tool compatibility
- *  - Antigravity pool availability & health
- *  - Historical performance telemetry (learned dynamically from actual runtime outcomes)
- * 
- * STRICT ZERO HARDCODED PREFERENCES:
- *  - No "task X always uses model Y" rules.
- *  - Learning records aggregate execution statistics without secrets or artificial score inflation.
+ *  - Historical performance telemetry
  */
 
 import fs from 'fs';
 import path from 'path';
 
 export const CANDIDATE_ENGINES = [
-  { id: 'gemini-3.6-flash-high', maxReasoning: 0.95, avgLatencyMs: 800, toolSupport: 1.0, costTier: 'MEDIUM' },
-  { id: 'gemini-2.5-flash', maxReasoning: 0.85, avgLatencyMs: 450, toolSupport: 0.95, costTier: 'LOW', multimodal: true },
-  { id: 'gemini-3.5-flash', maxReasoning: 0.80, avgLatencyMs: 500, toolSupport: 0.90, costTier: 'LOW' },
-  { id: 'claude-3-5-sonnet', maxReasoning: 0.98, avgLatencyMs: 1400, toolSupport: 0.95, costTier: 'HIGH' },
-  { id: 'deepseek-r1', maxReasoning: 0.96, avgLatencyMs: 1800, toolSupport: 0.80, costTier: 'HIGH', mathFocus: true },
-  { id: 'gpt-4o', maxReasoning: 0.92, avgLatencyMs: 1100, toolSupport: 0.95, costTier: 'HIGH' }
+  { id: 'hermes3:8b', maxReasoning: 0.95, avgLatencyMs: 650, toolSupport: 1.0, costTier: 'ZERO_LOCAL', default: true },
+  { id: 'qwen3:8b', maxReasoning: 0.92, avgLatencyMs: 600, toolSupport: 0.95, costTier: 'ZERO_LOCAL' }
 ];
 
 export class RoutingOptimizer {
   constructor(telemetryPath = null) {
     this.telemetryPath = telemetryPath || path.resolve(process.cwd(), 'server', 'data', 'routing_performance_history.json');
-    this.performanceHistory = new Map(); // engine -> { totalTasks, successes, failures, avgLatencyMs, verificationPassRate }
+    this.performanceHistory = new Map();
     this._loadHistory();
   }
 
@@ -59,40 +50,28 @@ export class RoutingOptimizer {
     } catch (_) {}
   }
 
-  /**
-   * Selects best specialist engine and eligible pool based on dynamic multi-factor scoring
-   */
   optimizeRoute({
     taskCategory = 'RESEARCH_QUESTION',
     complexity = 0.5,
     requiresCodeExecution = false,
     requiresMultimodal = false,
     requiresLowLatency = false,
-    availablePools = ['POOL_1', 'POOL_2', 'POOL_3', 'POOL_4', 'POOL_5', 'POOL_6', 'POOL_7']
+    availablePools = ['LOCAL_OLLAMA']
   } = {}) {
     const scoredEngines = CANDIDATE_ENGINES.map(engine => {
       let score = 50.0;
 
-      // 1. Complexity & Reasoning Depth Match
       const reasoningDelta = Math.abs(engine.maxReasoning - complexity);
       score += (1.0 - reasoningDelta) * 30.0;
 
-      // 2. Multimodal Capability Bonus
-      if (requiresMultimodal && engine.multimodal) {
-        score += 25.0;
+      if (engine.default) {
+        score += 10.0;
       }
 
-      // 3. Mathematical / Code execution focus
-      if (requiresCodeExecution && engine.mathFocus) {
-        score += 15.0;
-      }
-
-      // 4. Latency Requirement Fit
       if (requiresLowLatency) {
-        score += (2000 - engine.avgLatencyMs) / 50.0;
+        score += (1000 - engine.avgLatencyMs) / 50.0;
       }
 
-      // 5. Historical Performance Learning Boost
       const history = this.performanceHistory.get(engine.id);
       if (history && history.totalTasks > 0) {
         const successRate = history.successes / history.totalTasks;
@@ -108,24 +87,18 @@ export class RoutingOptimizer {
     });
 
     scoredEngines.sort((a, b) => b.score - a.score);
-    const selectedEngine = scoredEngines[0];
-
-    // Select eligible Antigravity pool with round-robin / load-balancing
-    const poolIndex = Math.floor(Math.random() * (availablePools.length || 1));
-    const selectedPool = availablePools[poolIndex] || 'POOL_1';
+    const selectedEngine = scoredEngines[0] || { engine: 'hermes3:8b', score: 90 };
+    const selectedPool = 'LOCAL_OLLAMA';
 
     return {
       selectedEngine: selectedEngine.engine,
       engineScore: selectedEngine.score,
       selectedPool,
       candidateRanking: scoredEngines,
-      selectionRationale: `Selected ${selectedEngine.engine} (Score: ${selectedEngine.score.toFixed(1)}) for category ${taskCategory} on pool ${selectedPool}`
+      selectionRationale: `Selected ${selectedEngine.engine} (Score: ${selectedEngine.score.toFixed(1)}) for category ${taskCategory} on ${selectedPool}`
     };
   }
 
-  /**
-   * Records aggregated performance outcome to refine dynamic weights
-   */
   recordTaskOutcome({ engine, taskCategory = 'GENERAL', latencyMs = 500, success = true, verified = true }) {
     if (!engine) return;
 

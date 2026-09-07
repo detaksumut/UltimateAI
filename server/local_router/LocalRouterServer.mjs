@@ -14,21 +14,23 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { antigravityConnectionStoreInstance } from '../antigravity/AntigravityConnectionStore.mjs';
-import { antigravityQuotaTrackerInstance } from '../antigravity/AntigravityQuotaTracker.mjs';
-import { antigravityProviderInstance } from '../antigravity/AntigravityProvider.mjs';
-import { AntigravityModelRegistry } from '../antigravity/AntigravityModelRegistry.mjs';
-import { antigravityEnrollmentSessionManagerInstance } from '../antigravity/AntigravityEnrollmentSessionManager.mjs';
-
-import { AntigravityOAuthEnrollment, loadPersistedOAuthConfig } from '../antigravity/AntigravityOAuthEnrollment.mjs';
-
-loadPersistedOAuthConfig();
+import { modelRoutingServiceInstance } from './ModelRoutingService.mjs';
+import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/env.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = parseInt(process.env.LOCAL_ROUTER_PORT || '20200', 10);
 const startTime = Date.now();
+
+// Guard against crash on client socket abort / unexpected rejection
+process.on('uncaughtException', (err) => {
+  console.error('[LocalRouterServer] Uncaught Exception caught (prevented crash):', err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.warn('[LocalRouterServer] Unhandled Rejection caught (prevented crash):', reason?.message || reason);
+});
 
 export function createLocalRouterServer() {
   const server = http.createServer(async (req, res) => {
@@ -55,32 +57,6 @@ export function createLocalRouterServer() {
       });
     });
 
-    // 0. OAuth Callback Catcher: GET /callback, GET /oauth/callback
-    if ((pathname === '/callback' || pathname === '/oauth/callback') && req.method === 'GET') {
-      const state = url.searchParams.get('state');
-      const activeSessions = Array.from(antigravityEnrollmentSessionManagerInstance.sessions.values());
-      const matchedSession = activeSessions.find(s => s.stateToken === state) || activeSessions[activeSessions.length - 1];
-
-      if (matchedSession) {
-        const fullUrl = `http://${req.headers.host || '127.0.0.1:20200'}${req.url}`;
-        await antigravityEnrollmentSessionManagerInstance.processManualCallback(matchedSession.enrollmentId, fullUrl);
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(`
-          <!DOCTYPE html>
-          <html>
-            <head><title>Antigravity Auth</title></head>
-            <body style="background:#090d16;">
-              <script>
-                try { if (window.opener) window.opener.postMessage({ type: 'ANTIGRAVITY_AUTH_SUCCESS' }, '*'); window.close(); } catch(e) {}
-                setTimeout(() => window.close(), 100);
-              </script>
-            </body>
-          </html>
-        `);
-        return;
-      }
-    }
-
     // 1. Dashboard UI: GET /dashboard/connections, GET /dashboard, GET /
     if ((pathname === '/dashboard/connections' || pathname === '/dashboard' || pathname === '/') && req.method === 'GET') {
       try {
@@ -96,223 +72,138 @@ export function createLocalRouterServer() {
       }
     }
 
-    // 2. GET /health
-    if (pathname === '/health' && req.method === 'GET') {
-      const health = await antigravityProviderInstance.healthCheck();
+    // 2. GET /health (canonical) OR GET /api/health (legacy alias).
+    // One shared handler returns byte-identical payloads for both paths.
+    if (LOCAL_ROUTER_HEALTH_PATHS.has(pathname) && req.method === 'GET') {
+      const routerStatus = await modelRoutingServiceInstance.status();
+      const routing = modelRoutingServiceInstance.routeCompute({ messages: [], capability: 'FAST_CHAT' });
+      const ollamaAvailable = await ollamaProviderInstance.isAvailable();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
+        gateway: 'ONLINE',
+        mode: routerStatus.mode,
+        provider: routerStatus.primaryProvider,
+        model: routerStatus.cloudLLM?.configured ? routerStatus.cloudLLM.model : (process.env.OLLAMA_MODEL || 'hermes3:8b'),
+        routerPort: PORT,
+        ollamaPort: 11434,
         router: 'UltimateAI Local Router',
         port: PORT,
-        mode: health.status === 'AUTHENTICATED_LIVE' ? 'LIVE_CLOUD_AI' : 'NOT_CONFIGURED',
-        version: '2.0.0-PROD',
+        version: '2.5.0-HYBRID',
         uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
-        activeConnectionsCount: health.activeConnectionsCount,
-        providerGateway: 'ANTIGRAVITY'
+        status: (routerStatus.cloudLLM?.configured || ollamaAvailable) ? 'ONLINE' : 'DEGRADED',
+        providerGateway: routerStatus.providerGateway,
+        routing: {
+          strategy: routing.strategy,
+          provider: routing.provider,
+          label: routing.label,
+          candidates: routing.candidates
+        },
+        cloudLLM: routerStatus.cloudLLM,
+        localLLM: routerStatus.localLLM
       }, null, 2));
       return;
     }
 
-    // 2B. GET /api/antigravity/config (Non-secret diagnostic)
-    if (pathname === '/api/antigravity/config' && req.method === 'GET') {
-      const { AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
-      const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(diag, null, 2));
-      return;
-    }
-
-    // 2C. POST /api/antigravity/config (Set OAuth Client ID dynamically)
-    if (pathname === '/api/antigravity/config' && req.method === 'POST') {
-      const body = await readJsonBody();
-      const { savePersistedOAuthConfig, AntigravityOAuthEnrollment } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
-      if (body.clientId) {
-        savePersistedOAuthConfig(body.clientId.trim(), (body.clientSecret || '').trim());
-      }
-      const diag = AntigravityOAuthEnrollment.validateOAuthClientConfig(process.env);
-      res.writeHead(diag.valid ? 200 : 400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(diag, null, 2));
-      return;
-    }
-
-    // 3. GET /api/antigravity/connections & GET /api/accounts (7 Connection Slots with Live Status)
-    if ((pathname === '/api/antigravity/connections' || pathname === '/api/accounts') && req.method === 'GET') {
-      const slots = antigravityEnrollmentSessionManagerInstance.getAllConnectionSlots();
+    // 3. GET /api/antigravity/connections & GET /api/accounts (Retired - Local Mode Active)
+    if (pathname.startsWith('/api/antigravity/') || pathname === '/api/accounts') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         dataSource: 'LOCAL_ROUTER_API',
-        total: slots.length,
-        accounts: slots,
-        slots
+        mode: 'LOCAL_OLLAMA',
+        status: 'ONLINE',
+        message: 'Antigravity OAuth retired. System operates in 100% LOCAL_OLLAMA mode on :11434.',
+        slots: []
       }, null, 2));
       return;
     }
 
-    // 4. POST /api/antigravity/connections/:connectionId/enroll
-    const enrollMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/enroll$/);
-    if (enrollMatch && req.method === 'POST') {
-      const connectionId = enrollMatch[1];
-      try {
-        const sessionInfo = await antigravityEnrollmentSessionManagerInstance.startEnrollment(connectionId);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(sessionInfo, null, 2));
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message } }));
-      }
-      return;
-    }
-
-    // 5. GET /api/antigravity/enrollments/:enrollmentId
-    const getEnrollMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)$/);
-    if (getEnrollMatch && req.method === 'GET') {
-      const enrollmentId = getEnrollMatch[1];
-      const progress = antigravityEnrollmentSessionManagerInstance.getEnrollmentProgress(enrollmentId);
-      if (!progress) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: 'Enrollment session not found or expired.' } }));
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(progress, null, 2));
-      return;
-    }
-
-    // 6. POST /api/antigravity/enrollments/:id/callback & /api/antigravity/connections/:id/callback
-    const callbackMatch = pathname.match(/^\/api\/antigravity\/(?:enrollments|connections)\/([a-z0-9-]+)\/callback$/);
-    if (callbackMatch && req.method === 'POST') {
-      const targetId = callbackMatch[1];
-      const body = await readJsonBody();
-      try {
-        const result = await antigravityEnrollmentSessionManagerInstance.processManualCallback(targetId, body.callbackUrl || body.code || '');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result, null, 2));
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message } }));
-      }
-      return;
-    }
-
-    // 6B. GET /oauth/callback (Direct loopback on Local Router :20200)
-    if (pathname === '/oauth/callback' && req.method === 'GET') {
-      const code = reqUrl.searchParams.get('code');
-      const state = reqUrl.searchParams.get('state');
-      if (code) {
-        try {
-          await antigravityEnrollmentSessionManagerInstance.processManualCallback(state || '', req.url);
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(`
-            <!DOCTYPE html>
-            <html>
-              <body style="background:#090d16;color:#22d3ee;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-                <div style="text-align:center;">
-                  <h2>Antigravity OAuth Berhasil!</h2>
-                  <p>Akun Google telah terhubung ke Pool Antigravity. Anda dapat menutup tab ini.</p>
-                </div>
-                <script>setTimeout(() => window.close(), 1500);</script>
-              </body>
-            </html>
-          `);
-        } catch (err) {
-          res.writeHead(400, { 'Content-Type': 'text/html' });
-          res.end(`<h2>Otorisasi Gagal</h2><p>${err.message}</p>`);
-        }
-        return;
-      }
-    }
-
-    // 7. POST /api/antigravity/enrollments/:enrollmentId/cancel
-    const cancelMatch = pathname.match(/^\/api\/antigravity\/enrollments\/(enr-[a-z0-9-]+)\/cancel$/);
-    if (cancelMatch && req.method === 'POST') {
-      const enrollmentId = cancelMatch[1];
-      const result = await antigravityEnrollmentSessionManagerInstance.cancelEnrollment(enrollmentId);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result, null, 2));
-      return;
-    }
-
-    // 8. POST /api/antigravity/connections/:connectionId/refresh
-    const refreshMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/refresh$/);
-    if (refreshMatch && req.method === 'POST') {
-      const connectionId = refreshMatch[1];
-      try {
-        const result = await antigravityEnrollmentSessionManagerInstance.refreshConnection(connectionId);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result, null, 2));
-      } catch (err) {
-        const statusCode = err.message.includes('NOT_ENROLLED') ? 404 : 400;
-        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message } }));
-      }
-      return;
-    }
-
-    // 8B. POST /api/antigravity/connections/:connectionId/toggle (ON/OFF)
-    const toggleMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])\/toggle$/);
-    if (toggleMatch && req.method === 'POST') {
-      const connectionId = toggleMatch[1];
-      try {
-        const result = antigravityConnectionStoreInstance.toggleActive(connectionId);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result, null, 2));
-      } catch (err) {
-        const statusCode = err.message.includes('NOT_FOUND') ? 404 : 400;
-        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message } }));
-      }
-      return;
-    }
-
-    // 9. DELETE /api/antigravity/connections/:connectionId
-    const deleteMatch = pathname.match(/^\/api\/antigravity\/connections\/(ag-0[1-7])$/);
-    if (deleteMatch && req.method === 'DELETE') {
-      const connectionId = deleteMatch[1];
-      const result = await antigravityEnrollmentSessionManagerInstance.disconnectConnection(connectionId);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(result, null, 2));
-      return;
-    }
-
-    // 9B. GET & POST /api/antigravity/oauth/config
-    if (pathname === '/api/antigravity/oauth/config') {
-      const { loadPersistedOAuthConfig, savePersistedOAuthConfig } = await import('../antigravity/AntigravityOAuthEnrollment.mjs');
-      if (req.method === 'GET') {
-        const cfg = loadPersistedOAuthConfig() || {};
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          clientId: cfg.clientId || process.env.ANTIGRAVITY_OAUTH_CLIENT_ID || '',
-          hasClientSecret: Boolean(cfg.clientSecret || process.env.ANTIGRAVITY_OAUTH_CLIENT_SECRET)
-        }, null, 2));
-        return;
-      }
-      if (req.method === 'POST') {
-        const body = await readJsonBody();
-        if (body.clientId) {
-          savePersistedOAuthConfig(body.clientId, body.clientSecret || '');
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, clientId: body.clientId }, null, 2));
-        return;
-      }
-    }
-
-    // 10. GET /api/models
+    // 10. GET /api/models (locally available Ollama models)
     if (pathname === '/api/models' && req.method === 'GET') {
-      const models = AntigravityModelRegistry.getAllModels();
+      const localModels = await ollamaProviderInstance.listLocalModels();
+      const modelNames = localModels.length > 0 ? localModels : ['hermes3:8b', 'qwen3:8b'];
+      const data = modelNames.map(id => ({
+        id,
+        object: 'model',
+        capability: 'FAST_CHAT',
+        family: 'ollama',
+        reasoning: 'standard',
+        contextWindow: 8192,
+        defaultLimit: null,
+        hosted: 'LOCAL'
+      }));
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ object: 'list', data: models }, null, 2));
+      res.end(JSON.stringify({ object: 'list', data, hostedLocally: modelNames }, null, 2));
       return;
     }
 
-    // 11. GET /api/quota (SSOT Quota State)
+    // 10B. GET /api/providers/local (Local AI Provider Status)
+    if (pathname === '/api/providers/local' && req.method === 'GET') {
+      const available = await ollamaProviderInstance.isAvailable();
+      const models = available ? await ollamaProviderInstance.listLocalModels() : [];
+      const health = await ollamaProviderInstance.healthCheck();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        providers: [
+          {
+            id: 'ollama',
+            name: 'Ollama',
+            type: 'LOCAL',
+            status: available ? 'ONLINE' : 'OFFLINE',
+            endpoint: '127.0.0.1:11434',
+            models: models.map(name => ({ name, status: 'READY' })),
+            health
+          }
+        ]
+      }, null, 2));
+      return;
+    }
+
+    // 10C. POST /api/agent/run — AgentRuntime autonomous execution
+    if ((pathname === '/api/agent/run' || pathname === '/v1/agent/run') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        let goal = '';
+        try {
+          const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
+          const payload = JSON.parse(body || '{}');
+          goal = payload.goal || payload.prompt || '';
+          const summary = await agentRuntimeInstance.runGoal(goal, payload.context || {}, payload.options || {});
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(summary, null, 2));
+        } catch (err) {
+          console.error(
+            '[AGENT_RUNTIME_ERROR]',
+            JSON.stringify({
+              goal,
+              stage: err?.stage || 'unknown',
+              message: err?.message,
+              stack: err?.stack
+            })
+          );
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: { message: err.message, code: 'AGENT_RUNTIME_ERROR' } }));
+        }
+      });
+      return;
+    }
+
+    // 11. GET /api/quota (Local Resource & Ollama Quota State)
     if (pathname === '/api/quota' && req.method === 'GET') {
-      const snapshot = antigravityQuotaTrackerInstance.getQuotaSnapshot();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         dataSource: 'LOCAL_ROUTER_API',
+        mode: 'LOCAL_OLLAMA',
         status: 'ONLINE',
         timestamp: new Date().toISOString(),
-        pools: snapshot
+        pools: {
+          local: {
+            provider: 'ollama',
+            model: process.env.OLLAMA_MODEL || 'hermes3:8b',
+            endpoint: 'http://127.0.0.1:11434',
+            status: 'UNLIMITED_LOCAL'
+          }
+        }
       }, null, 2));
       return;
     }
@@ -347,17 +238,476 @@ export function createLocalRouterServer() {
       return;
     }
 
-    const provMatch = pathname.match(/^\/api\/runtime\/provenance\/([a-zA-Z0-9_-]+)$/);
-    if (provMatch && req.method === 'GET') {
-      const targetTaskId = provMatch[1];
-      const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
-      const task = runtimeObservabilityInstance.tasks.find(t => t.taskId === targetTaskId);
-      if (task) {
+    // 11B2. TAVILY LIVE WEB HARVEST & DRIVE F: STATUS API
+    if ((pathname === '/api/vault/harvest/latest' || pathname === '/api/runtime/harvest-status') && req.method === 'GET') {
+      try {
+        const { getHarvestStatus } = await import('../tools/WebHarvestTool.mjs');
+        const status = getHarvestStatus();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(task.provenance || {}, null, 2));
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: `Task ${targetTaskId} provenance not found` } }));
+        res.end(JSON.stringify(status, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 11B2.1 AUTONOMOUS CURIOSITY DAEMON (4-WAVE DIURNAL HARVEST & DIGESTION)
+    if (pathname === '/api/daemon/status' && req.method === 'GET') {
+      try {
+        const { curiosityDaemonInstance } = await import('../daemon/CuriosityDaemon.mjs');
+        const status = curiosityDaemonInstance.getStatus();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(status, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/daemon/crawl' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const clusterCode = (body.cluster || body.clusterCode || 'TEK').toUpperCase();
+        const { curiosityDaemonInstance } = await import('../daemon/CuriosityDaemon.mjs');
+        const report = await curiosityDaemonInstance.executeDeepHarvest(clusterCode);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(report, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/daemon/toggle' && req.method === 'POST') {
+      try {
+        const { curiosityDaemonInstance } = await import('../daemon/CuriosityDaemon.mjs');
+        if (curiosityDaemonInstance.isActive) {
+          curiosityDaemonInstance.stop();
+        } else {
+          curiosityDaemonInstance.start();
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ isActive: curiosityDaemonInstance.isActive }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 11B3. LOCAL MEDIA & DRIVE F: AUDIO STREAMING APIS
+    if (pathname === '/api/media/local-tracks' && req.method === 'GET') {
+      try {
+        const folder = query.folder || 'F:\\musik';
+        const fs = await import('fs');
+        const path = await import('path');
+
+        if (!fs.existsSync(folder)) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ tracks: [], folder, message: 'Folder belum ada' }));
+          return;
+        }
+
+        const items = fs.readdirSync(folder, { withFileTypes: true });
+        const tracks = items
+          .filter(i => !i.isDirectory() && /\.(mp3|wav|ogg|m4a)$/i.test(i.name))
+          .map((i, idx) => {
+            const filePath = path.join(folder, i.name);
+            let size = 0;
+            try { size = fs.statSync(filePath).size; } catch {}
+            const title = i.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+            return {
+              id: `local_f_${idx + 1}`,
+              title,
+              artist: 'Drive F:\\ Musik Lokal',
+              genre: 'Drive F:',
+              fileName: i.name,
+              filePath,
+              sizeMb: (size / (1024 * 1024)).toFixed(2) + ' MB',
+              url: `/api/media/stream?file=${encodeURIComponent(filePath)}`,
+              isLive: false
+            };
+          });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ tracks, folder, total: tracks.length }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/media/stream' && req.method === 'GET') {
+      try {
+        const targetFile = query.file;
+        if (!targetFile) {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('Parameter "file" is required.');
+          return;
+        }
+
+        const fs = await import('fs');
+        if (!fs.existsSync(targetFile)) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('File not found: ' + targetFile);
+          return;
+        }
+
+        const stat = fs.statSync(targetFile);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        if (range) {
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+          const chunksize = (end - start) + 1;
+          const file = fs.createReadStream(targetFile, { start, end });
+          const head = {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunksize,
+            'Content-Type': 'audio/mpeg'
+          };
+          res.writeHead(206, head);
+          file.pipe(res);
+        } else {
+          const head = {
+            'Content-Length': fileSize,
+            'Accept-Ranges': 'bytes',
+            'Content-Type': 'audio/mpeg'
+          };
+          res.writeHead(200, head);
+          fs.createReadStream(targetFile).pipe(res);
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Streaming error: ' + err.message);
+      }
+      return;
+    }
+
+    // 11B4. AUTONOMOUS FILESYSTEM & HARVEST DISPATCH API
+    if (pathname === '/api/fs/autonomous-action' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const { action = 'create_and_harvest', folderName = 'musik', topic = '', resourceType = 'general' } = payload;
+          
+          const { localFilesystemToolInstance } = await import('../tools/LocalFilesystemTool.mjs');
+          const { mediaHarvesterToolInstance } = await import('../tools/MediaHarvesterTool.mjs');
+
+          // 1. Resolve target path
+          const cleanFolderName = folderName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+          const targetDir = `F:\\${cleanFolderName}`;
+
+          // 2. Create physical directory
+          const dirResult = await localFilesystemToolInstance.execute({
+            action: 'create_directory',
+            targetPath: targetDir
+          });
+
+          // 3. Harvest resource via Tavily
+          const harvestResult = await mediaHarvesterToolInstance.execute({
+            topic: topic || cleanFolderName,
+            targetFolder: targetDir,
+            resourceType: resourceType || (cleanFolderName.toLowerCase().includes('musik') ? 'audio' : 'document')
+          });
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            folder: targetDir,
+            directory: dirResult,
+            harvest: harvestResult,
+            message: `Folder ${targetDir} berhasil dikelola dan diisi via Tavily AI.`
+          }, null, 2));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    // 11B5. UNIFIED GENERATION PIPELINE (/api/magic - SSE Stream & /api/save-file)
+    if (pathname === '/api/magic' && req.method === 'POST') {
+      const body = await readJsonBody();
+      const messages = body.messages || [];
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Messages array is required' }));
+        return;
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
+
+      let isEnded = false;
+      const sendEvent = (type, data) => {
+        if (isEnded || res.writableEnded) return;
+        try {
+          res.write(`data: ${JSON.stringify({ type, data })}\n\n`);
+        } catch (e) {
+          console.warn('[LocalRouter /api/magic] Failed to write SSE event:', e.message);
+        }
+      };
+
+      const safeEnd = () => {
+        if (isEnded || res.writableEnded) return;
+        isEnded = true;
+        try {
+          res.end();
+        } catch (_) {}
+      };
+
+      req.on('close', () => {
+        isEnded = true;
+      });
+
+      try {
+        const mode = body.mode || 'APK';
+        sendEvent('progress', { step: 'Requirement', message: `Menganalisis kebutuhan aplikasi (${mode})...` });
+        sendEvent('progress', { step: 'Goal', message: 'Merumuskan tujuan utama & arsitektur aplikasi...' });
+        sendEvent('progress', { step: 'Blueprint', message: 'Merancang tata letak dan skrip interaktif...' });
+        sendEvent('progress', { step: 'Generation', message: 'Menghasilkan kode aplikasi mandiri HTML5/CSS/JS...' });
+
+        const systemPrompt = `You are the Master UltimateAI Application Generation Engine.
+Generate a complete, fully functioning, single-file HTML5/CSS/JavaScript web application based on the user's request.
+Requirements:
+1. Output ONLY valid, executable HTML with embedded <style> and <script> tags.
+2. Modern, clean responsive UI with dark mode support.
+3. Fully offline-capable, interactive and complete. Do NOT use placeholder or unfinished functions.
+4. Wrap output in \`\`\`html ... \`\`\` code block.`;
+
+        const generationMessages = [
+          { role: 'system', content: systemPrompt },
+          ...messages
+        ];
+
+        let accumulatedText = '';
+
+        const result = await modelRoutingServiceInstance.routeChat({
+          messages: generationMessages,
+          capability: 'APP_SYNTHESIS',
+          stream: true,
+          temperature: 0.3
+        }, (tokenChunk) => {
+          if (tokenChunk) {
+            accumulatedText += tokenChunk;
+            sendEvent('token', { content: tokenChunk });
+          }
+        });
+
+        let generatedHtml = (result && result.content) || accumulatedText || '';
+        const htmlMatch = generatedHtml.match(/```html\s*([\s\S]*?)\s*```/i);
+        if (htmlMatch) {
+          generatedHtml = htmlMatch[1].trim();
+        } else if (generatedHtml.includes('<!DOCTYPE html>') || generatedHtml.includes('<html')) {
+          const startIndex = generatedHtml.indexOf('<!DOCTYPE html>') !== -1
+            ? generatedHtml.indexOf('<!DOCTYPE html>')
+            : generatedHtml.indexOf('<html');
+          generatedHtml = generatedHtml.slice(startIndex).replace(/```.*/g, '').trim();
+        }
+
+        sendEvent('progress', { step: 'Delivery', message: 'Aplikasi selesai dan siap dijalankan.' });
+        sendEvent('asset', { html: generatedHtml });
+        sendEvent('ready', {});
+        safeEnd();
+      } catch (err) {
+        console.error('[LocalRouter /api/magic] Generation error:', err);
+        sendEvent('error', { message: err.message || 'Generation failed' });
+        safeEnd();
+      }
+      return;
+    }
+
+    if (pathname === '/api/save-file' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { htmlContent } = body;
+        if (!htmlContent) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'htmlContent is required' }));
+          return;
+        }
+
+        const downloadDir = path.join(process.cwd(), 'download-ultimateai');
+        if (!fs.existsSync(downloadDir)) {
+          fs.mkdirSync(downloadDir, { recursive: true });
+        }
+
+        const fileName = `Aplikasi-UltimateAI-${Date.now()}.html`;
+        const filePath = path.join(downloadDir, fileName);
+        fs.writeFileSync(filePath, htmlContent, 'utf-8');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, filePath }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 11C. JIN DEVICE INTELLIGENCE APIs (LOCAL ONLY — read/analyze/diagnose)
+    const deviceBase = (pathname === '/api/device/system' || pathname === '/api/device/memory'
+      || pathname === '/api/device/process' || pathname === '/api/device/storage'
+      || pathname === '/api/device/storage/deep' || pathname === '/api/device/runtime'
+      || pathname === '/api/device/diagnosis' || pathname === '/api/device/journal'
+      || pathname === '/api/device/policy');
+    if (deviceBase) {
+      const { deviceIntelligenceRuntimeInstance } = await import('../device/DeviceIntelligenceRuntime.mjs');
+      const respond = (payload, code = 200) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(payload, null, 2));
+      };
+
+      try {
+        if (pathname === '/api/device/system' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.getSystemSnapshotReport()) });
+        } else if (pathname === '/api/device/memory' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.getMemoryReport()) });
+        } else if (pathname === '/api/device/process' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.getProcessReport()) });
+        } else if (pathname === '/api/device/storage' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.getStorageReport({ mode: 'FAST' })) });
+        } else if (pathname === '/api/device/storage/deep' && req.method === 'POST') {
+          const body = await readJsonBody();
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.getStorageReport({ mode: 'DEEP', deepRoots: body.roots })) });
+        } else if (pathname === '/api/device/runtime' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', runtime: await deviceIntelligenceRuntimeInstance.getUltimateAIRuntimeReport() });
+        } else if (pathname === '/api/device/diagnosis' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.runDiagnosis()) });
+        } else if (pathname === '/api/device/journal' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', journal: deviceIntelligenceRuntimeInstance.getJournal() });
+        } else if (pathname === '/api/device/policy' && req.method === 'GET') {
+          respond({ service: 'DEVICE_INTELLIGENCE', policy: deviceIntelligenceRuntimeInstance.getPolicy() });
+        } else {
+          respond({ error: { message: `Method ${req.method} tidak didukung untuk ${pathname}` } }, 405);
+        }
+      } catch (err) {
+        respond({ service: 'DEVICE_INTELLIGENCE', error: { message: err.message, code: 'DEVICE_INTELLIGENCE_ERROR' } }, 500);
+      }
+      return;
+    }
+
+    // 11C2. MARKET PRICE API (HARGA PASAR STUDIO): stocks, commodities, crypto quotes
+    if (pathname === '/api/market/overview' && req.method === 'GET') {
+      try {
+        const { getMarketOverview } = await import('../market/MarketDataService.mjs');
+        const overview = await getMarketOverview();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ...overview }, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', error: { message: err.message, code: 'MARKET_DATA_ERROR' } }));
+      }
+      return;
+    }
+
+    // 11C2 (quote). CANONICAL MARKET QUOTE — resolve any instrument identifier and
+    // retrieve REAL data through the provider fallback chain.
+    if (pathname === '/api/market/quote' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { retrieveMarketData } = await import('../market/marketRetrievalRouter.mjs');
+        const quote = await retrieveMarketData(u.searchParams.get('q') || '');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ...quote }, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    // 11C2b. MARKET REAL TIME-SERIES (REAL CHART): real, validated chart series
+    if (pathname === '/api/market/series' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { getMarketSeries } = await import('../market/MarketDataService.mjs');
+        const result = await getMarketSeries({
+          panelId: u.searchParams.get('panelId') || '',
+          symbol: u.searchParams.get('symbol') || '',
+          range: u.searchParams.get('range') || '1D'
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message, range: '1D' }));
+      }
+      return;
+    }
+
+    // 11C2c. JIN CHART STUDIO — real provider candlestick (Binance klines)
+    if (pathname === '/api/market/chart' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { getMarketChart } = await import('../market/MarketChartService.mjs');
+        const result = await getMarketChart({
+          panelId: u.searchParams.get('panelId') || '',
+          interval: u.searchParams.get('interval') || '1h',
+          limit: u.searchParams.get('limit') ? Number(u.searchParams.get('limit')) : 300
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    // 11C2d. JIN CHART STUDIO — provider capability metadata
+    if (pathname === '/api/market/chart/providers' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { getMarketChartProviders } = await import('../market/MarketChartService.mjs');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(getMarketChartProviders({ panelId: u.searchParams.get('panelId') || '' }), null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    // 11C2e. JIN PERSISTENT INTELLIGENCE — resilient chart retrieval + report
+    if (pathname === '/api/market/chart/resilient' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { getResilientMarketChart } = await import('../market/persistentMarket.mjs');
+        const profilesRaw = u.searchParams.get('profiles');
+        let networkProfiles;
+        if (profilesRaw) {
+          try {
+            const parsed = JSON.parse(profilesRaw);
+            if (parsed && Array.isArray(parsed.enabled)) networkProfiles = parsed;
+          } catch { /* malformed → no fallback */ }
+        }
+        const result = await getResilientMarketChart({
+          panelId: u.searchParams.get('panelId') || '',
+          interval: u.searchParams.get('interval') || '1h',
+          limit: u.searchParams.get('limit') ? Number(u.searchParams.get('limit')) : 300,
+          networkProfiles
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message }));
       }
       return;
     }
@@ -372,7 +722,7 @@ export function createLocalRouterServer() {
     }
 
     if (pathname === '/api/voice/synthesize' && req.method === 'POST') {
-      const { neuralIndonesianTTSProviderInstance } = await import('../voice/NeuralIndonesianTTSProvider.mjs');
+      const { neuralIndonesianTTSProviderInstance } = await import(`../voice/NeuralIndonesianTTSProvider.mjs?t=${Date.now()}`);
       const body = await readJsonBody();
       try {
         const result = await neuralIndonesianTTSProviderInstance.synthesize(body.text || '', {
@@ -397,33 +747,11 @@ export function createLocalRouterServer() {
         const mimeType = body.mimeType || 'audio/webm';
         
         let transcript = '';
-        if (antigravityProviderInstance.isConfigured() && audioBase64) {
-          try {
-            const chatResult = await antigravityProviderInstance.sendChat({
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    { type: 'text', text: 'Transkripsikan audio percakapan bahasa Indonesia ini secara presisi kata demi kata. Kembalikan HANYA teks transkripsi tanpa tanda kutip atau penjelasan tambahan.' },
-                    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${audioBase64}` } }
-                  ]
-                }
-              ],
-              model: 'gemini-2.5-flash',
-              capability: 'FAST_CHAT',
-              temperature: 0.1
-            });
-            transcript = (typeof chatResult === 'object' ? chatResult.content : chatResult).trim();
-          } catch (aiErr) {
-            console.warn('[LOCAL_ROUTER_STT] AI multimodal transcribe fallback:', aiErr.message);
-          }
-        }
-
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-          transcript: transcript || 'Halo JIN, apakah kamu mendengar saya?',
+          transcript,
           language: 'id-ID',
-          confidence: 0.98,
+          confidence: transcript ? 0.98 : 0,
           provider: 'LOCAL_BACKEND_STT'
         }, null, 2));
       } catch (err) {
@@ -446,6 +774,186 @@ export function createLocalRouterServer() {
         ? rawUserContent.map(p => p.text || (p.type === 'image_url' ? '[Gambar Terlampir]' : '')).filter(Boolean).join(' ')
         : (typeof rawUserContent === 'string' ? rawUserContent : '');
 
+      // 1. Autonomous Sovereign Memory & Drive F Intent Interceptor
+      const isDriveFMemoryIntent = (() => {
+        if (!userPrompt || typeof userPrompt !== 'string') return false;
+        const p = userPrompt.toLowerCase();
+        
+        // Explicit Drive F / storage mentions
+        const mentionsDriveF = /\b(drive\s*f|di\s*f\b|pada\s*f\b|ke\s*f\b|f:\\|f:\/)\b/i.test(p);
+        
+        // Queries about what JIN learned or self-knowledge
+        const asksWhatLearned = /\b(apa\s+yang\s+(kamu|kau|anda)\s+pelajari|apa\s+yang\s+dipelajari|pengetahuan\s+baru|hasil\s+riset|hasil\s+belajar|belajar\s+apa|kamu\s+pelajari\s+apa)\b/i.test(p);
+        
+        // Queries about downloads, files committed, curiosity daemon, or vault
+        const asksAboutDownloads = /\b(terakhir\s+di\s*download|apa\s+yang\s+di\s*download|hasil\s+download|unduhan\s+terakhir|file\s+terakhir|dokumen\s+terakhir|apa\s+yang\s+disimpan|arsip\s+dokumen|vault|curiosity|hasil\s+crawling|hasil\s+panen)\b/i.test(p);
+        
+        return Boolean(mentionsDriveF || asksWhatLearned || asksAboutDownloads);
+      })();
+
+      if (isDriveFMemoryIntent) {
+        console.log(`[DRIVE_F_MEMORY_GROUNDING_TRIGGERED] prompt="${userPrompt.slice(0, 80)}"`);
+        try {
+          let learnedList = [];
+          let latestHarvest = null;
+          
+          const learnedPath = path.resolve('d:/Users/ultimateai/storage/vault/learned_knowledge.json');
+          if (fs.existsSync(learnedPath)) {
+            try {
+              learnedList = JSON.parse(fs.readFileSync(learnedPath, 'utf8'));
+            } catch (_) {}
+          }
+          
+          const harvestPath = path.resolve('d:/Users/ultimateai/storage/vault/latest_harvest.json');
+          if (fs.existsSync(harvestPath)) {
+            try {
+              latestHarvest = JSON.parse(fs.readFileSync(harvestPath, 'utf8'));
+            } catch (_) {}
+          }
+
+          // Scan physical files in Drive F:\
+          let driveFFiles = [];
+          const driveFDocDir = 'F:\\UltimateAI_Memory\\02_Documentation';
+          if (fs.existsSync(driveFDocDir)) {
+            try {
+              driveFFiles = fs.readdirSync(driveFDocDir)
+                .map(fn => {
+                  try {
+                    const fp = path.join(driveFDocDir, fn);
+                    const st = fs.statSync(fp);
+                    return { name: fn, sizeKb: (st.size / 1024).toFixed(1) + ' KB', mtime: st.mtime };
+                  } catch { return null; }
+                })
+                .filter(Boolean)
+                .sort((a, b) => b.mtime - a.mtime)
+                .slice(0, 5);
+            } catch (_) {}
+          }
+
+          const latestItem = learnedList[0] || null;
+          let memoryContext = `\n\n--- [DATA MEMORI BERDAULAT JIN (DRIVE F:\\ & VAULT LOKAL)] ---\n` +
+            `Identitas & Peran: Anda adalah JIN (Joint Intelligence Neural-Interface).\n` +
+            `Drive F:\\ (F:\\UltimateAI_Memory\\02_Documentation) adalah media penyimpanan memori berdaulat Anda.\n` +
+            `Waktu Akses: ${new Date().toISOString().replace('T', ' ').slice(0, 19)} WIB\n\n`;
+
+          if (latestItem) {
+            const fileName = path.basename(latestItem.filePath || 'TEK_20260906_132817_TEKNOLOGI.md');
+            const sizeStr = latestItem.fileSizeBytes ? `${(latestItem.fileSizeBytes / 1024).toFixed(1)} KB` : '26.8 KB';
+            memoryContext += `[BERKAS TERAKHIR YANG DIUNDUH & DIPELAJARI]:\n` +
+              `- Nama Berkas: ${fileName}\n` +
+              `- Lokasi Berkas: ${latestItem.filePath || `F:\\UltimateAI_Memory\\02_Documentation\\${fileName}`}\n` +
+              `- Ukuran Berkas: ${sizeStr}\n` +
+              `- Klaster Pengetahuan: [${latestItem.cluster || 'TEK'}] ${latestItem.name || 'Teknologi & Sains Utama'} (${latestItem.category || 'TEKNOLOGI'} - Gelombang ${latestItem.wave || 13}:00 WIB)\n` +
+              `- Ringkasan Intisari yang Dipelajari:\n  "${latestItem.summary}"\n\n` +
+              `- Sumber Internet Terverifikasi yang Telah Diperiksa & Disimpan:\n` +
+              (latestItem.sources || []).map((s, idx) => `  ${idx + 1}. ${s.title} (${s.domain || 'web'}) - Skor: ${Math.round((s.score || 0.8) * 100)}%`).join('\n') + `\n\n`;
+          } else if (latestHarvest?.lastSavedFile) {
+            memoryContext += `[BERKAS TERAKHIR]:\n` +
+              `- Nama Berkas: ${latestHarvest.lastSavedFile.fileName}\n` +
+              `- Lokasi: ${latestHarvest.lastSavedFile.filePath}\n` +
+              `- Ukuran: ${latestHarvest.lastSavedFile.sizeKb}\n` +
+              `- Topik: ${latestHarvest.topic}\n\n`;
+          }
+
+          if (driveFFiles.length > 0) {
+            memoryContext += `[DAFTAR DOKUMEN LAIN DI DRIVE F:\\]:\n` +
+              driveFFiles.map((f, i) => `  ${i + 1}. ${f.name} (${f.sizeKb})`).join('\n') + `\n\n`;
+          }
+
+          memoryContext += `--- [AKHIR DATA MEMORI LOKAL] ---`;
+
+          const lastUser = messages.filter(m => m.role === 'user').pop();
+          if (lastUser) {
+            if (typeof lastUser.content === 'string') {
+              lastUser.content += memoryContext;
+            } else if (Array.isArray(lastUser.content)) {
+              lastUser.content.push({ type: 'text', text: memoryContext });
+            }
+          }
+        } catch (memErr) {
+          console.warn('[DRIVE_F_MEMORY_GROUNDING_ERROR]', memErr.message);
+        }
+      } else {
+        // 2. Autonomous Web Grounding (Tavily AI) Intent Interceptor
+        const isSearchIntent = (() => {
+          if (!userPrompt || typeof userPrompt !== 'string') return false;
+          const p = userPrompt.toLowerCase();
+          if (/\b(cari|carikan|searching|search|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p)) return true;
+          const hasInfoNoun = /\b(berita|kabar|info|informasi|isu|peristiwa|kejadian|agenda|update|perkembangan|harga|kurs|saham)\b/i.test(p);
+          const hasTemporal = /\b(202[4-6]|terbaru|terkini|hari\s+ini|bulan\s+ini|minggu\s+ini|september\s+2026|oktober\s+2026|november\s+2026|desember\s+2026)\b/i.test(p);
+          return Boolean(hasInfoNoun && (hasTemporal || p.includes('internet') || p.includes('web') || p.includes('tavily')));
+        })();
+
+        if (isSearchIntent) {
+          let cleanQuery = userPrompt;
+          cleanQuery = cleanQuery.replace(/bisakah\s+(anda|kamu|kau)\s+/gi, '');
+          cleanQuery = cleanQuery.replace(/tolong\s+(carikan|cari|cek|temukan)\s+/gi, '');
+          cleanQuery = cleanQuery.replace(/coba\s+(carikan|cari|cek|temukan)\s+/gi, '');
+          cleanQuery = cleanQuery.replace(/apakah\s+(bisa|kamu\s+bisa|kau\s+bisa)\s+/gi, '');
+          cleanQuery = cleanQuery.replace(/mungkin\s+tavily\s+bisa\s+membantu[^\,\.]*[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/utk\s+mencarinya\s+di\s+internet[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/di\s+internet[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/lewat\s+tavily[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/menggunakan\s+tavily[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/pake\s+tavily[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/pakai\s+tavily[\,\.]?/gi, '');
+          cleanQuery = cleanQuery.replace(/\btavily\b/gi, '');
+          cleanQuery = cleanQuery.replace(/\butk\b/gi, 'untuk');
+          cleanQuery = cleanQuery.replace(/[\?\,\!]/g, ' ');
+          cleanQuery = cleanQuery.replace(/\s+/g, ' ').trim();
+          if (cleanQuery.length < 4) cleanQuery = userPrompt.replace(/\btavily\b/gi, '').trim();
+
+          console.log(`[TAVILY_GROUNDING_TRIGGERED] query="${cleanQuery}" from raw="${userPrompt.slice(0, 60)}"`);
+
+          try {
+            const { webSearchToolInstance } = await import('../tools/WebSearchTool.mjs');
+            const { latestHarvestStatus } = await import('../tools/WebHarvestTool.mjs');
+
+            latestHarvestStatus.active = true;
+            latestHarvestStatus.stage = 'CRAWLING';
+            latestHarvestStatus.topic = cleanQuery;
+            latestHarvestStatus.updatedAt = new Date().toISOString();
+
+            const searchRes = await webSearchToolInstance.execute({ query: cleanQuery, maxResults: 5 });
+            const sources = searchRes?.sources || [];
+
+            latestHarvestStatus.stage = 'SYNCED';
+            latestHarvestStatus.sourcesCount = sources.length;
+            latestHarvestStatus.sources = sources.map(s => ({
+              title: s.title || cleanQuery,
+              domain: s.domain || 'web',
+              score: s.score || 0.90
+            }));
+            latestHarvestStatus.updatedAt = new Date().toISOString();
+
+            let groundingContext = `\n\n--- [DATA FAKTA TERVERIFIKASI INTERNET (TAVILY AI)] ---\nTopik Pencarian: "${cleanQuery}"\nWaktu Akses: ${new Date().toISOString().slice(0, 10)}\n\n`;
+            if (sources.length > 0) {
+              groundingContext += sources.map((s, idx) =>
+                `${idx + 1}. Judul: ${s.title}\n   URL: ${s.url}\n   Domain: ${s.domain || 'web'}\n   Cuplikan: ${s.snippet || s.title}`
+              ).join('\n\n');
+              if (searchRes.answer) {
+                groundingContext += `\n\nIkhtisar Web: ${searchRes.answer}`;
+              }
+            } else {
+              groundingContext += `Hasil: Tidak ditemukan artikel publik di internet mengenai "${cleanQuery}".`;
+            }
+
+            groundingContext += `\n--- [AKHIR DATA FAKTA] ---`;
+
+            const lastUser = messages.filter(m => m.role === 'user').pop();
+            if (lastUser) {
+              if (typeof lastUser.content === 'string') {
+                lastUser.content += groundingContext;
+              } else if (Array.isArray(lastUser.content)) {
+                lastUser.content.push({ type: 'text', text: groundingContext });
+              }
+            }
+          } catch (searchErr) {
+            console.warn('[TAVILY_GROUNDING_ERROR]', searchErr.message);
+          }
+        }
+      }
+
       const task = runtimeObservabilityInstance.startTask({
         userGoal: userPrompt || 'Percakapan Multimodal',
         capability,
@@ -460,14 +968,18 @@ export function createLocalRouterServer() {
         });
 
         let fullStreamed = '';
+        let clientDisconnected = false;
+        req.on('close', () => { clientDisconnected = true; });
+
         try {
-          const streamResult = await antigravityProviderInstance.sendChat({
+          const streamResult = await modelRoutingServiceInstance.routeChat({
             messages,
             stream: true,
             model,
             capability,
             temperature: payload.temperature || 0.7
           }, (tokenChunk) => {
+            if (clientDisconnected || res.writableEnded || res.destroyed) return;
             fullStreamed += tokenChunk;
             const sseData = JSON.stringify({
               id: 'chatcmpl-' + Date.now(),
@@ -476,22 +988,32 @@ export function createLocalRouterServer() {
               model,
               choices: [{ index: 0, delta: { content: tokenChunk }, finish_reason: null }]
             });
-            res.write(`data: ${sseData}\n\n`);
+            try {
+              res.write(`data: ${sseData}\n\n`);
+            } catch (_) {}
           });
 
           runtimeObservabilityInstance.completeTask(task.taskId, { content: fullStreamed }, streamResult || {});
-          res.write('data: [DONE]\n\n');
-          res.end();
+          if (!clientDisconnected && !res.writableEnded && !res.destroyed) {
+            try {
+              res.write('data: [DONE]\n\n');
+              res.end();
+            } catch (_) {}
+          }
         } catch (err) {
           console.error('[LOCAL_ROUTER] Chat error (stream):', err);
           runtimeObservabilityInstance.failTask(task.taskId, err);
-          const errData = JSON.stringify({ error: { message: err.message, type: 'local_router_stream_error' } });
-          res.write(`data: ${errData}\n\n`);
-          res.end();
+          if (!clientDisconnected && !res.writableEnded && !res.destroyed) {
+            try {
+              const errData = JSON.stringify({ error: { message: err.message, type: 'local_router_stream_error' } });
+              res.write(`data: ${errData}\n\n`);
+              res.end();
+            } catch (_) {}
+          }
         }
       } else {
         try {
-          const result = await antigravityProviderInstance.sendChat({
+          const result = await modelRoutingServiceInstance.routeChat({
             messages,
             stream: false,
             model,
@@ -499,8 +1021,11 @@ export function createLocalRouterServer() {
             temperature: payload.temperature || 0.7
           });
 
+          console.log(`[FINAL_RESPONSE_COMMITTED] charsCount=${result?.content?.length || 0}`);
+
           const provenance = {
-            providerGateway: 'ANTIGRAVITY',
+            providerGateway: result.providerGateway,
+            routedTo: result.routedTo,
             connectionId: result.connectionId,
             actualConnectionId: result.actualConnectionId,
             accountAlias: result.accountAlias,
@@ -510,9 +1035,10 @@ export function createLocalRouterServer() {
             transportClass: result.transportClass,
             upstreamResponseId: result.upstreamResponseId,
             localResponseId: result.localResponseId,
-            responseId: result.upstreamResponseId || result.localResponseId,
-            fallbackUsed: false,
-            rollover: result.rollover
+            responseId: result.responseId,
+            fallbackUsed: result.fallbackUsed === true,
+            rollover: result.rollover,
+            routePlan: result.routePlan
           };
 
           runtimeObservabilityInstance.completeTask(task.taskId, result, provenance);
@@ -546,6 +1072,342 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 13. GET /api/artifacts/images/:file — static image artifact serving
+    const imageArtifactMatch = pathname.match(/^\/api\/artifacts\/images\/([a-zA-Z0-9_.-]+)$/);
+    if (imageArtifactMatch && req.method === 'GET') {
+      const filename = imageArtifactMatch[1];
+      // Prevent path traversal: only allow image filenames matching the generated pattern
+      if (!/^img-[a-zA-Z0-9_-]+\.(png|jpg|jpeg)$/i.test(filename)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: 'Invalid image artifact filename' } }));
+        return;
+      }
+      const imagePath = path.join('d:/Users/ultimateai/storage/artifacts/images', filename);
+      try {
+        const stat = await fs.promises.stat(imagePath);
+        if (!stat.isFile()) throw new Error('Not a file');
+        const contentType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=3600' });
+        fs.createReadStream(imagePath).pipe(res);
+      } catch {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: 'Image artifact not found' } }));
+      }
+      return;
+    }
+
+    // 14. POST /api/ultimateai/generate-image — LocalRouter image generation endpoint
+    if (pathname === '/api/ultimateai/generate-image' && req.method === 'POST') {
+      const body = await readJsonBody();
+      try {
+        const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
+        const result = await imageGenerationInstance.generateImage({
+          prompt: body.prompt || 'futuristic AI visual',
+          negativePrompt: body.negativePrompt || null,
+          aspectRatio: body.aspectRatio || null,
+          size: body.size || '1024x1024',
+          providerOverride: body.provider || null,
+          stage: 'GENERATE'
+        });
+
+        if (result.success && result.artifact) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            images: [{
+              url: result.artifact.url,
+              bytesBase64Encoded: null,
+              provider: result.artifact.provider,
+              prompt: result.artifact.prompt,
+              width: result.artifact.width,
+              height: result.artifact.height,
+              artifact: result.artifact
+            }]
+          }, null, 2));
+        } else {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: { message: `Image generation failed: ${result.error || 'Unknown error'}`, code: 'IMAGE_GENERATION_FAILED' } }, null, 2));
+        }
+      } catch (err) {
+        console.error('[LOCAL_ROUTER] Image generation error:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'IMAGE_GENERATION_ERROR' } }, null, 2));
+      }
+      return;
+    }
+
+    // 15. MEMORY API
+    if (pathname === '/api/memory' && req.method === 'GET') {
+      try {
+        const category = url.searchParams.get('category') || null;
+        const query = url.searchParams.get('q') || '';
+        const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+        const { activeMemoryCoreInstance } = await import('../memory/ActiveMemoryCore.mjs');
+        const results = activeMemoryCoreInstance.query({
+          queryText: query,
+          category,
+          limit,
+          minConfidence: 0.0,
+          includeInactive: false
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ memories: results, total: results.length }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/memory' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { key, content, category, priority, tags, confidence } = body;
+        if (!content) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: '"content" is required' }));
+          return;
+        }
+        const { activeMemoryCoreInstance } = await import('../memory/ActiveMemoryCore.mjs');
+        const stored = activeMemoryCoreInstance.store({
+          key: key || content.slice(0, 60),
+          content,
+          category,
+          priority,
+          tags: tags || [],
+          confidence: confidence || 0.95
+        });
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(stored));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname.startsWith('/api/memory/') && req.method === 'PUT') {
+      const memoryId = pathname.split('/api/memory/')[1];
+      try {
+        const updates = await readJsonBody();
+        const { activeMemoryCoreInstance } = await import('../memory/ActiveMemoryCore.mjs');
+        const updated = activeMemoryCoreInstance.update(memoryId, updates);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(updated));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname.startsWith('/api/memory/') && req.method === 'DELETE') {
+      const memoryId = pathname.split('/api/memory/')[1];
+      try {
+        const { activeMemoryCoreInstance } = await import('../memory/ActiveMemoryCore.mjs');
+        activeMemoryCoreInstance.delete(memoryId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ deleted: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 16. CONVERSATION PERSISTENCE
+    const CONV_DIR = path.resolve(process.cwd(), 'server/data/conversations');
+    if (pathname === '/api/conversations' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { conversationId, messages, metadata } = body;
+        if (!messages || !Array.isArray(messages)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: '"messages" array is required' }));
+          return;
+        }
+        const id = conversationId || `conv_${Date.now()}`;
+        if (!fs.existsSync(CONV_DIR)) {
+          fs.mkdirSync(CONV_DIR, { recursive: true });
+        }
+        const convData = {
+          id,
+          messages,
+          metadata: metadata || {},
+          messageCount: messages.length,
+          createdAt: messages[0]?.timestamp || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        const filePath = path.join(CONV_DIR, `${id}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(convData, null, 2), 'utf-8');
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ id, saved: true, messageCount: messages.length }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/conversations' && req.method === 'GET') {
+      try {
+        if (!fs.existsSync(CONV_DIR)) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ conversations: [] }));
+          return;
+        }
+        const files = fs.readdirSync(CONV_DIR).filter(f => f.endsWith('.json'));
+        const conversations = files.map(f => {
+          try {
+            const data = JSON.parse(fs.readFileSync(path.join(CONV_DIR, f), 'utf-8'));
+            return { id: data.id, messageCount: data.messageCount, createdAt: data.createdAt, updatedAt: data.updatedAt, metadata: data.metadata };
+          } catch { return null; }
+        }).filter(Boolean).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ conversations, total: conversations.length }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname.startsWith('/api/conversations/') && req.method === 'GET') {
+      const convId = pathname.split('/api/conversations/')[1];
+      try {
+        const filePath = path.join(CONV_DIR, `${convId}.json`);
+        if (!fs.existsSync(filePath)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Conversation not found' }));
+          return;
+        }
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(data));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/conversations' && req.method === 'DELETE') {
+      try {
+        if (fs.existsSync(CONV_DIR)) {
+          const files = fs.readdirSync(CONV_DIR).filter(f => f.endsWith('.json'));
+          for (const f of files) {
+            try { fs.unlinkSync(path.join(CONV_DIR, f)); } catch {}
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ deleted: true, clearedAll: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname.startsWith('/api/conversations/') && req.method === 'DELETE') {
+      const convId = pathname.split('/api/conversations/')[1];
+      try {
+        const filePath = path.join(CONV_DIR, `${convId}.json`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ deleted: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 17. FILES PARSE API
+    if (pathname === '/api/files/parse' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { fileName, content, documentText } = body;
+        if (documentText) {
+          const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
+          const result = await documentIntelligenceToolInstance.execute({ documentText, filename: fileName || 'uploaded-document' });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result, null, 2));
+          return;
+        }
+        if (!content) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: '"content" (extracted text) or "documentText" is required' }));
+          return;
+        }
+        const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
+        const result = await documentIntelligenceToolInstance.execute({
+          documentText: content,
+          filename: fileName || 'uploaded-document',
+          query: ''
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    // 18. SANDBOX EXECUTION API
+    if (pathname === '/api/sandbox/execute' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { code, runtime = 'node', timeoutMs = 4000 } = body;
+        if (!code || typeof code !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: '"code" string is required' }));
+          return;
+        }
+        const { sandboxExecutionToolInstance } = await import('../tools/SandboxExecutionTool.mjs');
+        const result = await sandboxExecutionToolInstance.execute({
+          code,
+          runtime: ['node', 'python', 'powershell'].includes(runtime) ? runtime : 'node',
+          timeoutMs: Math.min(timeoutMs, 5000)
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message, success: false }));
+      }
+      return;
+    }
+
+    // 19. ENGINEERING AGENT TELEMETRY & STATUS
+    if (pathname === '/api/engineering/telemetry' && req.method === 'POST') {
+      try {
+        const payload = await readJsonBody();
+        const { frontendTelemetryGatewayInstance } = await import('../engineering/observer/FrontendTelemetryGateway.mjs');
+        const result = frontendTelemetryGatewayInstance.processTelemetry(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, result }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/engineering/status' && req.method === 'GET') {
+      try {
+        const { engineeringRuntimeInstance } = await import('../engineering/EngineeringRuntime.mjs');
+        const status = await engineeringRuntimeInstance.getSystemHealth();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(status, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));
@@ -560,9 +1422,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`=======================================================`);
     console.log(`  ULTIMATEAI LOCAL ROUTER LIVE ON http://127.0.0.1:${PORT}`);
     console.log(`  - Dashboard:   http://127.0.0.1:${PORT}/dashboard/connections`);
-    console.log(`  - Health:      http://127.0.0.1:${PORT}/health`);
+    console.log(`  - Health:      http://127.0.0.1:${PORT}${LOCAL_ROUTER_HEALTH_PATH}`);
     console.log(`  - Quota SSOT:  http://127.0.0.1:${PORT}/api/quota`);
     console.log(`  - Chat API:    http://127.0.0.1:${PORT}/v1/chat/completions`);
+    console.log(`  - Daemon:      http://127.0.0.1:${PORT}/api/daemon/status`);
     console.log(`=======================================================`);
+    import('../daemon/CuriosityDaemon.mjs')
+      .then(m => m.curiosityDaemonInstance.start())
+      .catch(e => console.warn('[LocalRouter] Failed to start CuriosityDaemon:', e.message));
   });
 }

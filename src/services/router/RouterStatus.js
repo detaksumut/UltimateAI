@@ -1,6 +1,6 @@
 /**
  * RouterStatus.js
- * Telemetry and health tracker for UltimateAI 9Router connection.
+ * Telemetry and health tracker for UltimateAI Local Router connection.
  */
 
 export class RouterStatus {
@@ -38,7 +38,7 @@ export class RouterStatus {
       activeCount: this.activeCount,
       latencyMs: this.latencyMs,
       lastChecked: this.lastChecked,
-      label: this.isConnected ? '9ROUTER ACTIVE' : '9ROUTER STANDBY'
+      label: this.isConnected ? 'LOCAL ROUTER ACTIVE' : 'LOCAL ROUTER STANDBY'
     };
   }
 }

@@ -111,7 +111,7 @@ class FrontendErrorObserver {
     while (el && depth < 10) {
       if (el.dataset?.component) return el.dataset.component;
       const id = el.id || '';
-      if (id.includes('btn-nav')) return 'LeftSidebarHUD';
+      if (id.includes('btn-nav')) return 'ChatSimulator';
       el = el.parentElement;
       depth++;
     }

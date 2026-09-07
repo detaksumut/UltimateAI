@@ -46,13 +46,11 @@ export class LearningPipelineImpl implements ILearningPipeline {
     }
 
     // 3. Synthesis (AI)
-    // Pipeline strictly coordinates, doesn't decide how to cluster. We just pass it.
-    // In a real implementation, synthesizer would cluster internally and return candidates.
-    // We adjust the IKnowledgeSynthesizer to take patterns directly for simplicity at the pipeline level,
-    // or assume synthesizeCandidates handles the patterns.
-    // Let's assume the pipeline just passes patterns to a high-level synthesize method.
-    // (mocking the internal clusters call)
-    const synthesisResult = await this.synthesizer.synthesizeCandidates([] /* mock passing patterns */);
+    const clusters = await this.synthesizer.clusterPatterns(analysisResult.patterns);
+    if (clusters.length === 0) {
+      return this.createResult(context, extractionResult.experiences.length, analysisResult.patterns.length, 0, 0, 0, 0, startTime, warnings);
+    }
+    const synthesisResult = await this.synthesizer.synthesizeCandidates(clusters);
     warnings.push(...synthesisResult.warnings);
     
     if (synthesisResult.candidates.length === 0) {
@@ -64,9 +62,24 @@ export class LearningPipelineImpl implements ILearningPipeline {
     let promotedCount = 0;
     let archivedCount = 0;
 
-    // Mock policy/context extraction from PipelineContext
-    const validationContext = {} as ValidationContext; 
-    const promotionPolicy = {} as PromotionPolicy;
+    const validationContext: ValidationContext = {
+      policy: context.configuration?.validationPolicy || {
+        minimumConfidenceScore: 0.65,
+        minimumCoverageCount: 1,
+        maximumContradictionRatio: 0.3,
+        maximumExperienceAgeMs: 30 * 24 * 60 * 60 * 1000
+      },
+      currentTimeMs: Date.now()
+    };
+
+    const promotionPolicy: PromotionPolicy = context.configuration?.promotionPolicy || {
+      archiveSuperseded: true,
+      requireHumanApprovalForGlobalScope: false,
+      minimumStrengthForGlobal: "STRONG" as any,
+      conflictResolutionStrategy: "LATEST_WINS" as any,
+      defaultVersionStrategy: "PATCH" as any,
+      targetRepository: "DEFAULT_REPOSITORY"
+    };
 
     for (const candidate of synthesisResult.candidates) {
       // Validation

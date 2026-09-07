@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 export default function OuterOrbitalDustCanvas({ colorHex = '#00f2fe' }) {
   const canvasRef = useRef(null);
@@ -36,7 +36,17 @@ export default function OuterOrbitalDustCanvas({ colorHex = '#00f2fe' }) {
       };
     });
 
-    const render = () => {
+    let lastRenderTime = 0;
+    const frameInterval = 1000 / 30; // 30 FPS throttle
+
+    const render = (currentTime) => {
+      animId = requestAnimationFrame(render);
+      if (document.hidden) return;
+
+      const elapsed = currentTime - lastRenderTime;
+      if (elapsed < frameInterval) return;
+      lastRenderTime = currentTime - (elapsed % frameInterval);
+
       ctx.clearRect(0, 0, w, h);
 
       particles.forEach((p) => {
@@ -101,11 +111,9 @@ export default function OuterOrbitalDustCanvas({ colorHex = '#00f2fe' }) {
         ctx.arc(screenX, screenY, currentSize * 0.6, 0, Math.PI * 2);
         ctx.fill();
       });
-
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animId);

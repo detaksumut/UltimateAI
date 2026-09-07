@@ -114,7 +114,7 @@ Depending on a single provider would limit the future of the platform.
 
 UltimateAI therefore adopted a provider-independent strategy.
 
-The project integrated **9Router** as its primary AI gateway.
+The project integrated **Local Router** as its primary AI gateway.
 
 This decision introduced several long-term advantages:
 
@@ -218,7 +218,7 @@ These principles continue to guide UltimateAI.
 * Research Builder vision established.
 * Automatic deployment pipeline envisioned.
 * GitHub, Supabase, and Vercel selected.
-* 9Router integrated as the AI gateway.
+* Local Router integrated as the AI gateway.
 * Enterprise architecture defined.
 * Architecture Freeze initiated.
 * The UltimateAI Chronicle officially established.

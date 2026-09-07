@@ -1,64 +1,57 @@
 /**
  * env.mjs
- * Server-Side Environment Configuration and Secret Vault.
- * Auto-loads .env file if present on disk.
+ * UltimateAI Local Router Configuration & Environment Management.
+ * 100% Local Single Source of Truth.
  */
 
-import fs from 'fs';
+import dotenv from 'dotenv';
 import path from 'path';
 
-// Auto-load .env file if exists
-try {
-  const envPath = path.resolve(process.cwd(), '.env');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    envContent.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
-        const [key, ...rest] = trimmed.split('=');
-        const val = rest.join('=').trim().replace(/^["']|["']$/g, '');
-        if (key && !process.env[key.trim()]) {
-          process.env[key.trim()] = val;
-        }
-      }
-    });
-  }
-} catch {}
+// Load .env from project root
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+export const LOCAL_ROUTER_HEALTH_PATH = '/health';
+export const LOCAL_ROUTER_HEALTH_LEGACY_PATH = '/api/health';
+export const LOCAL_ROUTER_HEALTH_PATHS = new Set([
+  LOCAL_ROUTER_HEALTH_PATH,
+  LOCAL_ROUTER_HEALTH_LEGACY_PATH
+]);
 
 export const config = {
-  port: parseInt(process.env.PORT || '20128', 10),
-  defaultProvider: process.env.DEFAULT_PROVIDER || 'gemini',
-  keys: {
-    gemini: (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'API_KEY_GEMINI_ANDA') ? process.env.GEMINI_API_KEY : (process.env.GEMINI_API_KEY_2 || process.env.GEMINI_API_KEY_1 || ''),
-    openai: process.env.OPENAI_API_KEY || '',
-    claude: process.env.ANTHROPIC_API_KEY || '',
-    deepseek: process.env.DEEPSEEK_API_KEY || ''
+  port: parseInt(process.env.PORT || '20200', 10),
+  defaultProvider: process.env.ROUTE_PROVIDER || 'gemini',
+  localRouter: {
+    baseUrl: process.env.LOCAL_ROUTER_URL || 'http://127.0.0.1:20200',
+    port: parseInt(process.env.LOCAL_ROUTER_PORT || '20200', 10),
+    healthPath: LOCAL_ROUTER_HEALTH_PATH,
+    healthLegacyPath: LOCAL_ROUTER_HEALTH_LEGACY_PATH
   },
   endpoints: {
-    gemini: 'https://generativelanguage.googleapis.com/v1beta',
-    openai: 'https://api.openai.com/v1',
-    claude: 'https://api.anthropic.com/v1',
-    deepseek: 'https://api.deepseek.com/v1'
+    ollama: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
+  },
+  localLLM: {
+    enabled: true,
+    model: process.env.OLLAMA_MODEL || 'hermes3:8b',
+    baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
+    timeoutMs: parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10),
+    maxPromptChars: parseInt(process.env.OLLAMA_MAX_PROMPT_CHARS || '16000', 10)
+  },
+  route: {
+    strategy: process.env.ROUTE_STRATEGY || 'cloud_first',
+    provider: process.env.ROUTE_PROVIDER || 'gemini'
+  },
+  imageGeneration: {
+    provider: 'local',
+    providerPriority: ['LOCAL_GENERATOR', 'POLLINATIONS']
   }
 };
 
 export function getProviderConfigStatus() {
   return {
-    gemini: {
-      configured: Boolean(config.keys.gemini && config.keys.gemini.trim().length > 10),
-      model: 'gemini-2.5-flash'
-    },
-    openai: {
-      configured: Boolean(config.keys.openai && config.keys.openai.trim().length > 10),
-      model: 'gpt-4o-mini'
-    },
-    claude: {
-      configured: Boolean(config.keys.claude && config.keys.claude.trim().length > 10),
-      model: 'claude-3-5-sonnet-20241022'
-    },
-    deepseek: {
-      configured: Boolean(config.keys.deepseek && config.keys.deepseek.trim().length > 10),
-      model: 'deepseek-reasoner'
+    ollama: {
+      configured: true,
+      model: config.localLLM.model,
+      endpoint: config.localLLM.baseUrl
     }
   };
 }

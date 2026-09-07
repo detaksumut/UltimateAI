@@ -1,6 +1,6 @@
 /**
  * BaseProvider.mjs
- * Abstract Contract for 9Router AI Provider Adapters.
+ * Abstract Contract for AI Provider Adapters.
  */
 
 export class BaseProvider {

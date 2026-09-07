@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DisplaySpeechSeparationEngine.js
  * ULTIMATEAI â€” DISPLAY-SPEECH SEPARATION ARCHITECTURE
  *
@@ -86,7 +86,7 @@ export class TableSpeechSummarizer {
 export class ChartSpeechSummarizer {
   static summarize(text, userPrompt = '') {
     return {
-      speechText: 'Grafiknya sudah saya tampilkan. Tren utama tersaji lengkap di panel layar.',
+      speechText: 'Grafiknya sudah saya tampilkan. Tren utama tersaji lengkap di layar.',
       omittedDetails: true
     };
   }
@@ -144,7 +144,9 @@ export class DisplaySpeechSeparationEngine {
     // 5. Hard Reject: Raw URLs & Protocols
     clean = clean.replace(/https?:\/\/[^\s]+/g, '');
 
-    // 6. Hard Reject: Raw punctuation symbols
+    // 6. Hard Reject: Horizontal rules, dividers, repeated dashes, and isolated dashes
+    clean = clean.replace(/[-–—_]{2,}/g, ' ');
+    clean = clean.replace(/(^|\s)[-–—]+(\s|$)/g, ' ');
     clean = clean.replace(/[#*_~`|{}[\]()<>\\^]/g, ' ');
 
     // 7. Normalize spaces
@@ -209,8 +211,14 @@ export class DisplaySpeechSeparationEngine {
       const summary = WebSearchSpeechSummarizer.summarize(raw, prompt);
       speechContent = summary.speechText;
     } else {
-      // General prose response: take opening concise insight paragraphs
-      const paragraphs = raw.split(/\n\n+/).filter(p => !p.startsWith('#') && !p.startsWith('|') && !p.startsWith('```'));
+      // General prose response: take opening concise insight paragraphs, ignoring headers, tables, code, and horizontal dividers (---, ***, ___)
+      const paragraphs = raw.split(/\n\n+/).filter(p => {
+        const trimmed = p.trim();
+        return !trimmed.startsWith('#') &&
+               !trimmed.startsWith('|') &&
+               !trimmed.startsWith('```') &&
+               !/^[-*_=\s]{2,}$/.test(trimmed);
+      });
       if (paragraphs.length > 0) {
         speechContent = paragraphs.slice(0, 2).join(' ');
       } else {

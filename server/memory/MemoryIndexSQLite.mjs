@@ -211,9 +211,14 @@ export class MemoryIndexSQLite {
 
         return {
           ...row,
-          contentScore,
-          tags: JSON.parse(row.tags || '[]'),
-          source: JSON.parse(row.source || '{}'),
+          tags: (() => {
+            try { return JSON.parse(row.tags || '[]'); }
+            catch { return [String(row.tags || '')]; }
+          })(),
+          source: (() => {
+            try { return JSON.parse(row.source || '{}'); }
+            catch { return { name: String(row.source || '') }; }
+          })(),
           rankingScore: finalScore
         };
       });

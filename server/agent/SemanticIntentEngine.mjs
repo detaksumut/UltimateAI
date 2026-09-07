@@ -13,11 +13,13 @@
 
 import { config } from '../config/env.mjs';
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
+import { providerIntelligenceRouterInstance, SCOPE, PROVIDER, FALLBACK_RESTRICTION } from '../routing/ProviderIntelligenceRouter.mjs';
+import { classifyMarketIntent } from '../market/marketIntentRouter.mjs';
 
 export class SemanticIntentEngine {
   constructor(proxyUrl = null, apiKey = null) {
     this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
-    this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
+    this.apiKey = apiKey || process.env.ROUTER_API_KEY || '';
   }
 
   /**
@@ -29,15 +31,51 @@ export class SemanticIntentEngine {
     }
 
     const raw = input.trim();
-    const model = options.forcedModel || 'gemini-3.6-flash-high';
-    const transport = options.certificationTransport || 'NINE_ROUTER_PROXY';
+
+    // 0. FAST-PATH: Deterministic classifiers run FIRST (in priority order).
+    //    Casual chat → Device inspection → Task classifier → LLM → Offline fallback.
+
+    // 0a. CASUAL CHAT — greetings, thanks, identity questions (no action needed)
+    const casualDecision = this._deterministicCasualChatClassifier(raw);
+    if (casualDecision) {
+      return this._injectScope(raw, casualDecision);
+    }
+
+    // 0b. DEVICE INSPECTION — local device queries
+    const deviceDecision = this._deviceInspectionDecision(raw, context, options);
+    if (deviceDecision) {
+      return this._injectScope(raw, deviceDecision);
+    }
+
+    // 0b2. IMAGE GENERATION — dedicated intent before generic task classifier
+    const imageDecision = this._imageGenerationClassifier(raw, context.constraints || []);
+    if (imageDecision) {
+      return this._injectScope(raw, imageDecision);
+    }
+
+    // 0b3. MARKET DATA — HIGHEST-PRIORITY market override before generic task classifier.
+    //      Market instrument + threshold-intent must NEVER route to generic web.search / YouTube.
+    //      Explicit news/video requests are deliberately NOT captured here.
+    const marketDecision = classifyMarketIntent(raw);
+    if (marketDecision && marketDecision.captured) {
+      return this._injectScope(raw, marketDecision);
+    }
+
+    // 0c. TASK CLASSIFIER — action-requiring tasks (doc, code, data, multi-step, research, external)
+    const deterministicDecision = this._deterministicTaskClassifier(raw, context.constraints || []);
+    if (deterministicDecision) {
+      return this._injectScope(raw, deterministicDecision);
+    }
+
+    const model = options.forcedModel || 'hermes3:8b';
+    const transport = options.certificationTransport || 'LOCAL_ROUTER_PROXY';
 
     // Build rich contextual prompt for the LLM
     const systemPrompt = this._buildSystemPrompt();
     const userMessage = this._buildUserMessage(raw, context);
 
-    // 1. PRIMARY: HTTP 9Router Proxy Dispatch
-    if (transport === 'NINE_ROUTER_PROXY') {
+    // 1. PRIMARY: HTTP Local Router Proxy Dispatch
+    if (transport === 'LOCAL_ROUTER_PROXY') {
       try {
         const headers = { 'Content-Type': 'application/json' };
         if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
@@ -54,7 +92,7 @@ export class SemanticIntentEngine {
             temperature: 0.1,
             response_format: { type: 'json_object' }
           }),
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(60000)
         });
 
         if (response.ok) {
@@ -62,18 +100,18 @@ export class SemanticIntentEngine {
           const content = data.choices?.[0]?.message?.content;
           if (content) {
             const parsed = JSON.parse(content);
-            return {
+            return this._injectScope(raw, {
               ...parsed,
               interpretationSource: 'PRIMARY_LLM_SEMANTIC',
               semanticModel: model,
-              transportUsed: 'NINE_ROUTER_PROXY',
+              transportUsed: 'LOCAL_ROUTER_PROXY',
               fallbackUsed: false
-            };
+            });
           }
         }
       } catch (err) {
         if (options.failClosed) {
-          throw new Error(`[FAIL_CLOSED • NINE_ROUTER_PROXY] Gateway unreachable: ${err.message}`);
+          throw new Error(`[FAIL_CLOSED • LOCAL_ROUTER_PROXY] Gateway unreachable: ${err.message}`);
         }
       }
     }
@@ -91,13 +129,13 @@ export class SemanticIntentEngine {
 
         if (res?.content) {
           const parsed = JSON.parse(res.content);
-          return {
+          return this._injectScope(raw, {
             ...parsed,
             interpretationSource: 'DIRECT_PROVIDER',
             semanticModel: resolved.model,
             transportUsed: 'DIRECT_PROVIDER',
             fallbackUsed: false
-          };
+          });
         }
       } catch (err) {
         if (options.failClosed) {
@@ -107,7 +145,50 @@ export class SemanticIntentEngine {
     }
 
     // 3. STRUCTURAL CONTEXTUAL FALLBACK (Offline Resilient Mode)
-    return this._offlineContextualReasoning(raw, context, options);
+    const offlineDecision = this._offlineContextualReasoning(raw, context, options);
+    return this._injectScope(raw, offlineDecision);
+  }
+
+  _deviceInspectionDecision(raw, context) {
+    const activeConstraints = [...(context.constraints || [])];
+    const deviceIntentPattern = /kondisi\s+(komputer|pc|laptop|sistem|device)|(cek|periksa|lihat|tampilkan|check|info)\s+(.*?\s+)?(ram|memory|memori|cpu|disk|storage|proses|process|spesifikasi|spec|device|sistem|system)|penggunaan\s+(ram|memory|memori|cpu|disk)|sisa\s+(ram|memory|memori|storage|disk|ruang)|\b(proses|process)\b.*\b(berjalan|memakai|paling|terbanyak|penggunaan|memory|memori|ram)\b|\b(memory|memori|ram)\b.*\b(proses|process)\b|berat\s+ini|lambat\s+ini|lemot|apa\s+yang\s+membuat\s+(komputer|pc|laptop)\s+(saya\s+)?(berat|lambat|lemot)|(komputer|pc|laptop)\s+(saya\s+)?(berat|lambat|lemot)\?|komputer\s+(berat|lambat|lemot)|kondisi\s+ultimate\s*ai|ultimate\s*ai|(cek|periksa|lihat)\s+(storage|disk|penyimpanan)|kesehatan\s+(komputer|sistem|pc|device)|berapa\s+(ram|memory|cpu|disk|storage)|disk\s+space|cpu\s+usage|ram\s+usage|system\s+info|info\s+system|device\s+info|info\s+device|cek\s+device|check\s+device/i;
+    const nonDeviceContextPattern = /situs|website|url|berita|di\s+web|internet|dokumen|file\s+(ini|tersebut)|laporan|tugas|isi\s+dokumen|surat|kode\s+program|source\s+code/i;
+    if (!deviceIntentPattern.test(raw) || nonDeviceContextPattern.test(raw)) {
+      return null;
+    }
+    let scope = 'overview';
+    if (/ultimate\s*ai|vite|local\s+router|backend|server\s+ultra|ollama|community\s+router/i.test(raw)) {
+      scope = 'runtime';
+    } else if (/proses|process/i.test(raw)) {
+      scope = 'process';
+    } else if (/ram|memory|memori/i.test(raw)) {
+      scope = 'memory';
+    } else if (/storage|disk|penyimpanan/i.test(raw)) {
+      scope = 'storage';
+    } else if (/berat|lambat|lemot/i.test(raw)) {
+      scope = 'diagnosis';
+    }
+    return {
+      intent: 'DEVICE_INSPECTION',
+      goal: `Inspect local device: ${scope}`,
+      scope,
+      actionRequired: true,
+      resolvedReferences: [],
+      entities: [scope],
+      constraints: activeConstraints,
+      isCorrecting: false,
+      isContinuing: Boolean(context.activeTask),
+      freshDataRequired: false,
+      toolsNeeded: ['device.inspect'],
+      toolReason: 'Permintaan terkait kondisi komputer lokal: observasi langsung perangkat (read-only, DEVICE_INTELLIGENCE).',
+      needsClarification: false,
+      clarificationQuestion: null,
+      confidence: 0.93,
+      reason: 'Device inspection intent recognized from local machine vocabulary.',
+      interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: true
+    };
   }
 
   _buildSystemPrompt() {
@@ -127,10 +208,11 @@ Rules:
    - threat.feed: Ingesting/scoring cybersecurity threat feeds.
    - doc.analyze: Document analysis.
    - memory.vault: Storing or querying persistent facts.
+   - device.inspect: Local machine inspection (RAM, CPU, disk, processes, UltimateAI runtime). Purely read-only. Use when the user asks about their local computer ("kondisi komputer", "cek penggunaan RAM", "proses paling banyak pakai memory", "kondisi UltimateAI", "cek storage", "apa yang membuat komputer berat"). Output must include a "scope" field: "overview" | "memory" | "process" | "storage" | "runtime" | "diagnosis".
 
 Output STRICT valid JSON:
 {
-  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|CLARIFICATION_REQUEST>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|CLARIFICATION_REQUEST>",
   "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
   "actionRequired": <boolean>,
@@ -211,9 +293,9 @@ Analyze contextually and output strict JSON.`;
         toolReason: 'Perintah kontrol langsung dari pengguna untuk menjeda/menghentikan.',
         confidence: 0.95,
         reason: 'User issued a pause/stop control command.',
-        interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+        interpretationSource: 'DETERMINISTIC_TASK_CONTROL',
         transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
+        fallbackUsed: false
       };
     }
 
@@ -233,19 +315,31 @@ Analyze contextually and output strict JSON.`;
         toolReason: 'Melanjutkan tugas yang tertunda sesuai konteks sesi.',
         confidence: 0.95,
         reason: 'User issued a resume command.',
-        interpretationSource: 'OFFLINE_CONTEXTUAL_ENGINE',
+        interpretationSource: 'DETERMINISTIC_TASK_CONTROL',
         transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
+        fallbackUsed: false
       };
     }
 
-    // 2. Negative Constraints: "Jangan pakai internet", "tanpa internet", "jangan cari web"
+    // 2. CASUAL CHAT in offline path — catch greetings that slipped through
+    const casualDecision = this._deterministicCasualChatClassifier(raw);
+    if (casualDecision) {
+      return casualDecision;
+    }
+
+    // 3. Negative Constraints: "Jangan pakai internet", "tanpa internet", "jangan cari web"
     const hasNegativeInternetConstraint = /jangan\s+(pakai|gunakan|cari|akses)?\s*(internet|web|online)|tanpa\s+internet/i.test(raw);
     if (hasNegativeInternetConstraint) {
       activeConstraints.push('NO_INTERNET_ACCESS');
     }
 
     const isNoInternetRestricted = activeConstraints.some(c => /no_internet|jangan pakai internet|tanpa internet/i.test(c)) || hasNegativeInternetConstraint;
+
+    // 3. DEVICE INSPECTION (local, read-only, never needs internet)
+    const deviceDecision = this._deviceInspectionDecision(raw, context, options);
+    if (deviceDecision) {
+      return deviceDecision;
+    }
 
     // 3. User Correction & Redirection: "Bukan yang itu", "Saya maksud dokumen kedua", "Kembali ke poin kedua"
     const isCorrection = /bukan\s+(yang\s+itu|itu)|maksud\s+saya|koreksi|ralat|kembali\s+ke\s+poin/i.test(raw);
@@ -306,6 +400,13 @@ Analyze contextually and output strict JSON.`;
       toolReason = 'Penyimpanan entitas pengetahuan ke Memory Vault.';
     }
 
+    // 5. DETERMINISTIC TASK CLASSIFIER — Safety net for LLM timeout/fallback
+    //    If the LLM didn't classify the task, use regex to detect action categories.
+    const taskDecision = this._deterministicTaskClassifier(raw, activeConstraints);
+    if (taskDecision) {
+      return taskDecision;
+    }
+
     return {
       intent: targetUrl ? 'URL_INSPECTION' : (isCorrection ? 'CORRECTION' : 'RESEARCH_QUESTION'),
       goal: raw,
@@ -328,6 +429,91 @@ Analyze contextually and output strict JSON.`;
     };
   }
 
+  /**
+   * Inject sourceScope into any semantic decision using ProviderIntelligenceRouter.
+   * Called on every return path to ensure scope is always present.
+   */
+  _injectScope(raw, decision) {
+    const routing = providerIntelligenceRouterInstance.classifyScope(raw);
+    return {
+      ...decision,
+      sourceScope: routing.scope,
+      providerRouting: {
+        preferredProvider: routing.preferredProvider,
+        fallbackProvider: routing.fallbackProvider,
+        fallbackRestriction: routing.fallbackRestriction,
+        restrictions: routing.restrictions,
+        requiresRealTimeData: routing.requiresRealTimeData
+      }
+    };
+  }
+
+  /**
+   * Deterministic Casual Chat Classifier — Fast-path for greetings, thanks, identity questions.
+   * Must run BEFORE device inspection and task classifier.
+   *
+   * CRITICAL: Only matches SHORT pure greetings. If the input contains action words
+   * after a greeting (e.g. "Halo, tolong riset..."), it must NOT match here.
+   * Those will be caught by the task classifier downstream.
+   */
+  _deterministicCasualChatClassifier(raw) {
+    const r = raw.trim();
+
+    // Pure greetings — no action words, no question marks (except identity questions)
+    // Must be SHORT (< 30 chars for greetings, < 50 for identity questions)
+    const isShort = r.length < 50;
+
+    // Greeting patterns (standalone, no trailing action verbs)
+    const greetingPattern = /^(halo|hai|hi|hey|hello|horas|selamat\s+(pagi|siang|sore|malam)|good\s+(morning|afternoon|evening)|yo|oi|oy|woi|assalamualaikum|salam)\s*[!!.]?\s*$/i;
+
+    // Thank you patterns
+    const thanksPattern = /^(terima\s+kasih|makasih|thanks|thank\s*you|thx|ty|mantap|keren|bagus\s+sekali|hebat)\s*[!!.]?\s*$/i;
+
+    // Identity questions — "siapa kamu?", "kamu siapa?"
+    const identityPattern = /^(siapa\s+kamu|kamu\s+siapa|apa\s+nama\s+kamu|siapa\s+nama\s+anda|who\s+are\s+you|what('?s|\s+is)\s+your\s+name)\s*[?!.]?\s*$/i;
+
+    // Simple "apa kabar" and variants
+    const wellbeingPattern = /^(apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja\s*\??|kabar\s+(baik|gimana|apa))\s*[?!.]?\s*$/i;
+
+    // Greeting + optional JIN/AI handle — "Halo JIN", "Hai JIN!"
+    const greetingNamePattern = /^(halo|hai|hi|hey|hello|horas|selamat\s+(pagi|siang|sore|malam)|good\s+(morning|afternoon|evening)|assalamualaikum|salam)[\s,*]*(jin|ai|eja|ultimate[\s-]*ai)?[\s,*]*[!!.]?\s*$/i;
+
+    // Greeting + optional handle + wellbeing — "Halo JIN, apa kabar?", "Hai, how are you?"
+    const greetingWellbeingPattern = /^(?:halo|hai|hi|hey|hello|horas|selamat\s+(?:pagi|siang|sore|malam)|good\s+(?:morning|afternoon|evening|day)|assalamualaikum|salam)[\s,]*(jin|ai|eja)?[\s,]+(apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja)\s*[?!.]?\s*$/i;
+
+    // Simple "tidak apa-apa" / "sama-sama" responses
+    const acknowledgmentPattern = /^(tidak\s+apa[\s\-]?apa|sama[\s\-]?sama|oke|ok|siap|baik|noted|understood|akan\s+ku\.?\s*ingat)\s*[!!.]?\s*$/i;
+
+    if (!isShort) return null;
+
+    if (greetingPattern.test(r) || greetingNamePattern.test(r) || greetingWellbeingPattern.test(r) ||
+        thanksPattern.test(r) || identityPattern.test(r) || wellbeingPattern.test(r) ||
+        acknowledgmentPattern.test(r)) {
+      return {
+        intent: 'CASUAL_CHAT',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: false,
+        entities: [],
+        constraints: [],
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: [],
+        toolReason: 'Sapaan, ucapan, atau percakapan kasual — tidak memerlukan aksi.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.97,
+        reason: 'Deterministic casual chat classifier: pure greeting/acknowledgment detected.',
+        interpretationSource: 'DETERMINISTIC_CASUAL_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false
+      };
+    }
+
+    return null;
+  }
+
   _emptyUtterance(options) {
     return {
       intent: 'CASUAL_CHAT',
@@ -343,10 +529,248 @@ Analyze contextually and output strict JSON.`;
       reason: 'Empty user utterance.',
       needsClarification: false,
       clarificationQuestion: null,
-      interpretationSource: 'PRIMARY_LLM_SEMANTIC',
-      transportUsed: options.certificationTransport || 'NINE_ROUTER_PROXY',
-      fallbackUsed: false
+      interpretationSource: 'DETERMINISTIC_EMPTY_UTTERANCE',
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: false,
+      sourceScope: SCOPE.LOCAL_ONLY,
+      providerRouting: {
+        preferredProvider: PROVIDER.OLLAMA,
+        fallbackProvider: null,
+        fallbackRestriction: FALLBACK_RESTRICTION.NONE,
+        restrictions: [],
+        requiresRealTimeData: false
+      }
     };
+  }
+
+  /**
+   * Deterministic Image Generation Classifier — Runs BEFORE generic task classifier.
+   * Detects image generation requests and routes to IMAGE_GENERATION intent.
+   * Matches Indonesian and English image creation vocabulary.
+   * Explicitly excludes analysis/search of existing images (cari/temukan/analisis images).
+   */
+  _imageGenerationClassifier(raw, activeConstraints = []) {
+    const r = raw;
+
+    // Positive patterns: image creation intent
+    const createImagePattern = /(?:buatkan?|buat|generate|create|bikin|hasilkan|render|desain|lukis(?:kan)?|gambar(?:kan)?|ilustrasi(?:kan)?|visual(?:kan)?)\s+(?:.*\s+)?(?:gambar|image|ilustrasi|visual|poster|logo|wallpaper|foto|lukisan|karya\s+visual|desain\s+visual|artwork|anime|carton|kartun|3d|rendering)/i;
+
+    const standaloneImageWord = /(?:generate|create|buatkan?|buat|bikin|tolong\s+bikin)\s+(?:sebuah\s+)?(?:gambar|image|ilustrasi|visual|foto|lukisan|poster|logo|wallpaper|artwork|anime|kartun|3d|rendering)/i;
+
+    const directGenerateKeyword = /(?:generate\s+image|create\s+an?\s+image|buat\s+gambar|buatkan\s+gambar|generate\s+gambar|tolong\s+(?:buatkan?|generate|create)\s+(?:sebuah\s+)?(?:gambar|image|visual|foto|ilustrasi))/i;
+
+    const gambarkanPattern = /^gambarkan\s+/i;
+
+    // Negative patterns: exclude analysis/search/description of existing images
+    const negativeExclude = /(?:analisis|analysis|jelaskan|deskripsikan|bedah|baca|cari|temukan|search|find|lihat|tampilkan|download|unduh|simpan|hapus)\s+(?:.*\s+)?(?:gambar|image|foto|lukisan|ilustrasi)/i;
+
+    const isNegative = negativeExclude.test(r);
+    const matchesPositive = createImagePattern.test(r) || standaloneImageWord.test(r) || directGenerateKeyword.test(r) || gambarkanPattern.test(r);
+
+    if (matchesPositive && !isNegative) {
+      return {
+        intent: 'IMAGE_GENERATION',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['image_generation'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['image.generate'],
+        toolReason: 'User requests visual image generation. Must route to ImageGeneration service.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.94,
+        reason: 'Deterministic classifier: image generation task detected from creation vocabulary.',
+        interpretationSource: 'DETERMINISTIC_IMAGE_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Deterministic Task Classifier — Safety net for when LLM times out or misclassifies.
+   * Uses regex to detect action-requiring tasks and set actionRequired: true.
+   * This ensures the full pipeline (PLAN → BUILD → VERIFY) is triggered.
+   */
+  _deterministicTaskClassifier(raw, activeConstraints = []) {
+    const r = raw;
+
+    // DOCUMENT ANALYSIS — user asks to analyze/read/extract from a document
+    if (/analisis\s+dokumen|dokumen\s+ini|file\s+ini|pdf\s+ini|upload.*analisis|ekstrak\s+isi|baca\s+dokumen|ringkas\s+dokumen|summary\s+dokumen|buat\s+ringkasan\s+dari|buat\s+summary\s+dari/i.test(r)) {
+      return {
+        intent: 'DOCUMENT_ANALYSIS',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['document'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['doc.analyze'],
+        toolReason: 'Pengguna meminta analisis atau ekstraksi konten dari dokumen.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.92,
+        reason: 'Deterministic classifier: document analysis task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // APP SYNTHESIS — user asks to build/create code, app, component
+    if (/buatkan?\s+(kode|code|script|program|aplikasi|app|website|component|function|class|class|module|widget|halaman|page|form|button|modal|popup|layout|interface|ui|api|endpoint|route|rest|graphql)|generate\s+code|create\s+(app|application|component|function|class|module)|bangun\s+(aplikasi|website|sistem|tool|utility)/i.test(r)) {
+      return {
+        intent: 'APP_SYNTHESIS',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['code_generation'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['sandbox.execute'],
+        toolReason: 'Pengguna meminta pembuatan kode atau aplikasi.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.93,
+        reason: 'Deterministic classifier: code/app synthesis task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // DATA ANALYTICS — user asks for computation, analysis, statistics
+    if (/hitung|kalkulasi|statistik|data\s+analytics|analisis\s+data|rata-rata|persentase|growth|trend|perbandingan|komparasi|visualisasi|grafik|chart|matrix|tabel\s+data|olah\s+data|proses\s+data/i.test(r)) {
+      return {
+        intent: 'DATA_ANALYTICS',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['data_analysis'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['sandbox.execute'],
+        toolReason: 'Pengguna meminta analisis data, kalkulasi, atau visualisasi.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.91,
+        reason: 'Deterministic classifier: data analytics task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // MULTI-STEP TASK — user asks for complex/sequential work
+    if (/langkah|step|proses|pipeline|workflow|urutan|rentetan|rangkaian|secara\s+bertahap|berurutan| tahap|fase/i.test(r) && !/^(halo|hai|hi|hey|selamat|pagi|siang|sore|malam)/i.test(r)) {
+      return {
+        intent: 'MULTI_STEP_TASK',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['multi_step'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: [],
+        toolReason: 'Pengguna meminta tugas multi-langkah yang kompleks.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.88,
+        reason: 'Deterministic classifier: multi-step task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // REPORT GENERATION — user asks to create a report, summary, document
+    if (/buatkan?\s+(laporan|report|dokumen|artikel|tulisan|draft|surat|proposal|presentasi|ppt|makalah)|generate\s+(report|document|summary)|susun\s+(laporan|dokumen)/i.test(r)) {
+      return {
+        intent: 'MULTI_STEP_TASK',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['report_generation'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: [],
+        toolReason: 'Pengguna meminta pembuatan laporan atau dokumen.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.90,
+        reason: 'Deterministic classifier: report/document generation task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // RESEARCH TASK — user asks for deep research, investigation
+    if (/riset|research|telusuri|investigasi|kaji|review\s+literatur|studi\s+kasus|benchmark|perbandingan\s+komprehensif|deep\s+dive|penelitian/i.test(r)) {
+      return {
+        intent: 'RESEARCH_TASK',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['research'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: true,
+        toolsNeeded: ['web.search'],
+        toolReason: 'Pengguna meminta riset atau investigasi mendalam.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.89,
+        reason: 'Deterministic classifier: deep research task detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // EXTERNAL DATA — user asks for live internet data (weather, prices, news, real-time info)
+    if (/cuaca|weather|harga\s+(saham|komoditas|emas|minyak|kripto|crypto|bitcoin)|stock\s+price|market\s+data|exchange\s+rate|kurs|berita|news|informasi\s+(terbaru|terkini|latest|recent|current)|what\s+is\s+the\s+(current|latest|recent)|what\s+(are|is)\s+the\s+(current\s+)?(price|rate|value)|real-time|realtime|live\s+data|hari\s+ini|saat\s+ini|right\s+now|cari\s+(di\s+)?(internet|web|online)|search\s+(for|online)/i.test(r)) {
+      return {
+        intent: 'EXTERNAL_DATA',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['external_data'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: true,
+        toolsNeeded: ['web.search'],
+        toolReason: 'User requests real-time or internet-dependent data. Must route to Antigravity.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.94,
+        reason: 'Deterministic classifier: external/real-time data request detected.',
+        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: true
+      };
+    }
+
+    // No task detected — return null to let the default return handle it
+    return null;
   }
 }
 

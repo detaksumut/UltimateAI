@@ -197,8 +197,8 @@ export class ActiveMemoryCore {
     planHash = null,
     activeMemoryRefs = [],
     activeTools = [],
-    selectedPool = 'POOL_HYBRID',
-    selectedModel = 'gemini-3.6-flash-high'
+    selectedPool = 'LOCAL_OLLAMA',
+    selectedModel = 'hermes3:8b'
   } = {}) {
     const snapshot = {
       taskId: taskId || `task_${Date.now()}`,

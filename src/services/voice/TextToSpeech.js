@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TextToSpeech.js (Neural Indonesian Edition)
  *
  * SPECIFICATION COMPLIANCE:
@@ -142,7 +142,7 @@ export class TextToSpeech {
   }
 
   testVoiceAudio() {
-    this.speak('Halo, saya JIN. Sistem suara neural bahasa Indonesia aktif dan siap melayani Anda.');
+    this.speak('Halo, saya JIN. Sistem suara neural bahasa Indonesia aktif dan siap mendampingi Anda.');
   }
 }
 

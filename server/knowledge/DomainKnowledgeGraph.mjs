@@ -38,7 +38,7 @@ export class DomainKnowledgeGraph {
 
     // Software Baseline
     this.registerClaim({
-      claim: 'LocalRouter 9Router proxy beroperasi pada port 20200 dengan 7 pool Antigravity OAuth aktif.',
+      claim: 'LocalRouter beroperasi pada port 20200 dengan 7 pool Antigravity OAuth aktif.',
       domain: DOMAINS.SOFTWARE_CLOUD,
       source: 'UltimateAI System Architecture',
       confidence: 1.0,

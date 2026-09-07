@@ -207,12 +207,11 @@ export class IndonesianTextNormalizer {
     t = t.replace(/[•·→↓↑←▼▸►]/g, '');
     t = t.replace(/[:;]/g, ', ');
     t = t.replace(/\|/g, ', ');
-    t = t.replace(/—/g, ', ');
+    t = t.replace(/[-–—_]{2,}/g, ' ');
+    t = t.replace(/(^|\s)[-–—]+(\s|$)/g, ' ');
     t = t.replace(/[\/\\#*_{}[\]()<>~^]/g, ' ');
     t = t.replace(/\s{2,}/g, ' ');
     t = t.trim();
-
-    return t;
 
     return t;
   }
@@ -229,8 +228,8 @@ export class IndonesianTextNormalizer {
     // Headings: ### Judul → "Judul."
     t = t.replace(/^#{1,6}\s+(.+)$/gm, '$1.');
 
-    // Horizontal rules
-    t = t.replace(/^[-*_]{3,}$/gm, '');
+    // Horizontal rules (2 or more dashes, asterisks, or underscores)
+    t = t.replace(/[-*_]{2,}/g, ' ');
 
     // Bold/italic
     t = t.replace(/\*\*([^*]+)\*\*/g, '$1');
@@ -263,7 +262,7 @@ export class IndonesianTextNormalizer {
     t = t.replace(/\{[^}]{0,100}\}/g, '');
     t = t.replace(/\[[^\]]{0,100}\]/g, '');
 
-    // Bracket tags like [9Router ...] [INITIALIZED ...]
+    // Bracket tags like [SYSTEM ...] [INITIALIZED ...]
     t = t.replace(/\[[A-Z_\s.]+\]/g, '');
 
     // Extra whitespace and newlines

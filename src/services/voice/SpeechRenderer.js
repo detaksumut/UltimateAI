@@ -43,12 +43,13 @@ export class SpeechRenderer {
     }
 
     let text = rawText.trim();
+    const isEnglish = /\b(the|is|are|was|were|have|has|this|that|you|your|we|our|they|hello|hi|good|welcome|certainly|sure|here)\b/i.test(text);
 
     // 1. Transform Markdown Headings to Conversational Transitions
-    text = this._convertHeadingsToSpokenPhrases(text);
+    text = this._convertHeadingsToSpokenPhrases(text, isEnglish);
 
     // 2. Transform Structured Lists (Bullets / Numbered) to Spoken Sequences
-    text = this._convertListsToSpokenSequences(text);
+    text = this._convertListsToSpokenSequences(text, isEnglish);
 
     // 3. Transform Key-Value Labels (e.g. "**Status:** Selesai")
     text = text.replace(/\*\*([A-Za-z\s]+):\*\*\s+/g, '$1, ');
@@ -57,8 +58,10 @@ export class SpeechRenderer {
     // 4. Clean Markdown & Code fences
     text = this.normalizer.stripMarkdown(text);
 
-    // 5. Full Linguistic Normalization (numbers, currency, dates, percentages, abbreviations)
-    text = this.normalizer.normalize(text);
+    // 5. Full Linguistic Normalization (only for Indonesian text; keep English natural)
+    if (!isEnglish) {
+      text = this.normalizer.normalize(text);
+    }
 
     // 6. Natural Conversational Smoothing (remove redundant punctuation and clean spacing)
     text = this._smoothPunctuation(text);
@@ -80,11 +83,17 @@ export class SpeechRenderer {
   }
 
   /**
-   * Convert markdown headings into spoken Indonesian introductory phrases.
+   * Convert markdown headings into spoken introductory phrases.
    */
-  _convertHeadingsToSpokenPhrases(text) {
+  _convertHeadingsToSpokenPhrases(text, isEnglish = false) {
     return text.replace(/^#{1,6}\s+(.+)$/gm, (match, heading) => {
       const h = heading.trim().toLowerCase();
+      if (isEnglish) {
+        if (h.includes('summary') || h.includes('conclusion')) return 'In conclusion.';
+        if (h.includes('recommendation')) return 'Here are the recommendations.';
+        if (h.includes('analysis') || h.includes('finding')) return `Regarding ${heading.trim()}.`;
+        return `${heading.trim()}.`;
+      }
       if (h.includes('kesimpulan') || h.includes('ringkasan') || h.includes('summary')) {
         return 'Kesimpulannya.';
       }
@@ -107,13 +116,16 @@ export class SpeechRenderer {
   /**
    * Convert structured list items into conversational enumerators.
    */
-  _convertListsToSpokenSequences(text) {
-    const listWords = ['Pertama', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh'];
+  _convertListsToSpokenSequences(text, isEnglish = false) {
+    const idListWords = ['Pertama', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh'];
+    const enListWords = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh'];
+    const listWords = isEnglish ? enListWords : idListWords;
+    const defaultPrefix = isEnglish ? 'Next' : 'Selanjutnya';
     let itemIndex = 0;
 
     // Replace bullet points at start of lines
     return text.replace(/^[\s]*[-*+]\s+(.+)$/gm, (match, item) => {
-      const prefix = listWords[itemIndex] || 'Selanjutnya';
+      const prefix = listWords[itemIndex] || defaultPrefix;
       itemIndex++;
       let cleanedItem = item.trim();
       // Remove trailing colon or semicolon
@@ -127,12 +139,14 @@ export class SpeechRenderer {
    */
   _smoothPunctuation(text) {
     let t = text;
+    // Strip markdown dividers, triple dashes, and repeated symbols
+    t = t.replace(/[-–—_]{2,}/g, ' ');
     // Replace multiple periods/ellipses with single pause period
     t = t.replace(/\.{2,}/g, '.');
     // Ensure space after punctuation
     t = t.replace(/([.,!?;:])([^\s\d])/g, '$1 $2');
     // Remove standalone dashes or arrows
-    t = t.replace(/\s+[-–—→]\s+/g, ', ');
+    t = t.replace(/(^|\s)[-–—→]+(\s|$)/g, ' ');
     // Remove isolated single quotes or brackets
     t = t.replace(/["'(){}[\]]/g, ' ');
     // Normalize spaces

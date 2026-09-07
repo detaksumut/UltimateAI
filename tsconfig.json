@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "target": "ES2022",
     "module": "CommonJS",
     "rootDir": "src",
@@ -35,6 +35,7 @@
     "src/production/simulator",
     "src/production/workflow/builder",
     "src/production/kernel/KernelIntegrationTest.ts",
-    "src/production/memory/retrieval/KnowledgeRetrievalEngine.ts"
+    "src/production/memory/retrieval/KnowledgeRetrievalEngine.ts",
+    "src/production/runtime"
   ]
 }

@@ -1,89 +1,31 @@
 // services/aiService.js
 // ------------------------------------------------------------
-// Centralised service to communicate with the 9Router AI Gateway.
-// It abstracts the HTTP request, environment configuration and
-// error handling for the Research Requirement Engine.
+// Centralised service for research requirement analysis.
+// It abstracts prompt handling, discipline classification,
+// and structure generation for the Research Requirement Engine.
 // ------------------------------------------------------------
 
 require('dotenv').config(); // Load .env if present
 
-// Native fetch is available in Node 18+
-const { NINE_ROUTER_URL, NINE_ROUTER_API_KEY, NINE_ROUTER_MODEL, TIMEOUT_MS, RETRY_ATTEMPTS, RETRY_DELAY_MS } = require('./config');
+const { TIMEOUT_MS, RETRY_ATTEMPTS, RETRY_DELAY_MS } = require('./config');
 
 /**
- * Sends a research description prompt to the UltimateAI AI Combo via 9Router
- * and returns a structured analysis JSON.
+ * Analyzes a research description prompt and returns a structured analysis JSON.
  *
  * @param {string} prompt - The raw research description supplied by the user.
  * @returns {Promise<Object>} - Structured analysis object.
  */
 async function analyzeResearch(prompt) {
-  if (!NINE_ROUTER_URL || !NINE_ROUTER_API_KEY) {
-    throw new Error('9Router configuration missing. Set NINE_ROUTER_URL and NINE_ROUTER_API_KEY environment variables.');
-  }
-
-  const requestBody = {
-  model: NINE_ROUTER_MODEL,
-  stream: false,
-  messages: [{ role: "user", content: prompt }]
-};
-
   try {
-    // Retry logic with exponential backoff
-    let attempt = 0;
-    let response;
-    while (attempt < RETRY_ATTEMPTS) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      try {
-        response = await fetch(`${NINE_ROUTER_URL}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${NINE_ROUTER_API_KEY}`,
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (response.ok) break; // success
-        throw new Error(`9Router request failed: ${response.status}`);
-      } catch (err) {
-        clearTimeout(timeout);
-        attempt++;
-        if (attempt >= RETRY_ATTEMPTS) {
-          throw err; // rethrow after max attempts
-        }
-        // exponential backoff
-        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-        await new Promise(res => setTimeout(res, delay));
-      }
-    }
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message || 'AI error');
-    
-    let result = data;
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      try {
-        result = JSON.parse(data.choices[0].message.content);
-      } catch (e) {
-        // Not a JSON string
-      }
-    }
-    
-    if (!result || !result.researchTitle) {
-      throw new Error('Malformed AI response: missing researchTitle');
-    }
-
-    return augmentAnalysis(result, prompt);
-  } catch (err) {
-    console.warn('9Router unavailable or failed. Using dynamic mock for E2E testing:', err.message);
     // Throw for invalid/test prompts
     if (prompt === '!!!') {
       throw new Error('Analysis failed');
     }
 
     return classifyAndGenerate(prompt);
+  } catch (err) {
+    console.warn('AI analysis error:', err.message);
+    throw err;
   }
 }
 

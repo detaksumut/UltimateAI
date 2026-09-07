@@ -66,16 +66,16 @@ for (const file of frontendFiles) {
 }
 console.log('  -> PASS: All prohibited legacy UI strings are completely absent from frontend.');
 
-// 2. Verify ConnectionsModal points to Local Router :20200
-console.log('\n[CHECK 2] Verifying ConnectionsModal points strictly to Local Router :20200...');
-const connectionsModalPath = path.join(srcDir, 'ui', 'simulator', 'modals', 'ConnectionsModal.jsx');
-assert(fs.existsSync(connectionsModalPath), 'ConnectionsModal.jsx must exist');
-const connContent = fs.readFileSync(connectionsModalPath, 'utf8');
+// 2. Verify simulator / modals point strictly to Local Router :20200
+console.log('\n[CHECK 2] Verifying UI components point strictly to Local Router :20200...');
+const chatSimPath = path.join(srcDir, 'ui', 'simulator', 'ChatSimulator.jsx');
+assert(fs.existsSync(chatSimPath), 'ChatSimulator.jsx must exist');
+const chatSimContent = fs.readFileSync(chatSimPath, 'utf8');
 
-assert(connContent.includes(':20200'), 'ConnectionsModal must target Local Router :20200');
-assert(!connContent.includes(':20128'), 'ConnectionsModal must NOT target legacy port 20128');
-assert(!connContent.includes('/api/ultimateai'), 'ConnectionsModal must NOT target /api/ultimateai');
-console.log('  -> PASS: ConnectionsModal strictly targets Local Router :20200.');
+assert(chatSimContent.includes(':20200'), 'ChatSimulator must target Local Router :20200');
+assert(!chatSimContent.includes(':20128'), 'ChatSimulator must NOT target legacy port 20128');
+assert(!chatSimContent.includes('/api/ultimateai'), 'ChatSimulator must NOT target /api/ultimateai');
+console.log('  -> PASS: ChatSimulator strictly targets Local Router :20200.');
 
 // 3. Verify RouterConfig points to Local Router :20200
 console.log('\n[CHECK 3] Verifying RouterConfig default endpoint is Local Router :20200...');

@@ -1,41 +1,45 @@
-﻿node_modules
+# Dependencies
+node_modules/
+jin-dom-bridge/node_modules/
+
+# Environment and Secrets
 .env
-dist
-generated
-coverage
-*.zip
-download-ultimateai/
+.env.*
+storage/oauth_config.json
+storage/antigravity_connections.json
+storage/vault/
+
+# Build and Outputs
+dist/
+build/
+coverage/
+generated/
+
+# Logs and runtime databases / backups
 *.log
-*.cjs
-test_handles.js
-test_ui.js
-test_layout.html
-final.html
-iframe_html.txt
+_err.log
+_stderr.log
+err.log
+server-live.log
+server-live.err.log
+server_error.log
+server_output.log
+temp_error.log
+*.rawbody-backup
+server/data/conversations/
+server/data/device_*.json
+server/data/routing_performance_history.json
 
-# Secure local storage & connection vault
-storage/*.json
-!storage/.gitkeep
-
-# Secure voice prompts & local audio references
-storage/voice/*
-!storage/voice/.gitkeep
-*.wav
-*.mp3
-*.ogg
-*.flac
-*.m4a
-# Runtime-generated artifacts
-artifacts/
-
-# Temporary debug scripts
-scratch/
-
-# Test output
-test-results/
-
-# Local runtime system state
+# System and IDE
+.DS_Store
+Thumbs.db
+.vscode/
 .system/
 
-# Local routing optimizer telemetry
-server/data/routing_performance_history.json
+# Temporary test artifacts and archives
+artifacts/
+*.zip
+download-ultimateai/
+test-stream*.json
+reformed_panel_screenshot.png
+REMOVE_PHASE1_SIMULATOR_ORCHESTRATOR.txt

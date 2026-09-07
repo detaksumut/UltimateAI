@@ -1,13 +1,13 @@
 /**
  * test_master_blueprint.mjs
- * Automated unit and integration test suite for UltimateAI 9Router + JIN Embodied Intelligence.
+ * Automated unit and integration test suite for UltimateAI Local Router + JIN Embodied Intelligence.
  */
 
 import { AVATAR_STATES, AVATAR_EVENTS } from '../src/services/avatar/JinAvatarStates.js';
 import { JinAvatarController } from '../src/services/avatar/JinAvatarController.js';
 import { RouterConfig } from '../src/services/router/RouterConfig.js';
 import { RouterStatus } from '../src/services/router/RouterStatus.js';
-import { NineRouterClient } from '../src/services/router/NineRouterClient.js';
+import { LocalRouterClient } from '../src/services/router/LocalRouterClient.js';
 import { ContextManager } from '../src/services/conversation/ContextManager.js';
 import { MemoryAdapter } from '../src/services/conversation/MemoryAdapter.js';
 import { ConversationEngine } from '../src/services/conversation/ConversationEngine.js';
@@ -26,7 +26,7 @@ function assert(condition, message) {
 }
 
 console.log('====================================================');
-console.log('   ULTIMATEAI 9ROUTER + JIN INTEGRATION TEST SUITE  ');
+console.log('   ULTIMATEAI LOCAL ROUTER + JIN INTEGRATION TEST SUITE  ');
 console.log('====================================================\n');
 
 // 1. Test Avatar FSM Transitions
@@ -56,14 +56,14 @@ console.log('');
 
 // 2. Test Router Config & Zero Secret Exposure
 console.log('TEST 2: Router Configuration & Security');
-assert(RouterConfig.DEFAULT_LOCAL_ENDPOINT === 'http://localhost:20128/v1', 'Default endpoint points to 9Router Local Proxy');
+assert(RouterConfig.DEFAULT_LOCAL_ENDPOINT === 'http://localhost:20200/v1', 'Default endpoint points to Local Router Proxy');
 assert(typeof RouterConfig.getEndpoint === 'function', 'getEndpoint function exists');
 console.log('');
 
 // 3. Test Router Telemetry
 console.log('TEST 3: Router Status Telemetry');
 const routerStatus = new RouterStatus();
-assert(routerStatus.activeCount === 9, '9Router has 9 active routing engines configured');
+assert(routerStatus.activeCount === 9, 'Local Router has 9 active routing engines configured');
 assert(routerStatus.activeRoutes.length === 9, 'All 9 reasoning routes are registered');
 console.log('');
 
@@ -100,9 +100,9 @@ assert(payload.messages[0].role === 'system', 'First message is augmented System
 assert(payload.messages[3].content === 'Tolong buatkan prototype', 'Last message is user prompt');
 console.log('');
 
-// 7. Test 9Router Client Fallback
-console.log('TEST 7: 9Router Autonomous Synthesis Fallback');
-const routerClient = new NineRouterClient();
+// 7. Test Local Router Client Fallback
+console.log('TEST 7: Local Router Autonomous Synthesis Fallback');
+const routerClient = new LocalRouterClient();
 const fallback = routerClient.generateAutonomousResponse('Halo JIN');
 assert(fallback.includes('Salam! Saya JIN'), 'Autonomous synthesis generates appropriate response for JIN persona');
 

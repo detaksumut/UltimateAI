@@ -1,6 +1,6 @@
 /**
  * CanonicalVocabulary.mjs
- * Single Source of Truth for UltimateAI 9Router + JIN Certification Terminology.
+ * Single Source of Truth for UltimateAI Local Router + JIN Certification Terminology.
  * Prevents Semantic Drift across Server, UI, Telemetry, CLI, and Forensic Evidence Bundles.
  */
 

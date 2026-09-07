@@ -13,10 +13,8 @@ export class ContradictionRule implements ValidationRule {
   readonly version = "1.0.0";
 
   async evaluate(candidate: KnowledgeCandidate, context: ValidationContext): Promise<RuleResult> {
-    // In a real implementation, we would inspect the contradicting evidence from the source patterns.
-    // We assume 0 contradicting for this mock implementation.
-    const contradictingCount = 0; 
-    const supportingCount = candidate.hypothesis.supportingEvidence.length;
+    const contradictingCount = candidate.hypothesis.limitations?.length || 0; 
+    const supportingCount = candidate.hypothesis.supportingEvidence?.length || 0;
     
     if (supportingCount === 0) {
         return {

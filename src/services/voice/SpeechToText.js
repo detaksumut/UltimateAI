@@ -74,6 +74,7 @@ export class SpeechToText {
   async startListening(callbacks = {}) {
     this.callbacks = callbacks;
     this.isListening = true;
+    this.fallbackTried = false;
 
     await this.verifyMicrophonePermission();
 
@@ -104,11 +105,23 @@ export class SpeechToText {
       onError: async (err) => {
         console.warn(`[VOG] STT error on ${currentProvider.getProviderName()}:`, err?.message || err);
 
-        // Failover if Browser STT fails
-        if (currentProvider.getProviderName() === 'BROWSER_STT' && this.localProvider.isAvailable()) {
-          console.log('[VOG] Switching to LOCAL_BACKEND_STT fallback...');
-          this.activeProviderName = 'LOCAL_BACKEND_STT';
-          return this.localProvider.start(providerCallbacks);
+        // Failover is attempted only once per startListening call to avoid flip-flop loops
+        if (!this.fallbackTried) {
+          this.fallbackTried = true;
+
+          // Failover: BROWSER_STT -> LOCAL_BACKEND_STT
+          if (currentProvider.getProviderName() === 'BROWSER_STT' && this.localProvider.isAvailable()) {
+            console.log('[VOG] Switching to LOCAL_BACKEND_STT fallback...');
+            this.activeProviderName = 'LOCAL_BACKEND_STT';
+            return this.localProvider.start(providerCallbacks);
+          }
+
+          // Failover: LOCAL_BACKEND_STT -> BROWSER_STT (e.g. LocalRouter :20200 is down) — keeps voice input alive
+          if (currentProvider.getProviderName() === 'LOCAL_BACKEND_STT' && this.browserProvider.isAvailable()) {
+            console.log('[VOG] Switching to BROWSER_STT fallback...');
+            this.activeProviderName = 'BROWSER_STT';
+            return this.browserProvider.start(providerCallbacks);
+          }
         }
 
         this.isListening = false;

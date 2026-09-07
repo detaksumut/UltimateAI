@@ -1,6 +1,6 @@
 /**
- * ToolContract.mjs (Enterprise Governance Edition)
- * Comprehensive contract for 9Router tools with permission gates and safety policies.
+ * ToolContract.mjs
+ * Comprehensive contract for tools with permission gates and safety policies.
  */
 
 export const PERMISSION_LEVELS = {

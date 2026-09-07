@@ -1,6 +1,6 @@
 /**
  * DocumentIntelligenceTool.mjs
- * PHASE 6 - Enterprise Document Intelligence & Semantic Chunking Engine for 9Router.
+ * PHASE 6 - Enterprise Document Intelligence & Semantic Chunking Engine.
  * Supports PDF, DOCX, CSV, and TXT analysis with sliding-window chunking and citation provenance.
  */
 

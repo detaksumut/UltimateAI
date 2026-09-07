@@ -35,7 +35,7 @@ async function runLiveAgentCertification() {
     userRole: 'Enterprise Analyst'
   }, {
     forcedModel: 'gemini-3.6-flash-high',
-    certificationTransport: 'NINE_ROUTER_PROXY'
+    certificationTransport: 'LOCAL_ROUTER_PROXY'
   });
 
   console.log('  Goal:', execution1.goal);

@@ -113,7 +113,7 @@ function generateProjectStructureBlueprint(appBlueprint) {
   // 5️⃣ Service layer map – basic services expected in a research tool
   // ---------------------------------------------------------------------
   const services = [
-    'apiService',        // wrappers around fetch / 9Router calls
+    'apiService',        // wrappers around fetch / API calls
     'dbService',         // Supabase client abstraction
     'authService',       // optional auth handling
   ];

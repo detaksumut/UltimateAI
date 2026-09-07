@@ -1,6 +1,6 @@
 /**
  * CertificationStateValidator.mjs
- * State Machine Guard & Integrity Rule Validator for 9Router Certification.
+ * State Machine Guard & Integrity Rule Validator for Local Router Certification.
  * Enforces:
  *  1. Mandatory Single-Session Coherence across all 4 Acceptance Gates & Events
  *  2. Strict Event Identity, Finite Timestamps & Provenance
@@ -192,7 +192,7 @@ export class CertificationStateValidator {
     const isRouterPass = Boolean(
       router &&
       router.sessionId === sessionId &&
-      router.transport === 'NINE_ROUTER_PROXY' &&
+      router.transport === 'LOCAL_ROUTER_PROXY' &&
       router.fallbackUsed === false &&
       router.actualProvider &&
       router.actualModel

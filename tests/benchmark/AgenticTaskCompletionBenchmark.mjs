@@ -1,6 +1,6 @@
 /**
  * AgenticTaskCompletionBenchmark.mjs
- * 3-Tiered Empirical Agentic Benchmark Suite for UltimateAI 9Router.
+ * 3-Tiered Empirical Agentic Benchmark Suite for UltimateAI.
  * Evaluates:
  *  - Level 1: Semantic Understanding (Intent, Goal, Entities, Actionability)
  *  - Level 2: Planning Correctness (DAG Steps, Tools, Dependencies, Contracts)

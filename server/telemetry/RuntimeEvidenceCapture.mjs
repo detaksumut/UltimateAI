@@ -52,11 +52,11 @@ export async function captureRuntimeEvidence() {
     runtimeStatus: RUNTIME_STATUS.HOST_RUNTIME_PENDING,
     measurementMode: MEASUREMENT_MODES.HARNESS_RUNTIME,
     value: 'ONLINE',
-    port: 20128,
+    port: 20200,
     latencyMs: gatewayLatencyMs,
     timestamp: new Date().toISOString(),
     source: 'server/server.mjs',
-    evidenceSummary: 'PORT_20128_HEALTH_ACTIVE',
+    evidenceSummary: 'PORT_20200_HEALTH_ACTIVE',
     rawDetails: {
       registeredProviders: Object.keys(healthStatus || {})
     }

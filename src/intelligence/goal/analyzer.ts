@@ -18,8 +18,6 @@ export class GoalAnalyzer implements IGoalAnalyzer {
             USER_INPUT: rawInput
         });
 
-        // The prompt is essentially identical to the system prompt in this new architecture,
-        // or we can pass rawInput as the prompt.
         const response = await this.router.routeTask({
             id: `goal-${Date.now()}`,
             prompt: rawInput,
@@ -28,7 +26,7 @@ export class GoalAnalyzer implements IGoalAnalyzer {
         });
 
         try {
-            // Parse using our new cognition output parser
+            // Parse using our cognition output parser
             const parsed = this.outputParser.parseJson<any>(response.content);
             
             return {
@@ -40,14 +38,16 @@ export class GoalAnalyzer implements IGoalAnalyzer {
                 timestamp: new Date().toISOString()
             };
         } catch (error) {
-            console.error('[GoalAnalyzer] Error parsing goal:', error);
-            console.error('Raw content:', response.content);
-            // Fallback object
+            console.error('[GoalAnalyzer] Error parsing goal JSON, extracting clean text:', error);
+            const cleanText = response.content.replace(/```(?:json)?/gi, '').trim();
+            if (!cleanText) {
+                throw new Error(`[GoalAnalyzer] Failed to analyze goal: AI response was empty or unparseable.`);
+            }
             return {
                 id: `goal-${Date.now()}`,
                 rawInput,
-                primaryObjective: response.content.substring(0, 50),
-                targetAudience: "Unknown",
+                primaryObjective: cleanText.length > 300 ? cleanText.slice(0, 300) + '...' : cleanText,
+                targetAudience: "General",
                 coreConstraints: [],
                 timestamp: new Date().toISOString()
             };

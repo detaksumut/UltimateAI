@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 export default function UniverseCosmosBackground() {
   const canvasRef = useRef(null);
@@ -32,8 +32,8 @@ export default function UniverseCosmosBackground() {
 
     window.addEventListener('resize', handleResize, { passive: true });
 
-    // 1. Starfield Generation (Optimized 110 stars with pre-grouped depth)
-    const starCount = 110;
+    // 1. Starfield Generation (Optimized 70 stars for CPU/iGPU smoothness)
+    const starCount = 70;
     const stars = Array.from({ length: starCount }).map(() => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -70,17 +70,17 @@ export default function UniverseCosmosBackground() {
       });
     };
 
-    // Spawn meteor every 3.5 seconds
-    let meteorTimer = setInterval(spawnMeteor, 3500);
+    // Spawn meteor every 4.5 seconds
+    let meteorTimer = setInterval(spawnMeteor, 4500);
 
-    // 3. Rotating Andromeda Spiral Galaxy
+    // 3. Rotating Andromeda Spiral Galaxy (Optimized 75 particles)
     const galaxy = {
       x: width * 0.82,
       y: height * 0.28,
       rotation: 0,
       rotationSpeed: 0.0015,
       radius: 180,
-      particleCount: 160
+      particleCount: 75
     };
 
     const galaxyParticles = Array.from({ length: galaxy.particleCount }).map((_, i) => {
@@ -107,8 +107,20 @@ export default function UniverseCosmosBackground() {
       ringTilt: -0.35
     };
 
-    // 5. Main 60 FPS Render Loop
-    const render = () => {
+    // 5. Optimized 30 FPS Render Loop (CPU & iGPU Friendly)
+    let lastRenderTime = 0;
+    const frameInterval = 1000 / 30; // 30 FPS target for background saves 50% CPU
+
+    const render = (currentTime) => {
+      animId = requestAnimationFrame(render);
+
+      // Pause when tab is backgrounded
+      if (document.hidden) return;
+
+      const elapsed = currentTime - lastRenderTime;
+      if (elapsed < frameInterval) return;
+      lastRenderTime = currentTime - (elapsed % frameInterval);
+
       ctx.clearRect(0, 0, width, height);
 
       // Smooth mouse parallax interpolation
@@ -278,11 +290,9 @@ export default function UniverseCosmosBackground() {
         ctx.arc(m.x, m.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animId);

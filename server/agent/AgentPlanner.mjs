@@ -29,7 +29,9 @@ const AVAILABLE_TOOLS_MANIFEST = [
   { id: 'media.video_resolver', description: 'Resolve and play video or audio media content' },
   { id: 'spec.blueprint_architect', description: 'Design software specifications and architecture' },
   { id: 'code.synthesizer', description: 'Generate code artifacts from specifications' },
-  { id: 'ui.render_app_sandbox', description: 'Render and preview a UI or application in sandbox' }
+  { id: 'ui.render_app_sandbox', description: 'Render and preview a UI or application in sandbox' },
+  { id: 'device.inspect', description: 'Inspect the local machine: RAM, CPU, disk, processes, and UltimateAI runtime status (read-only, never modifies anything)' },
+  { id: 'image.generate', description: 'Generate an image from a text prompt via configured image provider (Pollinations cloud, Ollama image model, or mock). Returns structured IMAGE artifact.' }
 ];
 
 export class AgentPlanner {
@@ -84,7 +86,94 @@ export class AgentPlanner {
       };
     }
 
-    // 2. CONSTRAINT UPDATE — Acknowledge and update state only
+    // 2. IMAGE_GENERATION — Dedicated deterministic 6-stage image pipeline
+    if (semantic.intent === 'IMAGE_GENERATION') {
+      const imagePrompt = semantic.goal || raw;
+      const requiresReference = /akurat|persis|presisi|sesuai|asli|arsitektur|referensi|acuan|detail|gedung\s+dpr|gedung\s+mpr|landmark|bangunan\s+(?:asli|terkenal|ikonik)/i.test(raw);
+
+      const steps = [
+        {
+          id: 'S1',
+          subgoal: 'Analyze user visual request and extract key elements',
+          action: 'ANALYZE_IMAGE_REQUEST',
+          tool: 'image.generate',
+          params: { stage: 'ANALYZE', prompt: imagePrompt },
+          dependsOn: [],
+          successCriteria: 'request_analyzed',
+          evidenceContract: 'image_analysis'
+        },
+        {
+          id: 'S2',
+          subgoal: 'Extract subject, environment, style, composition, aspect ratio and constraints',
+          action: 'EXTRACT_PARAMETERS',
+          tool: 'image.generate',
+          params: { stage: 'EXTRACT', prompt: imagePrompt },
+          dependsOn: ['S1'],
+          successCriteria: 'parameters_extracted',
+          evidenceContract: 'parameter_extraction'
+        },
+        {
+          id: 'S3',
+          subgoal: 'Resolve image provider (Pollinations, Ollama, or override)',
+          action: 'RESOLVE_PROVIDER',
+          tool: 'image.generate',
+          params: { stage: 'PROVIDER', prompt: imagePrompt },
+          dependsOn: ['S2'],
+          successCriteria: 'provider_resolved',
+          evidenceContract: 'provider_resolution'
+        },
+        {
+          id: 'S4',
+          subgoal: 'Generate optimized image generation prompt from user intent',
+          action: 'OPTIMIZE_PROMPT',
+          tool: 'image.generate',
+          params: { stage: 'PROMPT', prompt: imagePrompt, referenceContext: requiresReference ? 'factual_accuracy_required' : null },
+          dependsOn: ['S3'],
+          successCriteria: 'prompt_optimized',
+          evidenceContract: 'prompt_optimization'
+        },
+        {
+          id: 'S5',
+          subgoal: 'Execute image generation via configured provider',
+          action: 'GENERATE_IMAGE',
+          tool: 'image.generate',
+          params: {
+            stage: 'GENERATE',
+            prompt: imagePrompt,
+            ...(context.providerOverride ? { providerOverride: context.providerOverride } : {}),
+            ...(context.negativePrompt ? { negativePrompt: context.negativePrompt } : {}),
+            ...(context.size ? { size: context.size } : {})
+          },
+          dependsOn: ['S4'],
+          successCriteria: 'image_artifact_produced',
+          evidenceContract: 'image_artifact'
+        },
+        {
+          id: 'S6',
+          subgoal: 'Verify generated image artifact exists and is renderable',
+          action: 'VERIFY_ARTIFACT',
+          tool: 'image.generate',
+          params: { stage: 'VERIFY', prompt: imagePrompt },
+          dependsOn: ['S5'],
+          successCriteria: 'artifact_verified_renderable',
+          evidenceContract: 'verification'
+        }
+      ];
+
+      return {
+        goalId,
+        goal: semantic.goal || raw,
+        category: 'IMAGE_GENERATION',
+        hierarchicalObjectives: [`Generate visual image: ${imagePrompt}`],
+        selectedEngine: route.selectedEngine,
+        selectedPool: route.selectedPool,
+        steps,
+        requiresReference,
+        evidenceContract: { requiredArtifactType: 'IMAGE', minSteps: 1 }
+      };
+    }
+
+    // 3. CONSTRAINT UPDATE — Acknowledge and update state only
     if (semantic.intent === 'CONSTRAINT_UPDATE') {
       return {
         goalId,
@@ -206,7 +295,7 @@ Build the minimal hierarchical execution DAG plan.`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: route.selectedEngine || 'gemini-3.6-flash-high',
+        model: route.selectedEngine || 'hermes3:8b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -214,7 +303,7 @@ Build the minimal hierarchical execution DAG plan.`;
         temperature: 0.05,
         response_format: { type: 'json_object' }
       }),
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(60000)
     });
 
     if (!response.ok) throw new Error(`Planner LLM returned ${response.status}`);
@@ -225,11 +314,11 @@ Build the minimal hierarchical execution DAG plan.`;
     const parsed = JSON.parse(cleaned);
     if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error('Planner LLM returned invalid steps');
 
-    parsed.steps = parsed.steps.map(step => ({
+    parsed.steps = AgentPlanner._applyDeviceScope(parsed.steps.map(step => ({
       ...step,
       specialistModel: step.specialistModel || route.selectedEngine,
       pool: step.pool || route.selectedPool
-    }));
+    })), semantic);
 
     return {
       goalId,
@@ -242,6 +331,24 @@ Build the minimal hierarchical execution DAG plan.`;
       steps: parsed.steps,
       evidenceContract: parsed.evidenceContract || { requiredArtifactType: 'RESULT', minSteps: 1 }
     };
+  }
+
+  /**
+   * Guarantees device.inspect steps always carry a valid scope, even when the
+   * planner LLM omits it (FASE 1A: scope propagation must be deterministic).
+   */
+  static _applyDeviceScope(steps, semantic) {
+    return (steps || []).map(step => {
+      if (step.tool !== 'device.inspect') return step;
+      return {
+        ...step,
+        params: {
+          ...(step.params || {}),
+          scope: step.params?.scope || semantic?.scope || 'overview',
+          userIntent: step.params?.userIntent || semantic?.goal || step.params?.userUtterance || null
+        }
+      };
+    });
   }
 
   static _structuralFallbackPlan(goalId, raw, semantic, context, route) {
@@ -261,6 +368,15 @@ Build the minimal hierarchical execution DAG plan.`;
       }
 
       const stepId = `S${i + 1}`;
+      const stepParams = {
+        query: semantic.goal || raw,
+        userUtterance: raw,
+        documentText: context.documentText || null
+      };
+      if (tool === 'device.inspect') {
+        stepParams.scope = semantic.scope || 'overview';
+        stepParams.userUtterance = raw;
+      }
       const step = {
         id: stepId,
         subgoal: `Execute ${tool}`,
@@ -268,11 +384,7 @@ Build the minimal hierarchical execution DAG plan.`;
         tool,
         specialistModel: defaultModel,
         pool: selectedPool,
-        params: {
-          query: semantic.goal || raw,
-          userUtterance: raw,
-          documentText: context.documentText || null
-        },
+        params: stepParams,
         dependsOn: prevId ? [prevId] : [],
         successCriteria: `${tool}_result_available`,
         evidenceContract: `${tool}_evidence`

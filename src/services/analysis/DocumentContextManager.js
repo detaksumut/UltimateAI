@@ -1,6 +1,6 @@
 /**
  * DocumentContextManager.js
- * Ingestion and context management for documents analyzed by UltimateAI 9Router.
+ * Ingestion and context management for documents analyzed by UltimateAI JIN.
  */
 
 import { conversationEngineInstance } from '../conversation/ConversationEngine.js';
@@ -26,8 +26,8 @@ export class DocumentContextManager {
     this.activeDocuments.push(doc);
     this.notify();
 
-    // Augment Conversation Context directly
-    conversationEngineInstance.addMessage('system', `[DOCUMENT ATTACHED: ${doc.fileName} (${doc.type})]\nPreview: ${doc.preview}\n\nContent:\n${doc.content.substring(0, 4000)}`);
+    // Augment Conversation Context directly (isi dokumen penuh — JIN membaca seluruhnya)
+    conversationEngineInstance.addMessage('system', `[DOCUMENT ATTACHED: ${doc.fileName} (${doc.type})]\nPreview: ${doc.preview}\n\nContent:\n${doc.content}`);
 
     return doc;
   }

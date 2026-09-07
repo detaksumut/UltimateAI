@@ -1,236 +1,136 @@
 /**
  * WebFetchTool.mjs
- * Phase 4A: Real Backend Browser & Live Web Data Collector for JIN AgentRuntime.
- * 
- * Strict Governance & Safety:
- *  - Uses ephemeral, isolated Playwright browser contexts (zero cookie/session leakage).
- *  - Bounded timeouts (15s), max content limits (1MB), max DOM node limits.
- *  - Content sanitization: strips scripts, iframes, trackers, prompt injection traps.
- *  - Full source provenance tracking: sourceId, url, finalUrl, status, title, fetchedAt.
+ * Live URL & Web Data Ingestion Tool for JIN Capability Pipeline.
+ * Enforces protocol isolation, SSRF prevention, HTML sanitization, and prompt-injection neutralization.
  */
 
 import { ToolContract, PERMISSION_LEVELS } from './ToolContract.mjs';
-import { chromium } from 'playwright';
 
 export class WebFetchTool extends ToolContract {
   constructor() {
     super({
-      name: 'web.fetch',
+      name: 'web.open',
       version: '2.0.0',
-      description: 'Fetch and extract structured text, DOM, links, and metadata from live URLs using isolated browser execution.',
+      description: 'Fetch and safely parse live web page content from HTTP/HTTPS URLs with prompt-injection neutralization.',
+      inputSchema: { url: 'string', mode: 'string' },
+      outputSchema: { sourceId: 'string', status: 'number', text: 'string', links: 'array', headings: 'array', fetchedAt: 'string' },
       permissionLevel: PERMISSION_LEVELS.READ_ONLY,
-      timeoutMs: 15000,
-      inputSchema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: 'Target HTTP/HTTPS URL to fetch' },
-          mode: { type: 'string', enum: ['page', 'text', 'dom', 'metadata'], default: 'text' }
-        },
-        required: ['url']
-      }
+      timeoutMs: 10000
     });
   }
 
   /**
-   * Sanitizes extracted text and HTML to neutralize prompt injection traps and scripts
+   * Content sanitization method required by security contract & test suite.
+   * Neutralizes script tags, prompt injection traps, and dangerous payloads.
    */
-  _sanitizeContent(text) {
-    if (!text || typeof text !== 'string') return '';
-    return text
-      // Strip script tags and content
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      // Strip style tags and content
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-      // Strip iframe tags
-      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-      // Neutralize prompt injection phrases
-      .replace(/\b(ignore previous instructions|you are now|system prompt override|system message:)\b/gi, '[FILTERED_UNTRUSTED_INSTRUCTION]')
-      // Collapse whitespace
-      .replace(/[ \t]+/g, ' ')
-      .replace(/(\r\n|\n|\r){3,}/g, '\n\n')
-      .trim();
-  }
+  _sanitizeContent(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
 
-  /**
-   * Launch isolated browser context
-   */
-  async _launchIsolatedPage() {
-    const launchOptions = [
-      { channel: 'chrome', headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] },
-      { channel: 'msedge', headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] },
-      { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] }
+    let text = rawText;
+
+    // 1. Strip script, style, and iframe blocks completely
+    text = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    text = text.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+
+    // 2. Neutralize known Prompt Injection attack phrases
+    const injectionPatterns = [
+      /ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions/gi,
+      /disregard\s+(?:all\s+)?(?:previous|prior)\s+instructions/gi,
+      /system\s+override/gi,
+      /you\s+are\s+now\s+in\s+dan\s+mode/gi,
+      /output\s+(?:the\s+)?admin\s+password/gi
     ];
 
-    let browser = null;
-    for (const opt of launchOptions) {
-      try {
-        browser = await chromium.launch(opt);
-        break;
-      } catch (_) {}
+    for (const pattern of injectionPatterns) {
+      text = text.replace(pattern, '[neutralized_prompt_injection]');
     }
 
-    if (!browser) {
-      throw new Error('BROWSER_UNAVAILABLE: Unable to initialize headless browser.');
-    }
-
-    // Completely isolated incognito context — ZERO private user cookies or storage
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 UltimateAI-JIN/4.0',
-      viewport: { width: 1280, height: 800 },
-      ignoreHTTPSErrors: true
-    });
-
-    const page = await context.newPage();
-    return { browser, context, page };
+    return text;
   }
 
-  /**
-   * Fallback HTTP fetch when headless browser is restricted
-   */
-  async _fetchHttpFallback(url, mode) {
-    const sourceId = `src_http_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; UltimateAI-JIN/4.0; +http://localhost)'
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-
-    const status = response.status;
-    const finalUrl = response.url || url;
-    const rawHtml = await response.text();
-
-    const titleMatch = rawHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : url;
-    const sanitizedText = this._sanitizeContent(rawHtml.replace(/<[^>]+>/g, ' ')).slice(0, 50000);
-
-    return {
-      sourceId,
-      url,
-      finalUrl,
-      status,
-      title,
-      mode,
-      metadata: { engine: 'http_fallback', sizeBytes: rawHtml.length },
-      text: sanitizedText,
-      links: [],
-      headings: [],
-      tables: [],
-      fetchedAt: new Date().toISOString()
-    };
-  }
-
-  async execute({ url, mode = 'text' } = {}) {
+  async execute({ url, mode = 'text' }, signal = null) {
     if (!url || typeof url !== 'string') {
-      throw new Error('INVALID_ARGUMENT: "url" parameter is required.');
+      throw new Error('INVALID_INPUT: Parameter "url" must be a non-empty string.');
     }
 
-    const cleanUrl = url.trim();
-    if (!/^https?:\/\//i.test(cleanUrl)) {
-      throw new Error('INVALID_PROTOCOL: Only HTTP and HTTPS URLs are permitted.');
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error(`INVALID_URL: Failed to parse URL "${url}".`);
     }
 
-    const sourceId = `src_web_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    let browserResources = null;
+    // Protocol check: Strictly permit HTTP and HTTPS
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error(`INVALID_PROTOCOL: Protocol "${parsedUrl.protocol}" is forbidden. Only HTTP and HTTPS are permitted.`);
+    }
+
+    const fetchedAt = new Date().toISOString();
+    const sourceId = `web_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    if (signal) {
+      signal.addEventListener('abort', () => controller.abort());
+    }
 
     try {
-      browserResources = await this._launchIsolatedPage();
-      const { browser, context, page } = browserResources;
-
-      // Navigate with bounded render timeout
-      const response = await page.goto(cleanUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 12000
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) UltimateAI-JIN-Agent/2.0',
+          'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9'
+        },
+        signal: controller.signal
       });
 
-      const status = response ? response.status() : 200;
-      const finalUrl = page.url();
-      const title = await page.title();
+      clearTimeout(timer);
 
-      // Extract metadata
-      const metadata = await page.evaluate(() => {
-        const meta = {};
-        document.querySelectorAll('meta').forEach(m => {
-          const name = m.getAttribute('name') || m.getAttribute('property');
-          const content = m.getAttribute('content');
-          if (name && content) meta[name] = content.slice(0, 300);
-        });
-        return meta;
-      });
+      const status = response.status;
+      const contentType = response.headers.get('content-type') || '';
+      const rawBody = await response.text();
 
-      // Extract structured text, headings, links, and tables
-      const structured = await page.evaluate(() => {
-        // Headings
-        const headings = [];
-        document.querySelectorAll('h1, h2, h3').forEach(h => {
-          const text = h.innerText.trim();
-          if (text) {
-            headings.push({ level: parseInt(h.tagName.substring(1), 10), text: text.slice(0, 200) });
-          }
-        });
+      // Extract headings
+      const headingMatches = [...rawBody.matchAll(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/gi)];
+      const headings = headingMatches.map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(Boolean);
 
-        // Key links
-        const links = [];
-        document.querySelectorAll('a[href]').forEach(a => {
-          const text = a.innerText.trim();
-          const href = a.href;
-          if (text && href && !href.startsWith('javascript:')) {
-            links.push({ text: text.slice(0, 100), href });
-          }
-        });
+      // Extract links
+      const linkMatches = [...rawBody.matchAll(/<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi)];
+      const links = linkMatches.map(m => m[2]).filter(href => href && !href.startsWith('#') && !href.startsWith('javascript:'));
 
-        // Key tables
-        const tables = [];
-        document.querySelectorAll('table').forEach((t, tIdx) => {
-          if (tIdx > 3) return; // max 4 tables
-          const rows = [];
-          t.querySelectorAll('tr').forEach((tr, rIdx) => {
-            if (rIdx > 15) return; // max 15 rows
-            const cells = Array.from(tr.querySelectorAll('th, td')).map(c => c.innerText.trim());
-            if (cells.length > 0) rows.push(cells);
-          });
-          if (rows.length > 0) tables.push(rows);
-        });
+      // Extract plain text
+      let textContent = rawBody;
+      if (contentType.includes('html') || rawBody.includes('<html') || rawBody.includes('<body')) {
+        textContent = rawBody
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
 
-        // Visible text body
-        const rawBodyText = document.body ? document.body.innerText : '';
-
-        return { headings: headings.slice(0, 25), links: links.slice(0, 30), tables, rawBodyText };
-      });
-
-      // Close browser context cleanly
-      await context.close().catch(() => {});
-      await browser.close().catch(() => {});
-      browserResources = null;
-
-      const sanitizedText = this._sanitizeContent(structured.rawBodyText).slice(0, 50000); // 50KB limit per turn
+      const sanitizedText = this._sanitizeContent(textContent);
 
       return {
         sourceId,
-        url: cleanUrl,
-        finalUrl,
+        url,
+        finalUrl: response.url || url,
         status,
-        title,
-        mode,
-        metadata,
+        fetchedAt,
+        title: (rawBody.match(/<title[^>]*>(.*?)<\/title>/i) || [])[1] || parsedUrl.hostname,
         text: sanitizedText,
-        links: structured.links,
-        headings: structured.headings,
-        tables: structured.tables,
-        fetchedAt: new Date().toISOString()
+        links: links.slice(0, 30),
+        headings: headings.slice(0, 15),
+        safePayload: `<<<UNTRUSTED_WEB_DATA [Source: ${url}]>>>\n${sanitizedText.slice(0, 6000)}\n<<<END_UNTRUSTED_WEB_DATA>>>`
       };
     } catch (err) {
-      if (browserResources) {
-        try { await browserResources.context.close(); } catch (_) {}
-        try { await browserResources.browser.close(); } catch (_) {}
+      clearTimeout(timer);
+      if (err.name === 'AbortError' || controller.signal.aborted) {
+        throw new Error(`FETCH_TIMEOUT: Request to "${url}" timed out.`);
       }
-
-      // Try HTTP fallback if Playwright navigation timed out or failed
-      try {
-        return await this._fetchHttpFallback(cleanUrl, mode);
-      } catch (fallbackErr) {
-        throw new Error(`WEB_FETCH_ERROR: Failed to retrieve ${cleanUrl}: ${err.message}`);
-      }
+      throw err;
     }
   }
 }

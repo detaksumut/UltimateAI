@@ -24,6 +24,7 @@ export class JinAudioQueue {
     this.isInterrupted = false;
 
     this.audioElement = typeof window !== 'undefined' ? new Audio() : null;
+    this.executivePlaybackRate = 1.14; // Executive Business Cadence: crisp enunciation, eliminates slow swaying drawl
     this.activeObjectUrls = new Set();
 
     this.unspokenSegments = [];
@@ -33,8 +34,19 @@ export class JinAudioQueue {
     this.listeners = new Set();
 
     if (this.audioElement) {
+      this._applyExecutiveAudioProfile();
       this._setupAudioListeners();
     }
+  }
+
+  _applyExecutiveAudioProfile() {
+    if (!this.audioElement) return;
+    try {
+      this.audioElement.playbackRate = this.executivePlaybackRate || 1.14;
+      this.audioElement.preservesPitch = true;
+      if ('mozPreservesPitch' in this.audioElement) this.audioElement.mozPreservesPitch = true;
+      if ('webkitPreservesPitch' in this.audioElement) this.audioElement.webkitPreservesPitch = true;
+    } catch {}
   }
 
   subscribe(listener) {
@@ -62,7 +74,12 @@ export class JinAudioQueue {
   _setupAudioListeners() {
     if (!this.audioElement) return;
 
+    this.audioElement.onloadedmetadata = () => {
+      this._applyExecutiveAudioProfile();
+    };
+
     this.audioElement.onplay = () => {
+      this._applyExecutiveAudioProfile();
       this.isPlaying = true;
       console.log(`[AUDIO_QUEUE] 🔊 PLAYBACK_STARTED | Segment ${this.currentIndex + 1}/${this.queue.length}`);
       this._emitState({ isPlaying: true });
@@ -189,6 +206,7 @@ export class JinAudioQueue {
       // Play audio on HTMLAudioElement ONLY if valid non-empty audio source exists
       if (this.audioElement && item.audioDataUrl && item.audioDataUrl.trim().length > 5) {
         this.audioElement.src = item.audioDataUrl;
+        this._applyExecutiveAudioProfile();
         this.isPlaying = true;
         this._emitState({ isPlaying: true, currentIndex: index });
 
@@ -197,9 +215,15 @@ export class JinAudioQueue {
         }
 
         try {
+          this._applyExecutiveAudioProfile();
           await this.audioElement.play();
         } catch (playErr) {
-          console.warn('[AUDIO_QUEUE] Autoplay policy prevented immediate play, attempting user gesture resume:', playErr);
+          console.warn('[AUDIO_QUEUE] Audio play blocked or failed, attempting speech fallback:', playErr.message);
+          if (typeof window !== 'undefined' && window.speechSynthesis) {
+            await this._playSpeechFallbackUtterance(item, index);
+            return;
+          }
+          this._cleanupCurrentSegmentUrl();
           this._playNextSegment();
         }
       } else {
@@ -213,6 +237,121 @@ export class JinAudioQueue {
       console.error(`[AUDIO_QUEUE] ❌ Failed to synthesize segment ${index}:`, err.message);
       this._playNextSegment();
     }
+  }
+
+  /**
+   * Natural Indonesian Female Speech Synthesis Fallback Player
+   * Selects Google Bahasa Indonesia or Microsoft Gadis with natural, fluent female prosody.
+   */
+  async _playSpeechFallbackUtterance(item, index) {
+    return new Promise(async (resolve) => {
+      if (this.isInterrupted) return resolve();
+
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(item.text);
+      utterance.rate = this.executivePlaybackRate || 1.10;
+      utterance.pitch = 1.00;
+
+      // Ensure browser voices are loaded
+      let voices = window.speechSynthesis.getVoices() || [];
+      if (!voices || voices.length === 0) {
+        await new Promise((res) => {
+          let resolved = false;
+          const handler = () => {
+            if (resolved) return;
+            resolved = true;
+            window.speechSynthesis.removeEventListener('voiceschanged', handler);
+            res();
+          };
+          window.speechSynthesis.addEventListener('voiceschanged', handler);
+          setTimeout(handler, 500);
+        });
+        voices = window.speechSynthesis.getVoices() || [];
+      }
+
+      const isEnglish = this._isEnglishText(item.text);
+      if (isEnglish) {
+        utterance.lang = 'en-US';
+        const enVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
+        if (enVoice) utterance.voice = enVoice;
+      } else {
+        utterance.lang = 'id-ID';
+        const idVoice = voices.find(v => {
+          const l = (v.lang || '').toLowerCase().replace(/_/g, '-');
+          return l.startsWith('id') || l.includes('indonesia');
+        });
+        if (idVoice) utterance.voice = idVoice;
+      }
+
+      utterance.onstart = () => {
+        if (this.isInterrupted) {
+          window.speechSynthesis.cancel();
+          return resolve();
+        }
+        this.isPlaying = true;
+        this._emitState({ isPlaying: true, currentIndex: index });
+        if (index === 0 && this.callbacks?.onStart) {
+          this.callbacks.onStart();
+        }
+      };
+
+      utterance.onend = () => {
+        this.spokenSegments.push(item.text);
+        resolve();
+        this._playNextSegment();
+      };
+
+      utterance.onerror = (e) => {
+        console.warn('[AUDIO_QUEUE] Speech fallback ended or encountered error:', e?.error || e);
+        this.spokenSegments.push(item.text);
+        resolve();
+        this._playNextSegment();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  /**
+   * Fast lexical heuristic to detect if a sentence segment is English or Indonesian.
+   */
+  _isEnglishText(text = '') {
+    const clean = (text || '').toLowerCase().trim();
+    if (!clean) return false;
+
+    // English keywords & markers
+    const englishTokens = [
+      'the', 'is', 'are', 'was', 'were', 'have', 'has', 'had', 'this', 'that', 'these', 'those',
+      'you', 'your', 'we', 'our', 'they', 'their', 'what', 'when', 'where', 'why', 'how',
+      'hello', 'hi', 'sure', 'certainly', 'english', 'speak', 'language', 'with', 'about', 'from',
+      'please', 'thank', 'thanks', 'good', 'morning', 'afternoon', 'evening', 'welcome', 'great',
+      'here', 'there', 'would', 'could', 'should', 'will', 'can', 'assist', 'help', 'project',
+      'i', 'am', 'jin', 'today', 'now', 'let', 'me', 'know', 'feel', 'free', 'to', 'ask'
+    ];
+
+    // Indonesian keywords & markers
+    const indonesianTokens = [
+      'yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'dengan', 'untuk', 'pada', 'adalah',
+      'saya', 'anda', 'kamu', 'kita', 'kami', 'mereka', 'bisa', 'sudah', 'akan', 'telah',
+      'tidak', 'bukan', 'apakah', 'bagaimana', 'mengapa', 'halo', 'selamat', 'pagi', 'siang',
+      'malam', 'baik', 'tentu', 'terima', 'kasih', 'mohon', 'siap', 'silakan', 'bicara'
+    ];
+
+    const words = clean.split(/\s+/).map(w => w.replace(/[^a-zA-Z]/g, ''));
+    let enCount = 0;
+    let idCount = 0;
+
+    for (const w of words) {
+      if (englishTokens.includes(w)) enCount++;
+      if (indonesianTokens.includes(w)) idCount++;
+    }
+
+    if (/^(hello|hi|welcome|certainly|sure|of course|good morning|good afternoon|good evening|i am jin|let me)\b/i.test(clean)) {
+      enCount += 3;
+    }
+
+    return enCount > idCount;
   }
 
   _playNextSegment() {
@@ -238,6 +377,9 @@ export class JinAudioQueue {
    * Stops current playback immediately and preserves unspoken segments.
    */
   stop() {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
     if (this.audioElement) {
       try {
         this.audioElement.pause();

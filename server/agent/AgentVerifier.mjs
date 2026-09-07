@@ -6,6 +6,8 @@
 
 import { artifactManagerInstance } from './ArtifactManager.mjs';
 import { BehavioralRunner } from './BehavioralRunner.mjs';
+import { VERIFICATION_STATUS } from './EvidenceChain.mjs';
+import { imageGenerationInstance } from './ImageGeneration.mjs';
 
 export class AgentVerifier {
   /**
@@ -29,8 +31,35 @@ export class AgentVerifier {
         failureReason: failureItem.observation?.error || 'Step execution failed validation',
         completedSteps,
         totalSteps,
+        verificationStatus: VERIFICATION_STATUS.UNVERIFIED,
         synthesisMessage: `Langkah ${failureItem.step.name || failureItem.step.action} memerlukan penyesuaian strategi eksekusi.`
       };
+    }
+
+    // 1B. Check web.search steps actually returned data
+    const webSearchSteps = executionHistory.filter(h => h.step?.tool === 'web.search');
+    if (webSearchSteps.length > 0) {
+      const hasUsefulData = webSearchSteps.some(h => {
+        const result = h.stepResult?.result;
+        return result && (
+          (result.sources && result.sources.length > 0) ||
+          (result.text && result.text.length > 20) ||
+          (result.title && result.title.length > 5)
+        );
+      });
+      if (!hasUsefulData) {
+        return {
+          isSatisfied: false,
+          confidence: 0.3,
+          requiresReplan: true,
+          failedStep: webSearchSteps[0].step,
+          failureReason: 'WEB_SEARCH_EMPTY: Web search returned no useful data',
+          completedSteps,
+          totalSteps,
+          verificationStatus: VERIFICATION_STATUS.UNVERIFIED,
+          synthesisMessage: 'Pencarian web tidak mengembalikan data yang cukup. Mencoba ulang dengan query berbeda.'
+        };
+      }
     }
 
     // 2. Locate Candidate Artifact Produced by AgentExecutor
@@ -65,6 +94,21 @@ export class AgentVerifier {
       if (candidateArtifact && candidateArtifact.type === 'DATA_MODEL') {
         behavioralReport = BehavioralRunner.runDataModelBehavioralTests(candidateArtifact);
       }
+    } else if (plan.category === 'IMAGE_GENERATION') {
+      if (!candidateArtifact || candidateArtifact.type !== 'IMAGE') {
+        isSatisfied = false;
+        failureReason = 'Executor failed to produce a valid IMAGE artifact.';
+      } else if (candidateArtifact.persistenceStatus !== 'PERSISTED') {
+        isSatisfied = false;
+        failureReason = `Image artifact persistence failed: ${candidateArtifact.persistenceError || 'DISK_WRITE_ERROR'}`;
+      } else {
+        // Verify image file exists and is renderable
+        const imageVerification = imageGenerationInstance.verifyArtifact(candidateArtifact);
+        if (!imageVerification.renderable) {
+          isSatisfied = false;
+          failureReason = `Image artifact not renderable: ${imageVerification.reason}`;
+        }
+      }
     }
 
     if (!isSatisfied) {
@@ -74,6 +118,7 @@ export class AgentVerifier {
         requiresReplan: true,
         failureReason,
         behavioralReport,
+        verificationStatus: VERIFICATION_STATUS.UNVERIFIED,
         synthesisMessage: `Hasil kerja belum memenuhi kontrak bukti (${failureReason}). Memulai perbaikan otomatis.`
       };
     }
@@ -97,6 +142,8 @@ export class AgentVerifier {
       synthesisMessage = `Memori yang relevan berhasil ditarik dari vault dan dimasukkan ke dalam konteks penalaran.`;
     } else if (plan.category === 'MULTI_STEP_TASK') {
       synthesisMessage = `Tugas multi-langkah (analisis dokumen, validasi benchmark web, perbandingan matrix, dan formulasi rekomendasi) telah diverifikasi 100% tuntas.`;
+    } else if (plan.category === 'IMAGE_GENERATION') {
+      synthesisMessage = `Visual berhasil dihasilkan dan diverifikasi: artifact tersimpan, file valid, dan renderable di Image Studio.`;
     } else {
       synthesisMessage = `Instruksi untuk "${plan.goal}" telah selesai diproses dan diverifikasi oleh sistem JIN.`;
     }
@@ -107,10 +154,38 @@ export class AgentVerifier {
       requiresReplan: false,
       completedSteps,
       totalSteps,
+      verificationStatus: this._assessStatus(plan, executionHistory, candidateArtifact, behavioralReport, totalSteps),
+      evidenceBased: executionHistory.some(h => h.observation?.valid && h.stepResult?.result),
       synthesisMessage,
       artifact: candidateArtifact,
       behavioralReport
     };
+  }
+
+  /**
+   * TAHAP 3B-2B-2: Distinguish outcome status for the evidence hierarchy.
+   * VERIFIED / PARTIALLY_VERIFIED / UNVERIFIED / INSUFFICIENT_EVIDENCE.
+   */
+  static _assessStatus(plan, executionHistory, candidateArtifact, behavioralReport, totalSteps) {
+    const producedResults = executionHistory.filter(h => h.observation?.valid && h.stepResult?.result).length;
+
+    if (plan.category === 'APP_SYNTHESIS') {
+      if (candidateArtifact && behavioralReport?.passed) {
+        return VERIFICATION_STATUS.VERIFIED;
+      }
+      if (candidateArtifact) {
+        return VERIFICATION_STATUS.PARTIALLY_VERIFIED;
+      }
+      return VERIFICATION_STATUS.UNVERIFIED;
+    }
+
+    if (producedResults === 0) {
+      return VERIFICATION_STATUS.INSUFFICIENT_EVIDENCE;
+    }
+    if (producedResults >= totalSteps && totalSteps > 0) {
+      return VERIFICATION_STATUS.VERIFIED;
+    }
+    return VERIFICATION_STATUS.PARTIALLY_VERIFIED;
   }
 }
 

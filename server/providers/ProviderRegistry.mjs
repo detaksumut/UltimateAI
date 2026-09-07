@@ -1,24 +1,18 @@
 /**
  * ProviderRegistry.mjs
- * Central Registry of all 9Router Upstream AI Providers with Dynamic Resolution.
- * Integrates Antigravity Multi-Model Pool as Primary Gateway alongside Direct Providers.
+ * Central Registry of all Local AI Providers with Dynamic Resolution.
+ * Primary Gateway: Local Ollama Provider (:11434)
  */
 
-import { AntigravityProvider } from './AntigravityProvider.mjs';
-import { GeminiProvider } from './GeminiProvider.mjs';
-import { OpenAIProvider } from './OpenAIProvider.mjs';
-import { ClaudeProvider, DeepSeekProvider } from './ClaudeAndDeepSeekProviders.mjs';
+import { OllamaProvider } from './OllamaProvider.mjs';
+import { geminiProviderInstance } from './GeminiProvider.mjs';
 
 export class ProviderRegistry {
   constructor() {
     this.providers = new Map();
-    // 1. Primary: Integrated Antigravity Model Pool
-    this.register(new AntigravityProvider());
-    // 2. Direct Providers
-    this.register(new GeminiProvider());
-    this.register(new OpenAIProvider());
-    this.register(new ClaudeProvider());
-    this.register(new DeepSeekProvider());
+    // Primary: Gemini Cloud & Local Ollama
+    this.register(geminiProviderInstance);
+    this.register(new OllamaProvider());
   }
 
   register(provider) {
@@ -33,51 +27,18 @@ export class ProviderRegistry {
    * Resolve best configured provider and model based on capability and strategy
    */
   resolveProviderForStrategy(strategy, preferredModel) {
-    const agProvider = this.get('antigravity');
+    const ollamaProvider = this.get('ollama');
 
-    // If explicit model matches Antigravity catalog, route to Antigravity Pool
-    if (agProvider && agProvider.isConfigured()) {
-      if (preferredModel && agProvider.modelCatalog[preferredModel]) {
-        return {
-          provider: agProvider,
-          model: preferredModel,
-          gateway: 'ANTIGRAVITY',
-          fallbackUsed: false
-        };
-      }
-
-      // Map strategy to capability
-      let capability = 'FAST_CHAT';
-      if (strategy === 'DEEP_REASONING' || strategy === 'AGENT_SEMANTIC' || strategy === 'DATA_ANALYTICS') {
-        capability = 'DEEP_REASONING';
-      } else if (strategy === 'CODE_GENERATION' || strategy === 'APP_SYNTHESIS') {
-        capability = 'CODE_GENERATION';
-      }
-
-      const best = agProvider.resolveBestModel(capability, preferredModel);
+    if (ollamaProvider && ollamaProvider.isConfigured()) {
       return {
-        provider: agProvider,
-        model: best.modelId,
-        gateway: 'ANTIGRAVITY',
+        provider: ollamaProvider,
+        model: preferredModel || 'hermes3:8b',
+        gateway: 'OLLAMA',
         fallbackUsed: false
       };
     }
 
-    // Direct Providers Fallback
-    if (preferredModel && preferredModel.includes('claude') && this.get('claude')?.isConfigured()) {
-      return { provider: this.get('claude'), model: preferredModel, gateway: 'DIRECT_ANTHROPIC', fallbackUsed: false };
-    }
-    if (preferredModel && preferredModel.includes('deepseek') && this.get('deepseek')?.isConfigured()) {
-      return { provider: this.get('deepseek'), model: preferredModel, gateway: 'DIRECT_DEEPSEEK', fallbackUsed: false };
-    }
-    if (preferredModel && (preferredModel.includes('gpt') || preferredModel.includes('openai')) && this.get('openai')?.isConfigured()) {
-      return { provider: this.get('openai'), model: preferredModel, gateway: 'DIRECT_OPENAI', fallbackUsed: false };
-    }
-    if (this.get('gemini')?.isConfigured()) {
-      return { provider: this.get('gemini'), model: 'gemini-2.0-flash', gateway: 'DIRECT_GEMINI', fallbackUsed: false };
-    }
-
-    return null; // Local Heuristic Fallback
+    return null;
   }
 
   async getHealthStatus() {

@@ -1,4 +1,4 @@
-export type AIProviderType = '9ROUTE' | 'ANTHROPIC' | 'OPENAI' | 'GROQ' | 'MISTRAL' | 'DEEPSEEK' | 'COHERE' | 'TAVILY' | 'GEMINI';
+export type AIProviderType = 'ANTHROPIC' | 'OPENAI' | 'GROQ' | 'MISTRAL' | 'DEEPSEEK' | 'COHERE' | 'TAVILY' | 'GEMINI';
 
 export type TaskCapability = 'REASONING' | 'FAST_INFERENCE' | 'CODING' | 'EMBEDDING' | 'WEB_SEARCH';
 

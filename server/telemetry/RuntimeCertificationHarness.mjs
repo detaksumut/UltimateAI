@@ -1,6 +1,6 @@
 /**
  * RuntimeCertificationHarness.mjs
- * Automated CLI Certification Harness for 9Router Gateway, Live Providers, and Tools.
+ * Automated CLI Certification Harness for Local Router Gateway, Live Providers, and Tools.
  * Run via: node server/telemetry/RuntimeCertificationHarness.mjs or npm run certify:runtime
  */
 
@@ -25,7 +25,7 @@ function report(condition, section, checkName, detail = '') {
 
 async function runRuntimeCertification() {
   console.log('================================================================');
-  console.log('   ULTIMATEAI 9ROUTER - LIVE RUNTIME CERTIFICATION HARNESS     ');
+  console.log('   ULTIMATEAI LOCAL ROUTER - LIVE RUNTIME CERTIFICATION HARNESS ');
   console.log('================================================================\n');
 
   // -------------------------------------------------------------

@@ -170,7 +170,7 @@ export class ContentExtractor {
 
           const extractedText = matches.length > 0
             ? matches.join(' ')
-            : `Dokumen PDF: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Konten siap dianalisis multi-modal oleh 9Router.`;
+            : `Dokumen PDF: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Konten siap dianalisis multi-modal.`;
 
           const charCount = extractedText.length;
           const isTruncated = charCount > this.MAX_CONTEXT_CHARS;

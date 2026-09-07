@@ -33,7 +33,7 @@ export class MemoryStore {
         id: 'mem_sys_1',
         category: MEMORY_CATEGORIES.SYSTEM,
         key: 'Core Intelligence Engine',
-        value: 'UltimateAI 9Router (9 Active Autonomous Reasoning Engines)',
+        value: 'UltimateAI JIN Neural Architecture (Hybrid Reasoning Engine)',
         isPinned: true,
         timestamp: new Date().toISOString()
       },

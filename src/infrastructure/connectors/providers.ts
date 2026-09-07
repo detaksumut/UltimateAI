@@ -6,56 +6,6 @@ export abstract class BaseProvider {
     abstract execute(request: AIRequest): Promise<AIResponse>;
 }
 
-export class NineRouteProvider extends BaseProvider {
-    readonly type: AIProviderType = '9ROUTE';
-    
-    async execute(request: AIRequest): Promise<AIResponse> {
-        console.log(`[9Route] Executing request ${request.id}`);
-        
-        try {
-            // Using standard OpenAI compatible endpoint format
-            const response = await fetch(`${process.env.NINE_ROUTER_URL}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${process.env.NINE_ROUTER_API_KEY}`,
-                },
-                body: JSON.stringify({
-                    model: process.env.NINE_ROUTER_MODEL || 'gpt-3.5-turbo',
-                    messages: [
-                        { role: 'system', content: request.systemPrompt || 'You are an AI assistant.' },
-                        { role: 'user', content: request.prompt }
-                    ],
-                    temperature: 0.2, // Low temp for generation/coding
-                    max_tokens: 3000
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`9Route API Error: ${response.status} ${response.statusText}`);
-            }
-
-            const json = await response.json();
-            const content = json.choices?.[0]?.message?.content || '';
-
-            return {
-                requestId: request.id,
-                provider: this.type,
-                content: content,
-                usage: { 
-                    promptTokens: json.usage?.prompt_tokens || 0, 
-                    completionTokens: json.usage?.completion_tokens || 0, 
-                    totalTokens: json.usage?.total_tokens || 0 
-                },
-                latencyMs: 1000 // Mocked latency stat
-            };
-        } catch (error: any) {
-            console.error(`[9Route Error] ${error.message}`);
-            throw error;
-        }
-    }
-}
-
 export class DirectFallbackProvider extends BaseProvider {
     constructor(public readonly type: AIProviderType) {
         super();

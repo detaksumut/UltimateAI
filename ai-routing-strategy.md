@@ -2,7 +2,7 @@
 
 ## Overview
 
-UltimateAI utilizes a Multi-AI Orchestration Architecture powered by 9Router AI Gateway.
+UltimateAI utilizes a Multi-AI Orchestration Architecture powered by Local Router AI Gateway (:20200).
 
 Instead of relying on a single AI model, UltimateAI dynamically routes tasks to specialized AI models based on their strengths and capabilities.
 
@@ -58,7 +58,7 @@ Ready-to-Use Research Tool
 
 ## AI Gateway
 
-UltimateAI uses 9Router as the central AI Gateway responsible for:
+UltimateAI uses Local Router (:20200) as the central AI Gateway responsible for:
 
 * Model Selection
 * Load Balancing
@@ -71,7 +71,7 @@ UltimateAI uses 9Router as the central AI Gateway responsible for:
 
 ## Future Expansion
 
-Additional AI providers may be integrated through 9Router, including:
+Additional AI providers may be integrated through Local Router, including:
 
 * OpenAI
 * Anthropic

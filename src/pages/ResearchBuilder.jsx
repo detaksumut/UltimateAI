@@ -124,7 +124,7 @@ function ResearchBuilder() {
       const initialModel = analyzer.analyze(prompt, session.projectId);
       initialModel.projectContextId = session.projectContextId;
       
-      // Tailor details from 9Router analysis
+      // Tailor details from analysis
       initialModel.researchTitle = data.researchTitle || initialModel.researchTitle;
       initialModel.researchType = data.researchType || initialModel.researchType;
       initialModel.methodology = data.methodology || initialModel.methodology;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ConversationEngine.js
  * Multi-turn context manager for JIN.
  * Builds rich contextual payloads for the agent runtime.
@@ -16,8 +16,10 @@ import { uiStateResolverInstance } from '../grounding/UIStateResolver.js';
 export class ConversationEngine {
   constructor() {
     this.history = [];
-    this.MAX_HISTORY_TURNS = 12;
-    this.MAX_INJECTED_MEMORIES = 4;
+    this.MAX_HISTORY_TURNS = 24;
+    this.MAX_INJECTED_MEMORIES = 6;
+    this._saveTimer = null;
+    this._conversationId = null;
 
     // Dynamic Task State Model
     this.taskState = {
@@ -35,15 +37,85 @@ export class ConversationEngine {
     };
 
     this.systemPrompt = `You are JIN, an autonomous, grounded, and empathetic AI partner in UltimateAI.
-CORE GROUNDING RULES:
-1. MINIMUM SUFFICIENT RESPONSE: For simple requests or greetings (e.g. asking to upload audio or transcribing), answer directly, warmly, and concisely in Indonesian without lecturing the user about internal architectures.
-2. NO INVENTED SUBSYSTEM NAMES: Never invent names like "Audio Ingestion Pipeline", "SpeechSense Pro", "Cognitive Matrix", "Ultimate Analysis Core", etc.
-3. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
-4. When asked to build or create an application/calculator/dashboard: Keep text preamble minimal and immediately generate complete single-file HTML inside \`\`\`html ... \`\`\` code blocks.`;
+You are fully bilingual in English and Indonesian.
+LANGUAGE ADAPTATION RULE:
+- If the user asks you to speak in English (e.g. "coba berbahasa inggris", "speak English", "use English"), or speaks to you in English, respond immediately and completely in fluent, natural, professional English.
+- If the user speaks in Indonesian, respond naturally in Indonesian.
+
+8 PILAR KEMAMPUAN & PRINSIP KOGNISI JIN:
+1. ANALISIS DOKUMEN & RANGKUMAN: Membaca dokumen mendalam, memahami konteks, menganalisis, dan menyajikan rangkuman eksekutif.
+2. VISION & PEMAHAMAN CITRA: Menganalisis gambar, diagram, dan foto secara multimodal.
+3. GENERASI VISUAL MULTI-FORMAT SESUAI KONTEKS: Mampu merancang dan memproduksi aset gambar, infografis, slide presentasi (16:9), dan materi promosi/poster (9:16) yang selaras dengan topik pembicaraan saat diminta, secara adaptif tanpa memaksakan template mati.
+4. KONEKTIVITAS SIMULTAN MULTI-PROVIDER: Terhubung harmonis dengan Gemini, Ollama, Tavily AI, dan sistem lokal.
+5. SURFING & PEREKAMAN PENGETAHUAN: Menjelajah web via Tavily, memproses hasil secara kritis, dan merekam intisari ke basis pengetahuan lokal.
+6. PEMBARUAN PENGETAHUAN HARIAN: Menjaga pembaruan perkembangan zaman secara harian dari internet.
+7. AKSES & PEMAHAMAN PERANGKAT LOKAL: Mengenali ruang kerja lokal, Drive F:\\, dan telemetri perangkat.
+8. KONTINUITAS KONTEKS & ANTI-LOOPING: Selalu berpijak pada konteks pembicaraan. Jika terjadi pengulangan (looping) atau instruksi kurang dipahami, pertanyakan kembali apa konteksnya secara santun kepada pengguna alih-alih menebak atau menjawab tanpa paham.`;
   }
 
   getHistory() {
     return [...this.history];
+  }
+
+  /**
+   * Load conversation history from server
+   */
+  async loadFromServer(conversationId) {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.messages && Array.isArray(data.messages)) {
+        this.history = data.messages;
+        this._conversationId = conversationId;
+        return true;
+      }
+    } catch (err) {
+      console.warn('[ConversationEngine] Load from server failed:', err.message);
+    }
+    return false;
+  }
+
+  /**
+   * Debounced save to server — batches rapid addMessage calls
+   */
+  _scheduleSave() {
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => this._saveToServer(), 2000);
+  }
+
+  async _saveToServer() {
+    if (this.history.length === 0) return;
+    try {
+      const id = this._conversationId || `conv_${Date.now()}`;
+      await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: id,
+          messages: this.history,
+          metadata: { taskState: this.taskState.goal ? { goal: this.taskState.goal } : null }
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      this._conversationId = id;
+    } catch (err) {
+      console.warn('[ConversationEngine] Save to server failed:', err.message);
+    }
+  }
+
+  /**
+   * Summarize older messages into a compact context when sliding window is exceeded
+   */
+  _summarizeOldMessages(messages) {
+    if (messages.length <= 4) return null;
+    // Create a compact summary of old conversation turns
+    const userMsgs = messages.filter(m => m.role === 'user').map(m => m.content?.slice(0, 100));
+    const assistantMsgs = messages.filter(m => m.role === 'assistant').map(m => m.content?.slice(0, 100));
+    const topics = userMsgs.slice(0, 5).join('; ');
+    return `[Ringkasan percakapan sebelumnya: ${topics}${userMsgs.length > 5 ? '...' : ''}]`;
   }
 
   /**
@@ -99,8 +171,22 @@ CORE GROUNDING RULES:
 
     // Keep history within sliding window budget
     if (this.history.length > this.MAX_HISTORY_TURNS * 2) {
-      this.history = this.history.slice(-this.MAX_HISTORY_TURNS * 2);
+      const excess = this.history.slice(0, this.history.length - this.MAX_HISTORY_TURNS * 2);
+      // Summarize excess messages before discarding
+      const summary = this._summarizeOldMessages(excess);
+      if (summary) {
+        // Prepend summary as first system message
+        this.history = [
+          { id: 'msg_summary_' + Date.now(), role: 'system', content: summary, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+          ...this.history.slice(-this.MAX_HISTORY_TURNS * 2)
+        ];
+      } else {
+        this.history = this.history.slice(-this.MAX_HISTORY_TURNS * 2);
+      }
     }
+
+    // Auto-save to server (debounced)
+    this._scheduleSave();
 
     return msg;
   }
@@ -174,7 +260,8 @@ ${capabilityContext}
 
 ${uiContext}`;
 
-    const historyMessages = this.history.map(m => {
+    const recentHistory = this.history.slice(-8);
+    const historyMessages = recentHistory.map(m => {
       if (m.imageUrl) {
         return {
           role: m.role,

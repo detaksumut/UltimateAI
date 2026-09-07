@@ -64,7 +64,7 @@ export async function runProductionCertification() {
   steps.push({
     step: '2. GATEWAY HANDSHAKE',
     status: 'PASS',
-    details: `Port :20128 Active, Latency: ${gwLatency}ms`
+    details: `Port :20200 Active, Latency: ${gwLatency}ms`
   });
 
   // [3] Provider Certification Matrix

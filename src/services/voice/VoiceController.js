@@ -8,7 +8,6 @@ import { speechToTextInstance } from './SpeechToText.js';
 import { jinAvatarControllerInstance } from '../avatar/JinAvatarController.js';
 import { AVATAR_EVENTS, AVATAR_STATES } from '../avatar/JinAvatarStates.js';
 import { conversationSessionControllerInstance } from './ConversationSessionController.js';
-import { wakeWordEngineInstance } from './WakeWordEngine.js';
 import { speechDecisionGateInstance, SPEECH_DECISIONS } from './SpeechDecisionGate.js';
 
 export class VoiceController {
@@ -17,21 +16,29 @@ export class VoiceController {
     this.tts = textToSpeechInstance;
     this.fsm = jinAvatarControllerInstance;
     this.sessionController = conversationSessionControllerInstance;
-    this.wakeWord = wakeWordEngineInstance;
     this.gate = speechDecisionGateInstance;
     this.bargeInHandler = null;
+  }
 
-    // Connect wake word listener safely
-    this.wakeWord.onWakeWord(({ transcript, sessionId }) => {
-      // Only activate wake word if JIN is not currently speaking
-      if (!this.tts.isPlaying) {
-        this.fsm.dispatch({ type: AVATAR_EVENTS.MIC_ACTIVATED, sessionId });
-      }
-    });
+  isSpeakerEnabled() {
+    if (typeof window === 'undefined') return true;
+    const val = localStorage.getItem('jin_speaker_enabled');
+    return val === null ? true : val === 'true';
+  }
+
+  setSpeakerEnabled(enabled) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('jin_speaker_enabled', enabled ? 'true' : 'false');
+    }
+    if (!enabled && this.tts.isPlaying) {
+      this.tts.stop();
+    }
   }
 
   enableWakeWord() {
-    return this.wakeWord.startAlwaysOn();
+    // Quarantined: Always-On wake word is disabled in favor of explicit user toggle
+    console.log('[VOICE] Wake word is dormant; user toggle control active.');
+    return false;
   }
 
   setBargeInHandler(handler) {
@@ -106,27 +113,22 @@ export class VoiceController {
   speak(text, options = {}, callbackEnd = null) {
     const onStart = typeof options === 'function' ? options : options?.onStart;
     const onEnd = typeof callbackEnd === 'function' ? callbackEnd : (typeof options === 'object' ? options?.onEnd : null);
-    const sessionId = this.sessionController.getActiveSessionId();
+    const sessionId = this.sessionController?.getActiveSessionId?.() || `session_${Date.now()}`;
 
-    // HARD SPEECH GATE: Enforce System-Level Speech Authorization
-    const gateDecision = this.gate.shouldSpeak({
-      type: options?.eventType || 'USER_RESPONSE',
-      interactionId: options?.interactionId || sessionId,
-      userPrompt: options?.userPrompt || '',
-      text,
-      isVoiceTrigger: Boolean(options?.isVoiceTrigger),
-      isCritical: Boolean(options?.isCritical),
-      criticalType: options?.criticalType || null,
-      modality: options?.modality || null
-    });
-
-    if (gateDecision.decision === SPEECH_DECISIONS.NO_SPEECH) {
-      console.log(`[VOICE_GATE] 🔇 Speech Dropped (Default Silence) | Reason: ${gateDecision.reason}`);
+    // Respect user's explicit SPEAKER toggle
+    if (!this.isSpeakerEnabled() && !options?.force) {
+      console.log('[VOICE] 🔇 Speaker is OFF. JIN will remain visual-only on ticker.');
       if (onEnd) onEnd();
       return;
     }
 
-    const speakText = gateDecision.speechText || text;
+    const speakText = (text || '').trim();
+    if (!speakText) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    console.log(`[VOICE] 🔊 Speaker is ON. Dispatching speech synthesis: "${speakText.slice(0, 60)}..."`);
 
     return this.tts.speak(
       speakText,
@@ -140,8 +142,10 @@ export class VoiceController {
           if (onEnd) onEnd();
         },
         onError: (err) => {
+          console.warn('[VOICE] TTS synthesis error:', err?.message || err);
           this.fsm.dispatch({ type: AVATAR_EVENTS.SPEECH_FINISHED, sessionId });
           if (options?.onError) options.onError(err);
+          if (onEnd) onEnd();
         }
       }
     );

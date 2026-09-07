@@ -8,7 +8,7 @@ Research Understanding Engine
      ↓
 Research Intelligence Layer
      ↓
-9Router AI Gateway
+Local Router AI Gateway (:20200)
      ↓
 UltimateAI AI Combo
      ↓

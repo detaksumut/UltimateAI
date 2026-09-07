@@ -1,55 +1,38 @@
 /**
- * ToolRegistry.mjs
- * Central Governance Registry of all 9Router Live Tools.
+ * ToolRegistry.mjs (Backward-Compatibility Adapter)
+ * 
+ * Delegates all tool dispatch and inspection to the single source of truth:
+ * CapabilityRegistry (server/grounding/CapabilityRegistry.mjs).
  */
 
-import { webSearchToolInstance } from './WebSearchTool.mjs';
-import { documentIntelligenceToolInstance } from './DocumentIntelligenceTool.mjs';
-import { memoryVaultToolInstance } from './MemoryVaultTool.mjs';
-import { multiLayerSearchToolInstance } from './MultiLayerSearchTool.mjs';
-import { webFetchToolInstance } from './WebFetchTool.mjs';
-import { sandboxExecutionToolInstance } from './SandboxExecutionTool.mjs';
-import { threatFeedToolInstance } from './ThreatFeedTool.mjs';
-import { formalSolveToolInstance } from './FormalSolveTool.mjs';
+import { capabilityRegistryInstance, CapabilityRegistry } from '../grounding/CapabilityRegistry.mjs';
 
-export class ToolRegistry {
+export class ToolRegistryAdapter {
   constructor() {
-    this.tools = new Map();
-    this.register(webSearchToolInstance);
-    this.register(documentIntelligenceToolInstance);
-    this.register(memoryVaultToolInstance);
-    this.register(multiLayerSearchToolInstance);
-    this.register(webFetchToolInstance);
-    this.register(sandboxExecutionToolInstance);
-    this.register(threatFeedToolInstance);
-    this.register(formalSolveToolInstance);
-  }
-
-  register(toolInstance) {
-    this.tools.set(toolInstance.name, toolInstance);
+    this._registry = capabilityRegistryInstance;
   }
 
   get(name) {
-    return this.tools.get(name);
+    return this._registry.get(name);
   }
 
-  async executeTool(name, params = {}, signal = null) {
-    const tool = this.get(name);
-    if (!tool) {
-      throw new Error(`Tool "${name}" is not registered in ToolRegistry.`);
-    }
-    return tool.execute(params, signal);
+  getTool(name) {
+    return this._registry.get(name);
   }
 
   listTools() {
-    return Array.from(this.tools.values()).map(t => ({
-      name: t.name,
-      description: t.description,
-      permissionLevel: t.permissionLevel,
-      timeoutMs: t.timeoutMs
-    }));
+    return this._registry.listTools();
+  }
+
+  async executeTool(name, params = {}, options = {}) {
+    return this._registry.executeCapability(name, params, options);
+  }
+
+  hasTool(name) {
+    return this._registry.hasCapability(name);
   }
 }
 
-export const toolRegistryInstance = new ToolRegistry();
+export const toolRegistryInstance = new ToolRegistryAdapter();
+export const ToolRegistry = ToolRegistryAdapter;
 export default toolRegistryInstance;

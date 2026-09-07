@@ -158,6 +158,6 @@ A total of 30 code markers (`TODO`) are documented in the codebase. They map to 
 
 ## 5. Known Limitations & Readiness for Sprint 2
 
-- **Mocked AI Gateway**: If the 9Router endpoint is offline, the backend seamlessly falls back to local regex-based semantic templates to allow E2E testing.
+- **Mocked AI Gateway**: If the AI endpoint is offline, the backend seamlessly falls back to local regex-based semantic templates to allow E2E testing.
 - **Linear Execution**: Parallel executions of task subgraphs are stubbed; scheduling is strictly sequential for Sprint 1.
 - **Conclusion**: The codebase is **fully ready** to begin Sprint 2, with structured models, stable interfaces, and green tests.

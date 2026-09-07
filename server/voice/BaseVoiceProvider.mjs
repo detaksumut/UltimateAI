@@ -1,6 +1,6 @@
 /**
  * BaseVoiceProvider.mjs
- * Abstract contract for 9Router Neural Voice Providers.
+ * Abstract contract for Neural Voice Providers.
  */
 
 export class BaseVoiceProvider {

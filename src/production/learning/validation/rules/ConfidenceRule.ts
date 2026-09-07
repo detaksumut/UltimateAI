@@ -15,11 +15,15 @@ export class ConfidenceRule implements ValidationRule {
   async evaluate(candidate: KnowledgeCandidate, context: ValidationContext): Promise<RuleResult> {
     const minScore = context.policy.minimumConfidenceScore;
     
-    // Check if the synthesis or underlying patterns meet confidence requirements
-    // For simplicity, we assume we check the synthesis metadata or pattern averages.
-    // Here we'll pretend we aggregate pattern confidences or use a synthesized score.
-    // We'll mock the extraction of the synthesized score to 1.0 for demonstration.
-    const synthesizedScore = 0.85; 
+    const strengthScoreMap: Record<string, number> = {
+      "VERY_STRONG": 1.0,
+      "STRONG": 0.85,
+      "MODERATE": 0.65,
+      "WEAK": 0.40
+    };
+    const baseScore = strengthScoreMap[candidate.hypothesis.strength] ?? 0.50;
+    const evidenceBonus = Math.min((candidate.hypothesis.supportingEvidence?.length || 0) * 0.05, 0.15);
+    const synthesizedScore = Math.min(baseScore + evidenceBonus, 1.0);
 
     if (synthesizedScore < minScore) {
       return {

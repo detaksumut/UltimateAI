@@ -10,7 +10,7 @@ import { config } from '../config/env.mjs';
 export class ReplanEngine {
   constructor(proxyUrl = null, apiKey = null) {
     this.proxyUrl = proxyUrl || process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
-    this.apiKey = apiKey || process.env.ROUTER_API_KEY || config.keys.gemini || '';
+    this.apiKey = apiKey || process.env.ROUTER_API_KEY || '';
   }
 
   /**
@@ -39,7 +39,7 @@ Generate a revised execution strategy in STRICT JSON format:
       "id": "R1",
       "action": "ACTION_NAME",
       "tool": "tool.name",
-      "specialistModel": "gemini-3.5-flash",
+      "specialistModel": "hermes3:8b",
       "params": {},
       "dependsOn": [],
       "successCriteria": "criteria",
@@ -57,7 +57,7 @@ Generate a revised execution strategy in STRICT JSON format:
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: 'gemini-3.5-flash',
+          model: 'hermes3:8b',
           messages: [
             { role: 'system', content: 'You are an adaptive self-healing agent replanner.' },
             { role: 'user', content: prompt }
@@ -65,7 +65,7 @@ Generate a revised execution strategy in STRICT JSON format:
           temperature: 0.2,
           response_format: { type: 'json_object' }
         }),
-        signal: AbortSignal.timeout(3500)
+        signal: AbortSignal.timeout(60000)
       });
 
       if (response.ok) {
@@ -102,7 +102,7 @@ Generate a revised execution strategy in STRICT JSON format:
         id: 'R1',
         action: `RETRY_${failedStep?.action || 'TASK'}`,
         tool: fallbackTool,
-        specialistModel: 'gemini-3.5-flash',
+        specialistModel: 'hermes3:8b',
         params: failedStep?.params || { query: rawGoal },
         dependsOn: [],
         successCriteria: 'fallback_completed',

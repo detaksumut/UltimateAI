@@ -1,6 +1,6 @@
 /**
  * SemanticAgentBenchmark.mjs
- * Empirical Natural Language & Intent Evaluation Suite for UltimateAI 9Router.
+ * Empirical Natural Language & Intent Evaluation Suite for UltimateAI.
  * Tests 10 Realistic Conversational Scenarios across Explicit, Implicit, Compound, and Idiomatic Queries.
  */
 

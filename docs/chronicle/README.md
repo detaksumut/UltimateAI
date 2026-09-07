@@ -76,7 +76,7 @@ Topics include:
 * AIEngine
 * RouterProvider
 * Multi-provider architecture
-* 9Router integration
+* Local Router AI gateway integration
 * Response normalization
 * Health diagnostics
 

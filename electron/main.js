@@ -208,7 +208,7 @@ async function startApp() {
 
   // Phase 5.1: Do not implement licensing yet. Skip license check.
 
-  // Step 2: Start runtime (9Router + Express)
+  // Step 2: Start runtime (Express)
   runtimeManager = new RuntimeManager({
     appPath: IS_DEV ? path.join(__dirname, '..') : path.join(process.resourcesPath, 'app.asar.unpacked'),
     userDataPath: app.getPath('userData'),

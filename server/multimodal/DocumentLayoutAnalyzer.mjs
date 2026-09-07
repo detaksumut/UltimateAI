@@ -67,7 +67,7 @@ export class DocumentLayoutAnalyzer {
         diagramId: `diag_${Date.now()}`,
         nodes: [
           { id: 'node_client', label: 'Client / Operator', type: 'ACTOR' },
-          { id: 'node_router', label: 'LocalRouter 9Router', type: 'SERVICE' },
+          { id: 'node_router', label: 'LocalRouter', type: 'SERVICE' },
           { id: 'node_vault', label: 'Drive F Active Memory', type: 'STORAGE' }
         ],
         connections: [

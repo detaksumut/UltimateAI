@@ -1,6 +1,6 @@
 /**
  * ToolGovernor.mjs
- * Security Supervisor & Execution Governor for 9Router Tools.
+ * Security Supervisor & Execution Governor for Tools.
  * Enforces Permission Gating, Input Validation, Abort Signals, and Untrusted Data Isolation.
  */
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NeuralIndonesianTTSProvider.js
  * Frontend/Browser client for JIN Neural Indonesian TTS Engine.
  *
@@ -13,12 +13,12 @@ export class NeuralIndonesianTTSProvider {
   constructor(config = {}) {
     this.name = 'NEURAL_INDONESIAN_TTS';
     this.language = 'id-ID';
-    this.defaultSpeaker = config.defaultSpeaker || 'id-ID-ArdiNeural';
+    this.defaultSpeaker = config.defaultSpeaker || 'id-ID-GadisNeural';
     this.fallbackSpeaker = config.fallbackSpeaker || 'id-ID-GadisNeural';
     this.sampleRate = 24000;
     this.format = 'audio/mp3';
-    this.rate = 0.92;
-    this.pitch = 1.05;
+    this.rate = 1.12;
+    this.pitch = 1.00;
     this.audioPromptPath = config.audioPromptPath || 'storage/voice/jin_voice_prompt.wav';
     this.routerEndpoint = config.routerEndpoint || 'http://127.0.0.1:20200/api/voice/synthesize';
     this.status = 'READY';
@@ -85,7 +85,7 @@ export class NeuralIndonesianTTSProvider {
           pitch,
           audioPromptPath
         }),
-        signal: options.signal || AbortSignal.timeout(5000)
+        signal: options.signal || AbortSignal.timeout(15000)
       });
 
       if (res.ok) {
@@ -163,7 +163,7 @@ export class NeuralIndonesianTTSProvider {
    * Runs fully client-side â€” no network request needed, no CORS issues.
    * Picks best Indonesian voice if available, otherwise uses system default.
    */
-  async _synthesizeDirectBrowserClient(text, rate = 0.92) {
+  async _synthesizeDirectBrowserClient(text, rate = 1.12) {
     return new Promise((resolve, reject) => {
       if (typeof window === 'undefined' || !window.speechSynthesis) {
         reject(new Error('Browser speechSynthesis not available'));
@@ -175,15 +175,17 @@ export class NeuralIndonesianTTSProvider {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'id-ID';
       utterance.rate = rate;
-      utterance.pitch = this.pitch;
       utterance.volume = 1.0;
 
-      // Prefer Indonesian voices when available
-      const voices = window.speechSynthesis.getVoices();
-      const idVoice = voices.find(v => v.lang === 'id-ID') ||
-                      voices.find(v => v.lang.startsWith('id')) ||
-                      null;
+      // Prefer natural Indonesian voices (e.g. Google Bahasa Indonesia / Microsoft Gadis)
+      const voices = window.speechSynthesis.getVoices() || [];
+      const idVoice = voices.find(v => {
+        const lang = (v.lang || '').toLowerCase().replace(/_/g, '-');
+        return lang.startsWith('id') || lang.includes('indonesia');
+      });
+
       if (idVoice) utterance.voice = idVoice;
+      utterance.pitch = 1.00; // Natural, clear female pitch
 
       utterance.onend = () => {
         // Return a minimal valid WAV blob so the calling code doesn't break

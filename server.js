@@ -5,7 +5,7 @@ const express = require('express');
 const cors = require('cors');
 // Native fetch used in Node 18+
 
-// Import the AI service that talks to 9Router
+// Import the AI service
 const { analyzeResearch } = require('./services/aiService');
 const { generateProjectBlueprint } = require('./services/toolBlueprintService');
 const { generateDatabaseBlueprint } = require('./services/databaseBlueprintService');
@@ -42,7 +42,6 @@ app.post('/api/analyze', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
   try {
-    // Call the 9Router powered AI service
     const analysis = await analyzeResearch(prompt);
     // Ensure we always return the expected top‑level structure
     const structured = {
@@ -79,7 +78,6 @@ app.post('/api/analyze', async (req, res) => {
     res.json(structured);
   } catch (err) {
     console.error('AI analysis error:', err);
-    // Fallback response when 9Router is unavailable or malformed
     res.status(502).json({
       error: 'AI service unavailable',
       message: err.message,
@@ -95,43 +93,15 @@ app.post('/api/recommend', (req, res) => {
 });
 
 // ---------- Test Endpoint ----------
-// GET /api/test-ai – verifies 9Router connectivity and returns raw details
+// GET /api/test-ai – verifies AI analysis connectivity and returns status
 app.get('/api/test-ai', async (req, res) => {
   const testPrompt = "I want to study the effect of temperature and pH on E.coli growth for 14 days.";
-  const requestBody = {
-    model: process.env.NINE_ROUTER_MODEL || 'UltimateAI',
-    messages: [
-      { role: 'system', content: 'You are a research-analysis assistant. Return a JSON object describing the research.' },
-      { role: 'user', content: testPrompt }
-    ],
-    temperature: 0.0,
-    max_tokens: 2048,
-  };
   try {
-    const response = await fetch(`${process.env.NINE_ROUTER_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NINE_ROUTER_API_KEY}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-    const rawText = await response.text();
-    let parsedResponse;
-    try {
-      const json = JSON.parse(rawText);
-      const content = json?.choices?.[0]?.message?.content ?? json?.choices?.[0]?.text;
-      parsedResponse = JSON.parse(content);
-    } catch (e) {
-      parsedResponse = { rawResponse: rawText };
-    }
+    const result = await analyzeResearch(testPrompt);
     res.json({
-      status: response.ok ? 'connected' : 'error',
-      httpStatus: response.status,
-      model: requestBody.model,
-      requestBody,
-      rawResponse: rawText,
-      parsedResponse,
+      status: 'connected',
+      prompt: testPrompt,
+      parsedResponse: result,
     });
   } catch (err) {
     console.error('Test AI endpoint error:', err);

@@ -51,7 +51,7 @@ export async function generateEvidenceBundle() {
     },
     measurementMode: 'APP_OBSERVED_PROBE',
     status: 'PASS',
-    port: 20128,
+    port: 20200,
     latencyMs: gwLatencyMs,
     registeredProviders: Object.keys(healthStatus || {}),
     evidence: 'GATEWAY_HEALTH_HANDSHAKE_ACTIVE'

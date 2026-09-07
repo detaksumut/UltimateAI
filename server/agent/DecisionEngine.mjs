@@ -5,6 +5,7 @@
  */
 
 import { semanticIntentEngineInstance } from './SemanticIntentEngine.mjs';
+import { SCOPE } from '../routing/ProviderIntelligenceRouter.mjs';
 
 export const AUTONOMY_LEVELS = {
   LEVEL_0_CHAT_ONLY: 0,        // Pure conversation, no tool usage
@@ -38,7 +39,8 @@ export class DecisionEngine {
         ...context.semanticDecision,
         autonomyLevel: this.currentLevel,
         actionRequired: context.semanticDecision.actionRequired !== false,
-        requiresApproval: false
+        requiresApproval: false,
+        complexityLevel: this._assessComplexity(context.semanticDecision)
       };
     }
 
@@ -51,6 +53,7 @@ export class DecisionEngine {
         actionRequired: false,
         autonomyLevel: this.currentLevel,
         requiresApproval: false,
+        complexityLevel: 'SIMPLE',
         reason: 'Autonomy Level 0 (Chat Only) active: tool execution suppressed.'
       };
     }
@@ -61,8 +64,30 @@ export class DecisionEngine {
     return {
       ...semantic,
       autonomyLevel: this.currentLevel,
-      requiresApproval
+      requiresApproval,
+      complexityLevel: this._assessComplexity(semantic)
     };
+  }
+
+  /**
+   * TAHAP 3B-2B-2 — GENERAL stage: assess task complexity for the pipeline.
+   * SIMPLE / MODERATE / COMPLEX.
+   */
+  _assessComplexity(decision) {
+    if (!decision || decision.actionRequired === false) return 'SIMPLE';
+    const tools = decision.toolsNeeded || [];
+    const scope = decision.sourceScope;
+    const intent = decision.intent;
+
+    if (scope === SCOPE.HYBRID || intent === 'MULTI_STEP_TASK' || intent === 'RESEARCH_TASK') {
+      return 'COMPLEX';
+    }
+    if (intent === 'IMAGE_GENERATION') return 'MODERATE';
+    if (scope === SCOPE.EXTERNAL_REQUIRED || tools.length > 1
+      || ['APP_SYNTHESIS', 'DOCUMENT_ANALYSIS', 'DATA_ANALYTICS', 'REPORT_GENERATION'].includes(intent)) {
+      return 'MODERATE';
+    }
+    return 'SIMPLE';
   }
 }
 

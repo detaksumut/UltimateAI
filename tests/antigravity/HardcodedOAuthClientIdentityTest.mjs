@@ -7,7 +7,7 @@
  * 2. If missing, must fail-closed with AUTH_CONFIGURATION_MISSING.
  * 3. Diagnostic reports only clientIdPresent: true/false and clientIdSource: OPERATOR_CONFIGURED / MISSING.
  * 4. Production Antigravity enrollment source code contains ZERO literal hardcoded client IDs.
- * 5. Never substitutes or infers third-party client IDs (Cloud SDK, VS Code, Gemini, 9Router).
+ * 5. Never substitutes or infers third-party client IDs (Cloud SDK, VS Code, Gemini).
  */
 
 import assert from 'assert';

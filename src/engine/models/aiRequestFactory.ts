@@ -11,7 +11,7 @@ export class AIRequestFactory {
   /**
    * Creates a chat request for the given model and messages.
    *
-   * @param model           The model identifier (e.g. "9router-ultimate").
+   * @param model           The model identifier (e.g. "gemini-2.5-flash").
    * @param messages        Ordered list of chat messages.
    * @param stream          Whether the provider should stream the response. Defaults to false.
    * @returns               A fully‑formed {@link AIRequest} with the CHAT capability.

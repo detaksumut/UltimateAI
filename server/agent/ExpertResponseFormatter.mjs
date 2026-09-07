@@ -82,7 +82,7 @@ export class ExpertResponseFormatter {
         framework: 'SOFTWARE_ARCHITECTURE_FRAMEWORK',
         sections: {
           SYSTEM_OBJECTIVE: summary,
-          ARCHITECTURE_TOPOLOGY: details.architecture || 'Microservices / LocalRouter 9Router proxy',
+          ARCHITECTURE_TOPOLOGY: details.architecture || 'Microservices / LocalRouter proxy',
           DEPENDENCIES: details.dependencies || [],
           IMPLEMENTATION_SPEC: details.implementation || findings,
           SECURITY_AND_TESTS: details.tests || ['Unit tests passed', 'Sandbox isolation verified'],

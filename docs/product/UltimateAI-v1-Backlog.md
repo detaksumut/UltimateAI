@@ -61,7 +61,7 @@ Complete the AI communication layer.
 
 * AIEngine
 * Provider Router
-* RouterProvider (9Router)
+* RouterProvider (LocalRouter)
 * Provider Interface
 * Health Check
 * Retry Engine
