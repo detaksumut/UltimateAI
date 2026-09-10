@@ -56,7 +56,6 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
 
     checkCandidate();
   }, []);
-  }, []);
 
   // Jeannie Signature Sequence States
   const [lampPhase, setLampPhase] = useState('IDLE'); // 'IDLE', 'ENTER', 'INSIDE', 'EMERGE'
