@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import LiveMouthViseme from './LiveMouthViseme.jsx';
-import LiveFaceMimic from './LiveFaceMimic.jsx';
 import LiveJeannieHologram from './LiveJeannieHologram.jsx';
 import LiveChromaVideo from './LiveChromaVideo.jsx';
 import { magicChimeEngineInstance } from '../../../services/audio/MagicChimeEngine.js';
+import { voiceControllerInstance } from '../../../services/voice/VoiceController.js';
 import { Sparkles, Moon, Sun, ArrowUpRight, Volume2, Play } from 'lucide-react';
 
 export default function LiveHologramAvatar({ avatarState, audioMetrics, size = 'default', className = '', modalOpen = false }) {
@@ -14,10 +14,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
     orbitSpeed = 1.0,
     aperture = 0,
     spread = 1.0,
-    jawOffset = 0,
-    blinkProgress = 0,
-    eyebrowRaise = 0,
-    eyeSquint = 0
+    jawOffset = 0
   } = audioMetrics || {};
 
   const isSpeaking = avatarState === 'SPEAKING';
@@ -29,16 +26,16 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
   // Avatar Persona: 'JEANNIE' (1970s I Dream of Jeannie) or 'JIN' (Classic Genie)
   const [avatarPersona, setAvatarPersona] = useState('JEANNIE');
 
-  // Video loop states (Hellomaster.mp4 / Hedra AI Talking Avatar video loop)
+  // Video loop states (Hellomaster2.mp4 / Hedra AI Talking Avatar video loop)
   const videoRef = useRef(null);
-  const [talkingVideoSrc, setTalkingVideoSrc] = useState('/Hellomaster.mp4');
+  const [talkingVideoSrc, setTalkingVideoSrc] = useState('/Hellomaster2.mp4');
   const [hasVideoTalking, setHasVideoTalking] = useState(true);
   const [hasVideoIdle, setHasVideoIdle] = useState(false);
   const [isDemoPlaying, setIsDemoPlaying] = useState(false);
 
   useEffect(() => {
     // Check available AI generated video loops in /public
-    const candidates = ['/Hellomaster.mp4', '/hellomaster.mp4', '/jeannie-talk.mp4'];
+    const candidates = ['/Hellomaster2.mp4', '/hellomaster2.mp4', '/jeannie-talk.mp4'];
     let found = false;
 
     const checkCandidate = async () => {
@@ -139,7 +136,24 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
     }
   }, [lampPhase, triggerSummonFromBottle]);
 
-  // Automatic Modal Open/Close handling
+  // ═══ REQUIREMENT 1: SPEECH SESSION FINISHED -> SMOOTH AUTO-STANDBY RECOVERY ═══
+  useEffect(() => {
+    if (prevSpeakingRef.current && !isSpeaking) {
+      // Sesi pembicaraan selesai: Jinny kembali ke posisi awal standby tanpa menggantung!
+      setIsCrossingArms(false);
+      setIsNodding(false);
+      setIsWinking(false);
+      setIsDemoPlaying(false);
+      if (videoRef.current) {
+        try {
+          videoRef.current.pause();
+          videoRef.current.currentTime = 0;
+        } catch (_) {}
+      }
+    }
+    prevSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
   useEffect(() => {
     if (prevModalOpen.current === modalOpen) return;
     prevModalOpen.current = modalOpen;
@@ -153,10 +167,85 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
 
   // Automatic Behavior: When user speaks / asks question while Jinny is inside bottle, summon her!
   useEffect(() => {
-    if ((isProcessing || isSpeaking || isListening) && lampPhase === 'INSIDE') {
+    if ((isProcessing || isSpeaking || isListening || modalOpen) && lampPhase === 'INSIDE') {
       triggerSummonFromBottle();
     }
-  }, [isProcessing, isSpeaking, isListening, lampPhase, triggerSummonFromBottle]);
+  }, [isProcessing, isSpeaking, isListening, lampPhase, modalOpen, triggerSummonFromBottle]);
+
+  // ═══ REQUIREMENT 2: IDLE 1 MENIT -> JINNY PAMIT TIDUR KE BOTOL ═══
+  const idleTimerRef = useRef(null);
+  const isGoingToSleepRef = useRef(false);
+
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+
+    // Hanya aktifkan hitungan mundur jika Jinny berada di luar botol (IDLE)
+    if (lampPhase !== 'IDLE' || isGoingToSleepRef.current) return;
+    if (isSpeaking || isProcessing || isListening) return;
+
+    idleTimerRef.current = setTimeout(() => {
+      // Pastikan kondisi masih memenuhi syarat ketika 1 menit berlalu
+      if (lampPhase !== 'IDLE' || isSpeaking || isProcessing || isListening) return;
+      isGoingToSleepRef.current = true;
+
+      const bedtimeSpeech = "Jiny mau tidur dulu ya bos, kapan saja bos panggil jiny siap!";
+      console.log('[JINNY-IDLE] 1 menit hening terlewati. Jinny berpamitan tidur ke botol:', bedtimeSpeech);
+
+      try {
+        voiceControllerInstance.speak(
+          bedtimeSpeech,
+          {
+            force: true, // Pastikan suara pamit Jinny terdengar merdu
+            onEnd: () => {
+              isGoingToSleepRef.current = false;
+              // Setelah selesai berucap, melipat tangan di dada, mengangguk dengan dentang chime, dan berputar masuk botol
+              triggerRestInBottle();
+            },
+            onError: () => {
+              isGoingToSleepRef.current = false;
+              triggerRestInBottle();
+            }
+          }
+        );
+      } catch (err) {
+        console.warn('[JINNY-IDLE] Voice speak failed, proceeding to bottle directly:', err);
+        isGoingToSleepRef.current = false;
+        triggerRestInBottle();
+      }
+    }, 60000); // 1 Menit (60.000 ms)
+  }, [lampPhase, isSpeaking, isProcessing, isListening, triggerRestInBottle]);
+
+  // Monitor interaksi user untuk me-reset timer 1 menit
+  useEffect(() => {
+    resetIdleTimer();
+
+    const handleUserActivity = () => {
+      if (!isGoingToSleepRef.current) {
+        resetIdleTimer();
+      }
+    };
+
+    window.addEventListener('mousemove', handleUserActivity, { passive: true });
+    window.addEventListener('keydown', handleUserActivity, { passive: true });
+    window.addEventListener('click', handleUserActivity, { passive: true });
+    window.addEventListener('touchstart', handleUserActivity, { passive: true });
+    window.addEventListener('scroll', handleUserActivity, { passive: true });
+
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+    };
+  }, [resetIdleTimer]);
 
   const lampClass =
     lampPhase === 'ENTER'
@@ -370,7 +459,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
           )}
         </button>
 
-        {/* Play Lipsync Video Demo (Hellomaster.mp4) */}
+        {/* Play Lipsync Video Demo (Hellomaster2.mp4) */}
         {avatarPersona === 'JEANNIE' && hasVideoTalking && (
           <>
             <span className="text-white/20 text-[9px]">|</span>
@@ -382,7 +471,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
                   ? 'bg-amber-400 text-black font-bold shadow-[0_0_12px_#fbbf24]'
                   : 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.3)]'
               }`}
-              title="Putar video lip-sync Hellomaster.mp4"
+              title="Putar video lip-sync Hellomaster2.mp4"
             >
               <Play className="w-2.5 h-2.5 fill-current" />
               <span>{isDemoPlaying ? 'PLAYING...' : 'HELLO MASTER'}</span>
@@ -435,7 +524,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
         {avatarPersona === 'JEANNIE' ? (
           /* ─── REAL BARBARA EDEN AS JEANNIE 1970s LIVING HOLOGRAM ─── */
           <div className="relative w-full h-full flex items-center justify-center scale-[0.82] -translate-y-2">
-            {/* Real Barbara Eden Avatar: Seamless AI Video Loop (Hellomaster.mp4) or Pristine Photo */}
+            {/* Real Barbara Eden Avatar: Seamless AI Video Loop (Hellomaster2.mp4) or Pristine Photo */}
             {(isSpeaking || isDemoPlaying) && hasVideoTalking ? (
               <LiveChromaVideo
                 src={talkingVideoSrc}
@@ -459,13 +548,13 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
               <img
                 src="/jeannie-real.png"
                 alt="Barbara Eden as Jeannie"
-                className={`w-full h-full object-contain select-none pointer-events-none transition-all duration-300 ${
+                className={`w-full h-full object-contain select-none pointer-events-none transition-all duration-400 ease-out ${
                   isNodding ? 'jeannie-head-nod' : ''
                 }`}
                 style={{
                   transform: isSpeaking
                     ? `translateY(${Math.sin(Date.now() / 150) * 2.2}px) rotate(${Math.sin(Date.now() / 300) * 0.8}deg) scale(${1 + (volume || 0) * 0.025})`
-                    : 'none',
+                    : 'translateY(0px) rotate(0deg) scale(1)',
                   filter: isSpeaking
                     ? `drop-shadow(0 0 18px rgba(244, 63, 94, 0.95)) drop-shadow(0 0 38px rgba(0, 229, 255, 0.75)) brightness(${1.08 + mouthGlow * 0.2})`
                     : isProcessing
@@ -513,8 +602,8 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
           <>
             <img
               src="/genie-bg.png"
-              alt="Live JIN Hologram"
-              className="w-full h-full select-none pointer-events-none transition-all duration-150"
+              alt="JIN Genie Avatar"
+              className="w-full h-full object-contain select-none pointer-events-none transition-all duration-150"
               style={{
                 transform: isSpeaking && jawOffset > 0.4 ? `translateY(${jawOffset * 0.35}px)` : 'none',
                 filter: isSpeaking
@@ -523,16 +612,8 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
                   ? 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.95)) hue-rotate(45deg)'
                   : isListening
                   ? 'drop-shadow(0 0 25px rgba(0, 229, 255, 0.9)) brightness(1.15)'
-                  : 'drop-shadow(0 0 16px rgba(0, 229, 255, 0.7)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.5))'
+                  : 'drop-shadow(0 0 16px rgba(0, 229, 255, 0.7)) drop-shadow(0 0 25px rgba(168, 85, 247, 0.5)) brightness(1.22) contrast(1.18) saturate(1.45)'
               }}
-            />
-            <LiveFaceMimic
-              blinkProgress={blinkProgress}
-              eyebrowRaise={eyebrowRaise}
-              eyeSquint={eyeSquint}
-              isSpeaking={isSpeaking}
-              isProcessing={isProcessing}
-              mouthGlow={mouthGlow}
             />
             <LiveMouthViseme
               isSpeaking={isSpeaking}

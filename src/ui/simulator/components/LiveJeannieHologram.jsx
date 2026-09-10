@@ -25,11 +25,11 @@ export default function LiveJeannieHologram({
 
   return (
     <div
-      className={`absolute inset-0 flex items-center justify-center pointer-events-none select-none transition-all duration-500 ${
+      className={`absolute inset-0 flex items-center justify-center pointer-events-none select-none transition-all duration-400 ease-out ${
         isNodding ? 'jeannie-head-nod' : ''
       }`}
       style={{
-        transform: isSpeaking ? `translateY(${Math.sin(Date.now() / 150) * 1.5}px)` : 'none'
+        transform: isSpeaking ? `translateY(${Math.sin(Date.now() / 150) * 1.5}px)` : 'translateY(0px)'
       }}
     >
       <svg

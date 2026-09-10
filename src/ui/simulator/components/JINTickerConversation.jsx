@@ -328,7 +328,7 @@ function MarkdownImageRenderer({ alt, src }) {
           </a>
         )}
       </div>
-      <div className="p-2 bg-black/40 flex justify-center items-center min-h-[140px]">
+      <div className="p-2 bg-transparent flex justify-center items-center min-h-[140px]">
         {loadFailed ? (
           <div className="text-center p-4 text-xs font-mono text-slate-400 flex flex-col items-center gap-2">
             <span className="text-amber-400">Sinkronisasi Aset Visual Sedang Berlangsung...</span>
@@ -884,6 +884,38 @@ export function TickerInput({ onSend, status, onClear }) {
     }
   };
 
+  const handlePaste = async (e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    let hasImage = false;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        hasImage = true;
+        const file = item.getAsFile();
+        if (file && file.size < 10 * 1024 * 1024) {
+          const dataUrl = await readFileAsDataUrl(file);
+          const pastedFile = {
+            id: `paste-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: `clipboard-${Date.now()}.png`,
+            size: file.size,
+            type: file.type,
+            isImage: true,
+            isPdf: false,
+            dataUrl,
+            content: ''
+          };
+          setAttachedFiles((prev) => [...prev, pastedFile]);
+        }
+        e.preventDefault();
+        break;
+      }
+    }
+
+    if (!hasImage) {
+      // Let default paste behavior handle text
+    }
+  };
+
   const hasContentToSend = Boolean(text.trim() || attachedFiles.length > 0);
 
   return (
@@ -983,6 +1015,7 @@ export function TickerInput({ onSend, status, onClear }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={
               isListening
                 ? '🎙 Mendengarkan suara Anda... (Bicara sekarang)'

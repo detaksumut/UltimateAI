@@ -36,6 +36,9 @@ export default function LiveChromaVideo({
       }
     } else {
       video.pause();
+      try {
+        video.currentTime = 0;
+      } catch (_) {}
     }
   }, [isPlaying, src]);
 
@@ -48,10 +51,8 @@ export default function LiveChromaVideo({
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     let isCancelled = false;
 
-    const renderFrame = () => {
-      if (isCancelled) return;
-
-      if (video.readyState >= 2 && !video.paused && !video.ended) {
+    const processCurrentVideoFrame = () => {
+      if (video.readyState >= 2) {
         const width = video.videoWidth || 352;
         const height = video.videoHeight || 416;
 
@@ -98,14 +99,27 @@ export default function LiveChromaVideo({
           // Fallback if cross-origin taint or canvas read error
         }
       }
+    };
 
+    const renderFrame = () => {
+      if (isCancelled) return;
+      if (video.readyState >= 2 && !video.paused && !video.ended) {
+        processCurrentVideoFrame();
+      }
       animFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
     animFrameRef.current = requestAnimationFrame(renderFrame);
 
+    // Also draw frame 0 whenever video rewinds back to start
+    const handleSeeked = () => {
+      processCurrentVideoFrame();
+    };
+    video.addEventListener('seeked', handleSeeked);
+
     return () => {
       isCancelled = true;
+      video.removeEventListener('seeked', handleSeeked);
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
       }
