@@ -211,55 +211,73 @@ export class ImageGeneration {
     const optimizedPrompt = this._optimizePrompt(prompt);
     const encoded = encodeURIComponent(optimizedPrompt);
 
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=${width || 1024}&height=${height || 1024}&nologo=true&seed=${seed}&model=flux`;
+    // Model priority: quality first, fallback to fast
+    const models = ['nanobanana-2', 'gptimage', 'flux-2-pro', 'flux', 'zimage'];
+    let lastError = null;
 
-    try {
-      const response = await fetchFn(url, {
-        signal: this._requestSignal(signal, 60000),
-        redirect: 'follow'
-      });
+    for (const model of models) {
+      const url = `https://image.pollinations.ai/prompt/${encoded}?width=${width || 1024}&height=${height || 1024}&nologo=true&seed=${seed}&model=${model}`;
 
-      if (!response.ok) {
-        return { success: false, error: `Pollinations HTTP ${response.status}: ${response.statusText}` };
+      try {
+        const response = await fetchFn(url, {
+          signal: this._requestSignal(signal, 90000),
+          redirect: 'follow'
+        });
+
+        if (!response.ok) {
+          lastError = `Pollinations HTTP ${response.status} (model: ${model})`;
+          console.warn(`[ImageGeneration] ${lastError}, trying next model...`);
+          continue;
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('image')) {
+          const text = await response.text().catch(() => '');
+          lastError = `Pollinations returned non-image content: ${contentType} (model: ${model})`;
+          console.warn(`[ImageGeneration] ${lastError}, trying next model...`);
+          continue;
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        // Verify PNG/JPEG magic
+        const isValidImage = this._verifyImageBytes(buffer);
+        if (!isValidImage) {
+          lastError = `Pollinations returned invalid image bytes (model: ${model})`;
+          console.warn(`[ImageGeneration] ${lastError}, trying next model...`);
+          continue;
+        }
+
+        // Detect actual format from response content-type or magic bytes
+        const respIsPng = buffer.length >= 8 && buffer.subarray(0, 8).equals(PNG_MAGIC);
+        const respIsJpeg = buffer.length >= 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+        const detectedMime = respIsPng ? 'image/png' : respIsJpeg ? 'image/jpeg' : contentType.includes('jpeg') ? 'image/jpeg' : 'image/png';
+
+        const artifact = this._persistArtifact(buffer, {
+          prompt: optimizedPrompt,
+          originalPrompt: originalPrompt || prompt,
+          normalizedPrompt: normalizedPrompt || optimizedPrompt,
+          generationId,
+          messageId,
+          negativePrompt,
+          provider: IMAGE_PROVIDERS.POLLINATIONS,
+          model,
+          width: width || 1024,
+          height: height || 1024,
+          seed,
+          mimeType: detectedMime
+        });
+
+        console.log(`[ImageGeneration] Pollinations success with model: ${model}`);
+        return { success: true, artifact };
+      } catch (err) {
+        lastError = `Pollinations failed (model: ${model}): ${err.message}`;
+        console.warn(`[ImageGeneration] ${lastError}, trying next model...`);
+        continue;
       }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('image')) {
-        const text = await response.text().catch(() => '');
-        return { success: false, error: `Pollinations returned non-image content: ${contentType}. Body: ${text.slice(0, 200)}` };
-      }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-
-      // Verify PNG/JPEG magic
-      const isValidImage = this._verifyImageBytes(buffer);
-      if (!isValidImage) {
-        return { success: false, error: `Pollinations returned invalid image bytes (${buffer.length} bytes, no valid magic header)` };
-      }
-
-      // Detect actual format from response content-type or magic bytes
-      const respIsPng = buffer.length >= 8 && buffer.subarray(0, 8).equals(PNG_MAGIC);
-      const respIsJpeg = buffer.length >= 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
-      const detectedMime = respIsPng ? 'image/png' : respIsJpeg ? 'image/jpeg' : contentType.includes('jpeg') ? 'image/jpeg' : 'image/png';
-
-      const artifact = this._persistArtifact(buffer, {
-        prompt: optimizedPrompt,
-        originalPrompt: originalPrompt || prompt,
-        normalizedPrompt: normalizedPrompt || optimizedPrompt,
-        generationId,
-        messageId,
-        negativePrompt,
-        provider: IMAGE_PROVIDERS.POLLINATIONS,
-        width: width || 1024,
-        height: height || 1024,
-        seed,
-        mimeType: detectedMime
-      });
-
-      return { success: true, artifact };
-    } catch (err) {
-      return { success: false, error: `Pollinations generation failed: ${err.message}` };
     }
+
+    return { success: false, error: lastError || 'All Pollinations models failed' };
   }
 
   // ── Gemini Imagen Implementation ──────────────────────────────────────────
@@ -276,7 +294,7 @@ export class ImageGeneration {
         negativePrompt,
         aspectRatio: aspectRatio || '16:9',
         model,
-        signal: this._requestSignal(signal, 60000),
+        signal: this._requestSignal(signal, 90000),
         fetchFn
       });
       const base64Data = result.base64Data;
@@ -590,6 +608,7 @@ export class ImageGeneration {
       width: metadata.width || null,
       height: metadata.height || null,
       provider: metadata.provider || 'UNKNOWN',
+      model: metadata.model || null,
       prompt: metadata.prompt || '',
       originalPrompt: metadata.originalPrompt || metadata.prompt || '',
       normalizedPrompt: metadata.normalizedPrompt || metadata.prompt || '',
@@ -605,6 +624,7 @@ export class ImageGeneration {
         originalPrompt: metadata.originalPrompt || metadata.prompt || '',
         normalizedPrompt: metadata.normalizedPrompt || metadata.prompt || '',
         provider: metadata.provider || 'UNKNOWN',
+        model: metadata.model || null,
         createdAt: timestamp,
         width: metadata.width || null,
         height: metadata.height || null,

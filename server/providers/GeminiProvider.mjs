@@ -381,9 +381,12 @@ export class GeminiProvider extends BaseProvider {
 
     const activeModel = model || process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
     const fullPrompt = negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt;
+    const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
     const requestBody = {
-      contents: [{ parts: [{ text: `Generate an image based on this description (${aspectRatio} aspect ratio): ${fullPrompt}` }] }],
-      generationConfig: { responseModalities: ['IMAGE'] }
+      model: activeModel,
+      input: [
+        { type: 'text', text: `Generate an image based on this description${aspectHint}: ${fullPrompt}` }
+      ]
     };
     let lastError = null;
 
@@ -396,12 +399,16 @@ export class GeminiProvider extends BaseProvider {
 
       try {
         const response = await fetchFn(
-          `${this.baseUrl}/models/${activeModel}:generateContent`,
+          `${this.baseUrl}/interactions`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': key,
+              'Api-Revision': '2026-05-20'
+            },
             body: JSON.stringify(requestBody),
-            signal: signal || AbortSignal.timeout(60000)
+            signal: signal || AbortSignal.timeout(90000)
           }
         );
 
@@ -413,7 +420,8 @@ export class GeminiProvider extends BaseProvider {
         }
 
         const data = await response.json();
-        const imagePart = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData?.data);
+        const imagePart = data.output?.find(part => part.inlineData?.data)
+          || data.candidates?.[0]?.content?.parts?.find(part => part.inlineData?.data);
         if (!imagePart) {
           const error = new Error(`GEMINI_IMAGE_EMPTY key#${idx + 1}: response contained no image data`);
           error._geminiErrorType = ERROR_TYPE.EMPTY_OUTPUT;
