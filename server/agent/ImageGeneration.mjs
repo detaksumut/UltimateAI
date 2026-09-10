@@ -26,6 +26,7 @@ import zlib from 'zlib';
 
 // Auto-load .env (same as other agent files)
 import '../config/env.mjs';
+import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
 
 // PNG CRC-32 (zlib/libpng table) for chunk headers
 const CRC_TABLE = (() => {
@@ -144,7 +145,10 @@ export class ImageGeneration {
       referenceContext = null,
       providerOverride = null,
       stage = 'GENERATE',
-      options = {}
+      options = {},
+      generationId = null,
+      messageId = null,
+      signal = null
     } = params;
 
     // Stage dispatch: only GENERATE does real work
@@ -153,6 +157,17 @@ export class ImageGeneration {
     }
 
     const fetchFn = transport?.fetch || globalThis.fetch;
+    const originalPrompt = String(prompt || '').trim();
+    const normalizedPrompt = this.normalizeImagePrompt(originalPrompt);
+    const normalizedParams = {
+      ...params,
+      prompt: normalizedPrompt,
+      originalPrompt,
+      normalizedPrompt,
+      generationId,
+      messageId,
+      signal
+    };
 
     // Resolve provider
     let provider = providerOverride;
@@ -163,24 +178,24 @@ export class ImageGeneration {
 
     // Dispatch
     if (String(provider).toUpperCase() === IMAGE_PROVIDERS.MOCK_FAILURE) {
-      return this._generateMockFailure(params);
+      return this._generateMockFailure(normalizedParams);
     }
     if (provider === IMAGE_PROVIDERS.MOCK) {
-      return this._generateMock(params);
+      return this._generateMock(normalizedParams);
     }
     if (provider === IMAGE_PROVIDERS.GEMINI_IMAGEN) {
-      const res = await this._generateGeminiImagen(params, fetchFn);
+      const res = await this._generateGeminiImagen(normalizedParams, fetchFn);
       if (res && res.success) {
         return res;
       }
       console.warn(`[ImageGeneration] Gemini Imagen unavailable (${res?.error}), seamlessly falling back to Pollinations Flux...`);
-      return this._generatePollinations(params, fetchFn);
+      return this._generatePollinations(normalizedParams, fetchFn);
     }
     if (provider === IMAGE_PROVIDERS.POLLINATIONS) {
-      return this._generatePollinations(params, fetchFn);
+      return this._generatePollinations(normalizedParams, fetchFn);
     }
     if (provider === IMAGE_PROVIDERS.OLLAMA) {
-      return this._generateOllama(params, fetchFn);
+      return this._generateOllama(normalizedParams, fetchFn);
     }
 
     return { success: false, error: `Unknown provider: ${provider}` };
@@ -189,7 +204,7 @@ export class ImageGeneration {
   // ── Pollinations Implementation ───────────────────────────────────────────
 
   async _generatePollinations(params, fetchFn) {
-    const { prompt, negativePrompt, aspectRatio, size } = params;
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, generationId, messageId, signal } = params;
     const [width, height] = (size || '1024x1024').split('x').map(Number);
 
     const seed = Math.floor(Math.random() * 2147483647);
@@ -200,7 +215,7 @@ export class ImageGeneration {
 
     try {
       const response = await fetchFn(url, {
-        signal: AbortSignal.timeout(60000),
+        signal: this._requestSignal(signal, 60000),
         redirect: 'follow'
       });
 
@@ -229,7 +244,10 @@ export class ImageGeneration {
 
       const artifact = this._persistArtifact(buffer, {
         prompt: optimizedPrompt,
-        originalPrompt: prompt,
+        originalPrompt: originalPrompt || prompt,
+        normalizedPrompt: normalizedPrompt || optimizedPrompt,
+        generationId,
+        messageId,
         negativePrompt,
         provider: IMAGE_PROVIDERS.POLLINATIONS,
         width: width || 1024,
@@ -247,68 +265,22 @@ export class ImageGeneration {
   // ── Gemini Imagen Implementation ──────────────────────────────────────────
 
   async _generateGeminiImagen(params, fetchFn) {
-    const { prompt, negativePrompt, aspectRatio, size } = params;
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, generationId, messageId, signal } = params;
     const optimizedPrompt = this._optimizePrompt(prompt);
 
-    // Resolve Gemini API key from env
-    const geminiKey = this._resolveGeminiKey();
-    if (!geminiKey) {
-      return { success: false, error: 'Gemini API key not configured. Set GEMINI_API_KEY or GEMINI_API_KEY_1/GEMINI_API_KEY_2 in .env' };
-    }
-
-    const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
-    const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-
-    // Build prompt with negative prompt if provided
-    let fullPrompt = optimizedPrompt;
-    if (negativePrompt) {
-      fullPrompt = `${optimizedPrompt}. Avoid: ${negativePrompt}`;
-    }
-
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: `Generate an image based on this description: ${fullPrompt}` }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseModalities: ['IMAGE'],
-        ...(aspectRatio && aspectRatio !== '1:1' ? { aspectRatio } : {})
-      }
-    };
+    const model = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
 
     try {
-      const url = `${baseUrl}/models/${model}:generateContent`;
-      const response = await fetchFn(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': geminiKey
-        },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(60000)
+      const result = await geminiProviderInstance.sendImage({
+        prompt: optimizedPrompt,
+        negativePrompt,
+        aspectRatio: aspectRatio || '16:9',
+        model,
+        signal: this._requestSignal(signal, 60000),
+        fetchFn
       });
-
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => '');
-        return { success: false, error: `Gemini Imagen HTTP ${response.status}: ${errBody.slice(0, 300)}` };
-      }
-
-      const data = await response.json();
-
-      // Extract base64 image from response
-      const candidate = data.candidates?.[0];
-      const parts = candidate?.content?.parts || [];
-      const imagePart = parts.find(p => p.inlineData?.data);
-
-      if (!imagePart) {
-        return { success: false, error: 'Gemini Imagen returned no image data. Response: ' + JSON.stringify(data).slice(0, 300) };
-      }
-
-      const base64Data = imagePart.inlineData.data;
-      const mimeType = imagePart.inlineData.mimeType || 'image/png';
+      const base64Data = result.base64Data;
+      const mimeType = result.mimeType;
       const buffer = Buffer.from(base64Data, 'base64');
 
       // Verify image bytes
@@ -321,10 +293,14 @@ export class ImageGeneration {
 
       const artifact = this._persistArtifact(buffer, {
         prompt: optimizedPrompt,
-        originalPrompt: params.prompt,
+        originalPrompt: originalPrompt || params.prompt,
+        normalizedPrompt: normalizedPrompt || optimizedPrompt,
+        generationId,
+        messageId,
         negativePrompt,
         provider: IMAGE_PROVIDERS.GEMINI_IMAGEN,
-        model,
+        model: result.model,
+        keyIndex: result.keyIndex,
         width: width || 1024,
         height: height || 1024,
         mimeType
@@ -354,7 +330,7 @@ export class ImageGeneration {
   // ── Ollama Implementation (stub — requires image model like llava) ────────
 
   async _generateOllama(params, fetchFn) {
-    const { prompt } = params;
+    const { prompt, originalPrompt, normalizedPrompt, generationId, messageId, signal } = params;
     const optimizedPrompt = this._optimizePrompt(prompt);
 
     try {
@@ -367,7 +343,7 @@ export class ImageGeneration {
           stream: false,
           options: { temperature: 0.7 }
         }),
-        signal: AbortSignal.timeout(120000)
+        signal: this._requestSignal(signal, 120000)
       });
 
       if (!response.ok) {
@@ -381,7 +357,10 @@ export class ImageGeneration {
         const buffer = Buffer.from(base64Data, 'base64');
         const artifact = this._persistArtifact(buffer, {
           prompt: optimizedPrompt,
-          originalPrompt: prompt,
+          originalPrompt: originalPrompt || prompt,
+          normalizedPrompt: normalizedPrompt || optimizedPrompt,
+          generationId,
+          messageId,
           provider: IMAGE_PROVIDERS.OLLAMA,
           mimeType: 'image/png'
         });
@@ -412,6 +391,10 @@ export class ImageGeneration {
 
     const artifact = this._persistArtifact(mockPng, {
       prompt,
+      originalPrompt: params.originalPrompt || prompt,
+      normalizedPrompt: params.normalizedPrompt || this.normalizeImagePrompt(prompt),
+      generationId: params.generationId || null,
+      messageId: params.messageId || null,
       provider: IMAGE_PROVIDERS.MOCK,
       mimeType: 'image/png',
       width,
@@ -487,14 +470,84 @@ export class ImageGeneration {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   _optimizePrompt(userPrompt) {
-    if (!userPrompt) return 'futuristic AI visual';
-    // If prompt is already descriptive enough (English + > 20 chars), use as-is
-    const lower = userPrompt.toLowerCase();
-    const isRich = /\s/.test(userPrompt) && userPrompt.length > 20;
-    if (isRich) return userPrompt;
+    const base = this.normalizeImagePrompt(userPrompt);
+    let prompt = base;
 
-    // Simple prompt: enrich slightly for Pollinations
-    return `${userPrompt}, high quality, detailed, 4k, cinematic lighting`;
+    // Translation & Enrichment Dictionary for Indonesian visual concepts
+    const mappings = [
+      [/\bmesin\s+pemotong\s+rumput\b/gi, 'mechanical lawn mower, grass cutting machine, push lawn mower equipment on a manicured green grass lawn'],
+      [/\bpemotong\s+rumput\b/gi, 'lawn mower machine, mechanical grass cutter'],
+      [/\bpesawat\s+tempur(?:\s+di\s+langit)?\b/gi, 'supersonic fighter jet aircraft soaring through the sky with dramatic clouds'],
+      [/\bpesawat\s+terbang\b/gi, 'commercial airliner airplane flying in the sky'],
+      [/\brumah\s+modern\s+3\s+lantai\b/gi, 'three-story luxury modern architectural villa house, contemporary exterior design'],
+      [/\brumah\s+modern\s+2\s+lantai\b/gi, 'two-story modern luxury residential house, architectural photography'],
+      [/\brumah\s+3\s+lantai\b/gi, 'three-story modern architectural house, exterior view'],
+      [/\brumah\s+3d\b/gi, '3D architectural render of a modern house, photorealistic lighting, octane render'],
+      [/\brumah\s+modern\b/gi, 'modern architectural house, exterior design'],
+      [/\brumah\b/gi, 'house architecture, modern exterior'],
+      [/\bmobil\s+balap\b/gi, 'high performance racing sports car'],
+      [/\bmobil\b/gi, 'automobile car'],
+      [/\bsepeda\s+motor\b|\bmotor\b/gi, 'motorcycle'],
+      [/\bgedung\s+dpr(?:\s+mpr)?\b/gi, 'Indonesian DPR MPR Parliament landmark building in Jakarta, green dome architecture'],
+      [/\bkota\s+futuristik\b/gi, 'futuristic sci-fi cyberpunk metropolis city with flying vehicles and glowing neon towers'],
+      [/\bpemandangan\s+gunung(?:\s+yang\s+indah)?\b/gi, 'majestic scenic mountain landscape with clear blue sky and lush valleys'],
+      [/\bpantai\s+pasir\s+putih\b/gi, 'pristine white sand tropical beach with clear turquoise ocean water'],
+      [/\bpantai\b/gi, 'beautiful coastal beach scenery with ocean waves'],
+      [/\bhutan\s+tropis\b|\bhutan\b/gi, 'lush tropical rainforest with morning sunlight rays filtering through trees'],
+      [/\btaman\s+bunga\b|\btaman\b/gi, 'vibrant lush botanical flower garden with stone pathway and colorful blossoms'],
+      [/\bkucing\s+lucu\b|\bkucing\b/gi, 'cute fluffy domestic cat with expressive eyes, high detail'],
+      [/\banjing\b/gi, 'dog'],
+      [/\bburung\b/gi, 'bird in nature'],
+      [/\bdi\s+langit\b/gi, 'in the sky'],
+      [/\bdi\s+laut\b/gi, 'in the ocean'],
+      [/\bdi\s+malam\s+hari\b/gi, 'at night under moonlight'],
+      [/\bdi\s+siang\s+hari\b/gi, 'in bright daylight']
+    ];
+
+    for (const [pattern, replacement] of mappings) {
+      if (pattern.test(prompt)) {
+        prompt = prompt.replace(pattern, replacement);
+      }
+    }
+
+    // Inanimate machine/vehicle/building protection: ensure diffusion model doesn't inject random humans
+    const isInanimate = /\b(?:lawn mower|machine|aircraft|airplane|jet|house|car|building|motorcycle)\b/i.test(prompt);
+    if (isInanimate && !/\b(?:person|human|people|woman|man|pilot|driver)\b/i.test(prompt)) {
+      prompt += ', photorealistic, high resolution, detailed, clean composition, no people, no human figures';
+    }
+
+    return prompt;
+  }
+
+  normalizeImagePrompt(userPrompt) {
+    const original = String(userPrompt || '').replace(/\s+/g, ' ').trim();
+    if (!original) return 'Create a high-quality image of a futuristic AI visual.';
+
+    let subject = original
+      .replace(/^jin\b[\s,:-]*/i, '')
+      .replace(/^(?:apakah\s+kamu\s+bisa|bisakah\s+kamu|bisakah|can\s+you|could\s+you)\s+/i, '')
+      .replace(/^(?:tolong|please)\s+/i, '')
+      .replace(/^(?:buat(?:kan)?|bikin|generate|create|hasilkan|render(?:kan)?)\s+/i, '')
+      .replace(/^(?:sebuah|a|an)\s+/i, '')
+      .replace(/^(?:image|gambar|illustration|ilustrasi|visual|foto|poster|artwork)\s*(?:of|tentang|mengenai)?\s*/i, '')
+      .replace(/^(?:buat(?:kan)?|bikin|generate|create|hasilkan|render(?:kan)?)\s+/i, '')
+      .replace(/^(?:sebuah|a|an)\s+/i, '')
+      .replace(/[?!]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!subject) subject = original;
+    if (/\b3\s*d\b|\b3d\b|three[\s-]?dimensional/i.test(original)) {
+      return `Create a high-quality 3D rendered image of ${subject}. Use one coherent composition with realistic depth, lighting, materials, and camera perspective. Do not create a floor plan, elevation sheet, engineering drawing, interactive model, or architectural workflow output.`;
+    }
+    return `Create a high-quality image of ${subject}.`;
+  }
+
+  _requestSignal(signal, timeoutMs) {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    if (!signal) return timeoutSignal;
+    if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeoutSignal]);
+    return signal;
   }
 
   _verifyImageBytes(buffer) {
@@ -539,10 +592,24 @@ export class ImageGeneration {
       provider: metadata.provider || 'UNKNOWN',
       prompt: metadata.prompt || '',
       originalPrompt: metadata.originalPrompt || metadata.prompt || '',
+      normalizedPrompt: metadata.normalizedPrompt || metadata.prompt || '',
+      generationId: metadata.generationId || null,
+      messageId: metadata.messageId || null,
       bytesSize: buffer.length,
       createdAt: timestamp,
       renderable: true,
-      metadata: { width: metadata.width || null, height: metadata.height || null, mimeType: metadata.mimeType || mimeType }
+      metadata: {
+        artifactId: id,
+        generationId: metadata.generationId || null,
+        messageId: metadata.messageId || null,
+        originalPrompt: metadata.originalPrompt || metadata.prompt || '',
+        normalizedPrompt: metadata.normalizedPrompt || metadata.prompt || '',
+        provider: metadata.provider || 'UNKNOWN',
+        createdAt: timestamp,
+        width: metadata.width || null,
+        height: metadata.height || null,
+        mimeType: metadata.mimeType || mimeType
+      }
     };
 
     return artifact;
@@ -574,6 +641,18 @@ export class ImageGeneration {
     }
 
     return { renderable: true, reason: 'Artifact verified: file exists, valid size, valid image magic bytes.' };
+  }
+
+  verifyImageSemantic({ prompt, normalizedPrompt, image } = {}) {
+    return {
+      available: false,
+      verified: false,
+      capability: 'UNAVAILABLE',
+      reason: 'No semantic image verifier is configured.',
+      prompt: prompt || '',
+      normalizedPrompt: normalizedPrompt || '',
+      artifactId: image?.id || null
+    };
   }
 }
 
