@@ -101,7 +101,7 @@ export async function runProductionCertification() {
   steps.push({
     step: '6. VOICE ENGINE CHECK',
     status: 'PASS',
-    details: `Mode: ${activeVoiceMode} (Default: id-ID-ArdiNeural)`
+    details: `Mode: ${activeVoiceMode} (Default: id-ID-GadisNeural)`
   });
 
   // [7] Human Interaction Checklist (Explicit Separation)

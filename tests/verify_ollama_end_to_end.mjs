@@ -3,7 +3,7 @@
  * End-to-end Verification Test for Ollama Integration in Local Router.
  * 
  * 1. Direct Health Check against Ollama daemon (127.0.0.1:11434/api/tags)
- * 2. Model Detection (hermes3:8b / qwen3:8b)
+ * 2. Model Detection (qwen3:8b / qwen3:8b)
  * 3. LocalRouter Completion via POST :20200/v1/chat/completions with explicit model/provider
  * 4. Provenance & Antigravity Isolation verification
  */
@@ -77,11 +77,11 @@ async function testLocalRouterOllamaRoute(modelName) {
 async function run() {
   const ollamaCheck = await testOllamaTags();
   
-  let targetModel = 'hermes3:8b';
+  let targetModel = 'qwen3:8b';
   if (ollamaCheck.ok && Array.isArray(ollamaCheck.models) && ollamaCheck.models.length > 0) {
-    const foundHermes = ollamaCheck.models.find(m => m.includes('hermes3'));
-    if (foundHermes) {
-      targetModel = foundHermes;
+    const foundQwen = ollamaCheck.models.find(m => m.includes('qwen3'));
+    if (foundQwen) {
+      targetModel = foundQwen;
     } else {
       targetModel = ollamaCheck.models[0];
     }
@@ -112,3 +112,4 @@ async function run() {
 }
 
 run().catch(console.error);
+

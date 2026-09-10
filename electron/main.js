@@ -17,7 +17,6 @@ const ICON_PATH = IS_DEV
 
 // ── State ──────────────────────────────────────────────────────────────────
 let mainWindow = null;
-let splashWindow = null;
 let tray = null;
 let runtimeManager = null;
 let isQuitting = false;
@@ -40,26 +39,6 @@ function restoreWindowState() {
   } catch (e) {
     return { width: 1400, height: 900 }; // defaults
   }
-}
-
-// ── Splash Screen ──────────────────────────────────────────────────────────
-function createSplashWindow() {
-  splashWindow = new BrowserWindow({
-    width: 480,
-    height: 360,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-    },
-  });
-  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
-  splashWindow.center();
 }
 
 // ── Main Window ────────────────────────────────────────────────────────────
@@ -92,10 +71,6 @@ function createMainWindow() {
   }
 
   mainWindow.once('ready-to-show', () => {
-    if (splashWindow) {
-      splashWindow.close();
-      splashWindow = null;
-    }
     mainWindow.show();
   });
 
@@ -204,9 +179,6 @@ function createTray() {
 // ── Startup Sequence ───────────────────────────────────────────────────────
 async function startApp() {
   createAppMenu();
-  createSplashWindow();
-
-  // Phase 5.1: Do not implement licensing yet. Skip license check.
 
   // Step 2: Start runtime (Express)
   runtimeManager = new RuntimeManager({
@@ -216,17 +188,8 @@ async function startApp() {
   });
 
   try {
-    await runtimeManager.start((status) => {
-      // Update splash screen with status messages
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('status', status);
-      }
-    });
+    await runtimeManager.start();
   } catch (err) {
-    if (splashWindow) {
-      splashWindow.close();
-      splashWindow = null;
-    }
     dialog.showErrorBox('Startup Error', `UltimateAI failed to start:\n${err.message}\n\nPlease restart the application.`);
     app.quit();
     return;

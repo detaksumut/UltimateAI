@@ -150,7 +150,7 @@ export async function captureRuntimeEvidence() {
     measurementMode: MEASUREMENT_MODES.HARNESS_RUNTIME,
     requestedProvider: 'EDGE_NEURAL',
     actualProvider: voiceMode,
-    defaultVoice: 'id-ID-ArdiNeural',
+    defaultVoice: 'id-ID-GadisNeural',
     fallbackProvider: 'BROWSER_SYNTHESIS',
     fallbackUsed: false,
     audioFramesReceived: 0,

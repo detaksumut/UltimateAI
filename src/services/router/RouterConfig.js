@@ -24,8 +24,8 @@ export const RouterConfig = {
   },
 
   // Model routing preferences
-  DEFAULT_MODEL: 'hermes3:8b',
-  FALLBACK_MODEL: 'qwen3:8b',
+  DEFAULT_MODEL: 'qwen3:8b',
+  FALLBACK_MODEL: null,
   REQUEST_TIMEOUT_MS: 60000,
 };
 

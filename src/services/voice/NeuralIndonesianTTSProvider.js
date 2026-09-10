@@ -116,30 +116,8 @@ export class NeuralIndonesianTTSProvider {
       console.warn('[NEURAL_TTS_CLIENT] LocalRouter synthesis failed, trying backup endpoint:', err.message);
     }
 
-    // 2. Direct browser Indonesian client-side synthesize fallback (Emergency only)
-    try {
-      const directBlob = await this._synthesizeDirectBrowserClient(cleanText, rate);
-      const audioDataUrl = typeof window !== 'undefined' && window.URL ? URL.createObjectURL(directBlob) : null;
-
-      console.log(`[TTS] âœ… TTS_GENERATION_SUCCESS (Direct) | AUDIO_SOURCE_CREATED | BYTES=${directBlob.size}`);
-      this.status = 'READY';
-      return {
-        audioDataUrl,
-        audioBlob: directBlob,
-        base64Audio: '',
-        sampleRate: this.sampleRate,
-        duration: Math.max(0.5, cleanText.length / 15),
-        provider: 'NEURAL_INDONESIAN_TTS',
-        speaker: speaker,
-        voiceReferenceUsed: false,
-        mimeType: directBlob.type,
-        byteLength: directBlob.size
-      };
-    } catch (err) {
-      this.status = 'ERROR';
-      console.error('[TTS] âŒ AUDIO_SOURCE_CREATION_FAILED:', err.message);
-      throw new Error(`TTS_NEURAL_UNAVAILABLE: ${err.message}`);
-    }
+    this.status = 'ERROR';
+    throw new Error('TTS_NEURAL_UNAVAILABLE: Local neural voice endpoint is unavailable');
   }
 
   /**
@@ -156,76 +134,6 @@ export class NeuralIndonesianTTSProvider {
     }
     const byteArray = new Uint8Array(byteNumbers);
     return new Blob([byteArray], { type: mimeType });
-  }
-
-  /**
-   * Direct browser fallback using Web Speech API (speechSynthesis).
-   * Runs fully client-side â€” no network request needed, no CORS issues.
-   * Picks best Indonesian voice if available, otherwise uses system default.
-   */
-  async _synthesizeDirectBrowserClient(text, rate = 1.12) {
-    return new Promise((resolve, reject) => {
-      if (typeof window === 'undefined' || !window.speechSynthesis) {
-        reject(new Error('Browser speechSynthesis not available'));
-        return;
-      }
-
-      // Build a silent WAV blob as placeholder so the audio pipeline stays intact.
-      // Actual speech is played directly via speechSynthesis.
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'id-ID';
-      utterance.rate = rate;
-      utterance.volume = 1.0;
-
-      // Prefer natural Indonesian voices (e.g. Google Bahasa Indonesia / Microsoft Gadis)
-      const voices = window.speechSynthesis.getVoices() || [];
-      const idVoice = voices.find(v => {
-        const lang = (v.lang || '').toLowerCase().replace(/_/g, '-');
-        return lang.startsWith('id') || lang.includes('indonesia');
-      });
-
-      if (idVoice) utterance.voice = idVoice;
-      utterance.pitch = 1.00; // Natural, clear female pitch
-
-      utterance.onend = () => {
-        // Return a minimal valid WAV blob so the calling code doesn't break
-        resolve(this._createSilentWavBlob());
-      };
-      utterance.onerror = (e) => {
-        reject(new Error(`speechSynthesis error: ${e.error}`));
-      };
-
-      window.speechSynthesis.cancel(); // Clear any queued utterances first
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
-  /**
-   * Create a minimal silent WAV blob (44 bytes header + 0 samples).
-   * Used when speechSynthesis handles audio directly and we just need
-   * a valid Blob to keep the audio pipeline from erroring.
-   */
-  _createSilentWavBlob() {
-    // 44-byte WAV header with 0 data bytes
-    const buffer = new ArrayBuffer(44);
-    const view = new DataView(buffer);
-    // RIFF chunk
-    view.setUint32(0, 0x46464952, false); // "RIFF"
-    view.setUint32(4, 36, true);          // chunk size
-    view.setUint32(8, 0x45564157, false); // "WAVE"
-    // fmt sub-chunk
-    view.setUint32(12, 0x20746d66, false); // "fmt "
-    view.setUint32(16, 16, true);          // sub-chunk size
-    view.setUint16(20, 1, true);           // PCM format
-    view.setUint16(22, 1, true);           // mono
-    view.setUint32(24, 24000, true);       // sample rate
-    view.setUint32(28, 48000, true);       // byte rate
-    view.setUint16(32, 2, true);           // block align
-    view.setUint16(34, 16, true);          // bits per sample
-    // data sub-chunk
-    view.setUint32(36, 0x61746164, false); // "data"
-    view.setUint32(40, 0, true);           // data size = 0
-    return new Blob([buffer], { type: 'audio/wav' });
   }
 
 }

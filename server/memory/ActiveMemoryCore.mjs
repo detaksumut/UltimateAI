@@ -188,7 +188,8 @@ export class ActiveMemoryCore {
   }
 
   /**
-   * SNAPSHOT: Persists current active task state without leaking secrets
+   * SNAPSHOT: Persists current active task state without leaking secrets.
+   * Extended for TEST 11.1 Goal Persistence — tracks completedSteps, pendingSteps, planSteps.
    */
   snapshotActiveState({
     taskId = null,
@@ -198,7 +199,12 @@ export class ActiveMemoryCore {
     activeMemoryRefs = [],
     activeTools = [],
     selectedPool = 'LOCAL_OLLAMA',
-    selectedModel = 'hermes3:8b'
+    selectedModel = 'qwen3:8b',
+    completedSteps = [],
+    pendingSteps = [],
+    planSteps = [],
+    status = 'IN_PROGRESS',
+    ...extraFields
   } = {}) {
     const snapshot = {
       taskId: taskId || `task_${Date.now()}`,
@@ -209,6 +215,11 @@ export class ActiveMemoryCore {
       activeTools,
       selectedPool,
       selectedModel,
+      completedSteps,
+      pendingSteps,
+      planSteps,
+      status,
+      ...extraFields,
       lastUpdate: new Date().toISOString()
     };
 
@@ -220,6 +231,34 @@ export class ActiveMemoryCore {
     } catch (_) {}
 
     return snapshot;
+  }
+
+  /**
+   * RESTORE: Reads back the last persisted active state from disk.
+   * Returns null if no state file exists or is unreadable.
+   */
+  restoreActiveState() {
+    const targetPath = path.join(this.stateDir, 'active_state.json');
+    try {
+      if (fs.existsSync(targetPath)) {
+        const raw = fs.readFileSync(targetPath, 'utf-8');
+        return JSON.parse(raw);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /**
+   * CLEAR: Removes the active state snapshot from disk.
+   * Used by tests to simulate a controlled runtime interruption.
+   */
+  clearActiveState() {
+    const targetPath = path.join(this.stateDir, 'active_state.json');
+    try {
+      if (fs.existsSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+    } catch (_) {}
   }
 
   rebuildIndex() {

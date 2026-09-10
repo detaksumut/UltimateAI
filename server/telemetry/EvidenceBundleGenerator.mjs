@@ -133,7 +133,7 @@ export async function generateEvidenceBundle() {
     evidenceType: 'AUTOMATED_RUNTIME_EVIDENCE',
     requestedProvider: 'EDGE_NEURAL',
     actualProvider: voiceMode,
-    defaultVoice: 'id-ID-ArdiNeural',
+    defaultVoice: 'id-ID-GadisNeural',
     fallbackProvider: 'BROWSER_SYNTHESIS',
     fallbackUsed: false,
     audioFramesReceived: 0,

@@ -39,7 +39,7 @@ Generate a revised execution strategy in STRICT JSON format:
       "id": "R1",
       "action": "ACTION_NAME",
       "tool": "tool.name",
-      "specialistModel": "hermes3:8b",
+      "specialistModel": "qwen3:8b",
       "params": {},
       "dependsOn": [],
       "successCriteria": "criteria",
@@ -57,7 +57,7 @@ Generate a revised execution strategy in STRICT JSON format:
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: 'hermes3:8b',
+          model: 'qwen3:8b',
           messages: [
             { role: 'system', content: 'You are an adaptive self-healing agent replanner.' },
             { role: 'user', content: prompt }
@@ -102,7 +102,7 @@ Generate a revised execution strategy in STRICT JSON format:
         id: 'R1',
         action: `RETRY_${failedStep?.action || 'TASK'}`,
         tool: fallbackTool,
-        specialistModel: 'hermes3:8b',
+        specialistModel: 'qwen3:8b',
         params: failedStep?.params || { query: rawGoal },
         dependsOn: [],
         successCriteria: 'fallback_completed',

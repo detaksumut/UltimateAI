@@ -973,19 +973,6 @@ app.post('/api/magic', async (req: Request, res: Response) => {
     .ai-hook-status { display: flex; justify-content: space-between; align-items: center; font-size: 8px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
     .ai-badge-ready { background: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0; }
     
-    /* Modal / Popup for AI checks */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; padding: 16px; }
-    .modal-overlay.active { display: flex; }
-    .modal-content { background: var(--bg); border-radius: 12px; width: 100%; max-width: 320px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; animation: scaleUp 0.2s ease-out; }
-    @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .modal-header { background: var(--primary); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-    .modal-header h4 { font-family: var(--font-title); font-size: 12px; margin: 0; font-weight: 700; }
-    .modal-close { background: none; border: none; color: white; font-size: 14px; cursor: pointer; }
-    .modal-body { padding: 16px; font-size: 11px; line-height: 1.5; color: var(--text); }
-    .modal-body strong { color: var(--primary); }
-    .modal-body em { font-style: normal; font-weight: 600; color: #7c3aed; }
-    .modal-footer { padding: 10px 16px; background: var(--neutral); border-top: 1px solid var(--border); text-align: right; }
-    .btn-close-modal { padding: 6px 12px; font-size: 10px; font-weight: 700; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
     
     .logs-text { text-align: left; }
 
@@ -1787,18 +1774,6 @@ app.post('/api/magic', async (req: Request, res: Response) => {
 
   </div>
   
-  <!-- MODAL -->
-  <div id="aiModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 id="modalTitle">UltimateAI Assistant Report</h4>
-        <button class="modal-close" onclick="closeAiModal()">&times;</button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer"><button class="btn-close-modal" onclick="closeAiModal()">Tutup</button></div>
-    </div>
-  </div>
-
   <script>
     const schemes = {
       navy: { primary: '#0E2A47', secondary: '#D4A62A', bg: '#ffffff', neutral: '#f5f7fa', text: '#1f2937', border: '#e5e7eb' },
@@ -2289,41 +2264,6 @@ app.post('/api/magic', async (req: Request, res: Response) => {
       }
     }
     
-    function openAiAnalyzeModal(type, target) {
-      const modal = document.getElementById('aiModal');
-      const title = document.getElementById('modalTitle');
-      const body = document.getElementById('modalBody');
-      
-      title.innerText = 'UltimateAI: ' + type;
-      modal.classList.add('active');
-      
-      if (target === 'redis') {
-        body.innerHTML = '<strong>File:</strong> RedisCacheOptimization_NestJS.pdf<br/><br/>' +
-          '<strong>Analisis Otomatis Naskah (Cognitive Audit):</strong><br/>' +
-          '- <em>Abstract Quality:</em> Cukup padat, mencakup metodologi, hasil, dan kontribusi.<br/>' +
-          '- <em>Metodologi:</em> Valid menggunakan pengujian latency benchmarking.<br/>' +
-          '- <em>Similarity Index:</em> <strong>11% (Aman)</strong><br/><br/>' +
-          '<strong>Rekomendasi Reviewer:</strong><br/>' +
-          '1. Dr. Roni Setiawan (Match ID: 94% - Keahlian: Distributed Systems)<br/>' +
-          '2. Prof. Bambang Hariyanto (Match ID: 89% - Keahlian: Caching algorithms)<br/><br/>' +
-          '<span style="color: var(--secondary); font-weight: bold;">[Hook pre-wired to backend domain: Execution.ts]</span>';
-      } else {
-        body.innerHTML = '<strong>File:</strong> GlobalCitationDatabases_OpenScience.docx<br/><br/>' +
-          '<strong>Pemeriksaan Struktur Metadata AI:</strong><br/>' +
-          '- <em>DOI Tag:</em> Terdeteksi dan terdaftar di Crossref.<br/>' +
-          '- <em>ORCID Penulis:</em> Terdeteksi 3 dari 3 penulis terverifikasi.<br/>' +
-          '- <em>Bibliography Check:</em> 24 referensi diidentifikasi secara unik.<br/><br/>' +
-          '<strong>Plagiarisme & Similarity AI:</strong><br/>' +
-          '- Deteksi per kalimat (kalimat &ge; 10 kata) selesai.<br/>' +
-          '- Total kalimat diperiksa: 82<br/>' +
-          '- Tingkat plagiasi: <strong>4.8% (Sangat Unik - AMAN)</strong><br/><br/>' +
-          '<span style="color: var(--secondary); font-weight: bold;">[Hook pre-wired to backend domain: WorkerPipeline.ts]</span>';
-      }
-    }
-    
-    function closeAiModal() {
-      document.getElementById('aiModal').classList.remove('active');
-    }
   </script>
 </body>
 `;

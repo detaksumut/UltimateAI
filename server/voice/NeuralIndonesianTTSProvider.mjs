@@ -163,10 +163,10 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
   }
 
   /**
-   * Synthesizes authentic Indonesian male speech using Microsoft Edge Neural TTS (id-ID-ArdiNeural).
-   * Generates crystal-clear 24kHz 48kbps MP3 audio with natural male intonation.
+   * Synthesizes authentic Indonesian female speech using Microsoft Edge Neural TTS (id-ID-GadisNeural).
+   * Generates crystal-clear 24kHz 48kbps MP3 audio with natural female intonation.
    */
-  async _synthesizeEdgeTTSStream(text, speaker = 'id-ID-ArdiNeural', rate = 1.08, pitch = 1.00) {
+  async _synthesizeEdgeTTSStream(text, speaker = 'id-ID-GadisNeural', rate = 1.08, pitch = 1.00) {
     return new Promise((resolve, reject) => {
       const TRUSTED_TOKEN = '6A5AA1D4EA65407A8A3A4315354F9D70';
       const connectionId = crypto.randomUUID().replace(/-/g, '');

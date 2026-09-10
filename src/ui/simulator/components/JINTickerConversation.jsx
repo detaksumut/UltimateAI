@@ -702,7 +702,7 @@ export function TickerHistory({ messages, activeStreamingId }) {
         <div className="h-full flex flex-col items-center justify-center text-slate-500 font-mono text-xs tracking-widest gap-2">
           <Terminal size={20} className="text-cyan-500/40 mb-2 animate-pulse" />
           <span>INTELLIGENCE STREAM AWAITING INPUT</span>
-          <span className="text-[10px] text-slate-600">Model: Ollama hermes3:8b (Local :20200)</span>
+          <span className="text-[10px] text-slate-600">Model: Ollama qwen3:8b (Local :20200)</span>
         </div>
       ) : (
         <div className="flex flex-col">

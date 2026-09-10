@@ -218,11 +218,7 @@ export class JinAudioQueue {
           this._applyExecutiveAudioProfile();
           await this.audioElement.play();
         } catch (playErr) {
-          console.warn('[AUDIO_QUEUE] Audio play blocked or failed, attempting speech fallback:', playErr.message);
-          if (typeof window !== 'undefined' && window.speechSynthesis) {
-            await this._playSpeechFallbackUtterance(item, index);
-            return;
-          }
+          console.warn('[AUDIO_QUEUE] Audio playback failed; browser voice fallback is disabled.');
           this._cleanupCurrentSegmentUrl();
           this._playNextSegment();
         }
@@ -237,121 +233,6 @@ export class JinAudioQueue {
       console.error(`[AUDIO_QUEUE] ❌ Failed to synthesize segment ${index}:`, err.message);
       this._playNextSegment();
     }
-  }
-
-  /**
-   * Natural Indonesian Female Speech Synthesis Fallback Player
-   * Selects Google Bahasa Indonesia or Microsoft Gadis with natural, fluent female prosody.
-   */
-  async _playSpeechFallbackUtterance(item, index) {
-    return new Promise(async (resolve) => {
-      if (this.isInterrupted) return resolve();
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(item.text);
-      utterance.rate = this.executivePlaybackRate || 1.10;
-      utterance.pitch = 1.00;
-
-      // Ensure browser voices are loaded
-      let voices = window.speechSynthesis.getVoices() || [];
-      if (!voices || voices.length === 0) {
-        await new Promise((res) => {
-          let resolved = false;
-          const handler = () => {
-            if (resolved) return;
-            resolved = true;
-            window.speechSynthesis.removeEventListener('voiceschanged', handler);
-            res();
-          };
-          window.speechSynthesis.addEventListener('voiceschanged', handler);
-          setTimeout(handler, 500);
-        });
-        voices = window.speechSynthesis.getVoices() || [];
-      }
-
-      const isEnglish = this._isEnglishText(item.text);
-      if (isEnglish) {
-        utterance.lang = 'en-US';
-        const enVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
-        if (enVoice) utterance.voice = enVoice;
-      } else {
-        utterance.lang = 'id-ID';
-        const idVoice = voices.find(v => {
-          const l = (v.lang || '').toLowerCase().replace(/_/g, '-');
-          return l.startsWith('id') || l.includes('indonesia');
-        });
-        if (idVoice) utterance.voice = idVoice;
-      }
-
-      utterance.onstart = () => {
-        if (this.isInterrupted) {
-          window.speechSynthesis.cancel();
-          return resolve();
-        }
-        this.isPlaying = true;
-        this._emitState({ isPlaying: true, currentIndex: index });
-        if (index === 0 && this.callbacks?.onStart) {
-          this.callbacks.onStart();
-        }
-      };
-
-      utterance.onend = () => {
-        this.spokenSegments.push(item.text);
-        resolve();
-        this._playNextSegment();
-      };
-
-      utterance.onerror = (e) => {
-        console.warn('[AUDIO_QUEUE] Speech fallback ended or encountered error:', e?.error || e);
-        this.spokenSegments.push(item.text);
-        resolve();
-        this._playNextSegment();
-      };
-
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
-  /**
-   * Fast lexical heuristic to detect if a sentence segment is English or Indonesian.
-   */
-  _isEnglishText(text = '') {
-    const clean = (text || '').toLowerCase().trim();
-    if (!clean) return false;
-
-    // English keywords & markers
-    const englishTokens = [
-      'the', 'is', 'are', 'was', 'were', 'have', 'has', 'had', 'this', 'that', 'these', 'those',
-      'you', 'your', 'we', 'our', 'they', 'their', 'what', 'when', 'where', 'why', 'how',
-      'hello', 'hi', 'sure', 'certainly', 'english', 'speak', 'language', 'with', 'about', 'from',
-      'please', 'thank', 'thanks', 'good', 'morning', 'afternoon', 'evening', 'welcome', 'great',
-      'here', 'there', 'would', 'could', 'should', 'will', 'can', 'assist', 'help', 'project',
-      'i', 'am', 'jin', 'today', 'now', 'let', 'me', 'know', 'feel', 'free', 'to', 'ask'
-    ];
-
-    // Indonesian keywords & markers
-    const indonesianTokens = [
-      'yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'dengan', 'untuk', 'pada', 'adalah',
-      'saya', 'anda', 'kamu', 'kita', 'kami', 'mereka', 'bisa', 'sudah', 'akan', 'telah',
-      'tidak', 'bukan', 'apakah', 'bagaimana', 'mengapa', 'halo', 'selamat', 'pagi', 'siang',
-      'malam', 'baik', 'tentu', 'terima', 'kasih', 'mohon', 'siap', 'silakan', 'bicara'
-    ];
-
-    const words = clean.split(/\s+/).map(w => w.replace(/[^a-zA-Z]/g, ''));
-    let enCount = 0;
-    let idCount = 0;
-
-    for (const w of words) {
-      if (englishTokens.includes(w)) enCount++;
-      if (indonesianTokens.includes(w)) idCount++;
-    }
-
-    if (/^(hello|hi|welcome|certainly|sure|of course|good morning|good afternoon|good evening|i am jin|let me)\b/i.test(clean)) {
-      enCount += 3;
-    }
-
-    return enCount > idCount;
   }
 
   _playNextSegment() {

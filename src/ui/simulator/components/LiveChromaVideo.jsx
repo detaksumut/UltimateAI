@@ -4,8 +4,8 @@ import React, { useRef, useEffect } from 'react';
  * LiveChromaVideo
  * Hardware-independent real-time alpha chroma-key canvas for video.
  * Bypasses Windows/Chromium DirectComposition video overlay limitations by
- * extracting video frames into a 2D canvas buffer and setting black background pixels
- * to true alpha transparency (rgba(0,0,0,0)).
+ * extracting video frames into a 2D canvas buffer and setting edge-connected black
+ * background pixels to true alpha transparency (rgba(0,0,0,0)).
  */
 export default function LiveChromaVideo({
   src,
@@ -24,15 +24,31 @@ export default function LiveChromaVideo({
   // Sync video play/pause state
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !src) return;
 
-    if (isPlaying) {
-      video.currentTime = 0;
+    let isMounted = true;
+
+    const tryPlay = () => {
+      if (!isMounted || !isPlaying) return;
+      try {
+        video.currentTime = 0;
+      } catch (_) {}
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          console.warn('[LiveChromaVideo] Autoplay prevented:', err);
+          // Suppress benign source loading or unmounted abort errors
+          if (err.name !== 'AbortError' && err.name !== 'NotSupportedError') {
+            console.warn('[LiveChromaVideo] Play deferred:', err.message);
+          }
         });
+      }
+    };
+
+    if (isPlaying) {
+      if (video.readyState >= 2) {
+        tryPlay();
+      } else {
+        video.addEventListener('canplay', tryPlay, { once: true });
       }
     } else {
       video.pause();
@@ -40,6 +56,11 @@ export default function LiveChromaVideo({
         video.currentTime = 0;
       } catch (_) {}
     }
+
+    return () => {
+      isMounted = false;
+      video.removeEventListener('canplay', tryPlay);
+    };
   }, [isPlaying, src]);
 
   // Real-time Chroma Key Canvas Loop
@@ -50,6 +71,10 @@ export default function LiveChromaVideo({
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     let isCancelled = false;
+    const isHellomaster2 = /hellomaster2\.mp4/i.test(src || '');
+    const removeBackground = /hellomaster1\.mp4|hellomaster2\.mp4|jeannie/i.test(src || '');
+    const backgroundBrightnessLimit = isHellomaster2 ? 24 : 150;
+    const backgroundSaturationLimit = isHellomaster2 ? 0.16 : 0.42;
 
     const processCurrentVideoFrame = () => {
       if (video.readyState >= 2) {
@@ -62,32 +87,92 @@ export default function LiveChromaVideo({
         }
 
         ctx.drawImage(video, 0, 0, width, height);
+        if (!removeBackground) return;
 
         try {
           const imgData = ctx.getImageData(0, 0, width, height);
           const data = imgData.data;
-          const total = data.length;
+          const pixelCount = width * height;
+          const backgroundPixels = new Uint8Array(pixelCount);
+          const pendingPixels = [];
 
-          // Process each pixel: key out pure and near-black background
+          // Only remove dark pixels connected to the frame edge. This protects
+          // dark details inside the avatar from being keyed out.
+          for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+            const offset = pixelIndex * 4;
+            const r = data[offset];
+            const g = data[offset + 1];
+            const b = data[offset + 2];
+            const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+            const maxChannel = Math.max(r, g, b);
+            const minChannel = Math.min(r, g, b);
+            const saturation = maxChannel === 0 ? 0 : (maxChannel - minChannel) / maxChannel;
+            const isBackgroundCandidate =
+              brightness < backgroundBrightnessLimit && saturation < backgroundSaturationLimit;
+            const pixelX = pixelIndex % width;
+            const pixelY = Math.floor(pixelIndex / width);
+            if (
+              isBackgroundCandidate &&
+              (pixelX === 0 || pixelY === 0 || pixelX === width - 1 || pixelY === height - 1)
+            ) {
+              backgroundPixels[pixelIndex] = 1;
+              pendingPixels.push(pixelIndex);
+            }
+          }
+
+          for (let cursor = 0; cursor < pendingPixels.length; cursor += 1) {
+            const pixelIndex = pendingPixels[cursor];
+            const pixelX = pixelIndex % width;
+            const pixelY = Math.floor(pixelIndex / width);
+            for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+              for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+                const neighborX = pixelX + offsetX;
+                const neighborY = pixelY + offsetY;
+                if (
+                  neighborX < 0 ||
+                  neighborY < 0 ||
+                  neighborX >= width ||
+                  neighborY >= height ||
+                  (offsetX === 0 && offsetY === 0)
+                ) {
+                  continue;
+                }
+                const neighborIndex = neighborY * width + neighborX;
+                if (backgroundPixels[neighborIndex]) continue;
+                const neighborOffset = neighborIndex * 4;
+                const neighborR = data[neighborOffset];
+                const neighborG = data[neighborOffset + 1];
+                const neighborB = data[neighborOffset + 2];
+                const neighborBrightness = 0.299 * neighborR + 0.587 * neighborG + 0.114 * neighborB;
+                const neighborMax = Math.max(neighborR, neighborG, neighborB);
+                const neighborMin = Math.min(neighborR, neighborG, neighborB);
+                const neighborSaturation =
+                  neighborMax === 0 ? 0 : (neighborMax - neighborMin) / neighborMax;
+                if (
+                  neighborBrightness < backgroundBrightnessLimit &&
+                  neighborSaturation < backgroundSaturationLimit
+                ) {
+                  backgroundPixels[neighborIndex] = 1;
+                  pendingPixels.push(neighborIndex);
+                }
+              }
+            }
+          }
+
+          const total = data.length;
           for (let i = 0; i < total; i += 4) {
+            const pixelIndex = i / 4;
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-
-            // Perceptual brightness
             const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-
-            if (brightness < 28) {
-              // 100% Transparent
+            if (backgroundPixels[pixelIndex] || brightness < 20) {
               data[i + 3] = 0;
-            } else if (brightness < 55) {
-              // Soft anti-aliased edge
-              const factor = (brightness - 28) / 27;
-              data[i + 3] = Math.round(factor * 255);
+              continue;
             }
 
             // Soft mist fade at the very bottom waist (last 12% of height)
-            const y = Math.floor(i / 4 / width);
+            const y = Math.floor(pixelIndex / width);
             if (y > height * 0.88 && data[i + 3] > 0) {
               const bottomFactor = (height - y) / (height * 0.12);
               data[i + 3] = Math.min(data[i + 3], Math.round(bottomFactor * 255));
@@ -124,7 +209,7 @@ export default function LiveChromaVideo({
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, []);
+  }, [src]);
 
   return (
     <div className={`relative w-full h-full flex items-center justify-center ${className}`}>

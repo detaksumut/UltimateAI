@@ -296,7 +296,6 @@ export default function JINMusicPlayerCard({ initialTrackIndex = 0, autoPlay = f
         </div>
       </div>
 
-      {/* Custom URL Input Accordion */}
       {showUrlInput && (
         <form onSubmit={handleCustomUrlSubmit} className="mb-3 p-2 rounded bg-cyan-950/30 border border-cyan-500/30 flex items-center gap-2">
           <input
@@ -447,7 +446,7 @@ export default function JINMusicPlayerCard({ initialTrackIndex = 0, autoPlay = f
               handleSelectTrack(idx);
             }}
             className={`px-2 py-0.5 rounded text-[9.5px] font-mono transition-all ${
-              currentTrackIdx === idx && activeSource === 'preset' && !showUrlInput
+              currentTrackIdx === idx && activeSource === 'preset'
                 ? 'bg-cyan-500 text-[#040711] font-bold shadow-[0_0_8px_rgba(0,229,255,0.4)]'
                 : 'bg-cyan-950/40 text-slate-300 hover:bg-cyan-900/60 hover:text-cyan-200 border border-cyan-500/20'
             }`}

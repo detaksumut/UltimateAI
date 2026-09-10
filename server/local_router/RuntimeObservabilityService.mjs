@@ -52,7 +52,7 @@ export class RuntimeObservabilityService {
     return event;
   }
 
-  startTask({ taskId, userGoal, capability = 'LOCAL_CHAT', requestedModel = 'hermes3:8b' }) {
+  startTask({ taskId, userGoal, capability = 'LOCAL_CHAT', requestedModel = 'qwen3:8b' }) {
     const task = {
       taskId: taskId || `TASK-${String(this.tasks.length + 1).padStart(3, '0')}`,
       userGoal: userGoal || '',
@@ -81,8 +81,8 @@ export class RuntimeObservabilityService {
       taskId: taskId || this.currentTask?.taskId || `TASK-${Date.now()}`,
       userGoal: this.currentTask?.userGoal || '',
       capability: this.currentTask?.capability || 'LOCAL_CHAT',
-      requestedModel: provenance.requestedModel || this.currentTask?.requestedModel || 'hermes3:8b',
-      actualModel: provenance.actualModel || provenance.requestedModel || 'hermes3:8b',
+      requestedModel: provenance.requestedModel || this.currentTask?.requestedModel || 'qwen3:8b',
+      actualModel: provenance.actualModel || provenance.requestedModel || 'qwen3:8b',
       connectionId: provenance.connectionId || 'local-ollama',
       durationMs,
       status: 'SUCCESS',
@@ -93,8 +93,8 @@ export class RuntimeObservabilityService {
         connectionId: provenance.connectionId || 'local-ollama',
         actualConnectionId: provenance.actualConnectionId || 'local-ollama',
         accountAlias: 'LOCAL_OLLAMA_DAEMON',
-        requestedModel: provenance.requestedModel || 'hermes3:8b',
-        actualModel: provenance.actualModel || 'hermes3:8b',
+        requestedModel: provenance.requestedModel || 'qwen3:8b',
+        actualModel: provenance.actualModel || 'qwen3:8b',
         upstreamEndpoint: provenance.upstreamEndpoint || 'http://127.0.0.1:11434/api/generate',
         transportClass: provenance.transportClass || 'LOCAL_OLLAMA',
         upstreamResponseId: provenance.upstreamResponseId,
@@ -127,7 +127,7 @@ export class RuntimeObservabilityService {
       taskId: taskId || this.currentTask?.taskId || `TASK-${Date.now()}`,
       userGoal: this.currentTask?.userGoal || '',
       capability: this.currentTask?.capability || 'LOCAL_CHAT',
-      requestedModel: this.currentTask?.requestedModel || 'hermes3:8b',
+      requestedModel: this.currentTask?.requestedModel || 'qwen3:8b',
       connectionId: 'local-ollama',
       durationMs,
       status: 'FAILED',
@@ -158,15 +158,14 @@ export class RuntimeObservabilityService {
         isActive: true,
         status: 'ACTIVE',
         health: 'HEALTHY',
-        currentModel: 'hermes3:8b',
+        currentModel: 'qwen3:8b',
         quotaSource: 'LOCAL_UNLIMITED',
         remaining: Infinity,
         lastUsed: new Date().toISOString(),
         lastError: null,
         cooldownUntil: null,
         models: [
-          { id: 'hermes3:8b', name: 'Hermes 3 8B (Default Local)', status: 'AVAILABLE', isLocked: false },
-          { id: 'qwen3:8b', name: 'Qwen 3 8B (Fallback Local)', status: 'AVAILABLE', isLocked: false }
+          { id: 'qwen3:8b', name: 'Qwen 3 8B (Default Local)', status: 'AVAILABLE', isLocked: false }
         ]
       }
     ];
@@ -192,11 +191,50 @@ export class RuntimeObservabilityService {
       pools,
       currentExecution: this.currentTask,
       rolloverTelemetry: this.lastRollover,
-      recentTasks: this.tasks.slice(0, 15),
-      recentEvents: this.events.slice(0, 30),
       alerts,
       timestamp: new Date().toISOString()
     };
+  }
+
+  formatRequestTelemetryTree(summary = {}) {
+    const {
+      requestId = `REQ-${Date.now().toString(36).toUpperCase()}`,
+      tier1 = { name: 'Gemini', model: 'gemini-3.6-flash', keyIndex: 1, status: '200 OK' },
+      rotations = [],
+      durationMs = 0,
+      final = { provider: 'GEMINI', model: 'gemini-3.6-flash', keyIndex: 1, fallback: false, status: 'SUCCESS' }
+    } = summary;
+
+    const lines = [
+      `\nREQUEST #${requestId}`,
+      `│`,
+      `├─ Tier 1: ${tier1.name}`,
+      `│   ├─ Model: ${tier1.model}`,
+      `│   ├─ Key: #${tier1.keyIndex}`,
+      `│   └─ Status: ${tier1.status}`
+    ];
+
+    if (rotations && rotations.length > 0) {
+      lines.push(`│`, `├─ Rotation`);
+      rotations.forEach((r) => {
+        lines.push(`│   ├─ Key #${r.keyIndex}${r.model ? ` (${r.model})` : ''} → ${r.status}`);
+      });
+      lines.push(`│   └─ elapsed: ${durationMs} ms`);
+    }
+
+    lines.push(
+      `│`,
+      `└─ FINAL`,
+      `    ├─ provider: ${final.provider}`,
+      `    ├─ model: ${final.model}`,
+      ...(final.keyIndex ? [`    ├─ key: #${final.keyIndex}`] : []),
+      `    ├─ fallback: ${Boolean(final.fallback)}`,
+      `    └─ status: ${final.status}\n`
+    );
+
+    const tree = lines.join('\n');
+    console.log(tree);
+    return tree;
   }
 }
 

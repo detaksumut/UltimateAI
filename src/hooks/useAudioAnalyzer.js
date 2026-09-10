@@ -16,7 +16,6 @@ export function useAudioAnalyzer(avatarState = 'IDLE') {
     aperture: 0,
     spread: 1.0,
     jawOffset: 0,
-    blinkProgress: 0,
     eyebrowRaise: 0,
     eyeSquint: 0,
     isSpeaking: false

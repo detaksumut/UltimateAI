@@ -58,7 +58,7 @@ export class SystemDiagnosticService {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'hermes3:8b',
+            model: 'qwen3:8b',
             messages: [{ role: 'user', content: 'Balas persis hanya dengan satu kata: OK' }],
             stream: false,
             temperature: 0.1
@@ -121,7 +121,7 @@ export class SystemDiagnosticService {
     if (routerOnline) {
       L.push(`• Mode Operasi ....... ${h.mode || 'LOCAL_OLLAMA'}`);
       if (h.uptimeSeconds) L.push(`• Uptime Server ...... ${Math.floor(h.uptimeSeconds)} detik`);
-      L.push(`• AI Model ........... OLLAMA LOKAL (${h.model || 'hermes3:8b'})`);
+      L.push(`• AI Model ........... OLLAMA LOKAL (${h.model || 'qwen3:8b'})`);
     }
     L.push(`• Uji Inferensi ...... ${chatTest.ok ? `RESPONSIF (${humanLatency(chatTest.latencyMs)})` : 'GAGAL'}`);
     L.push(`• Suara & STT ........ ${voiceData ? 'READY' : 'ONLINE'}`);
@@ -139,7 +139,7 @@ export class SystemDiagnosticService {
     const speechParts = [
       `Pengecekan perangkat selesai.`,
       `Sistem berjalan pada ${sys.hostname || 'komputer ini'}, ${speechCpu}, dan ${speechRam}.`,
-      `Model Ollama ${h.model || 'hermes3:8b'} aktif dan siap digunakan.`
+      `Model Ollama ${h.model || 'qwen3:8b'} aktif dan siap digunakan.`
     ];
 
     return {

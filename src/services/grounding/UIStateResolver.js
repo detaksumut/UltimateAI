@@ -10,9 +10,9 @@ class UIStateResolver {
     this.FRESHNESS_TTL_MS = 10000; // 10 seconds validity window
     this.currentState = {
       activeTab: 'CHAT', // 'CHAT' | 'MEDIA' | 'WEB' | 'APP_PREVIEW'
-      activeModal: null, // 'MEMORY_VAULT' | 'ACTIVITY_FEED' | 'CONTROL_CENTER' | 'CONNECTIONS' | 'RESEARCH_LAB' | 'NON_RESEARCH_LAB' | null
       activeApp: null, // { id, title, type } or null
       isSandboxRunning: false,
+      activeModal: null,
       isAudioInputAvailable: true,
       isImageAttachmentPresent: false,
       lastUpdated: Date.now()
@@ -56,8 +56,8 @@ DILARANG merujuk lokasi spesifik atau mengatakan "aplikasi di atas". Gunakan ara
 
     return `=== UI REALITY STATE (VERIFIED RUNTIME & FRESH) ===
 Tab Layar Utama: ${s.activeTab}
-Modal Aktif: ${s.activeModal || 'TIDAK ADA'}
 ${appInfo}
+Modal Aktif: ${s.activeModal || 'TIDAK ADA'}
 
 ATURAN UI GROUNDING:
 - Jika "Aplikasi Aktif di Layar" adalah TIDAK ADA: DILARANG KERAS merujuk "aplikasi di atas", "modul di atas", atau "SpeechSense Pro".

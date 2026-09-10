@@ -1,7 +1,7 @@
 /**
  * LocalRouterClient.js
  * Clean, modern client for UltimateAI Local Router (:20200).
- * Dedicated to real SSE streaming directly to/from Ollama hermes3:8b.
+ * Dedicated to real SSE streaming directly to/from Ollama.
  * ZERO fallback, ZERO dummy text, ZERO fake delay.
  */
 
@@ -41,13 +41,13 @@ export class LocalRouterClient {
    *
    * @param {Object} params
    * @param {Array} params.messages - [{ role: 'user'|'assistant'|'system', content: string }]
-   * @param {string} [params.model] - default 'hermes3:8b'
+   * @param {string} [params.model] - default 'qwen3:8b'
    * @param {number} [params.temperature] - default 0.7
    * @param {AbortSignal} [params.signal] - optional abort signal
    * @param {Object} callbacks - { onDelta, onComplete, onError }
    * @returns {Promise<string>} Final accumulated text
    */
-  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, signal = null } = {}, { onDelta, onComplete, onError } = {}) {
+  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, signal = null, generationId = null, messageId = null } = {}, { onDelta, onComplete, onError } = {}) {
     let errorNotified = false;
     const baseEndpoint = this.endpoint.replace(/\/+$/, '');
     const url = baseEndpoint.endsWith('/v1')
@@ -55,10 +55,12 @@ export class LocalRouterClient {
       : `${baseEndpoint}/v1/chat/completions`;
 
     const payload = {
-      model: model || 'hermes3:8b',
+      model: model || 'qwen3:8b',
       messages,
       temperature,
-      stream: true
+      stream: true,
+      generationId,
+      messageId
     };
 
     console.log(`[STREAM_DEBUG] fetch_started`);
@@ -130,6 +132,7 @@ export class LocalRouterClient {
     let isDone = false;
 
     try {
+      let lastAgentMetadata = null;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -163,6 +166,10 @@ export class LocalRouterClient {
               throw err;
             }
 
+            if (parsed._agent) {
+              lastAgentMetadata = parsed._agent;
+            }
+
             const delta = parsed.choices?.[0]?.delta?.content;
             if (typeof delta === 'string' && delta.length > 0) {
               fullText += delta;
@@ -170,6 +177,7 @@ export class LocalRouterClient {
               console.log(`[STREAM_DEBUG] delta_received`);
               if (onDelta) onDelta(delta, fullText);
             }
+
           } catch (jsonErr) {
             if (jsonErr.message?.startsWith('OLLAMA_ERROR')) throw jsonErr;
             console.warn('[STREAM_DEBUG] SSE JSON parse warning:', dataStr.slice(0, 60), jsonErr.message);
@@ -195,6 +203,7 @@ export class LocalRouterClient {
           }
           try {
             const parsed = JSON.parse(dataStr);
+            if (parsed._agent) lastAgentMetadata = parsed._agent;
             console.log(`[STREAM_DEBUG] sse_data_parsed`);
             const delta = parsed.choices?.[0]?.delta?.content;
             if (typeof delta === 'string' && delta.length > 0) {
@@ -207,7 +216,7 @@ export class LocalRouterClient {
         }
       }
 
-      if (onComplete) onComplete(fullText);
+      if (onComplete) onComplete(fullText, lastAgentMetadata);
       return fullText;
     } catch (streamErr) {
       console.error(`[STREAM_DEBUG] stream_read_error:`, streamErr.message);
@@ -254,5 +263,3 @@ export class LocalRouterClient {
 
 export const localRouterClient = new LocalRouterClient();
 export default localRouterClient;
-
-

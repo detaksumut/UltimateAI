@@ -48,7 +48,7 @@ export default function ChatSimulator() {
           const secs = uptimeSec % 60;
           setRuntimeHealth({
             status: data.status || (data.gateway === 'ONLINE' ? 'ACTIVE' : 'DEGRADED'),
-            model: (data.model || 'hermes3:8b').toUpperCase(),
+            model: (data.model || 'qwen3:8b').toUpperCase(),
             provider: (data.provider || 'ollama').toUpperCase(),
             uptime: `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
           });

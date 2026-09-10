@@ -1,4 +1,5 @@
 /**
+  * Called by ControlCenterModal on open to populate voice status.
  * TextToSpeech.js (Neural Indonesian Edition)
  *
  * SPECIFICATION COMPLIANCE:
@@ -114,7 +115,6 @@ export class TextToSpeech {
   /**
    * Select best available voice configuration.
    * For Neural Indonesian TTS, returns the preconfigured Neural speaker.
-   * Called by ControlCenterModal on open to populate voice status.
    */
   selectBestVoice() {
     const voiceStatus = this.neuralProvider.getVoiceStatus();

@@ -137,7 +137,7 @@ export class VoicePipelineCoordinator {
       this._setState(VOICE_STATES.TOOL_EXECUTION, { goal: executionGoal });
 
       const taskResult = await this.agentRuntime.runGoal(executionGoal, executionContext, {
-        forcedModel: 'hermes3:8b'
+        forcedModel: 'qwen3:8b'
       });
 
       this.activeTask = taskResult;

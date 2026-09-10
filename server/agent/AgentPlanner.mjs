@@ -88,7 +88,11 @@ export class AgentPlanner {
 
     // 2. IMAGE_GENERATION — Dedicated deterministic 6-stage image pipeline
     if (semantic.intent === 'IMAGE_GENERATION') {
-      const imagePrompt = semantic.goal || raw;
+      const visualIntent = semantic.visualIntent || {};
+      const imagePrompt = visualIntent.providerPrompt || semantic.goal || raw;
+      const negativePrompt = Array.isArray(visualIntent.negativeConstraints)
+        ? visualIntent.negativeConstraints.join(', ')
+        : context.negativePrompt;
       const requiresReference = /akurat|persis|presisi|sesuai|asli|arsitektur|referensi|acuan|detail|gedung\s+dpr|gedung\s+mpr|landmark|bangunan\s+(?:asli|terkenal|ikonik)/i.test(raw);
 
       const steps = [
@@ -141,7 +145,7 @@ export class AgentPlanner {
             stage: 'GENERATE',
             prompt: imagePrompt,
             ...(context.providerOverride ? { providerOverride: context.providerOverride } : {}),
-            ...(context.negativePrompt ? { negativePrompt: context.negativePrompt } : {}),
+            ...(negativePrompt ? { negativePrompt } : {}),
             ...(context.size ? { size: context.size } : {})
           },
           dependsOn: ['S4'],
@@ -194,37 +198,12 @@ export class AgentPlanner {
           successCriteria: 'constraint_acknowledged',
           evidenceContract: 'constraint_record'
         }],
-        evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
+          evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
       };
     }
 
-    // 3. NEEDSCLARIFICATION — Ask the user for missing information
-    if (semantic.needsClarification && semantic.clarificationQuestion) {
-      return {
-        goalId,
-        goal: semantic.goal || raw,
-        category: 'CLARIFICATION',
-        hierarchicalObjectives: ['Request clarification on missing parameters'],
-        selectedEngine: route.selectedEngine,
-        selectedPool: route.selectedPool,
-        steps: [{
-          id: 'S1',
-          subgoal: 'Formulate clarifying question',
-          action: 'ASK_CLARIFICATION',
-          tool: null,
-          specialistModel: route.selectedEngine,
-          pool: route.selectedPool,
-          params: {
-            question: semantic.clarificationQuestion,
-            reason: semantic.reason
-          },
-          dependsOn: [],
-          successCriteria: 'clarification_question_delivered',
-          evidenceContract: 'clarification_request'
-        }],
-        evidenceContract: { requiredArtifactType: 'CONVERSATION', minSteps: 1 }
-      };
-    }
+    // 3. AUTONOMY: NEVER ask for clarification. If needsClarification=true, treat as simple task.
+    // (Clarification logic removed for autonomous operation)
 
     // 4. LLM-DRIVEN DYNAMIC PLAN GENERATION
     try {
@@ -293,15 +272,19 @@ Build the minimal hierarchical execution DAG plan.`;
 
     const response = await fetch(`${PLANNER_PROXY_URL}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-jin-agent': 'planner'
+      },
       body: JSON.stringify({
-        model: route.selectedEngine || 'hermes3:8b',
+        model: route.selectedEngine || 'qwen3:8b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
         ],
         temperature: 0.05,
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
+        skipIntentGate: true
       }),
       signal: AbortSignal.timeout(60000)
     });

@@ -15,10 +15,10 @@ export const JIN_OPERATING_DOCTRINE = {
   ],
 
   SPECIALIST_ROUTING_POLICY: {
-    FAST_RESEARCH: ['hermes3:8b', 'qwen3:8b'],
-    DEEP_REASONING: ['hermes3:8b', 'qwen3:8b'],
-    CODE_ENGINEERING: ['hermes3:8b', 'qwen3:8b'],
-    LOCAL_FALLBACK: ['hermes3:8b', 'qwen3:8b']
+    FAST_RESEARCH: ['qwen3:8b'],
+    DEEP_REASONING: ['qwen3:8b'],
+    CODE_ENGINEERING: ['qwen3:8b'],
+    LOCAL_FALLBACK: ['qwen3:8b']
   },
 
   GOVERNANCE: {

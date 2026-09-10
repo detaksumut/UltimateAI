@@ -23,7 +23,4 @@ contextBridge.exposeInMainWorld('ultimateAI', {
   app: {
     isElectron: true,
   },
-
-  // ── Startup Status Events ─────────────────────────────
-  onStatus: (callback) => ipcRenderer.on('status', (_event, msg) => callback(msg)),
 });

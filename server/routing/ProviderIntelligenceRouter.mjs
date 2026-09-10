@@ -75,7 +75,7 @@ const LOCAL_PATTERNS = [
 // ── EXTERNAL / INTERNET patterns ─────────────────────────────────────────────
 const EXTERNAL_PATTERNS = [
   // Explicit internet/search keywords
-  /cari\s+(di\s+)?(internet|web|online)|search\s+(for|online)/i,
+  /cari\s+(informasi|data|berita|artikel|referensi|tentang|mengenai)|cari\s+(di\s+)?(internet|web|online)|search\s+(for|online)/i,
   /berita|news|kabar|informasi\s+(terbaru|terkini|terkini|latest|recent|current)/i,
   /what\s+is\s+the\s+(current|latest|recent|newest)/i,
   /what\s+(are|is)\+the\s+(current\s+)?(price|rate|value|cost)/i,

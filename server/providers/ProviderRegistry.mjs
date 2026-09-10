@@ -32,7 +32,7 @@ export class ProviderRegistry {
     if (ollamaProvider && ollamaProvider.isConfigured()) {
       return {
         provider: ollamaProvider,
-        model: preferredModel || 'hermes3:8b',
+        model: preferredModel || 'qwen3:8b',
         gateway: 'OLLAMA',
         fallbackUsed: false
       };

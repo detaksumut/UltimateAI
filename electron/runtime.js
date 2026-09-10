@@ -26,15 +26,9 @@ class RuntimeManager {
   }
 
   // ── Start All Services ──────────────────────────────────────────────────
-  async start(onStatus) {
+  async start() {
     this._stopping = false;
-
-    // Start Express backend
-    onStatus?.('Starting Research Platform...');
     await this._startExpress();
-    onStatus?.('Research Platform ready');
-
-    onStatus?.('Ready!');
   }
 
   // ── Start Express ───────────────────────────────────────────────────────

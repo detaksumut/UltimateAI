@@ -116,15 +116,42 @@ export class MemoryAdapter {
     }));
   }
 
-  addFact(key, value, category = MEMORY_CATEGORIES.USER) {
-    const local = this.store.addMemory({ key, value, category });
+  addFact(keyOrObject, value, category = MEMORY_CATEGORIES.USER) {
+    let key, val, cat, source;
+
+    if (keyOrObject !== null && typeof keyOrObject === 'object') {
+      // Object form: addFact({ key, value, category, source })
+      // Used by ConversationController.handleComplete()
+      key    = typeof keyOrObject.key   === 'string' ? keyOrObject.key.trim()   : '';
+      val    = typeof keyOrObject.value === 'string' ? keyOrObject.value.trim() : '';
+      cat    = keyOrObject.category
+                 ? this._mapServerCategory(keyOrObject.category)
+                 : category;
+      source = keyOrObject.source || 'ui';
+    } else {
+      // Positional form: addFact(key, value, category)
+      // Backward-compatible with existing callers
+      key    = typeof keyOrObject === 'string' ? keyOrObject.trim() : String(keyOrObject || '');
+      val    = typeof value === 'string' ? value.trim() : String(value || '');
+      cat    = category;
+      source = 'api';
+    }
+
+    // Guard: reject empty or invalid memory silently
+    if (!key || !val) {
+      console.warn('[MemoryAdapter] addFact rejected: empty key or value', { key, val, source });
+      return null;
+    }
+
+    const local = this.store.addMemory({ key, value: val, category: cat });
     // Sync to server in background
     this._syncToServer({
       type: 'store',
-      data: { key, content: value, category }
+      data: { key, content: val, category: cat, source }
     });
     return local;
   }
+
 
   search(query) {
     return this.store.searchMemories(query);

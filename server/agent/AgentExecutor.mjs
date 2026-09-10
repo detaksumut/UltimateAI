@@ -460,7 +460,10 @@ Be specific with realistic numbers. Write summary and recommendations in Indones
           referenceContext: params.referenceContext,
           providerOverride: params.providerOverride,
           stage,
-          options: context.options || {}
+          options: context.options || {},
+          generationId: context.generationId || params.generationId || null,
+          messageId: context.messageId || params.messageId || null,
+          signal: context.signal || params.signal || null
         }, context.transport || null);
 
         if (stage !== 'GENERATE') {
@@ -481,6 +484,10 @@ Be specific with realistic numbers. Write summary and recommendations in Indones
             content: imageResult.artifact,
             metadata: {
               prompt: imageResult.artifact.prompt,
+              originalPrompt: imageResult.artifact.originalPrompt,
+              normalizedPrompt: imageResult.artifact.normalizedPrompt,
+              generationId: imageResult.artifact.generationId,
+              messageId: imageResult.artifact.messageId,
               provider: imageResult.artifact.provider,
               width: imageResult.artifact.width,
               height: imageResult.artifact.height,

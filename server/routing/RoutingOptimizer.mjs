@@ -14,8 +14,7 @@ import fs from 'fs';
 import path from 'path';
 
 export const CANDIDATE_ENGINES = [
-  { id: 'hermes3:8b', maxReasoning: 0.95, avgLatencyMs: 650, toolSupport: 1.0, costTier: 'ZERO_LOCAL', default: true },
-  { id: 'qwen3:8b', maxReasoning: 0.92, avgLatencyMs: 600, toolSupport: 0.95, costTier: 'ZERO_LOCAL' }
+  { id: 'qwen3:8b', maxReasoning: 0.92, avgLatencyMs: 600, toolSupport: 0.95, costTier: 'ZERO_LOCAL', default: true }
 ];
 
 export class RoutingOptimizer {
@@ -87,7 +86,7 @@ export class RoutingOptimizer {
     });
 
     scoredEngines.sort((a, b) => b.score - a.score);
-    const selectedEngine = scoredEngines[0] || { engine: 'hermes3:8b', score: 90 };
+    const selectedEngine = scoredEngines[0] || { engine: 'qwen3:8b', score: 90 };
     const selectedPool = 'LOCAL_OLLAMA';
 
     return {

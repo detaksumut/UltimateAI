@@ -26,36 +26,10 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
   // Avatar Persona: 'JEANNIE' (1970s I Dream of Jeannie) or 'JIN' (Classic Genie)
   const [avatarPersona, setAvatarPersona] = useState('JEANNIE');
 
-  // Video loop states (Hellomaster2.mp4 / Hedra AI Talking Avatar video loop)
+  // Video loop states (Hellomaster2.mp4)
   const videoRef = useRef(null);
-  const [talkingVideoSrc, setTalkingVideoSrc] = useState('/Hellomaster2.mp4');
-  const [hasVideoTalking, setHasVideoTalking] = useState(true);
+  const [talkingVideoSrc] = useState('/Hellomaster2.mp4');
   const [isDemoPlaying, setIsDemoPlaying] = useState(false);
-
-  useEffect(() => {
-    // Check available AI generated video loops in /public
-    const candidates = ['/Hellomaster2.mp4', '/hellomaster2.mp4'];
-    let found = false;
-
-    const checkCandidate = async () => {
-      for (const src of candidates) {
-        try {
-          const res = await fetch(src, { method: 'HEAD' });
-          if (res.ok) {
-            setTalkingVideoSrc(src);
-            setHasVideoTalking(true);
-            found = true;
-            break;
-          }
-        } catch {
-          // ignore error
-        }
-      }
-      if (!found) setHasVideoTalking(false);
-    };
-
-    checkCandidate();
-  }, []);
 
   // Jeannie Signature Sequence States
   const [lampPhase, setLampPhase] = useState('IDLE'); // 'IDLE', 'ENTER', 'INSIDE', 'EMERGE'
@@ -453,7 +427,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
         </button>
 
         {/* Play Lipsync Video Demo (Hellomaster2.mp4) */}
-        {avatarPersona === 'JEANNIE' && hasVideoTalking && (
+        {avatarPersona === 'JEANNIE' && (
           <>
             <span className="text-white/20 text-[9px]">|</span>
             <button
@@ -517,37 +491,17 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
         {avatarPersona === 'JEANNIE' ? (
           /* ─── REAL BARBARA EDEN AS JEANNIE 1970s LIVING HOLOGRAM ─── */
           <div className="relative w-full h-full flex items-center justify-center scale-[0.82] -translate-y-2">
-            {/* Real Barbara Eden Avatar: Seamless AI Video Loop (Hellomaster2.mp4) or Pristine Photo */}
-            {(isSpeaking || isDemoPlaying) && hasVideoTalking ? (
-              <LiveChromaVideo
-                src={talkingVideoSrc}
-                isPlaying={isSpeaking || isDemoPlaying}
-                isMuted={!isDemoPlaying}
-                isLoop={!isDemoPlaying}
-                isNodding={isNodding}
-                onEnded={() => {
-                  if (isDemoPlaying) setIsDemoPlaying(false);
-                }}
-              />
-            ) : (
-              <img
-                src="/jeannie-real.png"
-                alt="Barbara Eden as Jeannie"
-                className={`w-full h-full object-contain select-none pointer-events-none transition-all duration-400 ease-out ${
-                  isNodding ? 'jeannie-head-nod' : ''
-                }`}
-                style={{
-                  transform: isSpeaking
-                    ? `translateY(${Math.sin(Date.now() / 150) * 2.2}px) rotate(${Math.sin(Date.now() / 300) * 0.8}deg) scale(${1 + (volume || 0) * 0.025})`
-                    : 'translateY(0px) rotate(0deg) scale(1)',
-                  filter: isSpeaking
-                    ? `drop-shadow(0 0 18px rgba(244, 63, 94, 0.95)) drop-shadow(0 0 38px rgba(0, 229, 255, 0.75)) brightness(${1.08 + mouthGlow * 0.2})`
-                    : isProcessing
-                    ? 'drop-shadow(0 0 28px rgba(192, 132, 252, 0.95)) hue-rotate(45deg)'
-                    : 'drop-shadow(0 0 18px rgba(244, 63, 94, 0.8)) drop-shadow(0 0 28px rgba(0, 229, 255, 0.5)) brightness(1.05)'
-                }}
-              />
-            )}
+            {/* Always use Hellomaster2.mp4 video */}
+            <LiveChromaVideo
+              src={talkingVideoSrc}
+              isPlaying={true}
+              isMuted={!isDemoPlaying}
+              isLoop={true}
+              isNodding={isNodding}
+              onEnded={() => {
+                if (isDemoPlaying) setIsDemoPlaying(false);
+              }}
+            />
 
             {/* Subtle Holographic Vocal Resonance Glow on Smile/Mouth during speech */}
             {isSpeaking && (

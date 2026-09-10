@@ -34,7 +34,7 @@ function buildRealTickerEntries(t) {
 
   // 4. Ollama Local Engine Status
   if (t.ollama) {
-    const modelList = t.ollama.models?.length > 0 ? t.ollama.models.join(', ') : 'hermes3:8b';
+    const modelList = t.ollama.models?.length > 0 ? t.ollama.models.join(', ') : 'qwen3:8b';
     entries.push({
       tag: 'OLM',
       color: t.ollama.online ? '#8b5cf6' : '#f59e0b',

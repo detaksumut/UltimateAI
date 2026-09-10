@@ -1,8 +1,8 @@
 /**
  * ModelRoutingService.mjs
  * Intelligent Hybrid Model Routing Service for UltimateAI / JIN Runtime.
- * Orchestrates Cloud-First High-Speed Inference (Gemini 2.5 Flash)
- * with On-Device Emergency Resilience (Ollama hermes3:8b).
+ * Routes text reasoning to local Qwen and visual generation to Gemini,
+ * while preserving cloud/local failover for ordinary chat.
  * 
  * Routing Policies:
  *  - Primary Provider: Gemini 2.5 Flash Cloud (<1.5s TTFB, zero CPU/RAM stress)
@@ -12,6 +12,7 @@
 
 import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
 import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
+import { groqProviderInstance } from '../providers/GroqProvider.mjs';
 
 const HEAVY_CAPABILITIES = new Set([
   'DEEP_REASONING',
@@ -19,6 +20,16 @@ const HEAVY_CAPABILITIES = new Set([
   'MASSIVE_EXTRACTION',
   'MULTI_FILE_REFACTOR',
   'LONG_CONTEXT_ANALYSIS'
+]);
+
+const VISUAL_CAPABILITIES = new Set([
+  'IMAGE_GENERATION',
+  'VIDEO_GENERATION',
+  'GRAPHIC_GENERATION',
+  'VISUAL_GENERATION',
+  'TEXT_TO_IMAGE',
+  'TEXT_TO_VIDEO',
+  'TEXT_TO_GRAPHIC'
 ]);
 
 export class ModelRoutingService {
@@ -36,6 +47,19 @@ export class ModelRoutingService {
   _maxPromptChars() {
     const raw = Number(process.env.LOCAL_LLM_MAX_PROMPT_CHARS || 16000);
     return Number.isFinite(raw) && raw > 0 ? raw : 16000;
+  }
+
+  _localRouteLabel(model) {
+    const modelName = String(model || 'ollama').split(':')[0].replace(/[^a-z0-9]+/gi, '_').toUpperCase();
+    return `LOCAL_${modelName}_PRIMARY`;
+  }
+
+  _normalizeCapability(capability) {
+    return String(capability || 'FAST_CHAT').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  }
+
+  _isVisualCapability(capability) {
+    return VISUAL_CAPABILITIES.has(this._normalizeCapability(capability));
   }
 
   _hasMedia(messages = []) {
@@ -78,18 +102,49 @@ export class ModelRoutingService {
 
   determineRoute({ messages = [], capability = 'FAST_CHAT', model = 'auto' }) {
     const hasMedia = this._hasMedia(messages);
-    const heavy = HEAVY_CAPABILITIES.has(String(capability || '').trim().toUpperCase());
-    const isForcedLocal = process.env.ROUTER_FORCE_LOCAL === 'true' || String(model).startsWith('ollama:');
+    const normalizedCapability = this._normalizeCapability(capability);
+    const heavy = HEAVY_CAPABILITIES.has(normalizedCapability);
+    const geminiModel = (model && model.startsWith('gemini-')) ? model : (process.env.GEMINI_MODEL || 'gemini-3.6-flash');
+    const ollamaModel = process.env.OLLAMA_MODEL || 'qwen3:8b';
+    const cleanModel = String(model || '').trim();
+    const isExplicitGemini = cleanModel.startsWith('gemini-');
+    const isExplicitLocal  = cleanModel.startsWith('ollama:') || cleanModel.startsWith('hermes');
+    const isLocalPreferred = !isExplicitGemini && (
+      isExplicitLocal ||
+      process.env.ROUTER_FORCE_LOCAL === 'true' ||
+      process.env.ROUTE_PROVIDER === 'ollama' ||
+      process.env.ROUTE_STRATEGY === 'local_first'
+    );
     const hasGemini = geminiProviderInstance.isConfigured();
+
+    // Visual generation must stay on Gemini. Falling back to a text model would
+    // produce a plausible-looking text response while silently dropping the
+    // requested artifact capability.
+    if (this._isVisualCapability(normalizedCapability)) {
+      return {
+        candidates: hasGemini
+          ? [{ provider: 'gemini', model: geminiModel, fallback: false }]
+          : [],
+        hasMedia,
+        heavy,
+        capability: normalizedCapability,
+        strategy: 'visual_gemini_only',
+        forcedProvider: 'gemini',
+        provider: 'gemini',
+        strictCapability: true,
+        label: 'CLOUD_GEMINI_VISUAL'
+      };
+    }
 
     // Multimodal messages (images/documents) MUST route to Gemini Vision
     if (hasMedia && hasGemini) {
       return {
         candidates: [
-          { provider: 'gemini', model: 'gemini-2.5-flash', fallback: false }
+          { provider: 'gemini', model: geminiModel, fallback: false }
         ],
         hasMedia,
         heavy,
+        capability: normalizedCapability,
         strategy: 'cloud_multimodal',
         forcedProvider: 'gemini',
         provider: 'gemini',
@@ -97,14 +152,32 @@ export class ModelRoutingService {
       };
     }
 
-    if (!isForcedLocal && hasGemini) {
+    // If user configured local-first or Hermes 3 in .env / model
+    if (isLocalPreferred) {
       return {
         candidates: [
-          { provider: 'gemini', model: 'gemini-2.5-flash', fallback: false },
-          { provider: 'ollama', model: 'hermes3:8b', fallback: !hasMedia }
+          { provider: 'ollama', model: ollamaModel, fallback: false },
+          ...(hasGemini ? [{ provider: 'gemini', model: geminiModel, fallback: true }] : [])
         ],
         hasMedia,
         heavy,
+        capability: normalizedCapability,
+        strategy: 'local_first',
+        forcedProvider: 'ollama',
+        provider: 'ollama',
+        label: this._localRouteLabel(ollamaModel)
+      };
+    }
+
+    if (hasGemini) {
+      return {
+        candidates: [
+          { provider: 'gemini', model: geminiModel, fallback: false },
+          { provider: 'ollama', model: ollamaModel, fallback: !hasMedia }
+        ],
+        hasMedia,
+        heavy,
+        capability: normalizedCapability,
         strategy: 'cloud_first',
         forcedProvider: null,
         provider: 'gemini',
@@ -113,9 +186,10 @@ export class ModelRoutingService {
     }
 
     return {
-      candidates: [{ provider: 'ollama', model: 'hermes3:8b', fallback: false }],
+      candidates: [{ provider: 'ollama', model: ollamaModel, fallback: false }],
       hasMedia,
       heavy,
+      capability: normalizedCapability,
       strategy: 'local_first',
       forcedProvider: 'ollama',
       provider: 'ollama',
@@ -172,13 +246,53 @@ export class ModelRoutingService {
           console.error(`[ModelRoutingService] Gemini Multimodal failed: ${err.message}`);
           throw new Error(`MULTIMODAL_ERROR: Gagal memproses gambar/media dengan Gemini Vision: ${err.message}`);
         }
+        if (route.strictCapability) {
+          throw new Error(`VISUAL_PROVIDER_ERROR: Gemini tidak dapat menyelesaikan capability ${route.capability}: ${err.message}`);
+        }
 
         console.warn(`[ModelRoutingService] Gemini Cloud failed (${err.message}). Engaging Ollama Local failover...`);
         // Fall through to Ollama fallback below
       }
     }
 
-    // 2. FALLBACK / LOCAL ROUTE: OLLAMA
+    // 2. TIER 2 FAILOVER: GROQ CLOUD ULTRA-FAST
+    // Fires when Gemini is unavailable/quota-exhausted. <0.8s TTFB, zero local load.
+    if (groqProviderInstance.isConfigured()) {
+      const groqReady = await groqProviderInstance.isAvailable();
+      if (groqReady) {
+        try {
+          const groqModel = groqProviderInstance._resolveModel(model);
+          console.log(`[ModelRoutingService] Engaging Groq Cloud Tier-2 failover... model=${groqModel}`);
+          const raw = await groqProviderInstance.sendChat(
+            { messages, stream, model, temperature },
+            safeOnChunk
+          );
+
+          const responseId = `groq-${Date.now()}`;
+          return {
+            content: raw,
+            model,
+            actualModel: groqModel,
+            providerGateway: 'GROQ',
+            transport: 'GROQ_CLOUD',
+            transportClass: 'CLOUD_GROQ',
+            upstreamEndpoint: `${groqProviderInstance.baseUrl}/chat/completions`,
+            localResponseId: responseId,
+            responseId,
+            routedTo: 'groq',
+            fallbackUsed: true,
+            routePlan: route
+          };
+        } catch (groqErr) {
+          if (stream && emitted) throw groqErr;
+          console.warn(`[ModelRoutingService] Groq Cloud Tier-2 failed (${groqErr.message}). Engaging Ollama Local Tier-3...`);
+        }
+      } else {
+        console.warn('[ModelRoutingService] Groq is configured but unreachable. Skipping to Tier-3 Ollama.');
+      }
+    }
+
+    // 3. TIER 3 FALLBACK: OLLAMA LOCAL (pre-flight checked)
     const ollamaAvailable = await ollamaProviderInstance.isAvailable();
     if (!ollamaAvailable) {
       const err = new Error('AI_PROVIDERS_UNAVAILABLE: Gemini Cloud dan Ollama lokal (:11434) tidak dapat dihubungi.');
@@ -224,20 +338,40 @@ export class ModelRoutingService {
   async status() {
     const local = await ollamaProviderInstance.healthCheck();
     const geminiAvailable = await geminiProviderInstance.isAvailable();
-    const isCloudFirst = geminiProviderInstance.isConfigured();
+    const hasGemini = geminiProviderInstance.isConfigured();
+    const hasGroq = groqProviderInstance.isConfigured();
+    const groqAvailable = hasGroq ? await groqProviderInstance.isAvailable() : false;
+    const isLocalPreferred =
+      process.env.ROUTER_FORCE_LOCAL === 'true' ||
+      process.env.ROUTE_PROVIDER === 'ollama' ||
+      process.env.ROUTE_STRATEGY === 'local_first';
+
+    const isCloudFirst = hasGemini && !isLocalPreferred;
 
     return {
       strategy: isCloudFirst ? 'cloud_first' : 'local_first',
       primaryProvider: isCloudFirst ? 'gemini' : 'ollama',
       cloudLLM: {
         provider: 'gemini',
-        configured: geminiProviderInstance.isConfigured(),
+        configured: hasGemini,
         available: geminiAvailable,
         model: geminiProviderInstance.defaultModel
       },
+      groqLLM: {
+        provider: 'groq',
+        configured: hasGroq,
+        available: groqAvailable,
+        model: groqProviderInstance.defaultModel,
+        role: 'tier2_failover'
+      },
       localLLM: local,
-      mode: isCloudFirst ? 'HYBRID_CLOUD_PRIMARY' : 'LOCAL_OLLAMA',
-      providerGateway: isCloudFirst ? 'GEMINI' : 'OLLAMA'
+      mode: isCloudFirst ? 'HYBRID_CLOUD_PRIMARY' : this._localRouteLabel(local.model),
+      providerGateway: isCloudFirst ? 'GEMINI' : 'OLLAMA',
+      routingTiers: [
+        { tier: 1, provider: 'gemini', status: geminiAvailable ? 'READY' : 'UNAVAILABLE' },
+        { tier: 2, provider: 'groq', status: groqAvailable ? 'READY' : (hasGroq ? 'UNREACHABLE' : 'NOT_CONFIGURED') },
+        { tier: 3, provider: 'ollama', status: local.status }
+      ]
     };
   }
 }

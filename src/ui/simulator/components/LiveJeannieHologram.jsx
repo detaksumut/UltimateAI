@@ -3,7 +3,6 @@ import React from 'react';
 /**
  * LiveJeannieHologram.jsx
  * High-definition Translucent Cyber-Hologram Vector Character for JINNY.
- * Inspired by Barbara Eden's iconic 1970s "I Dream of Jeannie":
  * - Signature high topknot ponytail with flowing locks
  * - Translucent cyber harem vestment with tiara & veil
  * - Dynamic crossed-arms articulation (melipat tangan di dada)

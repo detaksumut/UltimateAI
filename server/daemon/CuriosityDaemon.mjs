@@ -148,6 +148,9 @@ export const INTELLIGENCE_CLUSTERS = {
 };
 
 export class CuriosityDaemon {
+  // Bounded autonomy: maximum cognitive harvests per daemon session
+  static MAX_HARVESTS_PER_SESSION = 10;
+
   constructor() {
     this.isActive = false;
     this.timer = null;
@@ -155,6 +158,7 @@ export class CuriosityDaemon {
     this.lastRunDate = {}; // wave -> 'YYYY-MM-DD'
     this.history = [];
     this.currentlyCrawling = null;
+    this.sessionHarvestCount = 0;  // A8: bounded autonomy counter
     this._loadPersistedHistory();
   }
 
@@ -179,6 +183,35 @@ export class CuriosityDaemon {
           status: item.status
         }));
       }
+    } catch (_) {}
+
+    // A9: Restore lastRunDate from persisted daemon state so we know which waves
+    // already ran today, even after a restart.
+    try {
+      const stateFile = path.join(process.cwd(), 'storage', 'vault', 'daemon_state.json');
+      if (fs.existsSync(stateFile)) {
+        const raw = fs.readFileSync(stateFile, 'utf-8');
+        const saved = JSON.parse(raw || '{}');
+        if (saved.lastRunDate && typeof saved.lastRunDate === 'object') {
+          this.lastRunDate = saved.lastRunDate;
+        }
+      }
+    } catch (_) {}
+  }
+
+  /**
+   * A9: Persist lastRunDate to disk so it survives daemon restart.
+   */
+  _persistRunDate() {
+    try {
+      const stateFile = path.join(process.cwd(), 'storage', 'vault', 'daemon_state.json');
+      const vaultDir = path.dirname(stateFile);
+      if (!fs.existsSync(vaultDir)) fs.mkdirSync(vaultDir, { recursive: true });
+      fs.writeFileSync(stateFile, JSON.stringify({
+        lastRunDate: this.lastRunDate,
+        lastRunWave: this.lastRunWave,
+        updatedAt: new Date().toISOString()
+      }, null, 2), 'utf-8');
     } catch (_) {}
   }
 
@@ -228,6 +261,7 @@ export class CuriosityDaemon {
         console.log(`[CuriosityDaemon] Gelombang Terjadwal WIB: ${hour}:00 WIB terdeteksi! Memulai siklus panen otonom...`);
         this.lastRunDate[hour] = dateStr;
         this.lastRunWave = hour;
+        this._persistRunDate(); // A9: persist so recovery after restart knows
         await this.runWave(hour);
       }
     }
@@ -255,11 +289,17 @@ export class CuriosityDaemon {
       throw new Error(`KLASTER_TIDAK_DIKENAL: Kode klaster '${clusterCode}' tidak terdaftar.`);
     }
 
+    // A8: Bounded autonomy — respect session harvest budget
+    if (this.sessionHarvestCount >= CuriosityDaemon.MAX_HARVESTS_PER_SESSION) {
+      throw new Error(`AUTONOMY_BUDGET_EXCEEDED: Session harvest limit (${CuriosityDaemon.MAX_HARVESTS_PER_SESSION}) reached. Daemon will not exceed bounded autonomy.`);
+    }
+
     if (this.currentlyCrawling) {
       throw new Error(`DAEMON_BUSY: Sistem sedang memproses klaster '${this.currentlyCrawling}'. Harap tunggu.`);
     }
 
     this.currentlyCrawling = clusterCode;
+    this.sessionHarvestCount++;
     const startTime = Date.now();
     console.log(`\n======================================================`);
     console.log(`[CuriosityDaemon] 🧠 MEMULAI DEEP HARVEST: [${clusterCode}] ${cluster.name}`);
@@ -441,6 +481,17 @@ Gunakan Bahasa Indonesia profesional, presisi, dan padat pengetahuan.`;
         });
       } catch (_) {}
 
+      const formattedSources = rawResults.map(r => {
+        let domain = 'web';
+        try { domain = new URL(r.url).hostname.replace(/^www\./, ''); } catch (_) {}
+        return {
+          title: r.title || cluster.name,
+          url: r.url,
+          domain,
+          score: Math.round((r.score || 0.85) * 100) / 100
+        };
+      });
+
       // 8. Record in Learned Knowledge Repository (storage/vault/learned_knowledge.json)
       try {
         const vaultDir = path.join(process.cwd(), 'storage', 'vault');
@@ -451,17 +502,6 @@ Gunakan Bahasa Indonesia profesional, presisi, dan padat pengetahuan.`;
         if (fs.existsSync(vaultFile)) {
           try { knowledgeList = JSON.parse(fs.readFileSync(vaultFile, 'utf-8') || '[]'); } catch (_) {}
         }
-
-        const formattedSources = rawResults.map(r => {
-          let domain = 'web';
-          try { domain = new URL(r.url).hostname.replace(/^www\./, ''); } catch (_) {}
-          return {
-            title: r.title || cluster.name,
-            url: r.url,
-            domain,
-            score: Math.round((r.score || 0.85) * 100) / 100
-          };
-        });
 
         const newKnowledgeItem = {
           knowledgeId: `knw_${clusterCode}_${Date.now()}`,

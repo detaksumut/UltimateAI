@@ -11,13 +11,14 @@ import { voiceControllerInstance } from '../voice/VoiceController.js';
 import { displaySpeechSeparationEngineInstance } from '../voice/DisplaySpeechSeparationEngine.js';
 import { jinAvatarControllerInstance } from '../avatar/JinAvatarController.js';
 import { AVATAR_EVENTS } from '../avatar/JinAvatarStates.js';
-
 export class ConversationController {
   constructor() {
     this.messages = [];
     this.status = 'idle'; // 'idle' | 'sending' | 'streaming' | 'completed' | 'error'
     this.listeners = new Set();
     this.activeStreamingId = null;
+    this.requestSequence = 0;
+    this.activeGeneration = null;
     this.currentError = null;
 
     this.systemPrompt = `You are JIN, an autonomous, highly capable, and empathetic AI partner in UltimateAI.
@@ -64,31 +65,72 @@ LANGUAGE ADAPTATION RULE:
     }
   }
 
+  _sanitizeMessageForStorage(m, isDeepClean = false) {
+    let safeImageUrl = null;
+    if (m.imageUrl && typeof m.imageUrl === 'string') {
+      // Exclude large base64 dataUrls completely from localStorage
+      if (!m.imageUrl.startsWith('data:') || m.imageUrl.length < 2048) {
+        safeImageUrl = isDeepClean ? null : m.imageUrl;
+      }
+    }
+
+    return {
+      id: m.id,
+      role: m.role,
+      content: typeof m.content === 'string' && isDeepClean ? m.content.slice(0, 4000) : m.content,
+      timestamp: m.timestamp,
+      error: Boolean(m.error),
+      imageUrl: safeImageUrl,
+      artifactType: m.artifactType || null,
+      presentation: isDeepClean ? null : (m.presentation || null),
+      visualIntent: isDeepClean ? null : (m.visualIntent || null),
+      musicPlayer: isDeepClean ? null : (m.musicPlayer || null),
+      files: Array.isArray(m.files)
+        ? m.files.map(f => ({
+            id: f.id,
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            isImage: f.isImage,
+            dataUrl: null // Never store raw dataUrl into localStorage
+          }))
+        : undefined
+    };
+  }
+
   _saveHistory() {
-    try {
-      // Save last 20 messages (excluding heavy base64 dataUrl from localStorage)
-      const toSave = this.messages.slice(-20).map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        timestamp: m.timestamp,
-        error: Boolean(m.error),
-        imageUrl: m.imageUrl || null,
-        musicPlayer: m.musicPlayer || null,
-        files: Array.isArray(m.files)
-          ? m.files.map(f => ({
-              id: f.id,
-              name: f.name,
-              size: f.size,
-              type: f.type,
-              isImage: f.isImage,
-              dataUrl: f.isImage && f.dataUrl && f.dataUrl.length < 50000 ? f.dataUrl : null
-            }))
-          : undefined
-      }));
-      localStorage.setItem('jin_ticker_history', JSON.stringify(toSave));
-    } catch (saveErr) {
-      console.warn('[ConversationController] localStorage save warning:', saveErr);
+    // Progressive save with graceful eviction on QuotaExceededError
+    const sliceCounts = [20, 10, 5, 2];
+
+    for (let attempt = 0; attempt < sliceCounts.length; attempt++) {
+      const count = sliceCounts[attempt];
+      const isDeepClean = attempt > 0;
+      const slice = this.messages.slice(-count);
+
+      try {
+        const toSave = slice.map(m => this._sanitizeMessageForStorage(m, isDeepClean));
+        localStorage.setItem('jin_ticker_history', JSON.stringify(toSave));
+        return; // Successfully saved
+      } catch (saveErr) {
+        if (attempt === 0) {
+          console.warn(`[ConversationController] localStorage quota exceeded. Evicting older messages (trying last ${sliceCounts[attempt + 1] || 1})...`);
+        }
+        // If last slice count also failed, perform emergency cleanup
+        if (attempt === sliceCounts.length - 1) {
+          try {
+            localStorage.removeItem('jin_ticker_history');
+            const emergencySave = this.messages.slice(-1).map(m => ({
+              id: m.id,
+              role: m.role,
+              content: typeof m.content === 'string' ? m.content.slice(0, 500) : '',
+              timestamp: m.timestamp
+            }));
+            localStorage.setItem('jin_ticker_history', JSON.stringify(emergencySave));
+          } catch (fatalErr) {
+            console.warn('[ConversationController] localStorage unrecoverable quota error, skipped history cache:', fatalErr?.message || fatalErr);
+          }
+        }
+      }
     }
   }
 
@@ -154,6 +196,17 @@ LANGUAGE ADAPTATION RULE:
 
     const userMessageId = `user_${Date.now()}`;
     const assistantMessageId = `jin_${Date.now() + 1}`;
+    const generationId = `gen_${Date.now()}_${++this.requestSequence}`;
+    if (this.activeGeneration?.controller && !this.activeGeneration.committed) {
+      this.activeGeneration.controller.abort();
+    }
+    const generationController = new AbortController();
+    this.activeGeneration = {
+      generationId,
+      assistantMessageId,
+      controller: generationController,
+      committed: false
+    };
 
     const mediaFiles = attachedFiles.filter(f => f.dataUrl) || [];
 
@@ -180,7 +233,8 @@ LANGUAGE ADAPTATION RULE:
       role: 'assistant',
       content: '',
       timestamp: Date.now() + 1,
-      isStreaming: true
+      isStreaming: true,
+      generationId
     };
 
     // Append to in-memory state
@@ -611,7 +665,23 @@ LANGUAGE ADAPTATION RULE:
       this._notify();
     };
 
-    const handleComplete = (fullText) => {
+    const handleComplete = (fullText, agentMetadata) => {
+      if (this.activeGeneration?.generationId !== generationId) return;
+      if (agentMetadata?.generationId && agentMetadata.generationId !== generationId) return;
+      if (this.activeGeneration) this.activeGeneration.committed = true;
+      // Resolve agent-delivered image artifact URL so the generated image
+      // renders directly in the conversation canvas (no separate "studio").
+      if (agentMetadata?.imageUrl) {
+        const rawUrl = String(agentMetadata.imageUrl).trim();
+        const base = String(localRouterClient.endpoint || 'http://127.0.0.1:20200').replace(/\/+$/, '');
+        assistantMessage.imageUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `${base}${rawUrl}`;
+      }
+      assistantMessage.artifactType = agentMetadata?.artifactType || (assistantMessage.imageUrl ? 'IMAGE' : null);
+      assistantMessage.presentation = agentMetadata?.presentation || null;
+      assistantMessage.visualIntent = agentMetadata?.visualIntent || null;
+      assistantMessage.generationId = agentMetadata?.generationId || generationId;
+      assistantMessage.messageId = agentMetadata?.messageId || userMessageId;
+
       this.status = 'completed';
       assistantMessage.content = fullText;
       assistantMessage.isStreaming = false;
@@ -670,6 +740,8 @@ LANGUAGE ADAPTATION RULE:
     };
 
     const handleError = (err) => {
+      if (this.activeGeneration?.generationId !== generationId) return;
+      if (generationController.signal.aborted) return;
       this.status = 'error';
       this.currentError = err.message;
       assistantMessage.isStreaming = false;
@@ -699,13 +771,14 @@ LANGUAGE ADAPTATION RULE:
       }, 4000);
     };
 
-    // Helper: Direct High-Speed Gemini 3.6 Flash Streaming
+    // Helper: Direct High-Speed Gemini 2.5 Flash Streaming
     const tryGeminiDirect = async () => {
       const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
       if (!apiKey) {
-        throw new Error('VITE_GEMINI_API_KEY is not configured');
+        throw new Error('GEMINI_API_KEY is not configured');
       }
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
+      // Use X-goog-api-key header (required for AQ.Ab8RN6... token format)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
 
       const contents = [];
       let systemInstruction = null;
@@ -750,7 +823,10 @@ LANGUAGE ADAPTATION RULE:
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           contents,
           systemInstruction,
@@ -816,12 +892,24 @@ LANGUAGE ADAPTATION RULE:
         {
           messages: payloadMessages,
           model: 'auto',
-          temperature: 0.7
+          temperature: 0.7,
+          signal: generationController.signal,
+          generationId,
+          messageId: userMessageId
         },
         {
-          onDelta: handleDelta,
-          onComplete: handleComplete,
+          onDelta: (delta, fullText) => {
+            if (this.activeGeneration?.generationId === generationId) handleDelta(delta, fullText);
+          },
+          onComplete: (fullText, metadata) => {
+            if (this.activeGeneration?.generationId !== generationId) return;
+            this.activeGeneration.committed = true;
+            if (metadata?.generationId && metadata.generationId !== generationId) return;
+            handleComplete(fullText, metadata);
+          },
           onError: async (err) => {
+            if (this.activeGeneration?.generationId !== generationId) return;
+            if (generationController.signal.aborted) return;
             console.warn('[ConversationController] LocalRouter error, engaging instant Gemini Cloud failover...', err.message);
             try {
               await tryGeminiDirect();
@@ -842,4 +930,3 @@ LANGUAGE ADAPTATION RULE:
 
 export const conversationControllerInstance = new ConversationController();
 export default conversationControllerInstance;
-

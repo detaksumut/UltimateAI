@@ -32,42 +32,7 @@ export class SemanticIntentEngine {
 
     const raw = input.trim();
 
-    // 0. FAST-PATH: Deterministic classifiers run FIRST (in priority order).
-    //    Casual chat → Device inspection → Task classifier → LLM → Offline fallback.
-
-    // 0a. CASUAL CHAT — greetings, thanks, identity questions (no action needed)
-    const casualDecision = this._deterministicCasualChatClassifier(raw);
-    if (casualDecision) {
-      return this._injectScope(raw, casualDecision);
-    }
-
-    // 0b. DEVICE INSPECTION — local device queries
-    const deviceDecision = this._deviceInspectionDecision(raw, context, options);
-    if (deviceDecision) {
-      return this._injectScope(raw, deviceDecision);
-    }
-
-    // 0b2. IMAGE GENERATION — dedicated intent before generic task classifier
-    const imageDecision = this._imageGenerationClassifier(raw, context.constraints || []);
-    if (imageDecision) {
-      return this._injectScope(raw, imageDecision);
-    }
-
-    // 0b3. MARKET DATA — HIGHEST-PRIORITY market override before generic task classifier.
-    //      Market instrument + threshold-intent must NEVER route to generic web.search / YouTube.
-    //      Explicit news/video requests are deliberately NOT captured here.
-    const marketDecision = classifyMarketIntent(raw);
-    if (marketDecision && marketDecision.captured) {
-      return this._injectScope(raw, marketDecision);
-    }
-
-    // 0c. TASK CLASSIFIER — action-requiring tasks (doc, code, data, multi-step, research, external)
-    const deterministicDecision = this._deterministicTaskClassifier(raw, context.constraints || []);
-    if (deterministicDecision) {
-      return this._injectScope(raw, deterministicDecision);
-    }
-
-    const model = options.forcedModel || 'hermes3:8b';
+    const model = options.forcedModel || 'qwen3:8b';
     const transport = options.certificationTransport || 'LOCAL_ROUTER_PROXY';
 
     // Build rich contextual prompt for the LLM
@@ -77,7 +42,7 @@ export class SemanticIntentEngine {
     // 1. PRIMARY: HTTP Local Router Proxy Dispatch
     if (transport === 'LOCAL_ROUTER_PROXY') {
       try {
-        const headers = { 'Content-Type': 'application/json' };
+        const headers = { 'Content-Type': 'application/json', 'x-jin-agent': 'semantic_intent' };
         if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
 
         const response = await fetch(`${this.proxyUrl}/chat/completions`, {
@@ -90,7 +55,8 @@ export class SemanticIntentEngine {
               { role: 'user', content: userMessage }
             ],
             temperature: 0.1,
-            response_format: { type: 'json_object' }
+            response_format: { type: 'json_object' },
+            skipIntentGate: true
           }),
           signal: AbortSignal.timeout(60000)
         });
@@ -195,6 +161,20 @@ export class SemanticIntentEngine {
     return `You are the Autonomous Cognitive Intent & Planning Engine for JIN.
 Your role is to deeply analyze user utterances in the context of the ongoing conversation history.
 
+AUTONOMY RULES (MANDATORY):
+- NEVER ask for clarification. NEVER use CLARIFICATION_REQUEST intent.
+- When intent is unclear, EXECUTE the most reasonable interpretation.
+- When user asks to create something, DO IT immediately without questions.
+- When multiple tasks are requested, ORCHESTRATE them sequentially.
+- ALWAYS set needsClarification=false and clarificationQuestion=null.
+- UNDERSTAND THE USER'S REAL CONTEXT from the goal text itself, not just fixed patterns.
+
+ROUTING INTENTS (use when applicable):
+- IMAGE_GENERATION: every request to create/generate an image, including any 3D render or 3D object, uses only toolsNeeded=["image.generate"]. actionRequired=true.
+- A 3D request is a normal visual image request. Never classify it as architecture, never create plans/elevations/models, and never invoke a dedicated 3D script.
+- RESEARCH_TASK: deep research, investigation, study, or comparing sources → toolsNeeded=["web.search"]. freshDataRequired=true.
+- EXTERNAL_DATA: real-time or internet-dependent facts (weather, prices, news, current info) → toolsNeeded=["web.search"]. freshDataRequired=true.
+
 Rules:
 1. Reason about the USER'S TRUE GOAL, context, constraints, and implicit references.
 2. Resolve COREFERENCES dynamically ("itu", "yang tadi", "yang kedua", "di situs itu", "dokumen yang barusan").
@@ -209,10 +189,13 @@ Rules:
    - doc.analyze: Document analysis.
    - memory.vault: Storing or querying persistent facts.
    - device.inspect: Local machine inspection (RAM, CPU, disk, processes, UltimateAI runtime). Purely read-only. Use when the user asks about their local computer ("kondisi komputer", "cek penggunaan RAM", "proses paling banyak pakai memory", "kondisi UltimateAI", "cek storage", "apa yang membuat komputer berat"). Output must include a "scope" field: "overview" | "memory" | "process" | "storage" | "runtime" | "diagnosis".
+7. For IMAGE_GENERATION, produce a visualIntent object from the user's meaning, not keyword substitution:
+   {"mode":"GENERIC_IMAGE|SLIDE_VISUAL|ARCHITECTURAL_VISUAL","subject":"canonical subject","action":"requested action","environment":"requested setting","style":"requested style or realistic","composition":"requested composition","aspectRatio":"1:1|16:9|9:16","negativeConstraints":["incompatible subjects"],"providerPrompt":"complete faithful image prompt"}
+   The providerPrompt must explicitly identify the requested subject, preserve requested details, and never invent a person, character, wings, vehicle, or template.
 
 Output STRICT valid JSON:
 {
-  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|CLARIFICATION_REQUEST>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|RESEARCH_TASK|EXTERNAL_DATA>",
   "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
   "actionRequired": <boolean>,
@@ -224,8 +207,19 @@ Output STRICT valid JSON:
   "freshDataRequired": <boolean>,
   "toolsNeeded": ["<tool_id>"],
   "toolReason": "<rationale for tool choice or omission>",
-  "needsClarification": <boolean>,
-  "clarificationQuestion": "<question if clarification needed>",
+  "visualIntent": {
+    "mode": "<GENERIC_IMAGE|SLIDE_VISUAL|ARCHITECTURAL_VISUAL|null>",
+    "subject": "<canonical subject|null>",
+    "action": "<requested action|null>",
+    "environment": "<requested setting|null>",
+    "style": "<style|null>",
+    "composition": "<composition|null>",
+    "aspectRatio": "<1:1|16:9|9:16|null>",
+    "negativeConstraints": ["<incompatible subject or detail>"],
+    "providerPrompt": "<complete faithful provider prompt|null>"
+  },
+  "needsClarification": false,
+  "clarificationQuestion": null,
   "confidence": <0.0 to 1.0>,
   "reason": "<brief cognitive chain>"
 }`;
@@ -272,6 +266,21 @@ Analyze contextually and output strict JSON.`;
    * Resolves coreferences, negative constraints, URL inspections, and task controls.
    */
   _offlineContextualReasoning(raw, context, options) {
+    // These classifiers are an outage fallback only. The normal path above
+    // always asks the LLM to interpret the complete request and its context.
+    const fallbackDecision =
+      this._deterministicCasualChatClassifier(raw) ||
+      this._deviceInspectionDecision(raw, context, options) ||
+      this._imageGenerationClassifier(raw, context.constraints || []) ||
+      this._deterministicTaskClassifier(raw, context.constraints || []);
+    if (fallbackDecision) {
+      return {
+        ...fallbackDecision,
+        interpretationSource: 'OFFLINE_FALLBACK_CLASSIFIER',
+        fallbackUsed: true
+      };
+    }
+
     const rawLower = raw.toLowerCase();
     const history = context.recentTurns || [];
     const activeConstraints = [...(context.constraints || [])];
@@ -472,14 +481,14 @@ Analyze contextually and output strict JSON.`;
     // Identity questions — "siapa kamu?", "kamu siapa?"
     const identityPattern = /^(siapa\s+kamu|kamu\s+siapa|apa\s+nama\s+kamu|siapa\s+nama\s+anda|who\s+are\s+you|what('?s|\s+is)\s+your\s+name)\s*[?!.]?\s*$/i;
 
-    // Simple "apa kabar" and variants
-    const wellbeingPattern = /^(apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja\s*\??|kabar\s+(baik|gimana|apa))\s*[?!.]?\s*$/i;
+    // Simple "apa kabar" and variants (with optional "hari ini" / "today")
+    const wellbeingPattern = /^(?:apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja|kabar\s+(?:baik|gimana|apa))(?:\s+(?:hari\s+ini|today))?\s*[?!.]?\s*$/i;
 
     // Greeting + optional JIN/AI handle — "Halo JIN", "Hai JIN!"
     const greetingNamePattern = /^(halo|hai|hi|hey|hello|horas|selamat\s+(pagi|siang|sore|malam)|good\s+(morning|afternoon|evening)|assalamualaikum|salam)[\s,*]*(jin|ai|eja|ultimate[\s-]*ai)?[\s,*]*[!!.]?\s*$/i;
 
-    // Greeting + optional handle + wellbeing — "Halo JIN, apa kabar?", "Hai, how are you?"
-    const greetingWellbeingPattern = /^(?:halo|hai|hi|hey|hello|horas|selamat\s+(?:pagi|siang|sore|malam)|good\s+(?:morning|afternoon|evening|day)|assalamualaikum|salam)[\s,]*(jin|ai|eja)?[\s,]+(apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja)\s*[?!.]?\s*$/i;
+    // Greeting + optional handle + wellbeing — "Halo JIN, apa kabar hari ini?", "Hai, how are you today?"
+    const greetingWellbeingPattern = /^(?:halo|hai|hi|hey|hello|horas|selamat\s+(?:pagi|siang|sore|malam)|good\s+(?:morning|afternoon|evening|day)|assalamualaikum|salam)[\s,]*(?:jin|ai|eja)?[\s,]+(?:apa\s+kabar|how\s+are\s+you|bagaimana\s+kabar|kamu\s+baik\s+saja)(?:\s+(?:hari\s+ini|today))?\s*[?!.]?\s*$/i;
 
     // Simple "tidak apa-apa" / "sama-sama" responses
     const acknowledgmentPattern = /^(tidak\s+apa[\s\-]?apa|sama[\s\-]?sama|oke|ok|siap|baik|noted|understood|akan\s+ku\.?\s*ingat)\s*[!!.]?\s*$/i;

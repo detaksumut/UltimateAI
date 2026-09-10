@@ -127,7 +127,7 @@ export class JINResponseEngine {
    */
   async synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options = {}) {
     const raw = userUtterance.trim();
-    const model = options.forcedModel || process.env.OLLAMA_MODEL || 'hermes3:8b';
+    const model = options.forcedModel || process.env.OLLAMA_MODEL || 'qwen3:8b';
 
     // Unknown-First detection: If query asks for non-existent specific private data or unverified claims without context
     const asksUnknown = /apakah kamu tahu password|apa kunci rahasia saya|berkas pribadi yang tidak ada|fakta fiktif 9999/i.test(raw);
@@ -153,11 +153,11 @@ LANGUAGE ADAPTATION RULE:
 - If the user speaks in Indonesian, respond naturally in Indonesian.
 CORE GROUNDING RULES:
 1. CONTEXTUAL CONTINUITY: Selalu berpijak pada konteks dan topik pembicaraan saat ini. Jangan melompat tanpa relevansi.
-2. CLARIFICATION WHEN AMBIGUOUS: Jika maksud pengguna kurang jelas atau ambigu, mintalah klarifikasi atau penjelasan lebih lanjut secara santun daripada menebak-nebak sepihak.
+2. AUTONOMOUS EXECUTION: NEVER ask for clarification. NEVER say "I don't understand" or "can you clarify?". ALWAYS execute the most reasonable interpretation of the user's request. If ambiguous, choose the most likely intent and DO IT.
 3. MINIMUM SUFFICIENT RESPONSE: For simple requests or greetings, answer directly, warmly, and concisely without lecturing the user about internal architectures.
 4. NO INVENTED SUBSYSTEM NAMES: Never invent names like "Audio Ingestion Pipeline", "SpeechSense Pro", "Cognitive Matrix", "Ultimate Analysis Core", etc.
 5. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
-4. NEWS/BERITA: When asked about news, berita, or current events — respond with ONLY title and URL, one per line. NO HTML, NO markdown links, NO target="_blank". Just plain text:
+6. NEWS/BERITA: When asked about news, berita, or current events — respond with ONLY title and URL, one per line. NO HTML, NO markdown links, NO target="_blank". Just plain text:
 Judul Berita
 https://example.com/article
 Judul Berita 2
@@ -168,7 +168,10 @@ ${getCapabilityPromptContext()}`;
     try {
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-jin-agent': 'response_engine'
+        },
         body: JSON.stringify({
           model,
           messages: [
@@ -176,7 +179,8 @@ ${getCapabilityPromptContext()}`;
             ...(conversationContext.recentTurns || []).slice(-6),
             { role: 'user', content: raw }
           ],
-          temperature: 0.2
+          temperature: 0.2,
+          skipIntentGate: true
         }),
         signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10))
       });
@@ -235,8 +239,8 @@ ${getCapabilityPromptContext()}`;
     if (hasArtifact && isRenderable) {
       const prompt = artifact.originalPrompt || artifact.prompt || userUtterance;
       return {
-        naturalVoiceSpeech: `Visual telah berhasil dibuat dan tampil di Image Studio.`,
-        detailedTextDisplay: `Visual "${prompt}" telah berhasil dibuat dan tampil di Image Studio. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`,
+        naturalVoiceSpeech: `Visual telah berhasil dibuat.`,
+        detailedTextDisplay: `Visual "${prompt}" telah berhasil dibuat. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`,
         responseMode: 'IMAGE_GENERATION_SUCCESS',
         responseSource: 'IMAGE_GENERATION_ENGINE',
         sourceType: 'IMAGE_ARTIFACT',

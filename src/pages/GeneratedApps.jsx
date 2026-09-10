@@ -4,7 +4,7 @@ import { get } from '../services/apiClient';
 import { useNavigate } from 'react-router-dom';
 import {
   Monitor, FileText, Settings, LayoutTemplate, MessageSquare,
-  Download, Eye, Rocket, CheckCircle2, AlertCircle, Loader2,
+  Download, Rocket, CheckCircle2, AlertCircle, Loader2,
   Moon, Sun, FolderOpen
 } from 'lucide-react';
 
@@ -12,7 +12,6 @@ function GeneratedApps() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedApp, setSelectedApp] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const navigate = useNavigate();
 
@@ -34,8 +33,6 @@ function GeneratedApps() {
     };
     fetchApps();
   }, []);
-
-  const viewBlueprint = (app) => setSelectedApp(app);
 
   const downloadProject = (app) => {
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -180,12 +177,6 @@ function GeneratedApps() {
 
                     <div className="flex gap-3 shrink-0">
                       <button
-                        onClick={() => viewBlueprint(app)}
-                        className="flex items-center gap-2 bg-[#182133] hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                      >
-                        <Eye className="w-4 h-4" /> View Blueprint
-                      </button>
-                      <button
                         onClick={() => downloadProject(app)}
                         className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-emerald-900/20"
                       >
@@ -199,26 +190,6 @@ function GeneratedApps() {
           </div>
         )}
 
-        {/* Blueprint Modal */}
-        {selectedApp && (
-          <div
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedApp(null)}
-          >
-            <div
-              className="bg-[#111827] border border-white/10 rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Application Blueprint</h3>
-                <button onClick={() => setSelectedApp(null)} className="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
-              </div>
-              <pre className="text-xs text-slate-300 bg-[#0f1523] border border-slate-800 rounded-xl p-4 overflow-auto max-h-[55vh] font-mono whitespace-pre-wrap">
-                {JSON.stringify(selectedApp.applicationBlueprint || selectedApp, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

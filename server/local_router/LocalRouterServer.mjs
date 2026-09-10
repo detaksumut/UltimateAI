@@ -83,7 +83,9 @@ export function createLocalRouterServer() {
         gateway: 'ONLINE',
         mode: routerStatus.mode,
         provider: routerStatus.primaryProvider,
-        model: routerStatus.cloudLLM?.configured ? routerStatus.cloudLLM.model : (process.env.OLLAMA_MODEL || 'hermes3:8b'),
+        model: routerStatus.primaryProvider === 'ollama'
+          ? (process.env.OLLAMA_MODEL || 'qwen3:8b')
+          : (routerStatus.cloudLLM?.model || process.env.GEMINI_MODEL || 'gemini-3.6-flash'),
         routerPort: PORT,
         ollamaPort: 11434,
         router: 'UltimateAI Local Router',
@@ -120,7 +122,7 @@ export function createLocalRouterServer() {
     // 10. GET /api/models (locally available Ollama models)
     if (pathname === '/api/models' && req.method === 'GET') {
       const localModels = await ollamaProviderInstance.listLocalModels();
-      const modelNames = localModels.length > 0 ? localModels : ['hermes3:8b', 'qwen3:8b'];
+      const modelNames = localModels.length > 0 ? localModels : ['qwen3:8b'];
       const data = modelNames.map(id => ({
         id,
         object: 'model',
@@ -168,7 +170,11 @@ export function createLocalRouterServer() {
           const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
           const payload = JSON.parse(body || '{}');
           goal = payload.goal || payload.prompt || '';
-          const summary = await agentRuntimeInstance.runGoal(goal, payload.context || {}, payload.options || {});
+          const summary = await agentRuntimeInstance.runGoal(goal, payload.context || {}, {
+            ...(payload.options || {}),
+            generationId: payload.generationId || payload.options?.generationId,
+            messageId: payload.messageId || payload.options?.messageId
+          });
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(summary, null, 2));
         } catch (err) {
@@ -188,6 +194,65 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 10C2. POST /api/agent/stream-work — SSE streaming for professional work execution
+    if ((pathname === '/api/agent/stream-work' || pathname === '/v1/agent/stream-work') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        let goal = '';
+        let isEnded = false;
+
+        const sendEvent = (type, data) => {
+          if (isEnded || res.writableEnded) return;
+          try {
+            res.write(`data: ${JSON.stringify({ type, data })}\n\n`);
+          } catch (e) {
+            console.warn('[LocalRouter /api/agent/stream-work] Failed to write SSE:', e.message);
+          }
+        };
+
+        const safeEnd = () => {
+          if (isEnded || res.writableEnded) return;
+          isEnded = true;
+          try { res.end(); } catch (_) {}
+        };
+
+        req.on('close', () => { isEnded = true; });
+
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        try {
+          const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
+          const payload = JSON.parse(body || '{}');
+          goal = payload.goal || payload.prompt || '';
+
+          sendEvent('progress', { step: 'INIT', message: 'Memulai work execution...' });
+
+          const summary = await agentRuntimeInstance.runGoal(goal, payload.context || {}, {
+            ...payload.options,
+            generationId: payload.generationId || payload.options?.generationId,
+            messageId: payload.messageId || payload.options?.messageId,
+            streamCallback: (event, data) => {
+              sendEvent(event, data);
+            }
+          });
+
+          sendEvent('result', summary);
+          sendEvent('done', { success: true });
+        } catch (err) {
+          console.error('[AGENT_RUNTIME_STREAM_ERROR]', err.message);
+          sendEvent('error', { message: err.message, code: 'AGENT_RUNTIME_ERROR' });
+        } finally {
+          safeEnd();
+        }
+      });
+      return;
+    }
+
     // 11. GET /api/quota (Local Resource & Ollama Quota State)
     if (pathname === '/api/quota' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -199,7 +264,7 @@ export function createLocalRouterServer() {
         pools: {
           local: {
             provider: 'ollama',
-            model: process.env.OLLAMA_MODEL || 'hermes3:8b',
+            model: process.env.OLLAMA_MODEL || 'qwen3:8b',
             endpoint: 'http://127.0.0.1:11434',
             status: 'UNLIMITED_LOCAL'
           }
@@ -878,6 +943,7 @@ Requirements:
         const isSearchIntent = (() => {
           if (!userPrompt || typeof userPrompt !== 'string') return false;
           const p = userPrompt.toLowerCase();
+          if (/\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you)\b/i.test(p)) return false; // Greeting guard
           if (/\b(cari|carikan|searching|search|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p)) return true;
           const hasInfoNoun = /\b(berita|kabar|info|informasi|isu|peristiwa|kejadian|agenda|update|perkembangan|harga|kurs|saham)\b/i.test(p);
           const hasTemporal = /\b(202[4-6]|terbaru|terkini|hari\s+ini|bulan\s+ini|minggu\s+ini|september\s+2026|oktober\s+2026|november\s+2026|desember\s+2026)\b/i.test(p);
@@ -954,11 +1020,222 @@ Requirements:
         }
       }
 
+      // ─────────────────────────────────────────────────────────────────────
+      // INTENT GATE — Cognitive Routing (TEST 10.1)
+      //
+      // Menggunakan HANYA fast-path deterministik dari SemanticIntentEngine:
+      //   - _deterministicCasualChatClassifier  → actionRequired: false (~0ms)
+      //   - _deterministicTaskClassifier        → actionRequired: true  (~0ms)
+      //   - _imageGenerationClassifier          → actionRequired: true  (~0ms)
+      //   - _deviceInspectionDecision           → actionRequired: true  (~0ms)
+      //
+      // CRITICAL: Tidak memanggil semanticIntentEngineInstance.interpret() penuh
+      // karena itu akan memanggil /v1/chat/completions lagi → infinite loop.
+      //
+      // Zero-regression guarantee:
+      //   - Percakapan biasa (CASUAL_CHAT) → actionRequired=false → LLM stream (no change)
+      //   - AgentRuntime gagal             → graceful fallback ke LLM stream normal
+      //   - Classifiers melempar error     → graceful fallback ke LLM stream normal
+      // ─────────────────────────────────────────────────────────────────────
+      let intentGateRouted = false;
+
+      // RECURSION GUARD: Internal reasoning calls from AgentRuntime, AgentPlanner,
+      // ReplanEngine, or SemanticIntentEngine must NEVER re-trigger Intent Gate.
+      const isInternalAgentCall = Boolean(
+        req.headers['x-jin-agent'] ||
+        req.headers['x-internal-agent'] ||
+        payload.skipIntentGate ||
+        payload._internal ||
+        (userPrompt && typeof userPrompt === 'string' && (
+          userPrompt.startsWith('USER GOAL:') ||
+          userPrompt.includes('SEMANTIC ANALYSIS:') ||
+          userPrompt.includes('Build the minimal hierarchical execution DAG plan')
+        )) ||
+        (Array.isArray(messages) && messages.some(m => typeof m?.content === 'string' && (
+          m.content.includes('hierarchical execution DAG plan') ||
+          m.content.includes('Hierarchical Execution Planner') ||
+          m.content.includes('SEMANTIC ANALYSIS:')
+        )))
+      );
+
+      if (!isInternalAgentCall && userPrompt && typeof userPrompt === 'string' && userPrompt.trim().length > 0) {
+        try {
+          const { semanticIntentEngineInstance } = await import('../agent/SemanticIntentEngine.mjs');
+          const sie = semanticIntentEngineInstance;
+
+          // LLM-first routing: the model interprets the complete utterance and context.
+          // Deterministic classifiers remain available as explicit offline fallbacks,
+          // but never decide the primary route while the LLM is available.
+          const semanticDecision = await sie.interpret(
+            userPrompt,
+            { recentTurns: messages.slice(-10), constraints: [] },
+            { certificationTransport: 'LOCAL_ROUTER_PROXY', failClosed: false }
+          );
+          const deterministicDecision = semanticDecision;
+          const actionRequired = Boolean(semanticDecision?.actionRequired);
+
+          if (actionRequired) {
+            console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → AgentRuntime`);
+
+            try {
+              const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
+
+              const agentSummary = await agentRuntimeInstance.runGoal(
+                userPrompt,
+                { recentTurns: messages.slice(-10), conversationHistory: messages },
+                {
+                  certificationTransport: 'LOCAL_ROUTER_PROXY',
+                  generationId: payload.generationId || null,
+                  messageId: payload.messageId || null
+                }
+              );
+
+              // Build response from artifacts if available
+              let responseText = '';
+              const artifacts = agentSummary.artifacts || [];
+              const canvas = agentSummary.canvas || [];
+
+              if (artifacts.length > 0) {
+                // Include actual artifact content
+                const artifactContents = artifacts.map(a => {
+                  const meta = a.metadata || {};
+                  const title = meta.phase || a.type || 'Output';
+                  return `### ${title}\n\n${a.content || ''}`;
+                });
+                responseText = artifactContents.join('\n\n---\n\n');
+              } else if (canvas.length > 0) {
+                // Include canvas items
+                responseText = canvas.map(c => c.content || '').join('\n\n');
+              } else {
+                // Fallback to responseMessage
+                responseText = (
+                  agentSummary.responseMessage ||
+                  agentSummary.detailedDisplay  ||
+                  agentSummary.summary          ||
+                  ''
+                ).trim();
+              }
+
+              if (responseText) {
+                intentGateRouted = true;
+
+                if (payload.stream) {
+                  try {
+                    // Emit as SSE stream — compatible with ConversationController.streamChat()
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive'
+                    });
+
+                    // Stream tokens progressively (no flash!)
+                    // Safety: max 30s streaming time, then force-end
+                    const streamStart = Date.now();
+                    const MAX_STREAM_MS = 30000;
+                    const tokenSize = 50;
+                    for (let i = 0; i < responseText.length; i += tokenSize) {
+                      if (res.writableEnded || res.destroyed) break;
+                      if (Date.now() - streamStart > MAX_STREAM_MS) {
+                        console.warn('[INTENT_GATE] Stream timeout — forcing end');
+                        break;
+                      }
+                      const chunk = responseText.slice(i, i + tokenSize);
+                      const sseChunk = JSON.stringify({
+                        id: 'chatcmpl-agent-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: agentSummary.provenance?.semanticModel || model,
+                        choices: [{ index: 0, delta: { content: chunk }, finish_reason: null }]
+                      });
+                      res.write(`data: ${sseChunk}\n\n`);
+                      await new Promise(r => setTimeout(r, 5));
+                    }
+
+                    // Send final chunk with agent metadata
+                    if (!res.writableEnded && !res.destroyed) {
+                      const finalChunk = JSON.stringify({
+                        id: 'chatcmpl-agent-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: agentSummary.provenance?.semanticModel || model,
+                        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: deterministicDecision.intent,
+                          toolsUsed: agentSummary.executionMetrics?.toolsUsed || [],
+                          verificationStatus: agentSummary.verificationStatus || agentSummary.verification?.verificationStatus || null,
+                          cognitive: true,
+                          artifactType: agentSummary.presentation?.artifactType || (agentSummary.artifact ? 'IMAGE' : null),
+                          presentation: agentSummary.presentation || null,
+                          visualIntent: agentSummary.visualIntent || null,
+                          imageUrl: agentSummary.verificationStatus !== 'FAILED'
+                            ? (
+                              agentSummary.artifact?.url ||
+                              agentSummary.artifact?.thumbnailUrl ||
+                              (agentSummary.artifacts?.[0]?.url) ||
+                              (agentSummary.artifacts?.[0]?.thumbnailUrl) ||
+                              null
+                            )
+                            : null,
+                          generationId: agentSummary.generationId || null,
+                          messageId: agentSummary.messageId || null,
+                          imageRenderable: Boolean(
+                            agentSummary.verificationStatus !== 'FAILED' &&
+                            (agentSummary.artifact?.renderable ??
+                              agentSummary.artifact?.url ??
+                              false)
+                          )
+                        }
+                      });
+                      res.write(`data: ${finalChunk}\n\n`);
+                      res.write('data: [DONE]\n\n');
+                      res.end();
+                    }
+                  } catch (streamErr) {
+                    console.error('[INTENT_GATE] Stream write error:', streamErr.message);
+                    if (!res.writableEnded && !res.destroyed) {
+                      try { res.end(); } catch (_) {}
+                    }
+                  }
+                } else {
+                  // Non-streaming JSON response
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-agent-' + Date.now(),
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: agentSummary.provenance?.semanticModel || model,
+                    choices: [{ index: 0, message: { role: 'assistant', content: responseText }, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: deterministicDecision.intent,
+                      toolsUsed: agentSummary.executionMetrics?.toolsUsed || [],
+                      verificationStatus: agentSummary.verification?.verificationStatus || null,
+                      cognitive: true,
+                    }
+                  }));
+                }
+
+                console.log(`[INTENT_GATE] AgentRuntime response sent (${responseText.length} chars)`);
+                return;
+              } else {
+                console.warn('[INTENT_GATE] AgentRuntime returned empty response — falling back to LLM stream');
+              }
+            } catch (agentErr) {
+              console.warn('[INTENT_GATE] AgentRuntime failed — falling back to LLM stream:', agentErr.message);
+            }
+          } else {
+            console.log(`[INTENT_GATE] actionRequired=false intent=${deterministicDecision?.intent || 'unknown'} → LLM stream (zero-regression)`);
+          }
+        } catch (gateErr) {
+          console.warn('[INTENT_GATE] Gate error — falling back to LLM stream:', gateErr.message);
+        }
+      }
+
       const task = runtimeObservabilityInstance.startTask({
         userGoal: userPrompt || 'Percakapan Multimodal',
         capability,
         requestedModel: model
       });
+
 
       if (isStream) {
         res.writeHead(200, {

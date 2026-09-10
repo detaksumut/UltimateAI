@@ -37,30 +37,9 @@ export class AudioReactiveAnalyzer {
     let smoothedBrow = 0;
     let smoothedSquint = 0;
 
-    // Spontaneous natural blinking timer
-    let nextBlinkTime = performance.now() + 2500 + Math.random() * 2500;
-    let blinkStartTime = 0;
-
     const loop = (now = performance.now()) => {
       if (!this.isAnalyzing) return;
       tick += 0.05;
-
-      // ── 1. SPONTANEOUS EYE BLINK ENGINE (Mata Terbuka LAMA, Menutup Cepat Sekejap: ~110ms) ──
-      let blinkProgress = 0;
-      if (now >= nextBlinkTime && blinkStartTime === 0) {
-        blinkStartTime = now;
-      }
-      if (blinkStartTime > 0) {
-        const elapsed = now - blinkStartTime;
-        if (elapsed < 110) {
-          // Kedipan kilat sekejap (0 -> 1 -> 0 dalam 110ms saja)
-          blinkProgress = Math.sin((elapsed / 110) * Math.PI);
-        } else {
-          blinkStartTime = 0;
-          // Mata TERBUKA LAMA: 4.5 hingga 8.0 detik terus terbuka segar!
-          nextBlinkTime = now + 4500 + Math.random() * 3500;
-        }
-      }
 
       let volume = 0.1;
       let mouthGlow = 0;
@@ -155,7 +134,6 @@ export class AudioReactiveAnalyzer {
         spread: Math.max(0.85, Math.min(1.25, smoothedSpread)),
         jawOffset: Math.max(0, Math.min(4, smoothedJaw)),
         // Facial Mimicry metrics
-        blinkProgress: Math.max(0, Math.min(1, blinkProgress)),
         eyebrowRaise: Math.max(-0.5, Math.min(1.0, smoothedBrow)),
         eyeSquint: Math.max(0, Math.min(0.5, smoothedSquint)),
         isSpeaking: state === 'SPEAKING'

@@ -143,7 +143,7 @@ export class AgentVerifier {
     } else if (plan.category === 'MULTI_STEP_TASK') {
       synthesisMessage = `Tugas multi-langkah (analisis dokumen, validasi benchmark web, perbandingan matrix, dan formulasi rekomendasi) telah diverifikasi 100% tuntas.`;
     } else if (plan.category === 'IMAGE_GENERATION') {
-      synthesisMessage = `Visual berhasil dihasilkan dan diverifikasi: artifact tersimpan, file valid, dan renderable di Image Studio.`;
+      synthesisMessage = `Visual berhasil dihasilkan dan diverifikasi: artifact tersimpan, file valid, dan renderable.`;
     } else {
       synthesisMessage = `Instruksi untuk "${plan.goal}" telah selesai diproses dan diverifikasi oleh sistem JIN.`;
     }

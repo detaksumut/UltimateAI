@@ -132,7 +132,6 @@ export default function HikamWisdomBanner() {
         </p>
       </div>
 
-      {/* Optional Expanded Drawer: Arabic Matan & Core Contemplation */}
       {showDetails && (
         <div className="mt-2 pt-1.5 border-t border-[rgba(251,191,36,0.1)] text-center animate-fadeIn">
           {current.arabic && (

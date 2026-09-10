@@ -31,9 +31,9 @@ export const config = {
   },
   localLLM: {
     enabled: true,
-    model: process.env.OLLAMA_MODEL || 'hermes3:8b',
+    model: process.env.OLLAMA_MODEL || 'qwen3:8b',
     baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
-    timeoutMs: parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10),
+    timeoutMs: parseInt(process.env.OLLAMA_TIMEOUT_MS || '180000', 10),
     maxPromptChars: parseInt(process.env.OLLAMA_MAX_PROMPT_CHARS || '16000', 10)
   },
   route: {

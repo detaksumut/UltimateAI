@@ -370,7 +370,7 @@ function tavilyDriveFPlugin() {
                   resolve({
                     online: true,
                     status: 'ONLINE',
-                    models: models.length > 0 ? models : ['hermes3:8b']
+                    models: models.length > 0 ? models : ['qwen3:8b']
                   });
                 } catch (_) {
                   resolve({ online: true, status: 'ONLINE', models: [] });
@@ -407,7 +407,9 @@ function tavilyDriveFPlugin() {
               router: {
                 port: 5177,
                 status: 'ACTIVE_ONLINE',
-                cloudProvider: 'Gemini 2.5 Flash Cloud (Primary)',
+                cloudProvider: (process.env.ROUTE_PROVIDER === 'ollama' || process.env.ROUTE_STRATEGY === 'local_first')
+                  ? `Ollama ${process.env.OLLAMA_MODEL || 'qwen3:8b'} (Local Primary)`
+                  : `${process.env.GEMINI_MODEL || 'Gemini Cloud'} (Primary)`,
                 harvester: 'Tavily Deep AI Live Crawler'
               },
               os: {
@@ -874,7 +876,7 @@ export default defineConfig({
       '/v1': { target: 'http://127.0.0.1:20200', changeOrigin: true }
     },
     watch: {
-      ignored: ['**/storage/**', '**/tests/**', '**/.git/**', '**/scratch/**']
+      ignored: ['**/storage/**', '**/server/data/**', '**/tests/**', '**/.git/**', '**/scratch/**']
     }
   }
 });

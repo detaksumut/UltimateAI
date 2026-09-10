@@ -12,12 +12,22 @@ echo [1/4] Checking Ollama :11434...
 powershell -NoProfile -Command "$x=Test-NetConnection 127.0.0.1 -Port 11434 -WarningAction SilentlyContinue; if($x.TcpTestSucceeded){exit 0}else{exit 1}"
 
 if errorlevel 1 (
-    echo Starting Ollama...
-    start "OLLAMA" cmd /k "ollama serve"
+    echo Starting Ollama with 24h RAM retention...
+    set OLLAMA_KEEP_ALIVE=24h
+    start "OLLAMA" cmd /k "set OLLAMA_KEEP_ALIVE=24h && ollama serve"
     timeout /t 5 /nobreak >nul
 ) else (
     echo Ollama already ONLINE.
 )
+
+echo [1b] Pre-warming Qwen 3 into RAM (keep_alive: 24h)...
+powershell -NoProfile -Command ^
+"try { ^
+  $res = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/generate' -Method POST -Body '{\"model\":\"qwen3:8b\",\"keep_alive\":\"24h\"}' -ContentType 'application/json' -TimeoutSec 60; ^
+  Write-Host 'Qwen 3 successfully locked into RAM.'; ^
+} catch { ^
+  Write-Host ('Pre-warm warning: ' + $_.Exception.Message); ^
+}"
 
 echo.
 echo [2/4] Checking existing JIN Backend :20200...
