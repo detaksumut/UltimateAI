@@ -4,7 +4,7 @@
  *
  * Provider resolution (priority order):
  *   1. Explicit providerOverride
- *   2. Environment IMAGE_PROVIDER (gemini_imagen | pollinations | mock | ollama)
+ *   2. Environment IMAGE_PROVIDER (together_ai | gemini_imagen | pollinations | ollama)
  *   3. Gemini API key detection → Gemini Imagen (high quality, free tier)
  *   4. Ollama image model detection via /api/tags
  *   5. Pollinations (cloud, free, no API key)
@@ -14,7 +14,7 @@
  *   generateImage(params, transport?) → { success, artifact?, error? }
  *   verifyArtifact(artifact) → { renderable, reason }
  *
- * Transport seam: pass { fetch: fn } for tests (mock transport).
+ * Transport seam: pass { fetch: fn } for tests.
  */
 import fs from 'fs';
 
@@ -22,32 +22,9 @@ import path from 'path';
 
 import crypto from 'crypto';
 
-import zlib from 'zlib';
-
 // Auto-load .env (same as other agent files)
 import '../config/env.mjs';
 import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
-
-// PNG CRC-32 (zlib/libpng table) for chunk headers
-const CRC_TABLE = (() => {
-  const t = new Int32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) {
-      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    }
-    t[n] = c;
-  }
-  return t;
-})();
-
-function crc32(buf) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < buf.length; i++) {
-    c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
-  }
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
 
 const ARTIFACTS_DIR = path.resolve('d:/Users/ultimateai/storage/artifacts/images');
 
@@ -56,11 +33,10 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 const MIN_ARTIFACT_BYTES = 1024;
 
 const IMAGE_PROVIDERS = {
+  TOGETHER_AI: 'TOGETHER_AI',
   GEMINI_IMAGEN: 'GEMINI_IMAGEN',
   POLLINATIONS: 'POLLINATIONS',
-  OLLAMA: 'OLLAMA',
-  MOCK: 'MOCK',
-  MOCK_FAILURE: 'MOCK_FAILURE'
+  OLLAMA: 'OLLAMA'
 };
 
 export class ImageGeneration {
@@ -85,9 +61,6 @@ export class ImageGeneration {
 
     // 1. Explicit env override
     const envProvider = (process.env.IMAGE_PROVIDER || '').toLowerCase();
-    if (envProvider === 'mock') {
-      return { available: true, provider: IMAGE_PROVIDERS.MOCK, reason: 'Mock provider enabled via IMAGE_PROVIDER env' };
-    }
     if (envProvider === 'pollinations') {
       return { available: true, provider: IMAGE_PROVIDERS.POLLINATIONS, reason: 'Pollinations forced via IMAGE_PROVIDER env' };
     }
@@ -97,8 +70,24 @@ export class ImageGeneration {
         return { available: true, provider: IMAGE_PROVIDERS.GEMINI_IMAGEN, reason: 'Gemini Imagen forced via IMAGE_PROVIDER env' };
       }
     }
+    if (envProvider === 'together' || envProvider === 'together_ai') {
+      const key = this._resolveTogetherKey();
+      if (key) {
+        return { available: true, provider: IMAGE_PROVIDERS.TOGETHER_AI, reason: 'Together AI forced via IMAGE_PROVIDER env' };
+      }
+    }
 
-    // 2. Check Gemini API key (highest quality, free tier)
+    // 2. Together AI (FLUX.1 Schnell Free - unlimited, high quality)
+    const togetherKey = this._resolveTogetherKey();
+    if (togetherKey) {
+      return {
+        available: true,
+        provider: IMAGE_PROVIDERS.TOGETHER_AI,
+        reason: `Together AI key found (${togetherKey.slice(0, 8)}...) — using FLUX.1 Schnell Free`
+      };
+    }
+
+    // 3. Check Gemini API key (highest quality, free tier)
     const geminiKey = this._resolveGeminiKey();
     if (geminiKey) {
       return {
@@ -108,7 +97,7 @@ export class ImageGeneration {
       };
     }
 
-    // 3. Check Ollama for image model
+    // 4. Check Ollama for image model
     try {
       const res = await fetchFn('http://127.0.0.1:11434/api/tags', { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
@@ -130,7 +119,7 @@ export class ImageGeneration {
       // Ollama unreachable
     }
 
-    // 4. Pollinations fallback (free cloud, no key)
+    // 5. Pollinations fallback (free cloud, no key)
     return { available: true, provider: IMAGE_PROVIDERS.POLLINATIONS, reason: 'Pollinations cloud (free, no API key)' };
   }
 
@@ -177,11 +166,13 @@ export class ImageGeneration {
     }
 
     // Dispatch
-    if (String(provider).toUpperCase() === IMAGE_PROVIDERS.MOCK_FAILURE) {
-      return this._generateMockFailure(normalizedParams);
-    }
-    if (provider === IMAGE_PROVIDERS.MOCK) {
-      return this._generateMock(normalizedParams);
+    if (provider === IMAGE_PROVIDERS.TOGETHER_AI) {
+      const res = await this._generateTogetherAI(normalizedParams, fetchFn);
+      if (res && res.success) {
+        return res;
+      }
+      console.warn(`[ImageGeneration] Together AI unavailable (${res?.error}), seamlessly falling back to Pollinations...`);
+      return this._generatePollinations(normalizedParams, fetchFn);
     }
     if (provider === IMAGE_PROVIDERS.GEMINI_IMAGEN) {
       const res = await this._generateGeminiImagen(normalizedParams, fetchFn);
@@ -345,6 +336,86 @@ export class ImageGeneration {
     return null;
   }
 
+  _resolveTogetherKey() {
+    const keys = [
+      process.env.TOGETHER_API_KEY,
+      process.env.TOGETHER_API_KEY_1,
+      process.env.TOGETHER_API_KEY_2
+    ];
+    for (const key of keys) {
+      if (key && key.trim().length > 10 && key.trim() !== 'API_KEY_TOGETHER_ANDA') {
+        return key.trim();
+      }
+    }
+    return null;
+  }
+
+  // ── Together AI Implementation (FLUX.1 Schnell Free) ─────────────────────
+
+  async _generateTogetherAI(params, fetchFn) {
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, size, generationId, messageId, signal } = params;
+    const [width, height] = (size || '1024x1024').split('x').map(Number);
+    const apiKey = this._resolveTogetherKey();
+    const optimizedPrompt = this._optimizePrompt(prompt);
+
+    try {
+      const response = await fetchFn('https://api.together.xyz/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'black-forest-labs/FLUX.1-schnell-Free',
+          prompt: optimizedPrompt,
+          width: width || 1024,
+          height: height || 1024,
+          steps: 4,
+          n: 1,
+          response_format: 'b64_json'
+        }),
+        signal: this._requestSignal(signal, 60000)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        return { success: false, error: `Together AI HTTP ${response.status}: ${errText.slice(0, 150)}` };
+      }
+
+      const data = await response.json();
+      const imageData = data.data?.[0];
+      if (!imageData?.b64_json) {
+        return { success: false, error: 'Together AI returned no image data' };
+      }
+
+      const buffer = Buffer.from(imageData.b64_json, 'base64');
+
+      const isValidImage = this._verifyImageBytes(buffer);
+      if (!isValidImage) {
+        return { success: false, error: `Together AI returned invalid image bytes (${buffer.length} bytes)` };
+      }
+
+      const artifact = this._persistArtifact(buffer, {
+        prompt: optimizedPrompt,
+        originalPrompt: originalPrompt || prompt,
+        normalizedPrompt: normalizedPrompt || optimizedPrompt,
+        generationId,
+        messageId,
+        negativePrompt,
+        provider: IMAGE_PROVIDERS.TOGETHER_AI,
+        model: 'FLUX.1-schnell-Free',
+        width: width || 1024,
+        height: height || 1024,
+        mimeType: 'image/png'
+      });
+
+      console.log(`[ImageGeneration] Together AI success with FLUX.1-schnell-Free`);
+      return { success: true, artifact };
+    } catch (err) {
+      return { success: false, error: `Together AI generation failed: ${err.message}` };
+    }
+  }
+
   // ── Ollama Implementation (stub — requires image model like llava) ────────
 
   async _generateOllama(params, fetchFn) {
@@ -389,100 +460,6 @@ export class ImageGeneration {
     } catch (err) {
       return { success: false, error: `Ollama generation failed: ${err.message}` };
     }
-  }
-
-  // ── Mock Implementation (for tests) ──────────────────────────────────────
-
-  _generateMock(params) {
-    const prompt = params.prompt || 'mock';
-    const lower = prompt.toLowerCase();
-
-    // Simulate failure for testing
-    if (/fail|error|gagal|tidak\s+bisa/i.test(lower)) {
-      return { success: false, error: 'Mock: generation explicitly failed per prompt trigger' };
-    }
-
-    // Genuine valid PNG (generated, deterministic pattern) passing byte/magic checks
-    const mockPng = this._encodePng(96, 96, params.seed || 0);
-    const width = 96;
-    const height = 96;
-
-    const artifact = this._persistArtifact(mockPng, {
-      prompt,
-      originalPrompt: params.originalPrompt || prompt,
-      normalizedPrompt: params.normalizedPrompt || this.normalizeImagePrompt(prompt),
-      generationId: params.generationId || null,
-      messageId: params.messageId || null,
-      provider: IMAGE_PROVIDERS.MOCK,
-      mimeType: 'image/png',
-      width,
-      height
-    });
-
-    return { success: true, artifact };
-  }
-
-  /**
-   * Deterministic failure-injection provider (MOCK_FAILURE).
-   * ALWAYS fails regardless of prompt, simulating provider outage/timeout/corrupt
-   * output so the FAILED path can be exercised end-to-end without a real outage.
-   * Straightforward for `providerOverride: 'MOCK_FAILURE'` in runGoal options.
-   */
-  _generateMockFailure() {
-    return {
-      success: false,
-      error: 'MOCK_FAILURE: simulated provider failure. Generation did not produce a valid image artifact.'
-    };
-  }
-
-  /**
-   * Minimal PNG encoder producing a real, valid PNG > MIN_ARTIFACT_BYTES.
-   * Row-major RGBA with filter byte 0, deflated via node zlib.
-   * Deterministic pixel pattern derived from the seed (LCG) so repeated
-   * mock generations are reproducible and genuinely renderable.
-   */
-  _encodePng(width, height, seed = 0) {
-    let s = (Number(seed) || 1) >>> 0 || 1;
-    const next = () => {
-      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-      return s;
-    };
-
-    const raw = Buffer.alloc(height * (1 + width * 3));
-    let o = 0;
-    for (let y = 0; y < height; y++) {
-      raw[o++] = 0; // filter: None
-      for (let x = 0; x < width; x++) {
-        const v = next() & 0xff;
-        raw[o++] = v;
-        raw[o++] = (v * 2) & 0xff;
-        raw[o++] = (255 - v) & 0xff;
-      }
-    }
-
-    const idat = zlib.deflateSync(raw, { level: 9 });
-    const ihdr = Buffer.alloc(13);
-    ihdr.writeUInt32BE(width, 0);
-    ihdr.writeUInt32BE(height, 4);
-    ihdr[8] = 8;  // bit depth
-    ihdr[9] = 2;  // color type: truecolor RGB
-    ihdr[10] = 0; // compression
-    ihdr[11] = 0; // filter
-    ihdr[12] = 0; // interlace
-
-    const chunks = [];
-    const chunk = (type, data) => {
-      const len = Buffer.alloc(4);
-      len.writeUInt32BE(data.length, 0);
-      const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-      const crc = Buffer.alloc(4);
-      crc.writeUInt32BE(crc32(body) >>> 0, 0);
-      chunks.push(len, body, crc);
-    };
-    chunk('IHDR', ihdr);
-    chunk('IDAT', idat);
-    chunk('IEND', Buffer.alloc(0));
-    return Buffer.concat([PNG_MAGIC, ...chunks]);
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────

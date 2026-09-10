@@ -1384,5 +1384,16 @@
     "createdAt": "2026-09-10T22:52:41.630Z",
     "lastAccessedAt": "2026-09-10T22:52:41.630Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789081422909-GN5J",
+    "key": "jin",
+    "content": "Hai! Ada yang ingin Anda diskusikan atau butuhkan bantuan hari ini? 😊",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-10T23:03:42.909Z",
+    "lastAccessedAt": "2026-09-10T23:03:42.909Z",
+    "accessCount": 1
   }
 ]
