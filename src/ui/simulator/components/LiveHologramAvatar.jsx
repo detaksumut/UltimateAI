@@ -30,12 +30,11 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
   const videoRef = useRef(null);
   const [talkingVideoSrc, setTalkingVideoSrc] = useState('/Hellomaster2.mp4');
   const [hasVideoTalking, setHasVideoTalking] = useState(true);
-  const [hasVideoIdle, setHasVideoIdle] = useState(false);
   const [isDemoPlaying, setIsDemoPlaying] = useState(false);
 
   useEffect(() => {
     // Check available AI generated video loops in /public
-    const candidates = ['/Hellomaster2.mp4', '/hellomaster2.mp4', '/jeannie-talk.mp4'];
+    const candidates = ['/Hellomaster2.mp4', '/hellomaster2.mp4'];
     let found = false;
 
     const checkCandidate = async () => {
@@ -56,12 +55,7 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
     };
 
     checkCandidate();
-
-    fetch('/jeannie-idle.mp4', { method: 'HEAD' })
-      .then(res => {
-        if (res.ok) setHasVideoIdle(true);
-      })
-      .catch(() => {});
+  }, []);
   }, []);
 
   // Jeannie Signature Sequence States
@@ -535,14 +529,6 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
                 onEnded={() => {
                   if (isDemoPlaying) setIsDemoPlaying(false);
                 }}
-              />
-            ) : !isSpeaking && !isDemoPlaying && hasVideoIdle ? (
-              <LiveChromaVideo
-                src="/jeannie-idle.mp4"
-                isPlaying={true}
-                isMuted={true}
-                isLoop={true}
-                isNodding={isNodding}
               />
             ) : (
               <img
