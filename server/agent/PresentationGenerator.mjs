@@ -71,12 +71,15 @@ Slide 1 = judul, slide terakhir = "Terima Kasih". Isi konten relevan.`;
     try {
       console.log('[PresentationGenerator] Calling LLM for slide generation...');
       
-      const response = await ollamaProviderInstance.sendChat([
-        { role: 'user', content: prompt }
-      ], { stream: false, timeout: 60000 }); // 60s timeout
+      const response = await ollamaProviderInstance.sendChat({
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+        model: 'qwen3:8b',
+        temperature: 0.7
+      });
 
       const content = response?.choices?.[0]?.message?.content || '';
-      console.log('[PresentationGenerator] LLM response:', content.substring(0, 200));
+      console.log('[PresentationGenerator] LLM response:', content.substring(0, 300));
       
       // Parse JSON from response - handle markdown code blocks
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/\{[\s\S]*\}/);

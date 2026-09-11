@@ -1857,5 +1857,16 @@
     "createdAt": "2026-09-11T07:27:34.037Z",
     "lastAccessedAt": "2026-09-11T07:27:34.037Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789112023566-4S5V",
+    "key": "Jin buatkan draft presentasi dengan Tema",
+    "content": "DRAFT PRESENTASI\nTopik: \"Kelemahan dan kelebihan Regulasi Perdes\" utk 10 slide\nSlide: 10\n\n1. \"Kelema",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T07:33:43.566Z",
+    "lastAccessedAt": "2026-09-11T07:33:43.566Z",
+    "accessCount": 1
   }
 ]
