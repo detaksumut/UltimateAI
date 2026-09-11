@@ -130,7 +130,7 @@ export class ImageGeneration {
       prompt = 'futuristic AI visual',
       negativePrompt = '',
       aspectRatio = '1:1',
-      size = '1024x1024',
+      size = '768x768',
       referenceContext = null,
       referenceImage = null,
       providerOverride = null,
@@ -231,7 +231,7 @@ export class ImageGeneration {
     let lastError = null;
 
     for (const model of models) {
-      const url = `https://gen.pollinations.ai/image/${encoded}?model=${model}&width=${width || 1024}&height=${height || 1024}&nologo=true&seed=${seed}`;
+      const url = `https://gen.pollinations.ai/image/${encoded}?model=${model}&width=${width || 768}&height=${height || 768}&nologo=true&seed=${seed}&quality=80&format=jpg`;
 
       const headers = {};
       if (apiKey) {
@@ -261,6 +261,14 @@ export class ImageGeneration {
 
         const buffer = Buffer.from(await response.arrayBuffer());
 
+        // Check file size (< 1MB)
+        const MAX_SIZE = 1024 * 1024; // 1MB
+        if (buffer.length > MAX_SIZE) {
+          lastError = `Pollinations returned image too large: ${(buffer.length / 1024 / 1024).toFixed(2)}MB (model: ${model})`;
+          console.warn(`[ImageGeneration] ${lastError}, trying next model...`);
+          continue;
+        }
+
         // Verify PNG/JPEG magic
         const isValidImage = this._verifyImageBytes(buffer);
         if (!isValidImage) {
@@ -283,14 +291,14 @@ export class ImageGeneration {
           negativePrompt,
           provider: IMAGE_PROVIDERS.POLLINATIONS,
           model,
-          width: width || 1024,
-          height: height || 1024,
+          width: width || 768,
+          height: height || 768,
           seed,
           mimeType: detectedMime,
           referenceImage: referenceImage || null
         });
 
-        console.log(`[ImageGeneration] Pollinations success with model: ${model}${referenceImage ? ' (revision)' : ''}`);
+        console.log(`[ImageGeneration] Pollinations success with model: ${model} (${(buffer.length / 1024).toFixed(1)}KB)${referenceImage ? ' (revision)' : ''}`);
         return { success: true, artifact };
       } catch (err) {
         lastError = `Pollinations failed (model: ${model}): ${err.message}`;
