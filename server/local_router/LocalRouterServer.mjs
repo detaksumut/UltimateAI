@@ -1170,6 +1170,99 @@ Requirements:
               }
             }
 
+            // DIRECT SLIDE VISUAL GENERATION - "slide N" triggers auto-visual
+            const slideMatch = userPrompt.match(/^slide\s+(\d+)$/i);
+            if (slideMatch) {
+              const slideNumber = parseInt(slideMatch[1]);
+              const sessionId = payload.generationId || null;
+              
+              if (sessionId) {
+                try {
+                  const { presentationGeneratorInstance } = await import('../agent/PresentationGenerator.mjs');
+                  
+                  console.log(`[INTENT_GATE] Slide visual request: slide ${slideNumber}`);
+                  
+                  const visualResult = await presentationGeneratorInstance.generateSlideVisual(slideNumber, sessionId);
+                  
+                  if (visualResult.success && visualResult.artifact) {
+                    intentGateRouted = true;
+                    
+                    const slideText = `Slide ${slideNumber}: ${visualResult.slide.title}\n\n${visualResult.artifact.url}\n\n${visualResult.isLast ? 'Semua slide selesai!' : `Ketik "slide ${visualResult.nextSlide}" untuk slide berikutnya.`}`;
+                    
+                    if (payload.stream) {
+                      res.writeHead(200, {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive'
+                      });
+
+                      const sseChunk = JSON.stringify({
+                        id: 'chatcmpl-slide-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'presentation_pipeline',
+                        choices: [{ index: 0, delta: { content: slideText }, finish_reason: null }]
+                      });
+                      res.write(`data: ${sseChunk}\n\n`);
+
+                      const finalChunk = JSON.stringify({
+                        id: 'chatcmpl-slide-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'presentation_pipeline',
+                        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: 'PRESENTATION_REQUEST',
+                          toolsUsed: ['presentation.generate'],
+                          verificationStatus: 'VISUAL_COMPLETED',
+                          cognitive: true,
+                          artifactType: 'PRESENTATION_VISUAL',
+                          presentation: {
+                            phase: 'VISUAL',
+                            sessionId,
+                            currentSlide: slideNumber,
+                            imageUrl: visualResult.artifact.url
+                          }
+                        }
+                      });
+                      res.write(`data: ${finalChunk}\n\n`);
+                      res.write('data: [DONE]\n\n');
+                      res.end();
+                    } else {
+                      res.writeHead(200, { 'Content-Type': 'application/json' });
+                      res.end(JSON.stringify({
+                        id: 'chatcmpl-slide-' + Date.now(),
+                        object: 'chat.completion',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'presentation_pipeline',
+                        choices: [{ index: 0, message: { role: 'assistant', content: slideText }, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: 'PRESENTATION_REQUEST',
+                          toolsUsed: ['presentation.generate'],
+                          verificationStatus: 'VISUAL_COMPLETED',
+                          cognitive: true,
+                          artifactType: 'PRESENTATION_VISUAL',
+                          presentation: {
+                            phase: 'VISUAL',
+                            sessionId,
+                            currentSlide: slideNumber,
+                            imageUrl: visualResult.artifact.url
+                          }
+                        }
+                      }));
+                    }
+
+                    console.log(`[INTENT_GATE] Slide ${slideNumber} visual generated`);
+                    return;
+                  } else {
+                    console.warn(`[INTENT_GATE] Slide visual failed: ${visualResult.error}`);
+                  }
+                } catch (slideErr) {
+                  console.warn(`[INTENT_GATE] Slide error: ${slideErr.message}`);
+                }
+              }
+            }
+
             // DIRECT IMAGE GENERATION PATH - bypass Ollama entirely
             if (deterministicDecision.intent === 'IMAGE_GENERATION' || deterministicDecision.intent === 'IMAGE_REVISION') {
               try {

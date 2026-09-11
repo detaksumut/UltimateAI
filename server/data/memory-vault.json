@@ -1769,5 +1769,27 @@
     "createdAt": "2026-09-11T05:24:29.978Z",
     "lastAccessedAt": "2026-09-11T05:24:29.978Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789107655018-8FVT",
+    "key": "Jin buatkan draft PPT dengan tema \"Kelem",
+    "content": "📋 DRAFT PRESENTASI\nTopik: Kelemahan dan kelebihan Regulasi Perdes\nJumlah Slide: 20\n\n═══════════════",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T06:20:55.018Z",
+    "lastAccessedAt": "2026-09-11T06:20:55.018Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789107767234-4GVR",
+    "key": "lanjut",
+    "content": "## 🎞️ Draft PowerPoint (20 slides) – “Kelemahan dan Kelebihan Regulasi Perdes”\n\nBerikut saya **gene",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T06:22:47.234Z",
+    "lastAccessedAt": "2026-09-11T06:22:47.234Z",
+    "accessCount": 1
   }
 ]

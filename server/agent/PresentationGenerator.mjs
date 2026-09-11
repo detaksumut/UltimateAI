@@ -111,7 +111,7 @@ export class PresentationGenerator {
   }
 
   /**
-   * Phase 2: Generate visual for specific slide
+   * Phase 2: Generate visual for specific slide - auto-generate from slide context
    */
   async generateSlideVisual(slideNumber, sessionId) {
     const session = this.getSession(sessionId);
@@ -128,10 +128,13 @@ export class PresentationGenerator {
     session.phase = 'VISUAL';
     session.currentSlideIndex = slideNumber - 1;
 
+    // Auto-build prompt from slide context
+    const prompt = this._buildAutoPrompt(slide, session.topic);
+
     try {
       const result = await imageGenerationInstance.generateImage({
-        prompt: slide.visualPrompt,
-        size: '1024x576', // 16:9 landscape for slides
+        prompt,
+        size: '1024x576', // 16:9 landscape
         generationId: `presentation-${sessionId}`,
         messageId: `slide-${slideNumber}`
       });
@@ -153,6 +156,29 @@ export class PresentationGenerator {
     } catch (err) {
       return { success: false, error: err.message };
     }
+  }
+
+  /**
+   * Auto-build visual prompt from slide context - corporate landscape style
+   */
+  _buildAutoPrompt(slide, topic) {
+    const base = `Corporate enterprise presentation slide, landscape 16:9, professional business style, clean modern design, navy blue and white color scheme`;
+    
+    const titlePart = `Title: "${slide.title}"`;
+    const topicPart = `Topic: ${topic}`;
+    
+    let contentPart = '';
+    if (slide.bullets && slide.bullets.length > 0) {
+      contentPart = `Content: ${slide.bullets.slice(0, 3).join(', ')}`;
+    }
+
+    const typePart = slide.type === 'TITLE' ? 'Title slide with large text' :
+                     slide.type === 'TOC' ? 'Table of contents layout with numbered list' :
+                     slide.type === 'CONCLUSION' ? 'Summary conclusion slide' :
+                     slide.type === 'THANK_YOU' ? 'Thank you closing slide' :
+                     'Content slide with key points';
+
+    return `${base}, ${typePart}, ${titlePart}, ${topicPart}${contentPart ? ', ' + contentPart : ''}`;
   }
 
   /**
@@ -246,30 +272,21 @@ export class PresentationGenerator {
   }
 
   _formatDraft(slides, topic, speakerName) {
-    let draft = `📋 DRAFT PRESENTASI\n`;
+    let draft = `DRAFT PRESENTASI\n`;
     draft += `Topik: ${topic}\n`;
-    draft += `Jumlah Slide: ${slides.length}\n`;
+    draft += `Slide: ${slides.length}\n`;
     if (speakerName) draft += `Pembicara: ${speakerName}\n`;
-    draft += `\n${'═'.repeat(50)}\n\n`;
+    draft += `\n`;
 
     for (const slide of slides) {
-      draft += `SLIDE ${slide.number}: ${slide.title}\n`;
-      draft += `Tipe: ${slide.type}\n`;
-      if (slide.bullets.length > 0) {
-        draft += `Poin-poin:\n`;
-        for (const bullet of slide.bullets) {
-          draft += `  • ${bullet}\n`;
-        }
-      }
-      if (slide.speakerName) {
-        draft += `Pembicara: ${slide.speakerName}\n`;
+      draft += `${slide.number}. ${slide.title}`;
+      if (slide.type === 'CONTENT' && slide.bullets.length > 0) {
+        draft += ` - ${slide.bullets[0]}`;
       }
       draft += `\n`;
     }
 
-    draft += `${'═'.repeat(50)}\n`;
-    draft += `✅ Draft selesai. Konfirmasi untuk lanjut ke pembuatan visual.\n`;
-    draft += `Ketik "lanjut" untuk mulai generate visual, atau "ubah [slide] [perubahan]" untuk edit.`;
+    draft += `\nKetik "slide 1" untuk mulai generate visual.`;
 
     return draft;
   }
