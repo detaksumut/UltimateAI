@@ -1475,9 +1475,12 @@ Requirements:
       // FALLBACK IMAGE DETECTION - If intent gate failed but request is image-related
       // ═══════════════════════════════════════════════════════════════════════
       if (!intentGateRouted && userPrompt) {
-        const imageCreationPattern = /(?:buat|bikin|generate|create|render|desain|lukis|gambar|visual|ilustrasi|buatkan|hasilkan)\s+(?:.*\s+)?(?:gambar|image|visual|foto|poster|logo|wallpaper|lukisan|karya|artwork|slide|presentasi)/i;
+        // Exclude presentation requests - they have their own handler
+        const isPresentationRequest = /(?:buat|bikin|create|generate|susun|rilis|publish)?\s*(?:presentasi|PPT|ppt|slide|slideshow)/i.test(userPrompt);
+        
+        const imageCreationPattern = /(?:buat|bikin|generate|create|render|desain|lukis|gambar|visual|ilustrasi|buatkan|hasilkan)\s+(?:.*\s+)?(?:gambar|image|visual|foto|poster|logo|wallpaper|lukisan|karya|artwork)/i;
         const imageRevisionPattern = /(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang)\s+/i;
-        const isImageRequest = imageCreationPattern.test(userPrompt) || imageRevisionPattern.test(userPrompt);
+        const isImageRequest = !isPresentationRequest && (imageCreationPattern.test(userPrompt) || imageRevisionPattern.test(userPrompt));
 
         if (isImageRequest) {
           console.log(`[FALLBACK_IMAGE] Detected image request in plain LLM path, redirecting to direct generation`);

@@ -641,8 +641,8 @@ Analyze contextually and output strict JSON.`;
     const speakerMatch = r.match(/(?:pembicara|speaker|oleh|presented\s+by)[:\s]+(.+?)(?:\s*,|\s*\.\s*|\s*dengan|\s*sertakan|$)/i);
     const speakerName = speakerMatch ? speakerMatch[1].trim() : null;
 
-    // Check for presentation keywords
-    if (presentationPattern.test(r) && (slideCount || topic)) {
+    // Check for presentation keywords - allow bare requests like "buat presentasi"
+    if (presentationPattern.test(r)) {
       return {
         intent: 'PRESENTATION_REQUEST',
         goal: r,
