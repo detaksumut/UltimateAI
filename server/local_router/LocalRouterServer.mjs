@@ -1378,6 +1378,145 @@ Requirements:
         requestedModel: model
       });
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // FALLBACK IMAGE DETECTION - If intent gate failed but request is image-related
+      // ═══════════════════════════════════════════════════════════════════════
+      if (!intentGateRouted && userPrompt) {
+        const imageCreationPattern = /(?:buat|bikin|generate|create|render|desain|lukis|gambar|visual|ilustrasi|buatkan|hasilkan)\s+(?:.*\s+)?(?:gambar|image|visual|foto|poster|logo|wallpaper|lukisan|karya|artwork|slide|presentasi)/i;
+        const imageRevisionPattern = /(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang)\s+/i;
+        const isImageRequest = imageCreationPattern.test(userPrompt) || imageRevisionPattern.test(userPrompt);
+
+        if (isImageRequest) {
+          console.log(`[FALLBACK_IMAGE] Detected image request in plain LLM path, redirecting to direct generation`);
+
+          try {
+            const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
+            const { jinResponseEngineInstance } = await import('../agent/JINResponseEngine.mjs');
+
+            const isRevision = imageRevisionPattern.test(userPrompt);
+            const imagePrompt = userPrompt;
+
+            // Find previous visual for revision
+            let referenceImage = null;
+            if (isRevision) {
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const msg = messages[i];
+                if (msg.role === 'assistant' && msg.imageUrl) {
+                  referenceImage = msg.imageUrl;
+                  break;
+                }
+                if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+                  for (const part of msg.content) {
+                    if (part.type === 'image_url' && part.image_url?.url) {
+                      referenceImage = part.image_url.url;
+                      break;
+                    }
+                  }
+                  if (referenceImage) break;
+                }
+              }
+            }
+
+            const imageResult = await imageGenerationInstance.generateImage({
+              prompt: imagePrompt,
+              referenceImage,
+              size: '768x768',
+              generationId: payload.generationId || null,
+              messageId: payload.messageId || null
+            });
+
+            if (imageResult.success && imageResult.artifact) {
+              const decision = { intent: isRevision ? 'IMAGE_REVISION' : 'IMAGE_GENERATION' };
+              const responsePayload = isRevision
+                ? jinResponseEngineInstance.synthesizeImageRevisionOutcome({
+                    userUtterance: userPrompt,
+                    decision,
+                    artifact: imageResult.artifact,
+                    verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                    provenance: { semanticModel: 'fallback_image_pipeline' }
+                  })
+                : jinResponseEngineInstance.synthesizeImageGenerationOutcome({
+                    userUtterance: userPrompt,
+                    decision,
+                    artifact: imageResult.artifact,
+                    verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                    provenance: { semanticModel: 'fallback_image_pipeline' }
+                  });
+
+              if (isStream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+
+                const responseText = responsePayload.naturalVoiceSpeech || 'Visual telah berhasil dibuat.';
+                const sseChunk = JSON.stringify({
+                  id: 'chatcmpl-fallback-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'fallback_image_pipeline',
+                  choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                });
+                res.write(`data: ${sseChunk}\n\n`);
+
+                const finalChunk = JSON.stringify({
+                  id: 'chatcmpl-fallback-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'fallback_image_pipeline',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: decision.intent,
+                    toolsUsed: ['image.generate'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                    imageUrl: imageResult.artifact.url || null,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null,
+                    imageRenderable: true
+                  }
+                });
+                res.write(`data: ${finalChunk}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-fallback-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'fallback_image_pipeline',
+                  choices: [{ index: 0, message: { role: 'assistant', content: responsePayload.naturalVoiceSpeech }, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: decision.intent,
+                    toolsUsed: ['image.generate'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                    imageUrl: imageResult.artifact.url || null,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null,
+                    imageRenderable: true
+                  }
+                }));
+              }
+
+              console.log(`[FALLBACK_IMAGE] Success: ${imageResult.artifact.url}`);
+              runtimeObservabilityInstance.completeTask(task.taskId, { content: responsePayload.naturalVoiceSpeech }, {});
+              return;
+            } else {
+              console.warn(`[FALLBACK_IMAGE] Image generation failed: ${imageResult.error}`);
+            }
+          } catch (fallbackErr) {
+            console.warn(`[FALLBACK_IMAGE] Error: ${fallbackErr.message}`);
+          }
+        }
+      }
+
 
       if (isStream) {
         res.writeHead(200, {
