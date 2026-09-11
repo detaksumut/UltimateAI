@@ -77,13 +77,13 @@ export class ImageGeneration {
       }
     }
 
-    // 2. Together AI (FLUX.1 Schnell Free - unlimited, high quality)
-    const togetherKey = this._resolveTogetherKey();
-    if (togetherKey) {
+    // 2. Pollinations (primary - always available, uses API key for better quality)
+    const pollinationsKey = this._resolvePollinationsKey();
+    if (pollinationsKey) {
       return {
         available: true,
-        provider: IMAGE_PROVIDERS.TOGETHER_AI,
-        reason: `Together AI key found (${togetherKey.slice(0, 8)}...) — using FLUX.1 Schnell Free`
+        provider: IMAGE_PROVIDERS.POLLINATIONS,
+        reason: `Pollinations API key found — using gen.pollinations.ai`
       };
     }
 
@@ -194,6 +194,19 @@ export class ImageGeneration {
 
   // ── Pollinations Implementation ───────────────────────────────────────────
 
+  _resolvePollinationsKey() {
+    const keys = [
+      process.env.POLLINATIONS_API_KEY,
+      process.env.POLLINATIONS_KEY
+    ];
+    for (const key of keys) {
+      if (key && key.trim().length > 10) {
+        return key.trim();
+      }
+    }
+    return null;
+  }
+
   async _generatePollinations(params, fetchFn) {
     const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, generationId, messageId, signal } = params;
     const [width, height] = (size || '1024x1024').split('x').map(Number);
@@ -201,16 +214,23 @@ export class ImageGeneration {
     const seed = Math.floor(Math.random() * 2147483647);
     const optimizedPrompt = this._optimizePrompt(prompt);
     const encoded = encodeURIComponent(optimizedPrompt);
+    const apiKey = this._resolvePollinationsKey();
 
     // Model priority: quality first, fallback to fast
-    const models = ['nanobanana-2', 'gptimage', 'flux-2-pro', 'flux', 'zimage'];
+    const models = ['flux', 'nanobanana-pro', 'nanobanana', 'gptimage', 'turbo'];
     let lastError = null;
 
     for (const model of models) {
-      const url = `https://image.pollinations.ai/prompt/${encoded}?width=${width || 1024}&height=${height || 1024}&nologo=true&seed=${seed}&model=${model}`;
+      const url = `https://gen.pollinations.ai/image/${encoded}?model=${model}&width=${width || 1024}&height=${height || 1024}&nologo=true&seed=${seed}`;
+
+      const headers = {};
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
 
       try {
         const response = await fetchFn(url, {
+          headers,
           signal: this._requestSignal(signal, 90000),
           redirect: 'follow'
         });

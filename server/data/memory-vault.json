@@ -1395,5 +1395,104 @@
     "createdAt": "2026-09-10T23:03:42.909Z",
     "lastAccessedAt": "2026-09-10T23:03:42.909Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789082685917-DG0V",
+    "key": "jin buat gambar pesawat terbang",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-10T23:24:45.917Z",
+    "lastAccessedAt": "2026-09-10T23:24:45.917Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789082799825-BIY0",
+    "key": "buat versi boeing 737",
+    "content": "Visual Boeing 737 telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-10T23:26:39.825Z",
+    "lastAccessedAt": "2026-09-10T23:26:39.825Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789082948843-NX7V",
+    "key": "buat gambar pesawat terbang boing 737",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-10T23:29:08.843Z",
+    "lastAccessedAt": "2026-09-10T23:29:08.843Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789085450418-75GW",
+    "key": "buat gambar pesawat terbang boing",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:10:50.418Z",
+    "lastAccessedAt": "2026-09-11T00:10:50.418Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789085557265-DDYU",
+    "key": "salah perbaiki",
+    "content": "Baik, mohon maaf atas ketidaksesuaian visual sebelumnya. Agar saya bisa meregenerasi gambarnya denga",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:12:37.265Z",
+    "lastAccessedAt": "2026-09-11T00:12:37.265Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789085669025-JACW",
+    "key": "boing 737",
+    "content": "Visual pesawat **Boeing 737** telah berhasil saya perbaiki dan buatkan ulang.\n\n**Detail Visual yang",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:14:29.025Z",
+    "lastAccessedAt": "2026-09-11T00:14:29.025Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789085863531-12H0",
+    "key": "Jin bust gambar pesawat boing 737",
+    "content": "Gambar **Boeing 737** yang baru telah berhasil saya buatkan!\n\n**Spesifikasi Visual:**\n* **Pesawat:**",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:17:43.531Z",
+    "lastAccessedAt": "2026-09-11T00:17:43.531Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789085964575-LNRR",
+    "key": "Jin buat gambar pesawat terbang boing 73",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:19:24.575Z",
+    "lastAccessedAt": "2026-09-11T00:19:24.575Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789086225144-SW3J",
+    "key": "jin Buat gambar pesawat terbang  boing 7",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:23:45.144Z",
+    "lastAccessedAt": "2026-09-11T00:23:45.144Z",
+    "accessCount": 1
   }
 ]
