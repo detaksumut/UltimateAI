@@ -1187,7 +1187,8 @@ Requirements:
                   if (visualResult.success && visualResult.artifact) {
                     intentGateRouted = true;
                     
-                    const slideText = `Slide ${slideNumber}: ${visualResult.slide.title}\n\n${visualResult.artifact.url}\n\n${visualResult.isLast ? 'Semua slide selesai!' : `Ketik "slide ${visualResult.nextSlide}" untuk slide berikutnya.`}`;
+                    // Minimal response - slide data untuk frontend overlay
+                    const slideText = `Slide ${visualResult.slide.title}`;
                     
                     if (payload.stream) {
                       res.writeHead(200, {
@@ -1221,7 +1222,12 @@ Requirements:
                             phase: 'VISUAL',
                             sessionId,
                             currentSlide: slideNumber,
-                            imageUrl: visualResult.artifact.url
+                            imageUrl: visualResult.artifact.url,
+                            slideData: {
+                              title: visualResult.slide.title,
+                              bullets: visualResult.slide.bullets,
+                              type: visualResult.slide.type
+                            }
                           }
                         }
                       });
@@ -1246,7 +1252,12 @@ Requirements:
                             phase: 'VISUAL',
                             sessionId,
                             currentSlide: slideNumber,
-                            imageUrl: visualResult.artifact.url
+                            imageUrl: visualResult.artifact.url,
+                            slideData: {
+                              title: visualResult.slide.title,
+                              bullets: visualResult.slide.bullets,
+                              type: visualResult.slide.type
+                            }
                           }
                         }
                       }));

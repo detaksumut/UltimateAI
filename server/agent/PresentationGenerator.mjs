@@ -159,26 +159,18 @@ export class PresentationGenerator {
   }
 
   /**
-   * Auto-build visual prompt from slide context - corporate landscape style
+   * Auto-build visual prompt - BACKGROUND ONLY, no text
    */
   _buildAutoPrompt(slide, topic) {
-    const base = `Corporate enterprise presentation slide, landscape 16:9, professional business style, clean modern design, navy blue and white color scheme`;
+    const base = `Corporate enterprise background, landscape 16:9, professional business abstract, clean modern design, navy blue and white gradient, soft geometric shapes, subtle light rays, no text, no words, no letters, no numbers`;
     
-    const titlePart = `Title: "${slide.title}"`;
-    const topicPart = `Topic: ${topic}`;
-    
-    let contentPart = '';
-    if (slide.bullets && slide.bullets.length > 0) {
-      contentPart = `Content: ${slide.bullets.slice(0, 3).join(', ')}`;
-    }
+    const typePart = slide.type === 'TITLE' ? 'elegant title slide background, centered focus area' :
+                     slide.type === 'TOC' ? 'clean list background, left aligned space' :
+                     slide.type === 'CONCLUSION' ? 'summary conclusion background' :
+                     slide.type === 'THANK_YOU' ? 'closing thank you background, warm gradient' :
+                     'content slide background, balanced layout';
 
-    const typePart = slide.type === 'TITLE' ? 'Title slide with large text' :
-                     slide.type === 'TOC' ? 'Table of contents layout with numbered list' :
-                     slide.type === 'CONCLUSION' ? 'Summary conclusion slide' :
-                     slide.type === 'THANK_YOU' ? 'Thank you closing slide' :
-                     'Content slide with key points';
-
-    return `${base}, ${typePart}, ${titlePart}, ${topicPart}${contentPart ? ', ' + contentPart : ''}`;
+    return `${base}, ${typePart}`;
   }
 
   /**
