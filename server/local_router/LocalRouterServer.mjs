@@ -1077,6 +1077,99 @@ Requirements:
           if (actionRequired) {
             console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → AgentRuntime`);
 
+            // DIRECT PRESENTATION GENERATION PATH
+            if (deterministicDecision.intent === 'PRESENTATION_REQUEST') {
+              try {
+                const { presentationGeneratorInstance } = await import('../agent/PresentationGenerator.mjs');
+
+                const presentationIntent = deterministicDecision.presentationIntent || {};
+                const sessionId = payload.generationId || `pres-${Date.now()}`;
+
+                console.log(`[INTENT_GATE] Presentation request: ${presentationIntent.topic}`);
+
+                // Phase 1: Generate draft
+                const draftResult = presentationGeneratorInstance.generateDraft(presentationIntent, sessionId);
+
+                if (draftResult.success) {
+                  intentGateRouted = true;
+
+                  if (payload.stream) {
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive'
+                    });
+
+                    // Send draft as response
+                    const draftText = draftResult.draft;
+                    const sseChunk = JSON.stringify({
+                      id: 'chatcmpl-presentation-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'presentation_pipeline',
+                      choices: [{ index: 0, delta: { content: draftText }, finish_reason: null }]
+                    });
+                    res.write(`data: ${sseChunk}\n\n`);
+
+                    // Send final chunk with presentation metadata
+                    const finalChunk = JSON.stringify({
+                      id: 'chatcmpl-presentation-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'presentation_pipeline',
+                      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: 'PRESENTATION_REQUEST',
+                        toolsUsed: ['presentation.generate'],
+                        verificationStatus: 'DRAFT_COMPLETED',
+                        cognitive: true,
+                        artifactType: 'PRESENTATION_DRAFT',
+                        presentation: {
+                          phase: 'DRAFT',
+                          sessionId,
+                          slideCount: draftResult.session.slideCount,
+                          topic: draftResult.session.topic
+                        }
+                      }
+                    });
+                    res.write(`data: ${finalChunk}\n\n`);
+                    res.write('data: [DONE]\n\n');
+                    res.end();
+                  } else {
+                    // Non-streaming response
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                      id: 'chatcmpl-presentation-' + Date.now(),
+                      object: 'chat.completion',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'presentation_pipeline',
+                      choices: [{ index: 0, message: { role: 'assistant', content: draftResult.draft }, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: 'PRESENTATION_REQUEST',
+                        toolsUsed: ['presentation.generate'],
+                        verificationStatus: 'DRAFT_COMPLETED',
+                        cognitive: true,
+                        artifactType: 'PRESENTATION_DRAFT',
+                        presentation: {
+                          phase: 'DRAFT',
+                          sessionId,
+                          slideCount: draftResult.session.slideCount,
+                          topic: draftResult.session.topic
+                        }
+                      }
+                    }));
+                  }
+
+                  console.log(`[INTENT_GATE] Presentation draft created: ${draftResult.session.slideCount} slides`);
+                  return;
+                } else {
+                  console.warn(`[INTENT_GATE] Presentation draft failed: ${draftResult.error}`);
+                }
+              } catch (presErr) {
+                console.warn(`[INTENT_GATE] Presentation error: ${presErr.message}`);
+              }
+            }
+
             // DIRECT IMAGE GENERATION PATH - bypass Ollama entirely
             if (deterministicDecision.intent === 'IMAGE_GENERATION' || deterministicDecision.intent === 'IMAGE_REVISION') {
               try {

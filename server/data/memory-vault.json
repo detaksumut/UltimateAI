@@ -1736,5 +1736,16 @@
     "createdAt": "2026-09-11T03:29:03.423Z",
     "lastAccessedAt": "2026-09-11T03:29:03.423Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789100041044-IOJQ",
+    "key": "Jin buatkan draft utk presentasi, tema \"",
+    "content": "Proses pembuatan gambar belum berhasil diselesaikan.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T04:14:01.044Z",
+    "lastAccessedAt": "2026-09-11T04:14:01.044Z",
+    "accessCount": 1
   }
 ]
