@@ -493,79 +493,79 @@ export class AgentRuntime {
     const messageId = options.messageId || null;
     const referenceImage = options.referenceImage || decision.referenceImage || decision.visualIntent?.referenceImage || null;
 
-    // PLAN stage: use the dedicated 6-stage image plan from AgentPlanner
+    // PLAN stage: use the dedicated 6-stage image revision plan from AgentPlanner
     timeline.push({
       event: 'PLAN_STARTED',
-      planningEngine: 'image_generation_pipeline',
+      planningEngine: 'image_revision_pipeline',
       scope: routing.scope,
       intent: 'IMAGE_REVISION',
       referenceImage: referenceImage,
       timestamp: new Date().toISOString()
     });
 
-    // Import required modules
-    const { agentPlannerInstance } = await import('./AgentPlanner.mjs');
-    const { agentExecutorInstance } = await import('./AgentExecutor.mjs');
-    const { agentVerifierInstance } = await import('./AgentVerifier.mjs');
-    const { jinResponseEngineInstance } = await import('./JINResponseEngine.mjs');
-    const { evidenceChainBuilderInstance } = await import('./EvidenceChainBuilder.mjs');
-
-    // Plan the 6-stage image generation pipeline
-    const plan = await agentPlannerInstance.planGoal(rawGoal, decision, {
-      conversationContext: sessionContext,
-      executionHistory: [],
-      referenceImage: referenceImage
-    });
+    const planOptions = {
+      ...sessionContext,
+      semanticDecision: { ...decision },
+      generationId,
+      messageId,
+      referenceImage,
+      ...(options.providerOverride ? { providerOverride: options.providerOverride } : {}),
+      ...(options.negativePrompt ? { negativePrompt: options.negativePrompt } : {}),
+      ...(options.size ? { size: options.size } : {})
+    };
+    let currentPlan = await AgentPlanner.planGoal(rawGoal, planOptions);
 
     timeline.push({
       event: 'PLAN_COMPLETED',
-      stages: plan.stages?.length || 0,
+      goalId: currentPlan.goalId,
+      stepCount: currentPlan.steps.length,
+      planStrategy: 'image_revision_6stage',
       timestamp: new Date().toISOString()
     });
 
-    // Execute each stage
+    // Execute each stage using the existing executor
     const currentHistory = [];
-    for (const stage of (plan.stages || [])) {
+    for (const step of (currentPlan.steps || [])) {
       timeline.push({
-        event: 'STAGE_STARTED',
-        stageId: stage.id,
-        stageName: stage.name,
+        event: 'STEP_STARTED',
+        stepId: step.id,
+        action: step.action,
         timestamp: new Date().toISOString()
       });
 
       try {
-        const stageResult = await agentExecutorInstance.executeStep(stage, {
-          userUtterance: rawGoal,
-          conversationContext: sessionContext,
-          decision,
+        const stepResult = await agentExecutorInstance.executeStep(step, {
+          ...sessionContext,
+          semanticDecision: decision,
+          exploration: null,
           executionHistory: currentHistory,
-          referenceImage: referenceImage,
           generationId,
-          messageId
+          messageId,
+          referenceImage,
+          transport: null
         });
 
         currentHistory.push({
-          stageId: stage.id,
-          stageName: stage.name,
-          result: stageResult,
+          step,
+          stepResult,
           timestamp: new Date().toISOString()
         });
 
         timeline.push({
-          event: 'STAGE_COMPLETED',
-          stageId: stage.id,
-          stageName: stage.name,
+          event: 'STEP_COMPLETED',
+          stepId: step.id,
+          action: step.action,
+          success: stepResult.success,
           timestamp: new Date().toISOString()
         });
-      } catch (stageErr) {
+      } catch (stepErr) {
         timeline.push({
-          event: 'STAGE_FAILED',
-          stageId: stage.id,
-          stageName: stage.name,
-          error: stageErr.message,
+          event: 'STEP_FAILED',
+          stepId: step.id,
+          action: step.action,
+          error: stepErr.message,
           timestamp: new Date().toISOString()
         });
-        // Continue to next stage despite failure
       }
     }
 
@@ -574,7 +574,7 @@ export class AgentRuntime {
       goal: rawGoal,
       executionHistory: currentHistory,
       decision,
-      referenceImage: referenceImage
+      referenceImage
     });
 
     timeline.push({
@@ -583,8 +583,8 @@ export class AgentRuntime {
       timestamp: new Date().toISOString()
     });
 
-    // Generate response
-    const responsePayload = jinResponseEngineInstance.synthesizeImageGenerationOutcome({
+    // Generate response using IMAGE_REVISION specific method
+    const responsePayload = jinResponseEngineInstance.synthesizeImageRevisionOutcome({
       userUtterance: rawGoal,
       conversationContext: sessionContext,
       decision,
@@ -596,8 +596,8 @@ export class AgentRuntime {
       sourceScope: routing.scope,
       providerRouting: routing,
       provenance: {
-        semanticModel: 'image_generation_pipeline',
-        planningEngine: 'image_generation_6stage',
+        semanticModel: 'image_revision_pipeline',
+        planningEngine: 'image_revision_6stage',
         executionTools: ['image.generate'],
         pool: 'LOCAL_IMAGE',
         transport: verification.artifact?.provider || 'POLLINATIONS'
@@ -642,8 +642,8 @@ export class AgentRuntime {
       failureReason: verification.failureReason || null,
       evidenceChain,
       provenance: {
-        semanticModel: 'image_generation_pipeline',
-        planningEngine: 'image_generation_6stage',
+        semanticModel: 'image_revision_pipeline',
+        planningEngine: 'image_revision_6stage',
         executionTools: ['image.generate'],
         selectedPool: 'LOCAL_IMAGE',
         transport: verification.artifact?.provider || 'POLLINATIONS'

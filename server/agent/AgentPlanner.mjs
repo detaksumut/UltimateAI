@@ -177,6 +177,98 @@ export class AgentPlanner {
       };
     }
 
+    // 2B. IMAGE_REVISION — Dedicated deterministic 6-stage image revision pipeline
+    if (semantic.intent === 'IMAGE_REVISION') {
+      const visualIntent = semantic.visualIntent || {};
+      const referenceImage = visualIntent.referenceImage || context.referenceImage || null;
+      const imagePrompt = visualIntent.providerPrompt || semantic.goal || raw;
+      const negativePrompt = Array.isArray(visualIntent.negativeConstraints)
+        ? visualIntent.negativeConstraints.join(', ')
+        : context.negativePrompt;
+
+      const steps = [
+        {
+          id: 'S1',
+          subgoal: 'Analyze user revision request and extract modification elements',
+          action: 'ANALYZE_IMAGE_REVISION',
+          tool: 'image.generate',
+          params: { stage: 'ANALYZE', prompt: imagePrompt, referenceImage },
+          dependsOn: [],
+          successCriteria: 'revision_analyzed',
+          evidenceContract: 'image_revision_analysis'
+        },
+        {
+          id: 'S2',
+          subgoal: 'Extract preserved and modified elements from previous visual',
+          action: 'EXTRACT_REVISION_PARAMETERS',
+          tool: 'image.generate',
+          params: { stage: 'EXTRACT', prompt: imagePrompt, referenceImage },
+          dependsOn: ['S1'],
+          successCriteria: 'revision_parameters_extracted',
+          evidenceContract: 'revision_parameter_extraction'
+        },
+        {
+          id: 'S3',
+          subgoal: 'Resolve image provider for revision',
+          action: 'RESOLVE_PROVIDER',
+          tool: 'image.generate',
+          params: { stage: 'PROVIDER', prompt: imagePrompt },
+          dependsOn: ['S2'],
+          successCriteria: 'provider_resolved',
+          evidenceContract: 'provider_resolution'
+        },
+        {
+          id: 'S4',
+          subgoal: 'Generate optimized revision prompt combining preserved + modified elements',
+          action: 'OPTIMIZE_REVISION_PROMPT',
+          tool: 'image.generate',
+          params: { stage: 'PROMPT', prompt: imagePrompt, referenceImage },
+          dependsOn: ['S3'],
+          successCriteria: 'revision_prompt_optimized',
+          evidenceContract: 'revision_prompt_optimization'
+        },
+        {
+          id: 'S5',
+          subgoal: 'Execute image generation with revision context',
+          action: 'GENERATE_REVISION_IMAGE',
+          tool: 'image.generate',
+          params: {
+            stage: 'GENERATE',
+            prompt: imagePrompt,
+            referenceImage,
+            ...(context.providerOverride ? { providerOverride: context.providerOverride } : {}),
+            ...(negativePrompt ? { negativePrompt } : {}),
+            ...(context.size ? { size: context.size } : {})
+          },
+          dependsOn: ['S4'],
+          successCriteria: 'revision_image_artifact_produced',
+          evidenceContract: 'revision_image_artifact'
+        },
+        {
+          id: 'S6',
+          subgoal: 'Verify revised image artifact exists and is renderable',
+          action: 'VERIFY_REVISION_ARTIFACT',
+          tool: 'image.generate',
+          params: { stage: 'VERIFY', prompt: imagePrompt, referenceImage },
+          dependsOn: ['S5'],
+          successCriteria: 'revision_artifact_verified_renderable',
+          evidenceContract: 'revision_verification'
+        }
+      ];
+
+      return {
+        goalId,
+        goal: semantic.goal || raw,
+        category: 'IMAGE_REVISION',
+        hierarchicalObjectives: [`Revise visual image: ${imagePrompt}`],
+        selectedEngine: route.selectedEngine,
+        selectedPool: route.selectedPool,
+        steps,
+        referenceImage,
+        evidenceContract: { requiredArtifactType: 'IMAGE', minSteps: 1 }
+      };
+    }
+
     // 3. CONSTRAINT UPDATE — Acknowledge and update state only
     if (semantic.intent === 'CONSTRAINT_UPDATE') {
       return {

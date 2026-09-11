@@ -101,6 +101,13 @@ export class JINResponseEngine {
       );
     }
 
+    // 1B2. IMAGE REVISION — Dedicated outcome synthesis
+    if (decision.intent === 'IMAGE_REVISION') {
+      return this._normalizePayload(
+        this.synthesizeImageRevisionOutcome(userUtterance, decision, artifact, verification, provenance)
+      );
+    }
+
     // 2. FACT-DRIVEN OUTCOME SYNTHESIS
     return this._normalizePayload(
       await this.synthesizeFactDrivenOutcome(userUtterance, decision, executionHistory, artifact, verification, provenance, options)
@@ -268,6 +275,52 @@ ${getCapabilityPromptContext()}`;
       responseSource: 'IMAGE_GENERATION_ENGINE',
       sourceType: 'UNKNOWN',
       modelUsed: 'image_generation_pipeline',
+      approvedFacts: [],
+      claims: [],
+      evidenceRefs: [],
+      voiceIntent: 'SPEAK'
+    };
+  }
+
+  /**
+   * Synthesizes response for IMAGE_REVISION outcome
+   */
+  synthesizeImageRevisionOutcome(userUtterance, decision, artifact, verification, provenance) {
+    const hasArtifact = Boolean(artifact && artifact.url);
+    const isRenderable = verification?.isSatisfied || false;
+
+    if (hasArtifact && isRenderable) {
+      const prompt = artifact.originalPrompt || artifact.prompt || userUtterance;
+      return {
+        naturalVoiceSpeech: `Visual telah berhasil diperbarui.`,
+        detailedTextDisplay: `Visual "${prompt}" telah berhasil diperbarui. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`,
+        responseMode: 'IMAGE_REVISION_SUCCESS',
+        responseSource: 'IMAGE_REVISION_ENGINE',
+        sourceType: 'IMAGE_ARTIFACT',
+        modelUsed: 'image_revision_pipeline',
+        approvedFacts: [`Image revised: ${artifact.id}`],
+        claims: [`Visual "${prompt}" berhasil diperbarui.`],
+        evidenceRefs: [{
+          sourceId: artifact.id,
+          type: 'IMAGE_ARTIFACT',
+          url: artifact.url,
+          provider: artifact.provider,
+          retrievedAt: artifact.createdAt,
+          sourceType: 'IMAGE_REVISION'
+        }],
+        voiceIntent: 'SPEAK'
+      };
+    }
+
+    // Revision failed
+    const errorMsg = verification?.failureReason || 'Penyebab tidak diketahui.';
+    return {
+      naturalVoiceSpeech: `Saya belum berhasil merender ulang visual tersebut.`,
+      detailedTextDisplay: `Saya belum berhasil merender ulang visual tersebut. Penyebab: ${errorMsg}.`,
+      responseMode: 'IMAGE_REVISION_FAILED',
+      responseSource: 'IMAGE_REVISION_ENGINE',
+      sourceType: 'UNKNOWN',
+      modelUsed: 'image_revision_pipeline',
       approvedFacts: [],
       claims: [],
       evidenceRefs: [],
