@@ -1080,13 +1080,18 @@ Requirements:
             try {
               const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
 
+              // Extract referenceImage for IMAGE_REVISION
+              const referenceImage = deterministicDecision.referenceImage || deterministicDecision.visualIntent?.referenceImage || null;
+
               const agentSummary = await agentRuntimeInstance.runGoal(
                 userPrompt,
                 { recentTurns: messages.slice(-10), conversationHistory: messages },
                 {
                   certificationTransport: 'LOCAL_ROUTER_PROXY',
                   generationId: payload.generationId || null,
-                  messageId: payload.messageId || null
+                  messageId: payload.messageId || null,
+                  referenceImage: referenceImage,
+                  intent: deterministicDecision.intent
                 }
               );
 
@@ -1208,8 +1213,28 @@ Requirements:
                     _agent: {
                       intent: deterministicDecision.intent,
                       toolsUsed: agentSummary.executionMetrics?.toolsUsed || [],
-                      verificationStatus: agentSummary.verification?.verificationStatus || null,
+                      verificationStatus: agentSummary.verificationStatus || agentSummary.verification?.verificationStatus || null,
                       cognitive: true,
+                      artifactType: agentSummary.presentation?.artifactType || (agentSummary.artifact ? 'IMAGE' : null),
+                      presentation: agentSummary.presentation || null,
+                      visualIntent: agentSummary.visualIntent || null,
+                      imageUrl: agentSummary.verificationStatus !== 'FAILED'
+                        ? (
+                          agentSummary.artifact?.url ||
+                          agentSummary.artifact?.thumbnailUrl ||
+                          (agentSummary.artifacts?.[0]?.url) ||
+                          (agentSummary.artifacts?.[0]?.thumbnailUrl) ||
+                          null
+                        )
+                        : null,
+                      generationId: agentSummary.generationId || null,
+                      messageId: agentSummary.messageId || null,
+                      imageRenderable: Boolean(
+                        agentSummary.verificationStatus !== 'FAILED' &&
+                        (agentSummary.artifact?.renderable ??
+                          agentSummary.artifact?.url ??
+                          false)
+                      )
                     }
                   }));
                 }

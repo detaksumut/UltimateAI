@@ -170,7 +170,8 @@ AUTONOMY RULES (MANDATORY):
 - UNDERSTAND THE USER'S REAL CONTEXT from the goal text itself, not just fixed patterns.
 
 ROUTING INTENTS (use when applicable):
-- IMAGE_GENERATION: every request to create/generate an image, including any 3D render or 3D object, uses only toolsNeeded=["image.generate"]. actionRequired=true.
+- IMAGE_GENERATION: every request to create/generate a NEW image from scratch, including any 3D render or 3D object, uses only toolsNeeded=["image.generate"]. actionRequired=true.
+- IMAGE_REVISION: every request to modify/re-render/update/revise an EXISTING visual that was created earlier in the conversation. The user references a previous visual using contextual cues like "nya", "yang tadi", "itu", "tersebut", "versi sebelumnya", or revision words like "revisi", "ubah", "ganti", "buat ulang", "edit", "modifikasi", "ulang". Uses toolsNeeded=["image.generate"]. actionRequired=true. MUST include referenceImage with the previous visual artifact URL.
 - A 3D request is a normal visual image request. Never classify it as architecture, never create plans/elevations/models, and never invoke a dedicated 3D script.
 - RESEARCH_TASK: deep research, investigation, study, or comparing sources → toolsNeeded=["web.search"]. freshDataRequired=true.
 - EXTERNAL_DATA: real-time or internet-dependent facts (weather, prices, news, current info) → toolsNeeded=["web.search"]. freshDataRequired=true.
@@ -189,13 +190,14 @@ Rules:
    - doc.analyze: Document analysis.
    - memory.vault: Storing or querying persistent facts.
    - device.inspect: Local machine inspection (RAM, CPU, disk, processes, UltimateAI runtime). Purely read-only. Use when the user asks about their local computer ("kondisi komputer", "cek penggunaan RAM", "proses paling banyak pakai memory", "kondisi UltimateAI", "cek storage", "apa yang membuat komputer berat"). Output must include a "scope" field: "overview" | "memory" | "process" | "storage" | "runtime" | "diagnosis".
-7. For IMAGE_GENERATION, produce a visualIntent object from the user's meaning, not keyword substitution:
-   {"mode":"GENERIC_IMAGE|SLIDE_VISUAL|ARCHITECTURAL_VISUAL","subject":"canonical subject","action":"requested action","environment":"requested setting","style":"requested style or realistic","composition":"requested composition","aspectRatio":"1:1|16:9|9:16","negativeConstraints":["incompatible subjects"],"providerPrompt":"complete faithful image prompt"}
+7. For IMAGE_GENERATION or IMAGE_REVISION, produce a visualIntent object from the user's meaning, not keyword substitution:
+   {"mode":"GENERIC_IMAGE|SLIDE_VISUAL|ARCHITECTURAL_VISUAL","subject":"canonical subject","action":"requested action","environment":"requested setting","style":"requested style or realistic","composition":"requested composition","aspectRatio":"1:1|16:9|9:16","negativeConstraints":["incompatible subjects"],"providerPrompt":"complete faithful image prompt","referenceImage":"URL of previous visual artifact if IMAGE_REVISION, null otherwise","preserveElements":["elements to keep from previous visual if IMAGE_REVISION"],"modifyElements":["elements to change from previous visual if IMAGE_REVISION"]}
    The providerPrompt must explicitly identify the requested subject, preserve requested details, and never invent a person, character, wings, vehicle, or template.
+   For IMAGE_REVISION, the providerPrompt must combine the preserved elements from the previous visual with the modification instructions.
 
 Output STRICT valid JSON:
 {
-  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|RESEARCH_TASK|EXTERNAL_DATA>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|IMAGE_REVISION|RESEARCH_TASK|EXTERNAL_DATA>",
   "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
   "actionRequired": <boolean>,
@@ -216,7 +218,10 @@ Output STRICT valid JSON:
     "composition": "<composition|null>",
     "aspectRatio": "<1:1|16:9|9:16|null>",
     "negativeConstraints": ["<incompatible subject or detail>"],
-    "providerPrompt": "<complete faithful provider prompt|null>"
+    "providerPrompt": "<complete faithful provider prompt|null>",
+    "referenceImage": "<URL of previous visual artifact if IMAGE_REVISION, null otherwise>",
+    "preserveElements": ["<elements to keep from previous visual if IMAGE_REVISION>"],
+    "modifyElements": ["<elements to change from previous visual if IMAGE_REVISION>"]
   },
   "needsClarification": false,
   "clarificationQuestion": null,
@@ -271,6 +276,7 @@ Analyze contextually and output strict JSON.`;
     const fallbackDecision =
       this._deterministicCasualChatClassifier(raw) ||
       this._deviceInspectionDecision(raw, context, options) ||
+      this._imageRevisionClassifier(raw, context.recentTurns || []) ||
       this._imageGenerationClassifier(raw, context.constraints || []) ||
       this._deterministicTaskClassifier(raw, context.constraints || []);
     if (fallbackDecision) {
@@ -596,6 +602,99 @@ Analyze contextually and output strict JSON.`;
         interpretationSource: 'DETERMINISTIC_IMAGE_CLASSIFIER',
         transportUsed: 'LOCAL_REASONING',
         fallbackUsed: false
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Deterministic Image Revision Classifier — Detects requests to modify/re-render
+   * an existing visual from conversation context. Must run BEFORE image generation classifier.
+   * Matches revision vocabulary AND checks for previous visual assets in conversation history.
+   */
+  _imageRevisionClassifier(raw, recentTurns = []) {
+    const r = raw;
+
+    // Revision vocabulary patterns (Indonesian + English)
+    const revisionPatterns = /(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang|ubah\s+suasana|ganti\s+suasana|buat\s+versi|versi\s+baru|versi\s+lain|yang\s+tadi|nya|itu|tersebut|sebelumnya)/i;
+
+    // Contextual reference patterns (don't require "gambar" noun)
+    const contextualReference = /(?:nya|yang\s+tadi|itu|tersebut|sebelumnya|versi\s+sebelumnya|yang\s+barusan|yang\s+kita\s+bicarakan)/i;
+
+    // Check if request contains revision vocabulary
+    const hasRevisionVocab = revisionPatterns.test(r);
+
+    // Check if request contains contextual references
+    const hasContextualRef = contextualReference.test(r);
+
+    // Check if there's a previous visual asset in conversation history
+    let lastVisualAsset = null;
+    for (let i = recentTurns.length - 1; i >= 0; i--) {
+      const turn = recentTurns[i];
+      if (turn.role === 'assistant' && turn.imageUrl) {
+        lastVisualAsset = turn.imageUrl;
+        break;
+      }
+      // Also check for image_url in content array (multimodal format)
+      if (turn.role === 'assistant' && Array.isArray(turn.content)) {
+        for (const part of turn.content) {
+          if (part.type === 'image_url' && part.image_url?.url) {
+            lastVisualAsset = part.image_url.url;
+            break;
+          }
+        }
+        if (lastVisualAsset) break;
+      }
+    }
+
+    // IMAGE_REVISION requires: revision vocabulary OR contextual reference AND previous visual exists
+    if ((hasRevisionVocab || hasContextualRef) && lastVisualAsset) {
+      // Extract modification instructions
+      const modifyElements = [];
+      if (/sunset|senja|matahari\s+tenggelam/i.test(r)) modifyElements.push('sunset atmosphere');
+      if (/malam|night|gelap/i.test(r)) modifyElements.push('nighttime');
+      if (/pagi|morning|subuh/i.test(r)) modifyElements.push('morning');
+      if (/dekat|close|besar/i.test(r)) modifyElements.push('closer view');
+      if (/jauh|far|kecil/i.test(r)) modifyElements.push('farther view');
+      if (/mendung|cloudy|awan/i.test(r)) modifyElements.push('cloudy sky');
+      if (/cerah|clear|sunny/i.test(r)) modifyElements.push('clear sky');
+      if (/realistis|realistic/i.test(r)) modifyElements.push('more realistic');
+
+      return {
+        intent: 'IMAGE_REVISION',
+        goal: r,
+        resolvedReferences: [`VISUAL_ASSET: ${lastVisualAsset}`],
+        actionRequired: true,
+        entities: ['image_revision', 'visual_asset'],
+        constraints: [],
+        isCorrecting: false,
+        isContinuing: true,
+        freshDataRequired: false,
+        toolsNeeded: ['image.generate'],
+        toolReason: 'User requests modification of existing visual asset. Must route to ImageGeneration with reference.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.92,
+        reason: 'Deterministic classifier: image revision task detected from revision vocabulary and existing visual context.',
+        interpretationSource: 'DETERMINISTIC_IMAGE_REVISION_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false,
+        referenceImage: lastVisualAsset,
+        visualIntent: {
+          mode: 'GENERIC_IMAGE',
+          subject: null,
+          action: 'revision',
+          environment: null,
+          style: null,
+          composition: null,
+          aspectRatio: '1:1',
+          negativeConstraints: [],
+          providerPrompt: null,
+          referenceImage: lastVisualAsset,
+          preserveElements: [],
+          modifyElements
+        }
       };
     }
 

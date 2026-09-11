@@ -1494,5 +1494,126 @@
     "createdAt": "2026-09-11T00:23:45.144Z",
     "lastAccessedAt": "2026-09-11T00:23:45.144Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789086884957-QWT0",
+    "key": "Jin buatkan gambar kota dengan gedung pe",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:34:44.957Z",
+    "lastAccessedAt": "2026-09-11T00:34:44.957Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789087045531-XYCZ",
+    "key": "jin buatkan gambar gedung gedung pencaka",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:37:25.531Z",
+    "lastAccessedAt": "2026-09-11T00:37:25.531Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789087202004-VPA8",
+    "key": "buat gambar pesawat terbang boing 747",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:40:02.004Z",
+    "lastAccessedAt": "2026-09-11T00:40:02.004Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789087894337-ZX3X",
+    "key": "Jin buat gambar pesawat terbang melintas",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:51:34.337Z",
+    "lastAccessedAt": "2026-09-11T00:51:34.337Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789088062944-ALE2",
+    "key": "Buat yang tadi tetapi saat matahari terb",
+    "content": "Visual pesawat terbang yang melintasi gunung pada saat matahari terbenam (*sunset*) telah berhasil d",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:54:22.944Z",
+    "lastAccessedAt": "2026-09-11T00:54:22.944Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789088160888-O2OL",
+    "key": "mana visualnya tampilkan lah",
+    "content": "Mohon maaf atas ketidaknyamanannya! Kelihatannya terdapat kendala teknis pada penayangan/rendering g",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:56:00.889Z",
+    "lastAccessedAt": "2026-09-11T00:56:00.889Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789088267645-49WO",
+    "key": "### 🌄 **Deskripsi Visual: Sunset Mounta",
+    "content": "Saya melihat Anda menyalin kembali deskripsi visual *Sunset Mountain Flight* tersebut.\n\nApakah Anda",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T00:57:47.645Z",
+    "lastAccessedAt": "2026-09-11T00:57:47.645Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789088421932-UHF2",
+    "key": "tidak buat ulang saja gambarnya",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T01:00:21.932Z",
+    "lastAccessedAt": "2026-09-11T01:00:21.932Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789088788307-JO8P",
+    "key": "buat ulang pwsawat terbang melintas gunu",
+    "content": "Saya memahami kekecewaan Anda. Mengatakan \"Visual telah berhasil dibuat\" tanpa menampilkan gambarnya",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T01:06:28.307Z",
+    "lastAccessedAt": "2026-09-11T01:06:28.307Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789091855745-496B",
+    "key": "JIN buat gambar pesawat terbang boing 73",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T01:57:35.745Z",
+    "lastAccessedAt": "2026-09-11T01:57:35.745Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789092013920-70WL",
+    "key": "buat ulang dengan suasana matahari mau t",
+    "content": "Visual Boeing 737 dengan latar suasana matahari terbenam (sunset) telah berhasil dibuat ulang.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T02:00:13.920Z",
+    "lastAccessedAt": "2026-09-11T02:00:13.920Z",
+    "accessCount": 1
   }
 ]

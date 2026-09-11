@@ -168,6 +168,14 @@ export class AgentRuntime {
       return this._normalizeSummary(executionResult);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 1B2. IMAGE_REVISION — Dedicated revision pipeline with reference image
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (decision.intent === 'IMAGE_REVISION') {
+      const executionResult = await this._executeImageRevision(rawGoal, decision, routing, sessionContext, options, startTime, timeline);
+      return this._normalizeSummary(executionResult);
+    }
+
     // 1B. MARKET_DATA — Dedicated market pipeline before scope routing.
     //     Market instrument + market intent → Market Data engine (real feed), NEVER
     //     generic web.search / YouTube. Honest LIVE/DELAYED/SNAPSHOT/STALE labels.
@@ -177,7 +185,7 @@ export class AgentRuntime {
     }
 
     // 1B3. PROFESSIONAL_WORK — Generic work execution via ProfessionalWorkExecutor
-    if (decision.actionRequired && decision.intent !== 'IMAGE_GENERATION' && decision.intent !== 'MARKET_DATA') {
+    if (decision.actionRequired && decision.intent !== 'IMAGE_GENERATION' && decision.intent !== 'IMAGE_REVISION' && decision.intent !== 'MARKET_DATA') {
       const executionResult = await this._executeWork(rawGoal, decision, routing, sessionContext, options, startTime, timeline);
       return this._normalizeSummary(executionResult);
     }
@@ -465,6 +473,185 @@ export class AgentRuntime {
       interpretationSource: decision.interpretationSource,
       transportUsed: 'LOCAL_REASONING',
       fallbackUsed: false,
+      timeline,
+      durationMs: Date.now() - startTime,
+      telemetry: {
+        totalStepsExecuted: currentHistory.length,
+        status: verification.isSatisfied ? 'VERIFIED_COMPLETED' : 'PARTIAL_COMPLETED'
+      }
+    };
+
+    this.sessionGoalHistory.push(summary);
+    return summary;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IMAGE_REVISION PATH — Dedicated revision pipeline with reference image
+  // ═══════════════════════════════════════════════════════════════════════════
+  async _executeImageRevision(rawGoal, decision, routing, sessionContext, options, startTime, timeline) {
+    const generationId = options.generationId;
+    const messageId = options.messageId || null;
+    const referenceImage = options.referenceImage || decision.referenceImage || decision.visualIntent?.referenceImage || null;
+
+    // PLAN stage: use the dedicated 6-stage image plan from AgentPlanner
+    timeline.push({
+      event: 'PLAN_STARTED',
+      planningEngine: 'image_generation_pipeline',
+      scope: routing.scope,
+      intent: 'IMAGE_REVISION',
+      referenceImage: referenceImage,
+      timestamp: new Date().toISOString()
+    });
+
+    // Import required modules
+    const { agentPlannerInstance } = await import('./AgentPlanner.mjs');
+    const { agentExecutorInstance } = await import('./AgentExecutor.mjs');
+    const { agentVerifierInstance } = await import('./AgentVerifier.mjs');
+    const { jinResponseEngineInstance } = await import('./JINResponseEngine.mjs');
+    const { evidenceChainBuilderInstance } = await import('./EvidenceChainBuilder.mjs');
+
+    // Plan the 6-stage image generation pipeline
+    const plan = await agentPlannerInstance.planGoal(rawGoal, decision, {
+      conversationContext: sessionContext,
+      executionHistory: [],
+      referenceImage: referenceImage
+    });
+
+    timeline.push({
+      event: 'PLAN_COMPLETED',
+      stages: plan.stages?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+
+    // Execute each stage
+    const currentHistory = [];
+    for (const stage of (plan.stages || [])) {
+      timeline.push({
+        event: 'STAGE_STARTED',
+        stageId: stage.id,
+        stageName: stage.name,
+        timestamp: new Date().toISOString()
+      });
+
+      try {
+        const stageResult = await agentExecutorInstance.executeStep(stage, {
+          userUtterance: rawGoal,
+          conversationContext: sessionContext,
+          decision,
+          executionHistory: currentHistory,
+          referenceImage: referenceImage,
+          generationId,
+          messageId
+        });
+
+        currentHistory.push({
+          stageId: stage.id,
+          stageName: stage.name,
+          result: stageResult,
+          timestamp: new Date().toISOString()
+        });
+
+        timeline.push({
+          event: 'STAGE_COMPLETED',
+          stageId: stage.id,
+          stageName: stage.name,
+          timestamp: new Date().toISOString()
+        });
+      } catch (stageErr) {
+        timeline.push({
+          event: 'STAGE_FAILED',
+          stageId: stage.id,
+          stageName: stage.name,
+          error: stageErr.message,
+          timestamp: new Date().toISOString()
+        });
+        // Continue to next stage despite failure
+      }
+    }
+
+    // Verification
+    const verification = await agentVerifierInstance.verify({
+      goal: rawGoal,
+      executionHistory: currentHistory,
+      decision,
+      referenceImage: referenceImage
+    });
+
+    timeline.push({
+      event: 'VERIFICATION_COMPLETED',
+      verificationStatus: verification.verificationStatus,
+      timestamp: new Date().toISOString()
+    });
+
+    // Generate response
+    const responsePayload = jinResponseEngineInstance.synthesizeImageGenerationOutcome({
+      userUtterance: rawGoal,
+      conversationContext: sessionContext,
+      decision,
+      executionHistory: currentHistory,
+      artifact: verification.artifact,
+      generationId,
+      messageId,
+      verification,
+      sourceScope: routing.scope,
+      providerRouting: routing,
+      provenance: {
+        semanticModel: 'image_generation_pipeline',
+        planningEngine: 'image_generation_6stage',
+        executionTools: ['image.generate'],
+        pool: 'LOCAL_IMAGE',
+        transport: verification.artifact?.provider || 'POLLINATIONS'
+      }
+    }, options);
+
+    // Evidence chain
+    const evidenceChain = evidenceChainBuilderInstance.buildChain({
+      claim: rawGoal,
+      goal: rawGoal,
+      scope: routing.scope,
+      explorationResult: null,
+      executionHistory: currentHistory,
+      verification,
+      decision
+    });
+
+    const summary = {
+      goal: rawGoal,
+      generationId,
+      messageId,
+      success: verification.isSatisfied,
+      confidence: verification.confidence,
+      actionRequired: true,
+      intent: 'IMAGE_REVISION',
+      sourceScope: routing.scope,
+      providerRouting: routing,
+      attempts: 1,
+      responseMessage: responsePayload.naturalVoiceSpeech,
+      detailedDisplay: responsePayload.detailedTextDisplay,
+      claims: responsePayload.claims,
+      evidenceRefs: responsePayload.evidenceRefs,
+      responseSource: responsePayload.responseSource,
+      artifact: verification.artifact,
+      visualIntent: decision.visualIntent || null,
+      presentation: {
+        artifactType: 'IMAGE',
+        mode: decision.visualIntent?.mode || 'GENERIC_IMAGE',
+        surface: 'CONVERSATION_CANVAS'
+      },
+      verificationStatus: verification.verificationStatus,
+      failureReason: verification.failureReason || null,
+      evidenceChain,
+      provenance: {
+        semanticModel: 'image_generation_pipeline',
+        planningEngine: 'image_generation_6stage',
+        executionTools: ['image.generate'],
+        selectedPool: 'LOCAL_IMAGE',
+        transport: verification.artifact?.provider || 'POLLINATIONS'
+      },
+      interpretationSource: decision.interpretationSource,
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: false,
+      referenceImage: referenceImage,
       timeline,
       durationMs: Date.now() - startTime,
       telemetry: {

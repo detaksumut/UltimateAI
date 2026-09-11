@@ -132,6 +132,7 @@ export class ImageGeneration {
       aspectRatio = '1:1',
       size = '1024x1024',
       referenceContext = null,
+      referenceImage = null,
       providerOverride = null,
       stage = 'GENERATE',
       options = {},
@@ -153,6 +154,7 @@ export class ImageGeneration {
       prompt: normalizedPrompt,
       originalPrompt,
       normalizedPrompt,
+      referenceImage,
       generationId,
       messageId,
       signal
@@ -208,12 +210,20 @@ export class ImageGeneration {
   }
 
   async _generatePollinations(params, fetchFn) {
-    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, generationId, messageId, signal } = params;
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, referenceImage, generationId, messageId, signal } = params;
     const [width, height] = (size || '1024x1024').split('x').map(Number);
 
     const seed = Math.floor(Math.random() * 2147483647);
     const optimizedPrompt = this._optimizePrompt(prompt);
-    const encoded = encodeURIComponent(optimizedPrompt);
+    
+    // For IMAGE_REVISION, append reference context to prompt for visual continuity
+    let finalPrompt = optimizedPrompt;
+    if (referenceImage) {
+      // Extract key elements from the prompt and combine with reference context
+      finalPrompt = `${optimizedPrompt}. Maintain the same visual style, composition, and subject matter as the reference image, with the requested modifications applied.`;
+    }
+    
+    const encoded = encodeURIComponent(finalPrompt);
     const apiKey = this._resolvePollinationsKey();
 
     // Model priority: quality first, fallback to fast
@@ -265,7 +275,7 @@ export class ImageGeneration {
         const detectedMime = respIsPng ? 'image/png' : respIsJpeg ? 'image/jpeg' : contentType.includes('jpeg') ? 'image/jpeg' : 'image/png';
 
         const artifact = this._persistArtifact(buffer, {
-          prompt: optimizedPrompt,
+          prompt: finalPrompt,
           originalPrompt: originalPrompt || prompt,
           normalizedPrompt: normalizedPrompt || optimizedPrompt,
           generationId,
@@ -276,10 +286,11 @@ export class ImageGeneration {
           width: width || 1024,
           height: height || 1024,
           seed,
-          mimeType: detectedMime
+          mimeType: detectedMime,
+          referenceImage: referenceImage || null
         });
 
-        console.log(`[ImageGeneration] Pollinations success with model: ${model}`);
+        console.log(`[ImageGeneration] Pollinations success with model: ${model}${referenceImage ? ' (revision)' : ''}`);
         return { success: true, artifact };
       } catch (err) {
         lastError = `Pollinations failed (model: ${model}): ${err.message}`;
@@ -547,6 +558,9 @@ export class ImageGeneration {
       .replace(/^(?:image|gambar|illustration|ilustrasi|visual|foto|poster|artwork)\s*(?:of|tentang|mengenai)?\s*/i, '')
       .replace(/^(?:buat(?:kan)?|bikin|generate|create|hasilkan|render(?:kan)?)\s+/i, '')
       .replace(/^(?:sebuah|a|an)\s+/i, '')
+      // Strip revision vocabulary for IMAGE_REVISION prompts
+      .replace(/^(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang)\s+/i, '')
+      .replace(/^(?:suasananya|warnanya|latarnya|gambarnya|visualnya|fotonya)\s+(?:menjadi|jadi|dengan|yang)\s*/i, '')
       .replace(/[?!]+$/g, '')
       .replace(/\s+/g, ' ')
       .trim();
