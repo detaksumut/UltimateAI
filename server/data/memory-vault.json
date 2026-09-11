@@ -1846,5 +1846,16 @@
     "createdAt": "2026-09-11T07:14:04.470Z",
     "lastAccessedAt": "2026-09-11T07:14:04.470Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789111654037-D0AA",
+    "key": "Jin buat Presentasi dengan Tema \"Kelemah",
+    "content": "DRAFT PRESENTASI\nTopik: Kelemahan dan kelebihan Regulasi Perdes\nSlide: 10\n\n1. Kelemahan dan kelebiha",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T07:27:34.037Z",
+    "lastAccessedAt": "2026-09-11T07:27:34.037Z",
+    "accessCount": 1
   }
 ]

@@ -63,49 +63,39 @@ export class PresentationGenerator {
    * Use LLM to generate contextual slide titles based on topic
    */
   async _generateSlidesWithLLM(topic, slideCount, speakerName, speakerPhoto) {
-    const prompt = `Kamu adalah ahli presentasi profesional. Buatlah daftar ${slideCount} slide presentasi untuk tema: "${topic}"
-
-Format response (HANYA JSON, tanpa penjelasan tambahan):
-{
-  "slides": [
-    {"title": "Judul Slide 1", "bullets": ["poin 1", "poin 2"]},
-    {"title": "Judul Slide 2", "bullets": ["poin 1", "poin 2"]}
-  ]
-}
-
-Aturan:
-- Slide 1 adalah judul presentasi
-- Slide terakhir adalah "Terima Kasih" atau "Penutup"
-- Slide lainnya berisi konten EKSPLISIT dari tema (bukan template generik)
-- Setiap slide punya 2-4 bullets yang relevan
-- Bahasa Indonesia
-- JANGAN gunakan "Daftar Isi" sebagai slide
-- Fokus pada EKSPLASI tema, bukan struktur umum`;
+    const prompt = `Buat ${slideCount} slide presentasi tentang "${topic}". 
+Response HANYA JSON:
+{"slides":[{"title":"judul","bullets":["poin1","poin2"]}]}
+Slide 1 = judul, slide terakhir = "Terima Kasih". Isi konten relevan.`;
 
     try {
+      console.log('[PresentationGenerator] Calling LLM for slide generation...');
+      
       const response = await ollamaProviderInstance.sendChat([
         { role: 'user', content: prompt }
-      ], { stream: false });
+      ], { stream: false, timeout: 60000 }); // 60s timeout
 
       const content = response?.choices?.[0]?.message?.content || '';
+      console.log('[PresentationGenerator] LLM response:', content.substring(0, 200));
       
-      // Parse JSON from response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.slides && Array.isArray(parsed.slides)) {
-          return parsed.slides.map((s, i) => ({
-            number: i + 1,
-            title: s.title,
-            type: i === 0 ? 'TITLE' : (i === parsed.slides.length - 1 ? 'THANK_YOU' : 'CONTENT'),
-            bullets: s.bullets || [],
-            speakerName: i === 0 ? speakerName : null,
-            speakerPhoto: i === 0 ? speakerPhoto : null
-          }));
-        }
+      // Parse JSON from response - handle markdown code blocks
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+      
+      const parsed = JSON.parse(jsonStr.trim());
+      if (parsed.slides && Array.isArray(parsed.slides)) {
+        console.log(`[PresentationGenerator] Generated ${parsed.slides.length} slides from LLM`);
+        return parsed.slides.map((s, i) => ({
+          number: i + 1,
+          title: s.title,
+          type: i === 0 ? 'TITLE' : (i === parsed.slides.length - 1 ? 'THANK_YOU' : 'CONTENT'),
+          bullets: s.bullets || [],
+          speakerName: i === 0 ? speakerName : null,
+          speakerPhoto: i === 0 ? speakerPhoto : null
+        }));
       }
     } catch (err) {
-      console.warn('[PresentationGenerator] LLM slide generation failed, using fallback:', err.message);
+      console.warn('[PresentationGenerator] LLM slide generation failed:', err.message);
     }
 
     // Fallback: minimal contextual slides
