@@ -1077,6 +1077,123 @@ Requirements:
           if (actionRequired) {
             console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → AgentRuntime`);
 
+            // DIRECT IMAGE GENERATION PATH - bypass Ollama entirely
+            if (deterministicDecision.intent === 'IMAGE_GENERATION' || deterministicDecision.intent === 'IMAGE_REVISION') {
+              try {
+                const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
+                const { jinResponseEngineInstance } = await import('../agent/JINResponseEngine.mjs');
+
+                const visualIntent = deterministicDecision.visualIntent || {};
+                const referenceImage = deterministicDecision.referenceImage || visualIntent.referenceImage || null;
+                const imagePrompt = visualIntent.providerPrompt || userPrompt;
+
+                console.log(`[INTENT_GATE] Direct image generation: ${deterministicDecision.intent}`);
+
+                const imageResult = await imageGenerationInstance.generateImage({
+                  prompt: imagePrompt,
+                  referenceImage,
+                  size: '768x768',
+                  generationId: payload.generationId || null,
+                  messageId: payload.messageId || null
+                });
+
+                if (imageResult.success && imageResult.artifact) {
+                  const responsePayload = deterministicDecision.intent === 'IMAGE_REVISION'
+                    ? jinResponseEngineInstance.synthesizeImageRevisionOutcome({
+                        userUtterance: userPrompt,
+                        decision: deterministicDecision,
+                        artifact: imageResult.artifact,
+                        verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                        provenance: { semanticModel: 'direct_image_pipeline' }
+                      })
+                    : jinResponseEngineInstance.synthesizeImageGenerationOutcome({
+                        userUtterance: userPrompt,
+                        decision: deterministicDecision,
+                        artifact: imageResult.artifact,
+                        verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                        provenance: { semanticModel: 'direct_image_pipeline' }
+                      });
+
+                  intentGateRouted = true;
+
+                  if (payload.stream) {
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive'
+                    });
+
+                    // Send response text
+                    const responseText = responsePayload.naturalVoiceSpeech || 'Visual telah berhasil dibuat.';
+                    const sseChunk = JSON.stringify({
+                      id: 'chatcmpl-direct-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                    });
+                    res.write(`data: ${sseChunk}\n\n`);
+
+                    // Send final chunk with image metadata
+                    const finalChunk = JSON.stringify({
+                      id: 'chatcmpl-direct-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: deterministicDecision.intent,
+                        toolsUsed: ['image.generate'],
+                        verificationStatus: 'VERIFIED',
+                        cognitive: true,
+                        artifactType: 'IMAGE',
+                        presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                        visualIntent: visualIntent,
+                        imageUrl: imageResult.artifact.url || null,
+                        generationId: payload.generationId || null,
+                        messageId: payload.messageId || null,
+                        imageRenderable: true
+                      }
+                    });
+                    res.write(`data: ${finalChunk}\n\n`);
+                    res.write('data: [DONE]\n\n');
+                    res.end();
+                  } else {
+                    // Non-streaming response
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                      id: 'chatcmpl-direct-' + Date.now(),
+                      object: 'chat.completion',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, message: { role: 'assistant', content: responsePayload.naturalVoiceSpeech }, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: deterministicDecision.intent,
+                        toolsUsed: ['image.generate'],
+                        verificationStatus: 'VERIFIED',
+                        cognitive: true,
+                        artifactType: 'IMAGE',
+                        presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                        visualIntent: visualIntent,
+                        imageUrl: imageResult.artifact.url || null,
+                        generationId: payload.generationId || null,
+                        messageId: payload.messageId || null,
+                        imageRenderable: true
+                      }
+                    }));
+                  }
+
+                  console.log(`[INTENT_GATE] Direct image success: ${imageResult.artifact.url}`);
+                  return;
+                } else {
+                  console.warn(`[INTENT_GATE] Direct image failed: ${imageResult.error}, falling back to AgentRuntime`);
+                }
+              } catch (directErr) {
+                console.warn(`[INTENT_GATE] Direct image error: ${directErr.message}, falling back to AgentRuntime`);
+              }
+            }
+
+            // Standard AgentRuntime path for non-image tasks or fallback
             try {
               const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
 

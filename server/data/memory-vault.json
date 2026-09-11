@@ -1703,5 +1703,38 @@
     "createdAt": "2026-09-11T03:13:09.916Z",
     "lastAccessedAt": "2026-09-11T03:13:09.916Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789097117766-WK08",
+    "key": "Jin buat gambar pesawat terbang dengan l",
+    "content": "Visual telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T03:25:17.766Z",
+    "lastAccessedAt": "2026-09-11T03:25:17.766Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789097230172-G4PD",
+    "key": "Buat pesawat terbang dengan sunset",
+    "content": "Visual pesawat terbang dengan latar belakang pemandangan matahari terbenam (*sunset*) yang hangat da",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T03:27:10.172Z",
+    "lastAccessedAt": "2026-09-11T03:27:10.172Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1789097343423-3963",
+    "key": "Jin buat pesawat terbang dengan suasana",
+    "content": "Visual pesawat terbang dengan suasana *sunset* telah berhasil dibuat!\n\nKarena konsepnya mirip dengan",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T03:29:03.423Z",
+    "lastAccessedAt": "2026-09-11T03:29:03.423Z",
+    "accessCount": 1
   }
 ]
