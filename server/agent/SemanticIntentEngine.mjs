@@ -170,7 +170,6 @@ AUTONOMY RULES (MANDATORY):
 - UNDERSTAND THE USER'S REAL CONTEXT from the goal text itself, not just fixed patterns.
 
 ROUTING INTENTS (use when applicable):
-- PRESENTATION_REQUEST: every request to create a presentation/PPT/slideshow. Keywords: "presentasi", "PPT", "slide presentation". Extract: topic, slideCount, optional speakerName, optional speakerPhoto. Uses toolsNeeded=["presentation.generate"]. actionRequired=true. Two-phase workflow: Phase 1 = draft outline, Phase 2 = visual generation per slide.
 - IMAGE_GENERATION: every request to create/generate a NEW image from scratch, including any 3D render or 3D object, uses only toolsNeeded=["image.generate"]. actionRequired=true.
 - IMAGE_REVISION: every request to modify/re-render/update/revise an EXISTING visual that was created earlier in the conversation. The user references a previous visual using contextual cues like "nya", "yang tadi", "itu", "tersebut", "versi sebelumnya", or revision words like "revisi", "ubah", "ganti", "buat ulang", "edit", "modifikasi", "ulang". Uses toolsNeeded=["image.generate"]. actionRequired=true. MUST include referenceImage with the previous visual artifact URL.
 - A 3D request is a normal visual image request. Never classify it as architecture, never create plans/elevations/models, and never invoke a dedicated 3D script.
@@ -198,7 +197,7 @@ Rules:
 
 Output STRICT valid JSON:
 {
-  "intent": "<PRESENTATION_REQUEST|CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|IMAGE_REVISION|RESEARCH_TASK|EXTERNAL_DATA>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|IMAGE_REVISION|RESEARCH_TASK|EXTERNAL_DATA>",
   "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
   "actionRequired": <boolean>,
@@ -223,14 +222,6 @@ Output STRICT valid JSON:
     "referenceImage": "<URL of previous visual artifact if IMAGE_REVISION, null otherwise>",
     "preserveElements": ["<elements to keep from previous visual if IMAGE_REVISION>"],
     "modifyElements": ["<elements to change from previous visual if IMAGE_REVISION>"]
-  },
-  "presentationIntent": {
-    "topic": "<presentation topic|null>",
-    "slideCount": <number of slides or null>,
-    "speakerName": "<speaker name if provided, null otherwise>",
-    "speakerPhoto": "<speaker photo URL if provided, null otherwise>",
-    "phase": "<DRAFT|VISUAL|null>",
-    "currentSlide": <current slide number for visual phase, null otherwise>
   },
   "needsClarification": false,
   "clarificationQuestion": null,
@@ -285,7 +276,6 @@ Analyze contextually and output strict JSON.`;
     const fallbackDecision =
       this._deterministicCasualChatClassifier(raw) ||
       this._deviceInspectionDecision(raw, context, options) ||
-      this._presentationClassifier(raw) ||
       this._imageRevisionClassifier(raw, context.recentTurns || []) ||
       this._imageGenerationClassifier(raw, context.constraints || []) ||
       this._deterministicTaskClassifier(raw, context.constraints || []);
@@ -612,64 +602,6 @@ Analyze contextually and output strict JSON.`;
         interpretationSource: 'DETERMINISTIC_IMAGE_CLASSIFIER',
         transportUsed: 'LOCAL_REASONING',
         fallbackUsed: false
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Deterministic Presentation Classifier — Detects requests to create presentations/PPT/slides.
-   * Matches keywords: presentasi, PPT, slide, presentation.
-   * Extracts: topic, slideCount, optional speakerName.
-   */
-  _presentationClassifier(raw) {
-    const r = raw;
-
-    // Presentation keywords
-    const presentationPattern = /(?:buat|bikin|create|generate|susun|rilis|publish)?\s*(?:presentasi|PPT|ppt|slide|slideshow|presentasi)/i;
-
-    // Extract slide count
-    const slideCountMatch = r.match(/(\d+)\s*(?:slide|halaman|lembar)/i);
-    const slideCount = slideCountMatch ? parseInt(slideCountMatch[1]) : null;
-
-    // Extract topic (text after "tema" or "tentang" or "about")
-    const topicMatch = r.match(/(?:tema|tentang|about|topik|topic)[:\s]+(.+?)(?:\s*,|\s*\.|\s*dengan|\s*untuk|\s*yang|$)/i);
-    const topic = topicMatch ? topicMatch[1].trim() : null;
-
-    // Extract speaker name (optional)
-    const speakerMatch = r.match(/(?:pembicara|speaker|oleh|presented\s+by)[:\s]+(.+?)(?:\s*,|\s*\.\s*|\s*dengan|\s*sertakan|$)/i);
-    const speakerName = speakerMatch ? speakerMatch[1].trim() : null;
-
-    // Check for presentation keywords - allow bare requests like "buat presentasi"
-    if (presentationPattern.test(r)) {
-      return {
-        intent: 'PRESENTATION_REQUEST',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['presentation', 'slides'],
-        constraints: [],
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['presentation.generate'],
-        toolReason: 'User requests presentation/slideshow creation. Must route to PresentationGenerator.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.94,
-        reason: 'Deterministic classifier: presentation request detected from PPT/presentasi/slide keywords.',
-        interpretationSource: 'DETERMINISTIC_PRESENTATION_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: false,
-        presentationIntent: {
-          topic: topic || r,
-          slideCount: slideCount || 10,
-          speakerName: speakerName,
-          speakerPhoto: null,
-          phase: 'DRAFT',
-          currentSlide: null
-        }
       };
     }
 

@@ -1868,5 +1868,16 @@
     "createdAt": "2026-09-11T07:33:43.566Z",
     "lastAccessedAt": "2026-09-11T07:33:43.566Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1789112972056-425A",
+    "key": "Jin buat draft Presentasi dengan Tema \"K",
+    "content": "DRAFT PRESENTASI\nTopik: \"Kelemahan dan kelebihan Regulas1 Perdes\" 10 slide\nSlide: 10\n\n1. \"Kelemahan",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-09-11T07:49:32.056Z",
+    "lastAccessedAt": "2026-09-11T07:49:32.056Z",
+    "accessCount": 1
   }
 ]
