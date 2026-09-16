@@ -1,0 +1,9 @@
+{
+  "id": "CASE_G03",
+  "category": "G_CONTRADICTION_DETECTION",
+  "name": "Deteksi Kontradiksi Batas Nilai Konsistensi CF",
+  "prompt": "Pernyataan: \"Nilai Consistency Factor (CF) dapat mencapai 1.25 untuk naskah dengan bukti yang luar biasa sempurna.\" Apakah pernyataan ini BENAR atau SALAH? Jelaskan batas atas maksimumnya.",
+  "expectedFact": "SALAH: Nilai maksimum CF dibatasi secara tegas (clamped) pada 1.00; tidak pernah melebihi 1.00",
+  "rawOutput": "",
+  "durationMs": 4
+}

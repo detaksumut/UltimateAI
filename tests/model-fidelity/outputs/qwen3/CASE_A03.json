@@ -1,0 +1,9 @@
+{
+  "id": "CASE_A03",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Ekstraksi 5 Pilar AECI",
+  "prompt": "Sebutkan 5 pilar dalam Analytical Evidence Consistency Index (AECI) pada metodologi AT-RQS.",
+  "expectedFact": "1. Methodological Coherence, 2. Data Grounding & Empirical Traceability, 3. Inferential Soundness, 4. Statistical Reproducibility, 5. Cross-Source Corroboration",
+  "rawOutput": "",
+  "durationMs": 3
+}

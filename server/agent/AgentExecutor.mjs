@@ -10,7 +10,8 @@ import { deviceIntelligenceRuntimeInstance } from '../device/DeviceIntelligenceR
 import { LiveVideoResolver } from '../tools/LiveVideoResolver.mjs';
 import { config } from '../config/env.mjs';
 import { imageGenerationInstance } from './ImageGeneration.mjs';
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
+import { IMAGE_WIDTH, IMAGE_HEIGHT, DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
 
 export class AgentExecutor {
   constructor(proxyUrl = null, apiKey = null) {
@@ -302,11 +303,12 @@ Requirements:
 - Do NOT include any placeholder comments like "// Add your code here"
 - Return ONLY the raw code inside a single \`\`\`jsx code block. No explanation.`;
 
-          const response = await ollamaProviderInstance.sendChat({
+          const routed = await modelRoutingServiceInstance.routeChat({
             messages: [{ role: 'user', content: codePrompt }],
             temperature: 0.7,
             stream: false
           });
+          const response = routed?.content || '';
 
           // Extract code from markdown code block
           const codeMatch = response.match(/```(?:jsx?|tsx?|javascript)?\s*\n?([\s\S]*?)```/);
@@ -382,11 +384,12 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 
 Be specific with realistic numbers. Write summary and recommendations in Indonesian.`;
 
-          const response = await ollamaProviderInstance.sendChat({
+          const routed = await modelRoutingServiceInstance.routeChat({
             messages: [{ role: 'user', content: analysisPrompt }],
             temperature: 0.6,
             stream: false
           });
+          const response = routed?.content || '';
 
           // Extract JSON from response
           const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -452,12 +455,25 @@ Be specific with realistic numbers. Write summary and recommendations in Indones
       // 8. Tool-Specific: Image Generation (image.generate) — Stage dispatch
       if (tool === 'image.generate') {
         const stage = params.stage || 'GENERATE';
+        const promptText = `${params.prompt || ''} ${context.userMessage || ''}`;
+        let ar = params.aspectRatio;
+        if (ar === '9:16' || /\b(?:9[:x]16|9\/16|portrait|vertikal|tegak|story|tiktok|reels|shorts|wallpaper(?:\s+hp|\s+ponsel)?)\b/i.test(promptText)) {
+          ar = '9:16';
+        } else {
+          ar = '16:9';
+        }
+        let w = ar === '9:16' ? 512 : 912;
+        let h = ar === '9:16' ? 912 : 512;
+
         const imageResult = await imageGenerationInstance.generateImage({
           prompt: params.prompt,
           negativePrompt: params.negativePrompt,
-          aspectRatio: params.aspectRatio,
-          size: params.size,
+          aspectRatio: ar,
+          size: `${w}x${h}`,
+          width: w,
+          height: h,
           referenceContext: params.referenceContext,
+          referenceImage: params.referenceImage || context.referenceImage || null,
           providerOverride: params.providerOverride,
           stage,
           options: context.options || {},
@@ -514,6 +530,96 @@ Be specific with realistic numbers. Write summary and recommendations in Indones
           success: false,
           tool,
           error: imageResult.error || 'Image generation failed',
+          durationMs: Date.now() - startTime
+        };
+      }
+
+      // 8B. Tool-Specific: Image Editing / Revision (image.edit)
+      if (tool === 'image.edit') {
+        const stage = params.stage || 'GENERATE';
+        if (stage !== 'GENERATE') {
+          return {
+            stepId: step.id || step.stepId,
+            success: true,
+            tool,
+            result: { stage },
+            durationMs: Date.now() - startTime
+          };
+        }
+
+        const { imageEditingInstance } = await import('./ImageEditing.mjs');
+        let ar = params.aspectRatio;
+        if (!ar || ar === '1:1') {
+          const promptText = `${params.prompt || ''} ${params.originalPrompt || ''} ${context.userMessage || ''}`;
+          if (/\b(?:16[:x]9|16\/9|landscape|horizontal|mendatar|lebar|panjang)\b/i.test(promptText)) {
+            ar = '16:9';
+          } else if (/\b(?:9[:x]16|9\/16|portrait|vertikal|tegak|story|tiktok|reels|shorts|wallpaper(?:\s+hp|\s+ponsel)?)\b/i.test(promptText)) {
+            ar = '9:16';
+          }
+        }
+        let w = params.width;
+        let h = params.height;
+        if (ar === '16:9') {
+          w = w || 912;
+          h = h || 512;
+        } else if (ar === '9:16') {
+          w = w || 512;
+          h = h || 912;
+        } else if (!w || !h) {
+          w = IMAGE_WIDTH;
+          h = IMAGE_HEIGHT;
+        }
+
+        const editResult = await imageEditingInstance.editImage({
+          referenceImage: params.referenceImage || context.referenceImage || null,
+          prompt: params.prompt,
+          originalPrompt: params.originalPrompt || params.prompt,
+          providerOverride: params.providerOverride || context.providerOverride || null,
+          steps: 8,
+          denoise: 0.75,
+          aspectRatio: ar,
+          width: w,
+          height: h,
+          requestId: context.generationId || params.generationId || null,
+          generationId: context.generationId || params.generationId || null,
+          messageId: context.messageId || params.messageId || null
+        });
+
+        if (editResult.success && editResult.artifact) {
+          const artifact = artifactManagerInstance.createArtifact({
+            name: `image_${editResult.artifact.id}`,
+            type: 'IMAGE',
+            content: editResult.artifact,
+            metadata: {
+              prompt: editResult.artifact.prompt,
+              originalPrompt: editResult.artifact.originalPrompt,
+              generationId: editResult.artifact.generationId,
+              messageId: editResult.artifact.messageId,
+              provider: editResult.artifact.provider,
+              parentArtifactId: editResult.artifact.parentArtifactId,
+              mimeType: editResult.artifact.mimeType,
+              generatedBy: 'ImageEditingService'
+            }
+          });
+
+          return {
+            stepId: step.id || step.stepId,
+            success: true,
+            tool,
+            result: {
+              ...editResult.artifact,
+              artifactId: artifact.id,
+              artifactRecord: artifact
+            },
+            durationMs: Date.now() - startTime
+          };
+        }
+
+        return {
+          stepId: step.id || step.stepId,
+          success: false,
+          tool,
+          error: editResult.error || 'Image editing failed',
           durationMs: Date.now() - startTime
         };
       }

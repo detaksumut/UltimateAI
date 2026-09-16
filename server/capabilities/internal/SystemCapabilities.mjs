@@ -130,7 +130,7 @@ export const SystemCapabilities = [
 
     {
         name: "system.health",
-        description: "Check JIN Router and Ollama health.",
+        description: "Check JIN Router and llama.cpp health.",
 
         async execute() {
             const check = async url => {
@@ -165,8 +165,8 @@ export const SystemCapabilities = [
                 router: await check(
                     "http://127.0.0.1:20200/health"
                 ),
-                ollama: await check(
-                    "http://127.0.0.1:11434/api/tags"
+                llamacpp: await check(
+                    "http://127.0.0.1:8080/health"
                 )
             };
         }

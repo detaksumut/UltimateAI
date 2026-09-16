@@ -119,9 +119,9 @@ export class SystemDiagnosticService {
     L.push(`[AI GATEWAY & RUNTIME SERVICES]`);
     L.push(`• Local Router ....... ${routerOnline ? 'ONLINE (:20200)' : 'TIDAK TERJANGKAU'}`);
     if (routerOnline) {
-      L.push(`• Mode Operasi ....... ${h.mode || 'LOCAL_OLLAMA'}`);
+      L.push(`• Mode Operasi ....... ${h.mode || 'LOCAL_LLAMA_CPP'}`);
       if (h.uptimeSeconds) L.push(`• Uptime Server ...... ${Math.floor(h.uptimeSeconds)} detik`);
-      L.push(`• AI Model ........... OLLAMA LOKAL (${h.model || 'qwen3:8b'})`);
+      L.push(`• AI Model ........... llama.cpp LOKAL (${h.model || 'qwen2.5-3b-instruct-q4_k_m.gguf'})`);
     }
     L.push(`• Uji Inferensi ...... ${chatTest.ok ? `RESPONSIF (${humanLatency(chatTest.latencyMs)})` : 'GAGAL'}`);
     L.push(`• Suara & STT ........ ${voiceData ? 'READY' : 'ONLINE'}`);

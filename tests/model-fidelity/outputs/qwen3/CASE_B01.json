@@ -1,0 +1,9 @@
+{
+  "id": "CASE_B01",
+  "category": "B_STRUCTURED_EXTRACTION",
+  "name": "Ekstraksi 7 Dimensi BWS dan Bobotnya",
+  "prompt": "Sebutkan 7 dimensi evaluasi dalam Balanced Weight Synthesis (BWS) beserta bobot numerik masing-masing.",
+  "expectedFact": "D1: 0.15 (15%), D2: 0.15 (15%), D3: 0.20 (20%), D4: 0.20 (20%), D5: 0.15 (15%), D6: 0.10 (10%), D7: 0.05 (5%)",
+  "rawOutput": "",
+  "durationMs": 3
+}

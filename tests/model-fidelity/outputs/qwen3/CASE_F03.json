@@ -1,0 +1,9 @@
+{
+  "id": "CASE_F03",
+  "category": "F_LONG_CONTEXT_COMPREHENSION",
+  "name": "Identitas Pemohon Paten dan Hak Eksklusif",
+  "prompt": "Siapakah pemegang/pemohon resmi hak paten invensi AT-RQS sebagaimana dinyatakan dalam dokumen formal?",
+  "expectedFact": "Association of Asia Pacific Academician (ASIA) / APASIFIC Academic Division",
+  "rawOutput": "",
+  "durationMs": 2
+}

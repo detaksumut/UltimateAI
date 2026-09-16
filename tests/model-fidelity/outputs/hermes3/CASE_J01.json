@@ -1,0 +1,9 @@
+{
+  "id": "CASE_J01",
+  "category": "J_SELF_CORRECTION",
+  "name": "Uji Koreksi Fakta Bobot SCORE vs CLUE",
+  "prompt": "Seseorang mengatakan bahwa bobot layer SCORE adalah 30% dan CLUE adalah 35%. Koreksi kesalahan tersebut berdasarkan spesifikasi baku AT-RQS.",
+  "expectedFact": "Koreksi: Terbalik. Bobot SCORE adalah 35% (0.35), bobot CLUE adalah 30% (0.30), dan bobot SCREEN adalah 35% (0.35)",
+  "rawOutput": "",
+  "durationMs": 3
+}

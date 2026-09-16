@@ -164,7 +164,7 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
 
   /**
    * Synthesizes authentic Indonesian female speech using Microsoft Edge Neural TTS (id-ID-GadisNeural).
-   * Generates crystal-clear 24kHz 48kbps MP3 audio with natural female intonation.
+   * Generates high-fidelity 24kHz 48kbps MP3 audio with natural female intonation.
    */
   async _synthesizeEdgeTTSStream(text, speaker = 'id-ID-GadisNeural', rate = 1.08, pitch = 1.00) {
     return new Promise((resolve, reject) => {

@@ -38,7 +38,7 @@ function normalizeModelText(val) {
 
 export class JINResponseEngine {
   constructor(proxyUrl = null, apiKey = null) {
-    const base = proxyUrl || process.env.OLLAMA_BASE_URL || config.endpoints.ollama || 'http://127.0.0.1:11434';
+    const base = proxyUrl || process.env.LLAMACPP_HOST || config.endpoints.llamacpp || 'http://127.0.0.1:8080';
     this.proxyUrl = base.replace(/\/+$/, '') + '/v1';
     this.apiKey = apiKey || '';
   }
@@ -134,7 +134,7 @@ export class JINResponseEngine {
    */
   async synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options = {}) {
     const raw = userUtterance.trim();
-    const model = options.forcedModel || process.env.OLLAMA_MODEL || 'qwen3:8b';
+    const model = options.forcedModel || process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf';
 
     // Unknown-First detection: If query asks for non-existent specific private data or unverified claims without context
     const asksUnknown = /apakah kamu tahu password|apa kunci rahasia saya|berkas pribadi yang tidak ada|fakta fiktif 9999/i.test(raw);
@@ -159,16 +159,12 @@ LANGUAGE ADAPTATION RULE:
 - If the user asks you to speak in English (e.g. "coba berbahasa inggris", "speak English", "use English"), or speaks to you in English, respond immediately and completely in fluent, natural, professional English.
 - If the user speaks in Indonesian, respond naturally in Indonesian.
 CORE GROUNDING RULES:
-1. CONTEXTUAL CONTINUITY: Selalu berpijak pada konteks dan topik pembicaraan saat ini. Jangan melompat tanpa relevansi.
-2. AUTONOMOUS EXECUTION: NEVER ask for clarification. NEVER say "I don't understand" or "can you clarify?". ALWAYS execute the most reasonable interpretation of the user's request. If ambiguous, choose the most likely intent and DO IT.
-3. MINIMUM SUFFICIENT RESPONSE: For simple requests or greetings, answer directly, warmly, and concisely without lecturing the user about internal architectures.
-4. NO INVENTED SUBSYSTEM NAMES: Never invent names like "Audio Ingestion Pipeline", "SpeechSense Pro", "Cognitive Matrix", "Ultimate Analysis Core", etc.
-5. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
-6. NEWS/BERITA: When asked about news, berita, or current events — respond with ONLY title and URL, one per line. NO HTML, NO markdown links, NO target="_blank". Just plain text:
-Judul Berita
-https://example.com/article
-Judul Berita 2
-https://example.com/article2
+1. DOKUMEN & NASKAH: Mampu membaca seluruh teks berkas dokumen (PDF, DOCX, TXT, CSV) dan menganalisisnya secara mendalam, kritis, terstruktur, dan solutif.
+2. CONTEXTUAL CONTINUITY: Selalu berpijak pada konteks dan topik pembicaraan saat ini. Jangan melompat tanpa relevansi.
+3. AUTONOMOUS EXECUTION: Berikan penalaran substantif secara tuntas. Jangan menolak atau memaksakan menu kaku.
+4. MINIMUM SUFFICIENT RESPONSE: Untuk sapaan sederhana, jawab langsung dan ramah tanpa menggurui pengguna.
+5. NO INVENTED SUBSYSTEM NAMES: Jangan mengarang nama subsistem palsu yang tidak ada di daftar resmi.
+6. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
 
 ${getCapabilityPromptContext()}`;
 
@@ -189,7 +185,7 @@ ${getCapabilityPromptContext()}`;
           temperature: 0.2,
           skipIntentGate: true
         }),
-        signal: AbortSignal.timeout(parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10))
+        signal: AbortSignal.timeout(parseInt(process.env.LLAMACPP_TIMEOUT_MS || '120000', 10))
       });
 
       if (response.ok) {
@@ -221,9 +217,17 @@ ${getCapabilityPromptContext()}`;
     }
 
     // Deterministic fallback
+    const cleanTopic = String(raw || '')
+      .replace(/^(?:jin\s+)?(?:tolong\s+)?(?:buatkan?|buat|bikin|tampilkan|analisis|jelaskan)\s+/i, '')
+      .replace(/["'“”]/g, '')
+      .trim();
+    const voiceSpeech = cleanTopic
+      ? `Permintaan Anda terkait ${cleanTopic.slice(0, 80)} sedang diproses.`
+      : 'Permintaan Anda sedang diproses.';
+
     return {
-      naturalVoiceSpeech: `Saya memahami instruksi: "${raw}". Siap membantu.`,
-      detailedTextDisplay: `Instruksi diterima: "${sanitizeOutput(raw)}".`,
+      naturalVoiceSpeech: voiceSpeech,
+      detailedTextDisplay: `Permintaan Anda sedang diproses: "${sanitizeOutput(raw)}".`,
       responseMode: 'FALLBACK_CONVERSATION',
       responseSource: 'DETERMINISTIC_FALLBACK',
       sourceType: 'USER_INPUT',
@@ -240,14 +244,35 @@ ${getCapabilityPromptContext()}`;
    * Uses artifact presence + verification status as source of truth (no LLM call needed).
    */
   synthesizeImageGenerationOutcome(userUtterance, decision, artifact, verification, provenance) {
-    const hasArtifact = Boolean(artifact && artifact.url);
-    const isRenderable = verification?.isSatisfied || false;
+    if (userUtterance && typeof userUtterance === 'object' && !Array.isArray(userUtterance) && ('userUtterance' in userUtterance || 'artifact' in userUtterance)) {
+      const obj = userUtterance;
+      userUtterance = obj.userUtterance || '';
+      decision = obj.decision || {};
+      artifact = obj.artifact || null;
+      verification = obj.verification || null;
+      provenance = obj.provenance || {};
+    }
+
+    const hasArtifact = Boolean(artifact && (artifact.url || artifact.localPath));
+    const isRenderable = Boolean(verification?.isSatisfied && hasArtifact);
 
     if (hasArtifact && isRenderable) {
       const prompt = artifact.originalPrompt || artifact.prompt || userUtterance;
+      const cleanSubject = String(prompt || '')
+        .replace(/^(?:tolong\s+|coba\s+)?(?:buatkan?|buat|bikin|generate|desain|rancang|tampilkan)\s+(?:gambar|visual|foto|ilustrasi|slide)?(?:nya)?\s*/i, '')
+        .replace(/\b(?:nya|ini|tersebut|tadi)\b/gi, '')
+        .replace(/["'“”]/g, '')
+        .trim();
+
+      const naturalVoiceSpeech = cleanSubject 
+        ? `Visual untuk ${cleanSubject} telah berhasil dibuat.`
+        : `Visual telah berhasil dibuat.`;
+
+      const detailedTextDisplay = `Visual "${cleanSubject || prompt}" telah berhasil dibuat. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`;
+
       return {
-        naturalVoiceSpeech: `Visual telah berhasil dibuat.`,
-        detailedTextDisplay: `Visual "${prompt}" telah berhasil dibuat. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`,
+        naturalVoiceSpeech,
+        detailedTextDisplay,
         responseMode: 'IMAGE_GENERATION_SUCCESS',
         responseSource: 'IMAGE_GENERATION_ENGINE',
         sourceType: 'IMAGE_ARTIFACT',
@@ -285,19 +310,48 @@ ${getCapabilityPromptContext()}`;
   /**
    * Synthesizes response for IMAGE_REVISION outcome
    */
-  synthesizeImageRevisionOutcome(userUtterance, decision, artifact, verification, provenance) {
-    const hasArtifact = Boolean(artifact && artifact.url);
-    const isRenderable = verification?.isSatisfied || false;
+  synthesizeImageRevisionOutcome(userUtterance, decision, artifact, verification, provenance, evaluation = null) {
+    if (userUtterance && typeof userUtterance === 'object' && !Array.isArray(userUtterance) && ('userUtterance' in userUtterance || 'artifact' in userUtterance)) {
+      const obj = userUtterance;
+      userUtterance = obj.userUtterance || '';
+      decision = obj.decision || {};
+      artifact = obj.artifact || null;
+      verification = obj.verification || null;
+      provenance = obj.provenance || {};
+      evaluation = obj.evaluation || artifact?.evaluation || null;
+    }
+
+    const hasArtifact = Boolean(artifact && (artifact.url || artifact.localPath));
+    const isRenderable = Boolean(verification?.isSatisfied && hasArtifact);
 
     if (hasArtifact && isRenderable) {
       const prompt = artifact.originalPrompt || artifact.prompt || userUtterance;
+      const evalStatus = evaluation?.evaluationStatus || 'REVISION_PASS';
+      const scoreStr = evaluation?.semantic?.semanticScore ? ` Skor semantik: ${evaluation.semantic.semanticScore}/100.` : '';
+      
+      const cleanSubject = String(prompt || '')
+        .replace(/^(?:tolong\s+|coba\s+)?(?:buatkan?|buat|bikin|ubah|edit|ganti|revisi)?\s*(?:gambar|visual|foto|ilustrasi|slide)?(?:nya)?\s*/i, '')
+        .replace(/\b(?:nya|ini|tersebut|tadi)\b/gi, '')
+        .replace(/["'“”]/g, '')
+        .trim();
+      let speech = cleanSubject 
+        ? `Visual untuk ${cleanSubject} telah selesai diperbarui.`
+        : 'Visual telah selesai diperbarui.';
+      if (evalStatus === 'TECHNICAL_PASS_SEMANTIC_WEAK') {
+        speech = cleanSubject
+          ? `Visual untuk ${cleanSubject} telah diperbarui, namun perubahannya masih tergolong halus.`
+          : 'Visual telah diperbarui, namun perubahannya masih tergolong halus.';
+      }
+
       return {
-        naturalVoiceSpeech: `Visual telah berhasil diperbarui.`,
-        detailedTextDisplay: `Visual "${prompt}" telah berhasil diperbarui. Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px.`,
-        responseMode: 'IMAGE_REVISION_SUCCESS',
+        naturalVoiceSpeech: speech,
+        detailedTextDisplay: `Visual "${prompt}" telah berhasil diperbarui.${scoreStr} Provider: ${artifact.provider || 'N/A'}. Ukuran: ${artifact.width || '?'}x${artifact.height || '?'}px. Status evaluasi: ${evalStatus}.`,
+        responseMode: evalStatus === 'REVISION_PASS' ? 'IMAGE_REVISION_SUCCESS' : 'IMAGE_REVISION_SEMANTIC_WEAK',
         responseSource: 'IMAGE_REVISION_ENGINE',
         sourceType: 'IMAGE_ARTIFACT',
         modelUsed: 'image_revision_pipeline',
+        evaluationStatus: evalStatus,
+        evaluation,
         approvedFacts: [`Image revised: ${artifact.id}`],
         claims: [`Visual "${prompt}" berhasil diperbarui.`],
         evidenceRefs: [{

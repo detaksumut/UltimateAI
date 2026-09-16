@@ -1,0 +1,9 @@
+{
+  "id": "CASE_D01",
+  "category": "D_FORMULA_FIDELITY",
+  "name": "Formulasi Matematis Consistency Factor (CF)",
+  "prompt": "Tuliskan persamaan matematis lengkap untuk menghitung Consistency Factor (CF) menggunakan parameter AECI, lambda, dan gamma.",
+  "expectedFact": "CF = 1.0 - lambda * (1.0 - AECI)^gamma",
+  "rawOutput": "",
+  "durationMs": 4
+}

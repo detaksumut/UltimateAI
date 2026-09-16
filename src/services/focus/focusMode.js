@@ -1,6 +1,6 @@
 /**
  * focusMode.js
- * Reusable JIN Focus Mode state machine for the Crystal/HUD dashboard.
+ * Reusable JIN Focus Mode state machine for the JIN HUD dashboard.
  *
  * When a focus panel opens (LIVE CONVERSATION, MEDIA, DETAIL PANEL, SUMMARY,
  * EXPANDED PANEL, studio, evidence chain, etc.) the MAIN DASHBOARD behind it is

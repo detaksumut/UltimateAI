@@ -1,0 +1,9 @@
+{
+  "id": "CASE_B03",
+  "category": "B_STRUCTURED_EXTRACTION",
+  "name": "Struktur Tier Klasifikasi Kualitas",
+  "prompt": "Sebutkan 5 tingkatan (Tier) klasifikasi mutu naskah dalam AT-RQS beserta rentang skornya.",
+  "expectedFact": "Tier 1: World Class (90-100), Tier 2: High Rigor (80-89.99), Tier 3: Substantive (70-79.99), Tier 4: Deficient (55-69.99), Tier 5: Sub-Standard (<55)",
+  "rawOutput": "",
+  "durationMs": 14
+}

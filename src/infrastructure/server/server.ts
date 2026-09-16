@@ -78,7 +78,8 @@ app.post('/api/magic', async (req: Request, res: Response) => {
 
        const prompt = encodeURIComponent(latestMessage.replace(/\[Gambar Terlampir:.*?\]/g, '').trim());
        if (!imageUrl) {
-           imageUrl = `https://image.pollinations.ai/prompt/${prompt}?width=1080&height=1920&nologo=true`;
+           sendEvent('error', { message: 'Image mode membutuhkan lampiran gambar. Pollinations dilarang — gunakan attached image atau mode lain.', code: 'IMAGE_MODE_REQUIRES_ATTACHMENT' });
+           return res.end();
        }
        
        finalHtml = `

@@ -1,18 +1,22 @@
 /**
  * ProviderRegistry.mjs
  * Central Registry of all Local AI Providers with Dynamic Resolution.
- * Primary Gateway: Local Ollama Provider (:11434)
+ * Primary Inference Engine: llama.cpp (LlamaCppAdapter on :8080)
+ * STRICT POLICY: Zero hidden fallback between runtimes.
  */
 
-import { OllamaProvider } from './OllamaProvider.mjs';
+import { LlamaCppAdapter } from './LlamaCppAdapter.mjs';
 import { geminiProviderInstance } from './GeminiProvider.mjs';
 
 export class ProviderRegistry {
   constructor() {
     this.providers = new Map();
-    // Primary: Gemini Cloud & Local Ollama
+    // Primary local engine: llama.cpp
+    this.llamaCppAdapter = new LlamaCppAdapter();
+    this.register(this.llamaCppAdapter);
+
+    // Cloud Provider
     this.register(geminiProviderInstance);
-    this.register(new OllamaProvider());
   }
 
   register(provider) {
@@ -24,16 +28,17 @@ export class ProviderRegistry {
   }
 
   /**
-   * Resolve best configured provider and model based on capability and strategy
+   * Resolve best configured provider and model based on capability and strategy.
+   * Default local runtime is llama.cpp.
    */
   resolveProviderForStrategy(strategy, preferredModel) {
-    const ollamaProvider = this.get('ollama');
+    const llamaCpp = this.get('llamacpp');
 
-    if (ollamaProvider && ollamaProvider.isConfigured()) {
+    if (llamaCpp && llamaCpp.isConfigured()) {
       return {
-        provider: ollamaProvider,
-        model: preferredModel || 'qwen3:8b',
-        gateway: 'OLLAMA',
+        provider: llamaCpp,
+        model: preferredModel || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+        gateway: 'LLAMA_CPP',
         fallbackUsed: false
       };
     }

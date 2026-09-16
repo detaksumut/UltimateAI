@@ -52,13 +52,13 @@ export class RuntimeObservabilityService {
     return event;
   }
 
-  startTask({ taskId, userGoal, capability = 'LOCAL_CHAT', requestedModel = 'qwen3:8b' }) {
+  startTask({ taskId, userGoal, capability = 'LOCAL_CHAT', requestedModel = 'qwen2.5-3b-instruct-q4_k_m.gguf' }) {
     const task = {
       taskId: taskId || `TASK-${String(this.tasks.length + 1).padStart(3, '0')}`,
       userGoal: userGoal || '',
       capability,
       requestedModel,
-      selectedPool: 'local-ollama',
+      selectedPool: 'local-llamacpp',
       status: 'EXECUTING',
       startTime: Date.now(),
       startTimeIso: new Date().toISOString(),
@@ -81,22 +81,22 @@ export class RuntimeObservabilityService {
       taskId: taskId || this.currentTask?.taskId || `TASK-${Date.now()}`,
       userGoal: this.currentTask?.userGoal || '',
       capability: this.currentTask?.capability || 'LOCAL_CHAT',
-      requestedModel: provenance.requestedModel || this.currentTask?.requestedModel || 'qwen3:8b',
-      actualModel: provenance.actualModel || provenance.requestedModel || 'qwen3:8b',
-      connectionId: provenance.connectionId || 'local-ollama',
+      requestedModel: provenance.requestedModel || this.currentTask?.requestedModel || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+      actualModel: provenance.actualModel || provenance.requestedModel || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+      connectionId: provenance.connectionId || 'local-llamacpp',
       durationMs,
       status: 'SUCCESS',
       rollover: false,
       timestamp: new Date().toISOString(),
       provenance: {
-        providerGateway: provenance.providerGateway || 'OLLAMA',
-        connectionId: provenance.connectionId || 'local-ollama',
-        actualConnectionId: provenance.actualConnectionId || 'local-ollama',
-        accountAlias: 'LOCAL_OLLAMA_DAEMON',
-        requestedModel: provenance.requestedModel || 'qwen3:8b',
-        actualModel: provenance.actualModel || 'qwen3:8b',
-        upstreamEndpoint: provenance.upstreamEndpoint || 'http://127.0.0.1:11434/api/generate',
-        transportClass: provenance.transportClass || 'LOCAL_OLLAMA',
+        providerGateway: provenance.providerGateway || 'LLAMA_CPP',
+        connectionId: provenance.connectionId || 'local-llamacpp',
+        actualConnectionId: provenance.actualConnectionId || 'local-llamacpp',
+        accountAlias: 'LOCAL_LLAMA_CPP_DAEMON',
+        requestedModel: provenance.requestedModel || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+        actualModel: provenance.actualModel || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+        upstreamEndpoint: provenance.upstreamEndpoint || 'http://127.0.0.1:8080/v1/chat/completions',
+        transportClass: provenance.transportClass || 'LOCAL_LLAMA_CPP',
         upstreamResponseId: provenance.upstreamResponseId,
         localResponseId: provenance.localResponseId,
         responseId: provenance.responseId,
@@ -151,21 +151,21 @@ export class RuntimeObservabilityService {
   getSnapshot() {
     const pools = [
       {
-        id: 'local-ollama',
-        alias: 'LOCAL_OLLAMA',
+        id: 'local-llamacpp',
+        alias: 'LOCAL_LLAMA_CPP',
         email: null,
         isEnrolled: true,
         isActive: true,
         status: 'ACTIVE',
         health: 'HEALTHY',
-        currentModel: 'qwen3:8b',
+        currentModel: 'qwen2.5-3b-instruct-q4_k_m.gguf',
         quotaSource: 'LOCAL_UNLIMITED',
         remaining: Infinity,
         lastUsed: new Date().toISOString(),
         lastError: null,
         cooldownUntil: null,
         models: [
-          { id: 'qwen3:8b', name: 'Qwen 3 8B (Default Local)', status: 'AVAILABLE', isLocked: false }
+          { id: 'qwen2.5-3b-instruct-q4_k_m.gguf', name: 'Qwen 2.5 3B (Default Local)', status: 'AVAILABLE', isLocked: false }
         ]
       }
     ];
@@ -178,7 +178,7 @@ export class RuntimeObservabilityService {
         agentRuntimeStatus: 'ONLINE',
         localRouterStatus: 'ONLINE',
         endpoint: 'http://127.0.0.1:20200',
-        mode: 'LOCAL_OLLAMA',
+        mode: 'LOCAL_LLAMA_CPP',
         enrolledCount: 1,
         healthyCount: 1,
         availableCount: 1,

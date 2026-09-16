@@ -1,0 +1,9 @@
+{
+  "id": "CASE_C02",
+  "category": "C_NUMERICAL_FIDELITY",
+  "name": "Batas Bawah dan Atas Nilai Consistency Factor (CF)",
+  "prompt": "Berapa batas rentang nilai minimum (batas bawah) dan maksimum (batas atas) dari Consistency Factor (CF)?",
+  "expectedFact": "Min: 0.65, Max: 1.00",
+  "rawOutput": "",
+  "durationMs": 3
+}

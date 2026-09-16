@@ -1,0 +1,9 @@
+{
+  "id": "CASE_D02",
+  "category": "D_FORMULA_FIDELITY",
+  "name": "Formulasi Master Skor AT-RQS",
+  "prompt": "Tuliskan rumus master perhitungan skor akhir AT-RQS yang menggabungkan skor SCORE, SCREEN, CLUE, dan Consistency Factor (CF).",
+  "expectedFact": "AT_RQS = (0.35 * S_SCORE + 0.35 * S_SCREEN + 0.30 * S_CLUE) * CF",
+  "rawOutput": "",
+  "durationMs": 4
+}

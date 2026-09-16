@@ -32,13 +32,13 @@ function buildRealTickerEntries(t) {
     });
   }
 
-  // 4. Ollama Local Engine Status
-  if (t.ollama) {
-    const modelList = t.ollama.models?.length > 0 ? t.ollama.models.join(', ') : 'qwen3:8b';
+  // 4. llama.cpp Local Engine Status
+  if (t.llamacpp) {
+    const modelList = t.llamacpp.models?.length > 0 ? t.llamacpp.models.join(', ') : 'qwen2.5-3b-instruct';
     entries.push({
-      tag: 'OLM',
-      color: t.ollama.online ? '#8b5cf6' : '#f59e0b',
-      text: `Ollama Engine :11434 [${t.ollama.status}] — Model Terverifikasi: [${modelList}] — Siap Akses RAG Offline.`
+      tag: 'LLM',
+      color: t.llamacpp.online ? '#8b5cf6' : '#f59e0b',
+      text: `llama.cpp :8080 [${t.llamacpp.status}] — Model: [${modelList}] — Lokal Qwen 2.5 3B aktif.`
     });
   }
 

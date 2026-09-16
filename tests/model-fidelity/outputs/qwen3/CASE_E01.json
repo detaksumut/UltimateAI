@@ -1,0 +1,9 @@
+{
+  "id": "CASE_E01",
+  "category": "E_CROSS_SECTION_CONSISTENCY",
+  "name": "Korelasi Antara AECI dan Penalti CF",
+  "prompt": "Jika sebuah artikel memiliki AECI = 1.0 (konsistensi sempurna), berapa nilai CF yang dihasilkan? Dan jika AECI = 0.0, berapa nilai CF yang dihasilkan?",
+  "expectedFact": "AECI = 1.0 -> CF = 1.0 (tanpa penalti); AECI = 0.0 -> CF = 0.65 (penalti maksimal 35%)",
+  "rawOutput": "",
+  "durationMs": 4
+}

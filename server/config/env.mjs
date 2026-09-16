@@ -27,28 +27,33 @@ export const config = {
     healthLegacyPath: LOCAL_ROUTER_HEALTH_LEGACY_PATH
   },
   endpoints: {
-    ollama: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
+    llamacpp: process.env.LLAMACPP_HOST || 'http://127.0.0.1:8080',
+    ninerouter: process.env.NINEROUTER_URL || 'http://127.0.0.1:20128'
   },
   localLLM: {
     enabled: true,
-    model: process.env.OLLAMA_MODEL || 'qwen3:8b',
-    baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
-    timeoutMs: parseInt(process.env.OLLAMA_TIMEOUT_MS || '180000', 10),
-    maxPromptChars: parseInt(process.env.OLLAMA_MAX_PROMPT_CHARS || '16000', 10)
+    model: process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+    baseUrl: process.env.LLAMACPP_HOST || 'http://127.0.0.1:8080',
+    timeoutMs: parseInt(process.env.LLAMACPP_TIMEOUT_MS || '120000', 10),
+    maxPromptChars: parseInt(process.env.LLAMACPP_MAX_PROMPT_CHARS || '48000', 10)
   },
   route: {
     strategy: process.env.ROUTE_STRATEGY || 'cloud_first',
     provider: process.env.ROUTE_PROVIDER || 'gemini'
   },
   imageGeneration: {
-    provider: 'local',
-    providerPriority: ['LOCAL_GENERATOR', 'POLLINATIONS']
+    provider: 'ninerouter',
+    providerPriority: ['NINEROUTER']
+  },
+  ninerouter: {
+    url: process.env.NINEROUTER_URL || 'http://127.0.0.1:20128',
+    keyConfigured: Boolean(process.env.NINEROUTER_KEY && String(process.env.NINEROUTER_KEY).trim().length > 0)
   }
 };
 
 export function getProviderConfigStatus() {
   return {
-    ollama: {
+    llamacpp: {
       configured: true,
       model: config.localLLM.model,
       endpoint: config.localLLM.baseUrl

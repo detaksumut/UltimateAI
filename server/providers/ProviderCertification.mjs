@@ -1,7 +1,7 @@
 /**
  * ProviderCertification.mjs
  * Live Runtime Verification & Health Matrix for Local AI Providers.
- * Gateway: Local Ollama Provider (:11434)
+ * Gateway: llama.cpp (:8080)
  */
 
 import { providerRegistryInstance } from './ProviderRegistry.mjs';
@@ -13,7 +13,7 @@ export const CERTIFICATION_STATUS = PROVIDER_STATUS; // Backward compatibility a
 export class ProviderCertification {
   static async certifyAllProviders() {
     const results = {};
-    const providers = ['ollama'];
+    const providers = ['llamacpp', 'gemini'];
 
     for (const name of providers) {
       const provider = providerRegistryInstance.get(name);
@@ -28,15 +28,15 @@ export class ProviderCertification {
         continue;
       }
 
-      // Local Ollama Health Check
+      // Local LLM Health Check
       const health = await provider.healthCheck();
       results[name] = {
-        status: health.ok ? PROVIDER_STATUS.AUTHENTICATED_LIVE : PROVIDER_STATUS.FAILED,
+        status: health.status === 'READY' || health.ok ? PROVIDER_STATUS.AUTHENTICATED_LIVE : PROVIDER_STATUS.FAILED,
         configured: true,
         authenticated: true,
-        reachable: health.ok,
+        reachable: health.status === 'READY' || Boolean(health.ok),
         streamMode: 'UPSTREAM_NATIVE',
-        providerGateway: 'LOCAL_OLLAMA',
+        providerGateway: name === 'llamacpp' ? 'LOCAL_LLAMA_CPP' : 'CLOUD_GEMINI',
         models: health.models || [],
         lastCheck: new Date().toISOString()
       };

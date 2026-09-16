@@ -1,16 +1,15 @@
 /**
  * ModelRoutingService.mjs
  * Intelligent Hybrid Model Routing Service for UltimateAI / JIN Runtime.
- * Routes text reasoning to local Qwen and visual generation to Gemini,
- * while preserving cloud/local failover for ordinary chat.
+ * Primary Local Inference Engine: llama.cpp (Qwen 2.5 3B on :8080)
+ * Visual / Multimodal Engine: Gemini Cloud
  * 
- * Routing Policies:
- *  - Primary Provider: Gemini 2.5 Flash Cloud (<1.5s TTFB, zero CPU/RAM stress)
- *  - Fallback Provider: Ollama (:11434) (offline safety net)
- *  - Zero Interruption: Seamless auto-failover if cloud connection drops
+ * STRICT POLICY:
+ *  - Zero silent / hidden fallback between runtimes.
+ *  - When local Qwen is chosen, failures report directly to caller.
  */
 
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { llamaCppAdapterInstance } from '../providers/LlamaCppAdapter.mjs';
 import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
 import { groqProviderInstance } from '../providers/GroqProvider.mjs';
 
@@ -38,19 +37,27 @@ export class ModelRoutingService {
   }
 
   _strategy() {
-    if (process.env.ROUTER_FORCE_LOCAL === 'true') {
-      return 'local_only';
+    if (
+      process.env.ROUTER_FORCE_LOCAL === 'true' ||
+      process.env.ROUTE_STRATEGY === 'local_first' ||
+      process.env.ROUTE_PROVIDER === 'llamacpp'
+    ) {
+      return 'local_first';
     }
     return geminiProviderInstance.isConfigured() ? 'cloud_first' : 'local_first';
   }
 
+  _localModel() {
+    return process.env.LLAMACPP_MODEL || 'hermes-3-8b';
+  }
+
   _maxPromptChars() {
-    const raw = Number(process.env.LOCAL_LLM_MAX_PROMPT_CHARS || 16000);
-    return Number.isFinite(raw) && raw > 0 ? raw : 16000;
+    const raw = Number(process.env.LOCAL_LLM_MAX_PROMPT_CHARS || 48000);
+    return Number.isFinite(raw) && raw > 0 ? raw : 48000;
   }
 
   _localRouteLabel(model) {
-    const modelName = String(model || 'ollama').split(':')[0].replace(/[^a-z0-9]+/gi, '_').toUpperCase();
+    const modelName = String(model || 'hermes-3-8b').split(':')[0].replace(/[^a-z0-9]+/gi, '_').toUpperCase();
     return `LOCAL_${modelName}_PRIMARY`;
   }
 
@@ -100,26 +107,61 @@ export class ModelRoutingService {
     return copy;
   }
 
+  _sanitizeMessages(messages = []) {
+    if (!Array.isArray(messages)) return [];
+    return messages
+      .filter(m => m && typeof m === 'object' && m.role)
+      .map(m => {
+        const role = String(m.role).toLowerCase();
+        const sanitized = { role };
+
+        if (typeof m.content === 'string') {
+          sanitized.content = m.content;
+        } else if (Array.isArray(m.content)) {
+          sanitized.content = m.content.map(part => {
+            if (typeof part === 'string') return { type: 'text', text: part };
+            if (part && typeof part === 'object') {
+              if (part.type === 'text') return { type: 'text', text: part.text || '' };
+              if (part.type === 'image_url' && part.image_url) {
+                return { type: 'image_url', image_url: { url: part.image_url.url || part.image_url } };
+              }
+              if (part.type === 'image' && part.image) {
+                return { type: 'image_url', image_url: { url: part.image } };
+              }
+            }
+            return part;
+          }).filter(Boolean);
+        } else {
+          sanitized.content = String(m.content || '');
+        }
+
+        if (m.name && typeof m.name === 'string') sanitized.name = m.name;
+        if (Array.isArray(m.tool_calls)) sanitized.tool_calls = m.tool_calls;
+        if (m.tool_call_id) sanitized.tool_call_id = m.tool_call_id;
+
+        return sanitized;
+      });
+  }
+
   determineRoute({ messages = [], capability = 'FAST_CHAT', model = 'auto' }) {
     const hasMedia = this._hasMedia(messages);
     const normalizedCapability = this._normalizeCapability(capability);
     const heavy = HEAVY_CAPABILITIES.has(normalizedCapability);
     const geminiModel = (model && model.startsWith('gemini-')) ? model : (process.env.GEMINI_MODEL || 'gemini-3.6-flash');
-    const ollamaModel = process.env.OLLAMA_MODEL || 'qwen3:8b';
+    const localModel = this._localModel();
     const cleanModel = String(model || '').trim();
+
     const isExplicitGemini = cleanModel.startsWith('gemini-');
-    const isExplicitLocal  = cleanModel.startsWith('ollama:') || cleanModel.startsWith('hermes');
+    const isExplicitLocal  = cleanModel.startsWith('llamacpp:') || cleanModel.startsWith('hermes') || cleanModel.startsWith('ollama:');
     const isLocalPreferred = !isExplicitGemini && (
       isExplicitLocal ||
       process.env.ROUTER_FORCE_LOCAL === 'true' ||
-      process.env.ROUTE_PROVIDER === 'ollama' ||
+      process.env.ROUTE_PROVIDER === 'llamacpp' ||
       process.env.ROUTE_STRATEGY === 'local_first'
     );
     const hasGemini = geminiProviderInstance.isConfigured();
 
-    // Visual generation must stay on Gemini. Falling back to a text model would
-    // produce a plausible-looking text response while silently dropping the
-    // requested artifact capability.
+    // 1. Visual generation must stay on Gemini (image/video generation)
     if (this._isVisualCapability(normalizedCapability)) {
       return {
         candidates: hasGemini
@@ -136,7 +178,7 @@ export class ModelRoutingService {
       };
     }
 
-    // Multimodal messages (images/documents) MUST route to Gemini Vision
+    // 2. Multimodal messages (images/documents) MUST route to Gemini Vision
     if (hasMedia && hasGemini) {
       return {
         candidates: [
@@ -152,28 +194,28 @@ export class ModelRoutingService {
       };
     }
 
-    // If user configured local-first or Hermes 3 in .env / model
+    // 3. Local Primary Route (Hermes 3:8B via llama.cpp)
+    // ZERO hidden fallback.
     if (isLocalPreferred) {
       return {
         candidates: [
-          { provider: 'ollama', model: ollamaModel, fallback: false },
-          ...(hasGemini ? [{ provider: 'gemini', model: geminiModel, fallback: true }] : [])
+          { provider: 'llamacpp', model: localModel, fallback: false }
         ],
         hasMedia,
         heavy,
         capability: normalizedCapability,
         strategy: 'local_first',
-        forcedProvider: 'ollama',
-        provider: 'ollama',
-        label: this._localRouteLabel(ollamaModel)
+        forcedProvider: 'llamacpp',
+        provider: 'llamacpp',
+        label: this._localRouteLabel(localModel)
       };
     }
 
+    // 4. Cloud Primary Route (Gemini)
     if (hasGemini) {
       return {
         candidates: [
-          { provider: 'gemini', model: geminiModel, fallback: false },
-          { provider: 'ollama', model: ollamaModel, fallback: !hasMedia }
+          { provider: 'gemini', model: geminiModel, fallback: false }
         ],
         hasMedia,
         heavy,
@@ -186,14 +228,14 @@ export class ModelRoutingService {
     }
 
     return {
-      candidates: [{ provider: 'ollama', model: ollamaModel, fallback: false }],
+      candidates: [{ provider: 'llamacpp', model: localModel, fallback: false }],
       hasMedia,
       heavy,
       capability: normalizedCapability,
       strategy: 'local_first',
-      forcedProvider: 'ollama',
-      provider: 'ollama',
-      label: 'LOCAL_OLLAMA'
+      forcedProvider: 'llamacpp',
+      provider: 'llamacpp',
+      label: this._localRouteLabel(localModel)
     };
   }
 
@@ -201,21 +243,81 @@ export class ModelRoutingService {
     return this.determineRoute({ messages, capability, model });
   }
 
-  async routeChat(args = {}, onChunk = null) {
-    const { messages = [], stream = false, model = 'auto', capability = 'FAST_CHAT', temperature = 0.7 } = args || {};
+  async routeChat({
+    messages = [],
+    stream = false,
+    model = 'auto',
+    capability = 'FAST_CHAT',
+    temperature = 0.7,
+    maxTokens = null
+  }, onChunk = null) {
     const route = this.determineRoute({ messages, capability, model });
-
     let emitted = false;
-    const safeOnChunk = onChunk ? (chunk) => {
+
+    const safeOnChunk = typeof onChunk === 'function' ? (chunk) => {
       emitted = true;
       onChunk(chunk);
     } : null;
 
-    // 1. PRIMARY ROUTE: GEMINI CLOUD
+    const sanitizedMessages = this._sanitizeMessages(messages);
+
+    // 1. LOCAL ROUTE: LLAMA.CPP
+    if (route.provider === 'llamacpp') {
+      // isAvailable() now checks for status='ok' (model fully loaded).
+      // If server just started, waitUntilReady() polls up to 30s before giving up.
+      const isReady = await llamaCppAdapterInstance.isAvailable() ||
+        await llamaCppAdapterInstance.waitUntilReady(30_000);
+      if (!isReady) {
+        const err = new Error('LLAMACPP_UNAVAILABLE: llama-server tidak aktif atau model belum selesai dimuat di http://127.0.0.1:8080. Tunggu beberapa detik lalu coba lagi.');
+        err.code = 'LLAMACPP_UNAVAILABLE';
+        err.routeAttempts = route.candidates;
+        throw err;
+      }
+
+      try {
+        const localMessages = this._truncateForLocal(sanitizedMessages, this._maxPromptChars());
+        const raw = await llamaCppAdapterInstance.sendChat(
+          { messages: localMessages, stream, model: route.candidates[0].model, temperature, ...(maxTokens ? { maxTokens } : {}) },
+          safeOnChunk
+        );
+
+        const responseId = `llamacpp-hermes-${Date.now()}`;
+        return {
+          content: raw,
+          model,
+          actualModel: route.candidates[0].model,
+          providerGateway: 'LLAMA_CPP',
+          transport: 'LLAMA_CPP',
+          transportClass: 'LOCAL_LLAMA_CPP',
+          upstreamEndpoint: `${llamaCppAdapterInstance.host}/v1/chat/completions`,
+          localResponseId: responseId,
+          responseId,
+          routedTo: 'llamacpp',
+          fallbackUsed: false,
+          routePlan: route
+        };
+      } catch (err) {
+        if (stream && emitted) {
+          throw err;
+        }
+        if (err.code === 'CONTEXT_LIMIT_EXCEEDED' || err.message?.includes('CONTEXT_LIMIT_EXCEEDED')) {
+          err.code = 'CONTEXT_LIMIT_EXCEEDED';
+          throw err;
+        }
+        // STRICT ZERO FALLBACK POLICY: Do not silently fallback to Ollama or Gemini
+        const wrappedErr = new Error(`LLAMACPP_EXECUTION_ERROR: ${err.message}`);
+        wrappedErr.original = err;
+        wrappedErr.code = err.code || 'LLAMACPP_EXECUTION_ERROR';
+        wrappedErr.routeAttempts = route.candidates;
+        throw wrappedErr;
+      }
+    }
+
+    // 2. CLOUD ROUTE: GEMINI
     if (route.provider === 'gemini') {
       try {
         const raw = await geminiProviderInstance.sendChat(
-          { messages, stream, model, temperature },
+          { messages: sanitizedMessages, stream, model, temperature },
           safeOnChunk
         );
 
@@ -236,12 +338,9 @@ export class ModelRoutingService {
           routePlan: route
         };
       } catch (err) {
-        // If stream already emitted tokens, cannot switch mid-stream cleanly
         if (stream && emitted) {
           throw err;
         }
-
-        // If this was a multimodal request, NEVER fallback to text-only Ollama
         if (route.hasMedia) {
           console.error(`[ModelRoutingService] Gemini Multimodal failed: ${err.message}`);
           throw new Error(`MULTIMODAL_ERROR: Gagal memproses gambar/media dengan Gemini Vision: ${err.message}`);
@@ -249,108 +348,38 @@ export class ModelRoutingService {
         if (route.strictCapability) {
           throw new Error(`VISUAL_PROVIDER_ERROR: Gemini tidak dapat menyelesaikan capability ${route.capability}: ${err.message}`);
         }
-
-        console.warn(`[ModelRoutingService] Gemini Cloud failed (${err.message}). Engaging Ollama Local failover...`);
-        // Fall through to Ollama fallback below
-      }
-    }
-
-    // 2. TIER 2 FAILOVER: GROQ CLOUD ULTRA-FAST
-    // Fires when Gemini is unavailable/quota-exhausted. <0.8s TTFB, zero local load.
-    if (groqProviderInstance.isConfigured()) {
-      const groqReady = await groqProviderInstance.isAvailable();
-      if (groqReady) {
-        try {
-          const groqModel = groqProviderInstance._resolveModel(model);
-          console.log(`[ModelRoutingService] Engaging Groq Cloud Tier-2 failover... model=${groqModel}`);
-          const raw = await groqProviderInstance.sendChat(
-            { messages, stream, model, temperature },
-            safeOnChunk
-          );
-
-          const responseId = `groq-${Date.now()}`;
-          return {
-            content: raw,
-            model,
-            actualModel: groqModel,
-            providerGateway: 'GROQ',
-            transport: 'GROQ_CLOUD',
-            transportClass: 'CLOUD_GROQ',
-            upstreamEndpoint: `${groqProviderInstance.baseUrl}/chat/completions`,
-            localResponseId: responseId,
-            responseId,
-            routedTo: 'groq',
-            fallbackUsed: true,
-            routePlan: route
-          };
-        } catch (groqErr) {
-          if (stream && emitted) throw groqErr;
-          console.warn(`[ModelRoutingService] Groq Cloud Tier-2 failed (${groqErr.message}). Engaging Ollama Local Tier-3...`);
-        }
-      } else {
-        console.warn('[ModelRoutingService] Groq is configured but unreachable. Skipping to Tier-3 Ollama.');
-      }
-    }
-
-    // 3. TIER 3 FALLBACK: OLLAMA LOCAL (pre-flight checked)
-    const ollamaAvailable = await ollamaProviderInstance.isAvailable();
-    if (!ollamaAvailable) {
-      const err = new Error('AI_PROVIDERS_UNAVAILABLE: Gemini Cloud dan Ollama lokal (:11434) tidak dapat dihubungi.');
-      err.code = 'PROVIDERS_UNAVAILABLE';
-      err.routeAttempts = route.candidates;
-      throw err;
-    }
-
-    try {
-      const localMessages = this._truncateForLocal(messages, this._maxPromptChars());
-      const raw = await ollamaProviderInstance.sendChat(
-        { messages: localMessages, stream, model, temperature },
-        safeOnChunk
-      );
-
-      const resolvedModel = ollamaProviderInstance._resolveModel(model);
-      const responseId = `ollama-${Date.now()}`;
-      return {
-        content: raw,
-        model,
-        actualModel: resolvedModel,
-        providerGateway: 'OLLAMA',
-        transport: 'OLLAMA',
-        transportClass: 'LOCAL_OLLAMA',
-        upstreamEndpoint: `${ollamaProviderInstance.baseUrl}/v1/chat/completions`,
-        localResponseId: responseId,
-        responseId,
-        routedTo: 'ollama',
-        fallbackUsed: route.provider === 'gemini', // was a fallback if gemini was primary
-        routePlan: route
-      };
-    } catch (err) {
-      if (stream && emitted) {
         throw err;
       }
-      const wrappedErr = new Error(`AI_EXECUTION_ERROR: ${err.message}`);
-      wrappedErr.original = err;
-      wrappedErr.routeAttempts = route.candidates;
-      throw wrappedErr;
     }
+
+    const err = new Error(`NO_ROUTE_MATCHED: Tidak ditemukan provider aktif untuk rute ${route.provider}`);
+    err.code = 'NO_ROUTE';
+    throw err;
   }
 
   async status() {
-    const local = await ollamaProviderInstance.healthCheck();
+    const llamaCheck = await llamaCppAdapterInstance.healthCheck();
     const geminiAvailable = await geminiProviderInstance.isAvailable();
     const hasGemini = geminiProviderInstance.isConfigured();
     const hasGroq = groqProviderInstance.isConfigured();
     const groqAvailable = hasGroq ? await groqProviderInstance.isAvailable() : false;
+
     const isLocalPreferred =
       process.env.ROUTER_FORCE_LOCAL === 'true' ||
-      process.env.ROUTE_PROVIDER === 'ollama' ||
+      process.env.ROUTE_PROVIDER === 'llamacpp' ||
       process.env.ROUTE_STRATEGY === 'local_first';
 
-    const isCloudFirst = hasGemini && !isLocalPreferred;
-
     return {
-      strategy: isCloudFirst ? 'cloud_first' : 'local_first',
-      primaryProvider: isCloudFirst ? 'gemini' : 'ollama',
+      strategy: isLocalPreferred ? 'local_first' : 'cloud_first',
+      primaryProvider: isLocalPreferred ? 'llamacpp' : 'gemini',
+      localLLM: {
+        provider: 'llamacpp',
+        endpoint: llamaCppAdapterInstance.host,
+        configured: true,
+        status: llamaCheck.status,
+        model: this._localModel(),
+        role: 'primary_local'
+      },
       cloudLLM: {
         provider: 'gemini',
         configured: hasGemini,
@@ -361,16 +390,13 @@ export class ModelRoutingService {
         provider: 'groq',
         configured: hasGroq,
         available: groqAvailable,
-        model: groqProviderInstance.defaultModel,
-        role: 'tier2_failover'
+        model: groqProviderInstance.defaultModel
       },
-      localLLM: local,
-      mode: isCloudFirst ? 'HYBRID_CLOUD_PRIMARY' : this._localRouteLabel(local.model),
-      providerGateway: isCloudFirst ? 'GEMINI' : 'OLLAMA',
+      mode: isLocalPreferred ? 'LOCAL_LLAMA_HERMES_PRIMARY' : 'HYBRID_CLOUD_PRIMARY',
+      providerGateway: isLocalPreferred ? 'LLAMA_CPP' : 'GEMINI',
       routingTiers: [
-        { tier: 1, provider: 'gemini', status: geminiAvailable ? 'READY' : 'UNAVAILABLE' },
-        { tier: 2, provider: 'groq', status: groqAvailable ? 'READY' : (hasGroq ? 'UNREACHABLE' : 'NOT_CONFIGURED') },
-        { tier: 3, provider: 'ollama', status: local.status }
+        { tier: 1, provider: 'llamacpp', model: this._localModel(), status: llamaCheck.status },
+        { tier: 2, provider: 'gemini', status: geminiAvailable ? 'READY' : 'UNAVAILABLE' }
       ]
     };
   }

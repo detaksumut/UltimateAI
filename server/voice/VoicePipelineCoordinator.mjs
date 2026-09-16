@@ -140,8 +140,14 @@ export class VoicePipelineCoordinator {
         forcedModel: 'qwen3:8b'
       });
 
-      this.activeTask = taskResult;
-      const speechOutput = taskResult.responseMessage || taskResult.detailedDisplay || 'Saya telah menyelesaikan permintaan Anda.';
+      const cleanGoal = String(executionGoal || '')
+        .replace(/^(?:jin\s+)?(?:tolong\s+)?(?:buatkan?|buat|bikin|tampilkan|analisis|jelaskan)\s+/i, '')
+        .replace(/["'“”]/g, '')
+        .trim();
+      const defaultSpoken = cleanGoal
+        ? `Permintaan Anda terkait ${cleanGoal.slice(0, 80)} telah selesai diproses.`
+        : 'Permintaan Anda telah selesai diproses.';
+      const speechOutput = taskResult.responseMessage || taskResult.detailedDisplay || defaultSpoken;
 
       // Preserve context in case of subsequent barge-in or follow-up
       this.preservedContext = {

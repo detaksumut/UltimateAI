@@ -27,7 +27,7 @@ Berikut daftar harga pangan hari ini:
 const summaryResult = TableSpeechSummarizer.summarize(sembakoTable, 'Tampilkan harga sembako hari ini.', false);
 
 assert.ok(summaryResult.omittedDetails, 'Table rows must be omitted from speech');
-assert.ok(summaryResult.speechText.includes('Harga sembako hari ini sudah saya tampilkan'));
+assert.ok(summaryResult.speechText.toLowerCase().includes('harga pangan'));
 assert.ok(!summaryResult.speechText.includes('Daging Sapi titik dua'), 'Punctuation/row enumeration must not occur');
 console.log('✔ Commodity table summarized into concise human insight');
 

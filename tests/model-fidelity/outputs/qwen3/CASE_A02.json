@@ -1,0 +1,9 @@
+{
+  "id": "CASE_A02",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Ekstraksi Tiga Lapisan Arsitektur Tri-Source",
+  "prompt": "Sebutkan akronim dan kepanjangan dari 3 lapisan analitik utama dalam arsitektur Tri-Source AT-RQS.",
+  "expectedFact": "SCORE (Structured Content & Objective Rigor Evaluation), SCREEN (Statistical Compliance, Rigor & Error Evaluation Network), CLUE (Contextual Logic & Unbiased Evidence)",
+  "rawOutput": "",
+  "durationMs": 2
+}

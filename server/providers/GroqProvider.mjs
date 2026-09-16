@@ -14,7 +14,7 @@ export class GroqProvider extends BaseProvider {
   constructor() {
     super('groq');
     this.baseUrl = 'https://api.groq.com/openai/v1';
-    this.defaultModel = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+    this.defaultModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
     this._availability = { available: null, checkedAt: 0 };
   }
 
@@ -63,6 +63,21 @@ export class GroqProvider extends BaseProvider {
     return this.defaultModel;
   }
 
+  _sanitizeMessages(messages = []) {
+    if (!Array.isArray(messages)) return [];
+    return messages
+      .filter(m => m && typeof m === 'object' && m.role)
+      .map(m => {
+        const role = String(m.role).toLowerCase();
+        const msg = { role, content: typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content : String(m.content || '')) };
+        if (m.name && typeof m.name === 'string') msg.name = m.name;
+        if (Array.isArray(m.tool_calls)) msg.tool_calls = m.tool_calls;
+        if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
+        // Strictly exclude non-standard fields like imageUrl, _agent, thought, artifacts
+        return msg;
+      });
+  }
+
   async sendChat({ messages, stream = false, model = 'auto', temperature = 0.7 }, onChunk = null) {
     const key = this._getApiKey();
     if (!key) {
@@ -71,10 +86,11 @@ export class GroqProvider extends BaseProvider {
 
     const resolvedModel = this._resolveModel(model);
     const t0 = Date.now();
+    const cleanMessages = this._sanitizeMessages(messages);
 
     const requestBody = {
       model: resolvedModel,
-      messages,
+      messages: cleanMessages,
       temperature: typeof temperature === 'number' ? temperature : 0.7,
       stream: stream && typeof onChunk === 'function'
     };

@@ -379,14 +379,22 @@ export class GeminiProvider extends BaseProvider {
       throw new Error('GEMINI_UNCONFIGURED: Tidak ada GEMINI_API_KEY valid.');
     }
 
-    const activeModel = model || process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
+    const activeModel = model || process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
     const fullPrompt = negativePrompt ? `${prompt}. Avoid: ${negativePrompt}` : prompt;
     const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
+    const modelPath = activeModel.startsWith('models/') ? activeModel : `models/${activeModel}`;
     const requestBody = {
-      model: activeModel,
-      input: [
-        { type: 'text', text: `Generate an image based on this description${aspectHint}: ${fullPrompt}` }
-      ]
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: `Generate an image based on this description${aspectHint}: ${fullPrompt}` }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseModalities: ['IMAGE', 'TEXT']
+      }
     };
     let lastError = null;
 
@@ -398,14 +406,13 @@ export class GeminiProvider extends BaseProvider {
       }
 
       try {
+        const url = `${this.baseUrl}/${modelPath}:generateContent?key=${encodeURIComponent(key)}`;
         const response = await fetchFn(
-          `${this.baseUrl}/interactions`,
+          url,
           {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': key,
-              'Api-Revision': '2026-05-20'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody),
             signal: signal || AbortSignal.timeout(90000)

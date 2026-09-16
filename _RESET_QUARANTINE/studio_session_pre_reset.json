@@ -1,0 +1,483 @@
+{
+  "activeStudio": "SLIDE_STUDIO",
+  "sessions": {
+    "SLIDE_STUDIO": {
+      "sessionId": "SESSION-1789288375534-bzgtt",
+      "studioType": "SLIDE_STUDIO",
+      "project": {
+        "id": "PATENT-AT-RQS-V1",
+        "projectId": "PATENT-AT-RQS-V1",
+        "title": "APASIFIC Tri-Source Research Quality Score™ (AT-RQS™)",
+        "status": "ACTIVE",
+        "createdAt": "2026-09-13T08:32:55.534Z",
+        "requestedSlideCount": 10
+      },
+      "execution": {
+        "phase": "PRODUCTION",
+        "currentIndex": 0,
+        "currentStep": "SLIDE_01"
+      },
+      "totalSlides": 10,
+      "slidePlan": [
+        {
+          "number": 1,
+          "num": 1,
+          "title": "Judul Invensi & Ringkasan Identitas Paten",
+          "subtitle": "APASIFIC Tri-Source Research Quality Score™ (AT-RQS™) v1.0",
+          "archetype": "title_slide",
+          "purpose": "Invensi sistem pemrosesan ilmiah deterministik pertama yang menyatukan redaman bukti struktural dengan penguncian integritas kriptografis",
+          "status": "LOCKED",
+          "version": 1,
+          "artifact": {
+            "path": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.jpg",
+            "pptxPath": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.pptx",
+            "title": "Judul Invensi & Ringkasan Identitas Paten"
+          },
+          "revisionNotes": null
+        },
+        {
+          "number": 2,
+          "num": 2,
+          "title": "Problematika Industri & Keterbatasan Prior Art",
+          "subtitle": "Distorsi Skala Heterogen, False High Score Rate, dan Circularity Bias LLM",
+          "archetype": "comparison_slide",
+          "purpose": "Model evaluasi ilmiah konvensional dan LLM generatif gagal akibat distorsi skala, bias sirkular, dan hilangnya penalti bukti empiris",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 3,
+          "num": 3,
+          "title": "Arsitektur Utama Sistem (Tri-Layer Engine)",
+          "subtitle": "Pipeline Deterministik Tiga Lapisan: Ingesti, Penilaian Matriks, dan Kriptografi",
+          "archetype": "framework_slide",
+          "purpose": "Pemrosesan deterministik tiga lapisan menjamin konversi data dari ingesti masukan mentah hingga audit internal yang tamper-evident",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 4,
+          "num": 4,
+          "title": "Lapisan 1: Ingesti Data & Normalisasi Tri-Source",
+          "subtitle": "Transformasi Masukan Multi-Sumber ke Skala Terpadu [0, 100]",
+          "archetype": "process_slide",
+          "purpose": "Transformasi masukan multi-sumber ke skala terpadu [0, 100] tanpa risiko manipulasi linier",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 5,
+          "num": 5,
+          "title": "Lapisan 2: Matrix 7 Dimensi & Base Weighted Score (BWS)",
+          "subtitle": "Penilaian Kualitas Substantif Terbobot Mutlak Sum(Wi) = 1.00",
+          "archetype": "grid_slide",
+          "purpose": "Penilaian kualitas substansial dilakukan via 7 dimensi terkalibrasi dengan total bobot mutlak",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 6,
+          "num": 6,
+          "title": "Lapisan 2: Mesin Redaman Terikat (AECI & CF)",
+          "subtitle": "Evidence Consistency Index dan Consistency Factor Penalti Non-Linier",
+          "archetype": "matrix_slide",
+          "purpose": "Mekanisme penalti non-linier meredam skor naskah tanpa bukti metodologis tepat hingga 15% tanpa penalti ganda",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 7,
+          "num": 7,
+          "title": "Pengisolasian Bias Sirkular (AAC) & Validator Skema Independen",
+          "subtitle": "Isolasi Topologis Assessment Confidence dari Pengali Mutu",
+          "archetype": "hierarchy_slide",
+          "purpose": "Menghilangkan confidence inflation AI dengan mengisolasi skor keyakinan dari pengali kualitas mutu",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 8,
+          "num": 8,
+          "title": "Lapisan 3: Integritas & Penguncian Ledger SHA-256",
+          "subtitle": "Serialisasi RFC 8785 Canonical JSON & Timestamped Immutable Ledger",
+          "archetype": "dashboard_slide",
+          "purpose": "Membekukan seluruh hasil evaluasi ke dalam format canonical yang tidak dapat dimanipulasi (tamper-evident)",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 9,
+          "num": 9,
+          "title": "Pembuktian Empiris & Data Ablasi (N = 24)",
+          "subtitle": "Reduksi MAE dari 14.8 ke 3.8 & Eliminasi Total False High Score",
+          "archetype": "metrics_slide",
+          "purpose": "Pengujian menunjukkan AT-RQS™ v1.0 berhasil menekan error hingga 3.8 poin serta mengeliminasi total false high score dan bias sirkular",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        },
+        {
+          "number": 10,
+          "num": 10,
+          "title": "Strategi Perlindungan Hukum Paten & Roadmap Global",
+          "subtitle": "20 Klaim Perlindungan Komprehensif, Fallback Ladder, dan WIPO/PCT Filing",
+          "archetype": "timeline_slide",
+          "purpose": "Perlindungan 20 klaim komprehensif didukung Fallback Ladder tangguh untuk menghadapi pemeriksaan DJKI & WIPO/PCT",
+          "status": "PENDING",
+          "version": 1,
+          "artifact": null,
+          "revisionNotes": null
+        }
+      ],
+      "archSteps": [],
+      "dataState": {
+        "dataset": null,
+        "profile": null,
+        "activeChart": null,
+        "charts": [],
+        "history": []
+      },
+      "artifacts": {
+        "slide_1": {
+          "path": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.jpg",
+          "pptxPath": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.pptx",
+          "title": "Judul Invensi & Ringkasan Identitas Paten",
+          "slideType": "title_slide",
+          "schema": {
+            "slideType": "title_slide",
+            "canvas": {
+              "width": 1920,
+              "height": 1080,
+              "aspectRatio": "16:9"
+            },
+            "header": {
+              "title": "Judul Invensi & Ringkasan Identitas Paten",
+              "subtitle": "Dokumen Analisis dan Strategi Tata Kelola",
+              "badge": "DOKUMEN STRATEGIS EKSEKUTIF"
+            },
+            "columns": [
+              {
+                "id": "title-col",
+                "title": "INFORMASI DOKUMEN",
+                "type": "positive",
+                "items": [
+                  {
+                    "id": "title-col-item-1",
+                    "heading": "Fokus Utama",
+                    "body": "Judul Invensi & Ringkasan Identitas Paten",
+                    "icon": "check"
+                  },
+                  {
+                    "id": "title-col-item-2",
+                    "heading": "Lingkup Materi",
+                    "body": "Dokumen Analisis dan Strategi Tata Kelola",
+                    "icon": "check"
+                  }
+                ]
+              }
+            ],
+            "footer": {
+              "takeaway": "Paparan Kebijakan dan Strategi Komprehensif.",
+              "conclusion": "DOKUMEN RESMI"
+            },
+            "metadata": {
+              "createdAt": "2026-09-13T08:32:55.539Z",
+              "theme": "corporate_enterprise",
+              "version": "1.0.0"
+            },
+            "presenter": null,
+            "photoUrl": null,
+            "tiers": null,
+            "stages": null,
+            "domains": null,
+            "principles": null,
+            "quoteText": null,
+            "speaker": null,
+            "urgencies": null,
+            "badge": "DOKUMEN STRATEGIS EKSEKUTIF",
+            "date": "2026",
+            "definition": null
+          },
+          "layout": {
+            "canvas": {
+              "width": 1920,
+              "height": 1080,
+              "aspectRatio": "16:9",
+              "safeMargin": {
+                "top": 60,
+                "bottom": 60,
+                "left": 70,
+                "right": 70
+              },
+              "usableWidth": 1780,
+              "usableHeight": 960
+            },
+            "header": {
+              "x": 70,
+              "y": 60,
+              "width": 1780,
+              "height": 150,
+              "badge": {
+                "x": 70,
+                "y": 60,
+                "height": 28
+              },
+              "title": {
+                "x": 70,
+                "y": 104,
+                "fontSize": 40
+              },
+              "subtitle": {
+                "x": 70,
+                "y": 156,
+                "fontSize": 20
+              }
+            },
+            "columns": [
+              {
+                "id": "title-col",
+                "title": "INFORMASI DOKUMEN",
+                "type": "positive",
+                "items": [
+                  {
+                    "id": "title-col-item-1",
+                    "heading": "Fokus Utama",
+                    "body": "Judul Invensi & Ringkasan Identitas Paten",
+                    "icon": "check",
+                    "bounds": {
+                      "x": 102,
+                      "y": 326,
+                      "width": 1716,
+                      "height": 254
+                    },
+                    "iconBox": {
+                      "x": 102,
+                      "y": 330,
+                      "size": 28
+                    },
+                    "textX": 142,
+                    "headingLines": [
+                      "Fokus Utama"
+                    ],
+                    "bodyLines": [
+                      "Judul Invensi & Ringkasan Identitas Paten"
+                    ]
+                  },
+                  {
+                    "id": "title-col-item-2",
+                    "heading": "Lingkup Materi",
+                    "body": "Dokumen Analisis dan Strategi Tata Kelola",
+                    "icon": "check",
+                    "bounds": {
+                      "x": 102,
+                      "y": 594,
+                      "width": 1716,
+                      "height": 254
+                    },
+                    "iconBox": {
+                      "x": 102,
+                      "y": 598,
+                      "size": 28
+                    },
+                    "textX": 142,
+                    "headingLines": [
+                      "Lingkup Materi"
+                    ],
+                    "bodyLines": [
+                      "Dokumen Analisis dan Strategi Tata Kelola"
+                    ]
+                  }
+                ],
+                "bounds": {
+                  "x": 70,
+                  "y": 230,
+                  "width": 1780,
+                  "height": 650
+                },
+                "headerBounds": {
+                  "x": 70,
+                  "y": 230,
+                  "width": 1780,
+                  "height": 64
+                }
+              }
+            ],
+            "footer": {
+              "bounds": {
+                "x": 70,
+                "y": 900,
+                "width": 1780,
+                "height": 120
+              },
+              "tagBounds": {
+                "x": 94,
+                "y": 924,
+                "width": 190,
+                "height": 32
+              },
+              "textX": 300,
+              "textY": 945,
+              "maxTextWidth": 1520
+            }
+          },
+          "updatedAt": "2026-09-13T08:32:56.125Z"
+        }
+      },
+      "masterDraft": null,
+      "metadata": {},
+      "stateVersion": 2,
+      "createdAt": "2026-09-13T08:32:55.534Z",
+      "updatedAt": "2026-09-13T08:32:56.125Z",
+      "studio": {
+        "type": "SLIDE_STUDIO",
+        "phase": "PRODUCTION",
+        "status": "ACTIVE"
+      },
+      "slides": {
+        "current": 1,
+        "total": 10,
+        "plan": [
+          {
+            "number": 1,
+            "num": 1,
+            "title": "Judul Invensi & Ringkasan Identitas Paten",
+            "subtitle": "APASIFIC Tri-Source Research Quality Score™ (AT-RQS™) v1.0",
+            "archetype": "title_slide",
+            "purpose": "Invensi sistem pemrosesan ilmiah deterministik pertama yang menyatukan redaman bukti struktural dengan penguncian integritas kriptografis",
+            "status": "LOCKED",
+            "version": 1,
+            "artifact": {
+              "path": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.jpg",
+              "pptxPath": "d:\\Users\\ultimateai\\artifacts\\slides\\slide_judul_invensi_ringkasan_identitas_paten_1789288376077.pptx",
+              "title": "Judul Invensi & Ringkasan Identitas Paten"
+            },
+            "revisionNotes": null
+          },
+          {
+            "number": 2,
+            "num": 2,
+            "title": "Problematika Industri & Keterbatasan Prior Art",
+            "subtitle": "Distorsi Skala Heterogen, False High Score Rate, dan Circularity Bias LLM",
+            "archetype": "comparison_slide",
+            "purpose": "Model evaluasi ilmiah konvensional dan LLM generatif gagal akibat distorsi skala, bias sirkular, dan hilangnya penalti bukti empiris",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 3,
+            "num": 3,
+            "title": "Arsitektur Utama Sistem (Tri-Layer Engine)",
+            "subtitle": "Pipeline Deterministik Tiga Lapisan: Ingesti, Penilaian Matriks, dan Kriptografi",
+            "archetype": "framework_slide",
+            "purpose": "Pemrosesan deterministik tiga lapisan menjamin konversi data dari ingesti masukan mentah hingga audit internal yang tamper-evident",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 4,
+            "num": 4,
+            "title": "Lapisan 1: Ingesti Data & Normalisasi Tri-Source",
+            "subtitle": "Transformasi Masukan Multi-Sumber ke Skala Terpadu [0, 100]",
+            "archetype": "process_slide",
+            "purpose": "Transformasi masukan multi-sumber ke skala terpadu [0, 100] tanpa risiko manipulasi linier",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 5,
+            "num": 5,
+            "title": "Lapisan 2: Matrix 7 Dimensi & Base Weighted Score (BWS)",
+            "subtitle": "Penilaian Kualitas Substantif Terbobot Mutlak Sum(Wi) = 1.00",
+            "archetype": "grid_slide",
+            "purpose": "Penilaian kualitas substansial dilakukan via 7 dimensi terkalibrasi dengan total bobot mutlak",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 6,
+            "num": 6,
+            "title": "Lapisan 2: Mesin Redaman Terikat (AECI & CF)",
+            "subtitle": "Evidence Consistency Index dan Consistency Factor Penalti Non-Linier",
+            "archetype": "matrix_slide",
+            "purpose": "Mekanisme penalti non-linier meredam skor naskah tanpa bukti metodologis tepat hingga 15% tanpa penalti ganda",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 7,
+            "num": 7,
+            "title": "Pengisolasian Bias Sirkular (AAC) & Validator Skema Independen",
+            "subtitle": "Isolasi Topologis Assessment Confidence dari Pengali Mutu",
+            "archetype": "hierarchy_slide",
+            "purpose": "Menghilangkan confidence inflation AI dengan mengisolasi skor keyakinan dari pengali kualitas mutu",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 8,
+            "num": 8,
+            "title": "Lapisan 3: Integritas & Penguncian Ledger SHA-256",
+            "subtitle": "Serialisasi RFC 8785 Canonical JSON & Timestamped Immutable Ledger",
+            "archetype": "dashboard_slide",
+            "purpose": "Membekukan seluruh hasil evaluasi ke dalam format canonical yang tidak dapat dimanipulasi (tamper-evident)",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 9,
+            "num": 9,
+            "title": "Pembuktian Empiris & Data Ablasi (N = 24)",
+            "subtitle": "Reduksi MAE dari 14.8 ke 3.8 & Eliminasi Total False High Score",
+            "archetype": "metrics_slide",
+            "purpose": "Pengujian menunjukkan AT-RQS™ v1.0 berhasil menekan error hingga 3.8 poin serta mengeliminasi total false high score dan bias sirkular",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          },
+          {
+            "number": 10,
+            "num": 10,
+            "title": "Strategi Perlindungan Hukum Paten & Roadmap Global",
+            "subtitle": "20 Klaim Perlindungan Komprehensif, Fallback Ladder, dan WIPO/PCT Filing",
+            "archetype": "timeline_slide",
+            "purpose": "Perlindungan 20 klaim komprehensif didukung Fallback Ladder tangguh untuk menghadapi pemeriksaan DJKI & WIPO/PCT",
+            "status": "PENDING",
+            "version": 1,
+            "artifact": null,
+            "revisionNotes": null
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_A04",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Ekstraksi Klasifikasi Paten IPC",
+  "prompt": "Sebutkan klasifikasi paten internasional (IPC) yang tercantum dalam spesifikasi invensi AT-RQS.",
+  "expectedFact": "G06F 40/20, G06N 3/00, G06F 16/30, G06F 21/64",
+  "rawOutput": "",
+  "durationMs": 5
+}

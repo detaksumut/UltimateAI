@@ -1,0 +1,9 @@
+{
+  "id": "CASE_D04",
+  "category": "D_FORMULA_FIDELITY",
+  "name": "Formulasi Koefisien AAC",
+  "prompt": "Bagaimana rumus Auditability & Accuracy Coefficient (AAC) didefinisikan dalam dokumen spesifikasi?",
+  "expectedFact": "AAC = min(1.0, (N_verified_claims / N_total_claims) * (1.0 - Error_Rate))",
+  "rawOutput": "",
+  "durationMs": 3
+}

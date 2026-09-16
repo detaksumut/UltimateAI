@@ -58,27 +58,19 @@ export class TableSpeechSummarizer {
       if (itemName && lowerPrompt.includes(itemName)) {
         const itemVal = cells[1] || '';
         return {
-          speechText: `Harga ${cells[0]} hari ini ${itemVal}.`,
+          speechText: `Data untuk ${cells[0]}: ${itemVal}.`,
           omittedDetails: true,
           keyFindings: [`${cells[0]}: ${itemVal}`]
         };
       }
     }
 
-    // Commodity / Sembako detection
-    if (/sembako|harga|pasar|komoditas|pangan/i.test(userPrompt) || /sembako|harga|beras|gula|minyak|telur/i.test(text)) {
-      return {
-        speechText: 'Harga sembako hari ini sudah saya tampilkan di layar. Perubahan paling menonjol ada pada harga beras dan gula.',
-        omittedDetails: true,
-        keyFindings: [`Total ${rowCount} komoditas ditampilkan di layar.`]
-      };
-    }
-
-    // Generic table default: Concise summary
+    // Extract natural introductory insight from the text itself (zero hardcoded boilerplate)
+    const naturalInsight = DisplaySpeechSeparationEngine.extractNaturalSpokenInsight(text, userPrompt);
     return {
-      speechText: `Data tabel berisi ${rowCount} baris sudah saya tampilkan di layar.`,
+      speechText: naturalInsight,
       omittedDetails: true,
-      keyFindings: [`Total ${rowCount} baris data disajikan secara visual.`]
+      keyFindings: []
     };
   }
 }
@@ -86,7 +78,7 @@ export class TableSpeechSummarizer {
 export class ChartSpeechSummarizer {
   static summarize(text, userPrompt = '') {
     return {
-      speechText: 'Grafiknya sudah saya tampilkan. Tren utama tersaji lengkap di layar.',
+      speechText: DisplaySpeechSeparationEngine.extractNaturalSpokenInsight(text, userPrompt),
       omittedDetails: true
     };
   }
@@ -95,7 +87,7 @@ export class ChartSpeechSummarizer {
 export class DocumentSpeechSummarizer {
   static summarize(text, userPrompt = '') {
     return {
-      speechText: 'Dokumennya sudah saya analisis secara mendalam. Ringkasan temuan kunci tersaji di layar.',
+      speechText: DisplaySpeechSeparationEngine.extractNaturalSpokenInsight(text, userPrompt),
       omittedDetails: true
     };
   }
@@ -104,7 +96,7 @@ export class DocumentSpeechSummarizer {
 export class CodeSpeechSummarizer {
   static summarize(text, userPrompt = '') {
     return {
-      speechText: 'Script dan purwarupa aplikasinya sudah dibuat dan siap digunakan di layar.',
+      speechText: DisplaySpeechSeparationEngine.extractNaturalSpokenInsight(text, userPrompt),
       omittedDetails: true
     };
   }
@@ -113,13 +105,69 @@ export class CodeSpeechSummarizer {
 export class WebSearchSpeechSummarizer {
   static summarize(text, userPrompt = '') {
     return {
-      speechText: 'Saya menemukan beberapa sumber berita dan riset yang relevan. Ringkasan poin utamanya sudah tersaji di layar.',
+      speechText: DisplaySpeechSeparationEngine.extractNaturalSpokenInsight(text, userPrompt),
       omittedDetails: true
     };
   }
 }
 
 export class DisplaySpeechSeparationEngine {
+  /**
+   * Dynamically extracts authentic, natural conversational prose from the response.
+   * Strips raw tables, code blocks, canvas/HTML, and headers so TTS speaks real content,
+   * without relying on hardcoded canned templates.
+   */
+  static extractNaturalSpokenInsight(raw = '', userPrompt = '') {
+    if (!raw || typeof raw !== 'string') return '';
+
+    // Extract prose paragraphs that are NOT tables, code blocks, headers, or dividers
+    const paragraphs = raw.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+
+    const prose = paragraphs.filter(p => {
+      // Reject code blocks
+      if (p.startsWith('```') || p.includes('```')) return false;
+      // Reject markdown tables
+      if (p.startsWith('|') || (p.includes('|') && p.includes('---'))) return false;
+      // Reject pure headers (# Header)
+      if (/^#{1,6}\s+/.test(p)) return false;
+      // Reject horizontal rules / dividers
+      if (/^[-*_=\s]{2,}$/.test(p)) return false;
+      // Reject raw HTML / canvas
+      if (/<(?:canvas|svg|table|script|style)/i.test(p)) return false;
+      return true;
+    });
+
+    if (prose.length > 0) {
+      // Clean each paragraph
+      const cleanProse = prose.slice(0, 2).map(p => {
+        return p
+          .replace(/^[-*+]\s+/gm, '')
+          .replace(/[*_~`]/g, '')
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/https?:\/\/[^\s]+/g, '')
+          .trim();
+      }).filter(Boolean);
+
+      if (cleanProse.length > 0) {
+        return cleanProse.join(' ');
+      }
+    }
+
+    // Dynamic fallback grounded in user's prompt (zero robotic canned text)
+    if (userPrompt && typeof userPrompt === 'string') {
+      const cleanPrompt = userPrompt
+        .replace(/^(?:jin\s+)?(?:tolong\s+)?(?:buatkan?|buat|bikin|tampilkan|carikan|analisis|jelaskan)\s+/i, '')
+        .replace(/["'“”]/g, '')
+        .replace(/[\.\,\:\;\-]+$/, '')
+        .trim();
+      if (cleanPrompt.length > 2) {
+        return `Berikut hasil analisis mengenai ${cleanPrompt}.`;
+      }
+    }
+
+    return 'Berikut data hasil analisis yang telah disiapkan.';
+  }
+
   /**
    * Validate that raw markup, code blocks, raw JSON, and raw markdown table pipes NEVER enter TTS.
    */
@@ -211,19 +259,7 @@ export class DisplaySpeechSeparationEngine {
       const summary = WebSearchSpeechSummarizer.summarize(raw, prompt);
       speechContent = summary.speechText;
     } else {
-      // General prose response: take opening concise insight paragraphs, ignoring headers, tables, code, and horizontal dividers (---, ***, ___)
-      const paragraphs = raw.split(/\n\n+/).filter(p => {
-        const trimmed = p.trim();
-        return !trimmed.startsWith('#') &&
-               !trimmed.startsWith('|') &&
-               !trimmed.startsWith('```') &&
-               !/^[-*_=\s]{2,}$/.test(trimmed);
-      });
-      if (paragraphs.length > 0) {
-        speechContent = paragraphs.slice(0, 2).join(' ');
-      } else {
-        speechContent = raw;
-      }
+      speechContent = this.extractNaturalSpokenInsight(raw, prompt);
     }
 
     // 4. Normalize numbers, currency, percentages and units
@@ -232,9 +268,10 @@ export class DisplaySpeechSeparationEngine {
     // 5. Final Speech Contract Validation & Stripping
     speechContent = this.validateSpeechInput(speechContent);
 
-    // If speech content is empty or modality is artifact only
+    // If speech content is empty or modality is artifact only, derive dynamically from prompt
     if (!speechContent || speechContent.trim().length === 0) {
-      speechContent = 'Informasi yang Anda minta sudah saya tampilkan di layar.';
+      const cleanP = prompt.replace(/^(?:jin\s+)?(?:tolong\s+)?(?:buatkan?|buat|bikin|tampilkan)\s+/i, '').trim();
+      speechContent = cleanP ? `Data untuk ${cleanP} telah disiapkan.` : 'Data hasil analisis telah disiapkan.';
     }
 
     const displayLength = displayContent.length || 1;

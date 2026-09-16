@@ -31,7 +31,8 @@ const AVAILABLE_TOOLS_MANIFEST = [
   { id: 'code.synthesizer', description: 'Generate code artifacts from specifications' },
   { id: 'ui.render_app_sandbox', description: 'Render and preview a UI or application in sandbox' },
   { id: 'device.inspect', description: 'Inspect the local machine: RAM, CPU, disk, processes, and UltimateAI runtime status (read-only, never modifies anything)' },
-  { id: 'image.generate', description: 'Generate an image from a text prompt via configured image provider (Pollinations cloud, Ollama image model, or mock). Returns structured IMAGE artifact.' }
+  { id: 'image.generate', description: 'Generate an image from a text prompt via configured image provider (Gemini cloud, Ollama image model, or mock). Returns structured IMAGE artifact.' },
+  { id: 'image.edit', description: 'Revise or edit an existing image via image-to-image provider (ComfyUI local backend or mock). Consumes reference image buffer and returns revised IMAGE artifact.' }
 ];
 
 export class AgentPlanner {
@@ -118,7 +119,7 @@ export class AgentPlanner {
         },
         {
           id: 'S3',
-          subgoal: 'Resolve image provider (Pollinations, Ollama, or override)',
+          subgoal: 'Resolve image provider (Gemini, Ollama, or override)',
           action: 'RESOLVE_PROVIDER',
           tool: 'image.generate',
           params: { stage: 'PROVIDER', prompt: imagePrompt },
@@ -191,7 +192,7 @@ export class AgentPlanner {
           id: 'S1',
           subgoal: 'Analyze user revision request and extract modification elements',
           action: 'ANALYZE_IMAGE_REVISION',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: { stage: 'ANALYZE', prompt: imagePrompt, referenceImage },
           dependsOn: [],
           successCriteria: 'revision_analyzed',
@@ -201,7 +202,7 @@ export class AgentPlanner {
           id: 'S2',
           subgoal: 'Extract preserved and modified elements from previous visual',
           action: 'EXTRACT_REVISION_PARAMETERS',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: { stage: 'EXTRACT', prompt: imagePrompt, referenceImage },
           dependsOn: ['S1'],
           successCriteria: 'revision_parameters_extracted',
@@ -211,7 +212,7 @@ export class AgentPlanner {
           id: 'S3',
           subgoal: 'Resolve image provider for revision',
           action: 'RESOLVE_PROVIDER',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: { stage: 'PROVIDER', prompt: imagePrompt },
           dependsOn: ['S2'],
           successCriteria: 'provider_resolved',
@@ -221,7 +222,7 @@ export class AgentPlanner {
           id: 'S4',
           subgoal: 'Generate optimized revision prompt combining preserved + modified elements',
           action: 'OPTIMIZE_REVISION_PROMPT',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: { stage: 'PROMPT', prompt: imagePrompt, referenceImage },
           dependsOn: ['S3'],
           successCriteria: 'revision_prompt_optimized',
@@ -231,7 +232,7 @@ export class AgentPlanner {
           id: 'S5',
           subgoal: 'Execute image generation with revision context',
           action: 'GENERATE_REVISION_IMAGE',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: {
             stage: 'GENERATE',
             prompt: imagePrompt,
@@ -248,7 +249,7 @@ export class AgentPlanner {
           id: 'S6',
           subgoal: 'Verify revised image artifact exists and is renderable',
           action: 'VERIFY_REVISION_ARTIFACT',
-          tool: 'image.generate',
+          tool: 'image.edit',
           params: { stage: 'VERIFY', prompt: imagePrompt, referenceImage },
           dependsOn: ['S5'],
           successCriteria: 'revision_artifact_verified_renderable',

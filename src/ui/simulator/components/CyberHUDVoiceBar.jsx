@@ -46,14 +46,25 @@ export default function CyberHUDVoiceBar({
       let dataUrl = null;
       let content = '';
 
-      if (isImage && file.size < 5 * 1024 * 1024) {
+      if (isImage && file.size < 10 * 1024 * 1024) {
         dataUrl = await readFileAsDataUrl(file);
-      } else if (isText && file.size < 500 * 1024) {
+      } else if (isText && file.size < 5 * 1024 * 1024) {
         content = await readFileAsText(file);
-      } else if (isDoc && file.size < 10 * 1024 * 1024) {
-        const text = await readFileAsText(file);
-        content = text || `[FILE_DOCUMENT:${file.name}:${file.type}:${file.size}]`;
-      } else if (file.size < 200 * 1024) {
+      } else if (isDoc && file.size < 25 * 1024 * 1024) {
+        dataUrl = await readFileAsDataUrl(file);
+        try {
+          const parseRes = await fetch('/api/files/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: file.name, dataUrl })
+          }).then(r => r.json());
+          if (parseRes?.text || parseRes?.content) {
+            content = parseRes.text || parseRes.content;
+          }
+        } catch (_) {
+          content = `[DOKUMEN: ${file.name}]`;
+        }
+      } else if (file.size < 1024 * 1024) {
         content = await readFileAsText(file);
       }
 

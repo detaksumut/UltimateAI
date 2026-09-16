@@ -1,0 +1,11 @@
+{
+  "id": "CASE_A01",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Ekstraksi Nomor Standar Dokumen",
+  "prompt": "Berdasarkan spesifikasi resmi AT-RQS, sebutkan kode identitas dokumen standar resmi (Dokumen Standar ID) yang ditetapkan.",
+  "expectedFact": "SPEC-AT-RQS-2026-V1.0",
+  "context": "Dokumen Standar: SPEC-AT-RQS-2026-V1.0\nLembaga Penerbit: Asia Pacific Academician (ASIA) / APASIFIC\nStatus Metodologis: FORMAL TECHNICAL SPECIFICATION (v1.0)\nLaporan Validasi Terkait: VAL-AT-RQS-2026-B01 (N = 24 Benchmark Dataset)\nPengakuan Internasional: WoS QKY-3514-2026 • Scopus 59675598500 • ORCID 0009-0006-8416-6156\nTanggal Ditetapkan: 24 Agustus 2026 (Jakarta / Medan / Kuala Lumpur)\nKlasifikasi Paten (IPC): G06F 40/20, G06N 3/00, G06F 16/30, G06F 21/64\nPemohon Paten: Association of Asia Pacific Academician (ASIA) / APASIFIC Academic Division",
+  "rawOutput": "Berdasarkan konteks dokumen spesifikasi resmi AT-RQS, kode identitas dokumen standar resmi yang ditetapkan adalah SPEC-AT-RQS-2026-V1.0.",
+  "durationMs": 44707,
+  "error": null
+}

@@ -33,7 +33,7 @@ assert.ok(result.displayContent.includes('# Ringkasan Harga'));
 // 2. Speech content contains only human-digestible insight
 assert.ok(!result.speechContent.includes('|'));
 assert.ok(!result.speechContent.includes('#'));
-assert.ok(result.speechContent.includes('Harga sembako hari ini sudah saya tampilkan'));
+assert.ok(result.speechContent.toLowerCase().includes('harga pangan'));
 
 // 3. Speech to display ratio must be compact
 assert.ok(result.speechToDisplayRatio < 0.5, 'Speech content length must be compact compared to display content');

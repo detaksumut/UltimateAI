@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { 
   Send, Terminal, AlertTriangle, Trash2, ArrowDown, Volume2, VolumeX,
   Paperclip, FileText, Image as ImageIcon, X, Download, Mic, MicOff,
-  ExternalLink, Copy, Check, Sparkles
+  ExternalLink, Copy, Check, Sparkles, Square
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { conversationControllerInstance } from '../../../services/conversation/ConversationController.js';
@@ -158,7 +158,7 @@ function extractSubBlocks(text) {
   return results;
 }
 
-function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)" }) {
+function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)", artifactType = "SLIDE_ARTIFACT", project = null, slides = null }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -167,13 +167,16 @@ function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)" }
     setHasError(false);
   }, [src]);
 
+  const isSlideStudio = artifactType === 'SLIDE_ARTIFACT' || artifactType === 'SLIDE_DECK' || artifactType === 'SLIDE_DECK_ARTIFACT';
+  const badgePrefix = isSlideStudio ? 'SLIDE STUDIO' : 'JIN VISUAL ASSET';
+
   return (
     <div className="mb-3 rounded-xl overflow-hidden border border-cyan-400/40 shadow-[0_4px_25px_rgba(0,0,0,0.7)] bg-[#030816]">
       {/* Header Bar */}
       <div className="bg-cyan-950/80 px-3.5 py-2 border-b border-cyan-500/30 flex items-center justify-between text-[10px] font-mono select-none">
         <span className="text-cyan-300 font-bold flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${isLoaded ? 'bg-cyan-400 shadow-[0_0_8px_#00e5ff]' : 'bg-amber-400 animate-ping'}`} />
-          <span>{isLoaded ? title : 'ORCHESTRATING VISUAL ASSET...'}</span>
+          <span>{isLoaded ? `${badgePrefix} // ${title}` : 'ORCHESTRATING VISUAL ASSET...'}</span>
         </span>
         {isLoaded && (
           <a 
@@ -356,6 +359,17 @@ function MarkdownImageRenderer({ alt, src }) {
   );
 }
 
+// ── CANVAS STATUS BRIDGE: Stage → Label map ──
+// Single source of truth for human-readable labels.
+// No timer, no fake progress. Backend event drives the update.
+const DOC_PIPELINE_LABELS = {
+  reading:       'Membaca dokumen...',
+  understanding: 'Memahami isi dokumen...',
+  analysis:      'Menganalisis dokumen...',
+  synthesis:     'Menyusun rangkuman...',
+  completed:     'Rangkuman selesai.',
+};
+
 // Renders formatted markdown-like text, code blocks, and ticker tokens
 export function TickerResponse({ message, isStreaming, onContentGrowth }) {
   const isUser = message.role === 'user';
@@ -363,7 +377,10 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
   const targetContent = message.content || '';
 
   const slideImageToDisplay = !isUser && message.imageUrl ? message.imageUrl : null;
-  const slideTitleToDisplay = message.slideTitle || "JIN VISUAL ASSET";
+  const isSlideArtifact = message.artifactType === 'SLIDE_ARTIFACT' || message.artifactType === 'SLIDE_DECK' || message.artifactType === 'SLIDE_DECK_ARTIFACT';
+  const isMasterDraft = message.artifactType === 'MASTER_DRAFT_ARTIFACT';
+  const defaultTitle = isSlideArtifact ? "SLIDE STUDIO PRODUCTION" : (isMasterDraft ? "MASTER DESIGN DRAFT" : "JIN VISUAL ASSET");
+  const slideTitleToDisplay = message.slideTitle || defaultTitle;
 
   // Historical / user messages display instantly.
   // Active live streaming assistant messages reveal with fluid adaptive interpolation.
@@ -564,6 +581,12 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
   const lastBlock = blocks[blocks.length - 1];
   const showTrailingCursor = isTickerActive && (!lastBlock || lastBlock.type !== 'code' || !lastBlock.isStreaming);
 
+  // ── CANVAS STATUS BRIDGE ──
+  // Derived from message.docPipelineStage stamped by ConversationController.
+  // Only renders while streaming — disappears naturally when stream ends.
+  const docPipelineStage = isStreaming && !isUser ? (message.docPipelineStage || null) : null;
+  const docStatusLabel = docPipelineStage ? DOC_PIPELINE_LABELS[docPipelineStage] || null : null;
+
   return (
     <div
       className={`ticker-message-row mb-4 flex flex-col ${
@@ -630,7 +653,13 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
 
         {/* JIN Generated Slide Visual Orchestration */}
         {slideImageToDisplay && (
-          <SlideVisualOrchestrator src={slideImageToDisplay} title={slideTitleToDisplay} />
+          <SlideVisualOrchestrator
+            src={slideImageToDisplay}
+            title={slideTitleToDisplay}
+            artifactType={message.artifactType}
+            project={message.project}
+            slides={message.slides}
+          />
         )}
 
         {/* JIN Interactive Online Music Player */}
@@ -640,6 +669,20 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
             autoPlay={message.musicPlayer.autoPlay ?? false}
             customUrl={message.musicPlayer.customUrl || ''}
           />
+        )}
+
+        {/* ── CANVAS STATUS BRIDGE ──
+            One-line status bar driven exclusively by backend _docPipeline events.
+            No timer. No fake delay. No spinner simulating work.
+            Replaces itself each stage. Disappears when streaming ends. */}
+        {docStatusLabel && (
+          <div
+            data-doc-pipeline-stage={docPipelineStage}
+            className="mb-2 flex items-center gap-2 text-[11px] font-mono text-cyan-300/90 select-none"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
+            <span>{docStatusLabel}</span>
+          </div>
         )}
 
         <div className="ticker-content">
@@ -735,7 +778,7 @@ export function TickerHistory({ messages, activeStreamingId }) {
   );
 }
 
-export function TickerInput({ onSend, status, onClear }) {
+export function TickerInput({ onSend, status, onClear, onStop }) {
   const [text, setText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isReadingFiles, setIsReadingFiles] = useState(false);
@@ -816,13 +859,38 @@ export function TickerInput({ onSend, status, onClear }) {
 
           if (isImage && file.size < 10 * 1024 * 1024) {
             dataUrl = await readFileAsDataUrl(file);
-          } else if (isPdf && file.size < 15 * 1024 * 1024) {
+          } else if (isPdf && file.size < 25 * 1024 * 1024) {
             dataUrl = await readFileAsDataUrl(file);
-          } else if (isText && file.size < 1024 * 1024) {
-            content = await readFileAsText(file);
-          } else if (isDocx && file.size < 10 * 1024 * 1024) {
+            try {
+              const parseRes = await fetch('/api/files/parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: file.name, dataUrl })
+              }).then((r) => r.json());
+              if (parseRes?.text || parseRes?.content) {
+                content = parseRes.text || parseRes.content;
+              }
+            } catch (pErr) {
+              console.warn('[TickerInput] Backend PDF parse error:', pErr);
+            }
+          } else if (isDocx && file.size < 15 * 1024 * 1024) {
             content = await readDocxAsText(file);
-          } else if (file.size < 500 * 1024) {
+            if (!content) {
+              dataUrl = await readFileAsDataUrl(file);
+              try {
+                const parseRes = await fetch('/api/files/parse', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileName: file.name, dataUrl })
+                }).then((r) => r.json());
+                if (parseRes?.text || parseRes?.content) {
+                  content = parseRes.text || parseRes.content;
+                }
+              } catch (_) {}
+            }
+          } else if (isText && file.size < 5 * 1024 * 1024) {
+            content = await readFileAsText(file);
+          } else if (file.size < 2 * 1024 * 1024) {
             content = await readFileAsText(file);
           }
 
@@ -877,6 +945,12 @@ export function TickerInput({ onSend, status, onClear }) {
   const handleKeyDown = (e) => {
     // Barge-in on keypress
     try { voiceControllerInstance.handleUserBargeIn(); } catch (_) {}
+
+    if (e.key === 'Escape' && isBusy && onStop) {
+      e.preventDefault();
+      onStop();
+      return;
+    }
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1032,14 +1106,26 @@ export function TickerInput({ onSend, status, onClear }) {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={!hasContentToSend || isBusy || isReadingFiles}
-          className="px-4 py-2.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 rounded text-xs font-mono font-semibold hover:bg-cyan-500/30 disabled:opacity-30 disabled:hover:bg-cyan-500/20 transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,229,255,0.1)]"
-        >
-          <Send size={14} />
-          <span>KIRIM</span>
-        </button>
+        {isBusy ? (
+          <button
+            type="button"
+            onClick={onStop}
+            className="px-4 py-2.5 bg-red-500/20 border border-red-500/50 text-red-300 rounded text-xs font-mono font-semibold hover:bg-red-500/40 transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse"
+            title="Hentikan respons (Escape)"
+          >
+            <Square size={13} className="fill-red-400" />
+            <span>STOP</span>
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!hasContentToSend || isReadingFiles}
+            className="px-4 py-2.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 rounded text-xs font-mono font-semibold hover:bg-cyan-500/30 disabled:opacity-30 disabled:hover:bg-cyan-500/20 transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,229,255,0.1)]"
+          >
+            <Send size={14} />
+            <span>KIRIM</span>
+          </button>
+        )}
       </form>
     </div>
   );
@@ -1080,6 +1166,10 @@ export default function JINTickerConversation() {
 
   const handleClear = () => {
     conversationControllerInstance.clearHistory();
+  };
+
+  const handleStop = () => {
+    conversationControllerInstance.stopGeneration();
   };
 
   const { messages, status, activeStreamingId, error } = state;
@@ -1161,7 +1251,7 @@ export default function JINTickerConversation() {
       <TickerHistory messages={messages} activeStreamingId={activeStreamingId} />
 
       {/* Ticker Input */}
-      <TickerInput onSend={handleSend} status={status} onClear={handleClear} />
+      <TickerInput onSend={handleSend} status={status} onClear={handleClear} onStop={handleStop} />
     </div>
   );
 }

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_C04",
+  "category": "C_NUMERICAL_FIDELITY",
+  "name": "Jumlah Total Klaim Paten dan Nomor Klaim Independen",
+  "prompt": "Berapa jumlah total klaim paten AT-RQS, dan sebutkan nomor klaim yang merupakan klaim independen?",
+  "expectedFact": "Total 20 klaim; Klaim independen: Klaim 1, Klaim 8, dan Klaim 15",
+  "rawOutput": "",
+  "durationMs": 3
+}

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_C05",
+  "category": "C_NUMERICAL_FIDELITY",
+  "name": "Ambang Batas Skor Minimal World Class vs Desk Reject",
+  "prompt": "Berapakah batas skor minimal untuk kategori Tier 1: World Class, dan berapa batas atas skor untuk Tier 5: Desk Reject?",
+  "expectedFact": "Tier 1 World Class minimal: 90.00, Tier 5 Desk Reject: < 55.00",
+  "rawOutput": "",
+  "durationMs": 7
+}

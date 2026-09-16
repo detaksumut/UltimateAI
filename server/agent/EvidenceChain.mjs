@@ -454,5 +454,6 @@ class EvidenceChainBuilder {
   }
 }
 
+export { EvidenceChainBuilder };
 export const evidenceChainBuilderInstance = new EvidenceChainBuilder();
 export default evidenceChainBuilderInstance;

@@ -18,7 +18,7 @@ const mockData = `
 
 // 1. Normal query: "Tampilkan harga sembako" -> Concise summary
 const normalResult = DisplaySpeechSeparationEngine.separate(mockData, 'Tampilkan harga sembako');
-assert.ok(normalResult.speechContent.includes('sudah saya tampilkan'), 'Default request must summarize');
+assert.ok(normalResult.speechContent.toLowerCase().includes('harga sembako'), 'Default request must summarize');
 assert.ok(!normalResult.internalMetadata.isExplicitReadRequest, 'Must not be explicit read');
 console.log('✔ Normal request produces concise summary speech');
 

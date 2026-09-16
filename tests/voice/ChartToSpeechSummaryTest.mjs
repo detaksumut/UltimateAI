@@ -27,7 +27,7 @@ assert.ok(result.displayContent.includes('<canvas id="revenueChart"'), 'Display 
 // Speech output is concise human confirmation
 assert.ok(!result.speechContent.includes('<canvas'), 'Speech must never contain HTML tags');
 assert.ok(!result.speechContent.includes('getContext'), 'Speech must never read JS code');
-assert.ok(result.speechContent.includes('Grafiknya sudah saya tampilkan'), 'Speech confirms visual display');
+assert.ok(result.speechContent.toLowerCase().includes('pendapatan'), 'Speech confirms visual display topic');
 console.log('✔ Chart remains visual on screen with short spoken summary');
 
 console.log('=== ChartToSpeechSummaryTest PASSED ===\n');

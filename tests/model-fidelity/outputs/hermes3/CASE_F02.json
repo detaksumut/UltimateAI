@@ -1,0 +1,9 @@
+{
+  "id": "CASE_F02",
+  "category": "F_LONG_CONTEXT_COMPREHENSION",
+  "name": "Pengakuan Internasional dan Lembaga Penerbit",
+  "prompt": "Sebutkan lembaga penerbit spesifikasi AT-RQS dan nomor pengenal internasional (WoS, Scopus, ORCID) yang tercantum.",
+  "expectedFact": "Penerbit: Asia Pacific Academician (ASIA) / APASIFIC; WoS: QKY-3514-2026; Scopus: 59675598500; ORCID: 0009-0006-8416-6156",
+  "rawOutput": "",
+  "durationMs": 3
+}

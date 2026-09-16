@@ -358,22 +358,21 @@ function tavilyDriveFPlugin() {
             }
           } catch (_) {}
 
-          // Check Ollama service real status asynchronously
-          const checkOllama = new Promise((resolve) => {
-            const clientReq = http.get('http://127.0.0.1:11434/api/tags', { timeout: 600 }, (r) => {
+          // Check llama.cpp service real status asynchronously
+          const checkLlamaCpp = new Promise((resolve) => {
+            const clientReq = http.get('http://127.0.0.1:8080/health', { timeout: 600 }, (r) => {
               let body = '';
               r.on('data', c => { body += c; });
               r.on('end', () => {
                 try {
                   const data = JSON.parse(body);
-                  const models = (data.models || []).map(m => m.name).slice(0, 3);
                   resolve({
-                    online: true,
-                    status: 'ONLINE',
-                    models: models.length > 0 ? models : ['qwen3:8b']
+                    online: data.status === 'ok',
+                    status: data.status === 'ok' ? 'ONLINE' : 'LOADING',
+                    models: [process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf']
                   });
                 } catch (_) {
-                  resolve({ online: true, status: 'ONLINE', models: [] });
+                  resolve({ online: false, status: 'STANDBY', models: [] });
                 }
               });
             });
@@ -381,7 +380,7 @@ function tavilyDriveFPlugin() {
             clientReq.on('timeout', () => { clientReq.destroy(); resolve({ online: false, status: 'STANDBY', models: [] }); });
           });
 
-          checkOllama.then((ollamaState) => {
+          checkLlamaCpp.then((llamacppState) => {
             const telemetry = {
               timestamp: new Date().toISOString(),
               cpu: {
@@ -403,12 +402,12 @@ function tavilyDriveFPlugin() {
                 targetDir: docDir,
                 archivedDocsCount: archivedCount
               },
-              ollama: ollamaState,
+              llamacpp: llamacppState,
               router: {
                 port: 5177,
                 status: 'ACTIVE_ONLINE',
-                cloudProvider: (process.env.ROUTE_PROVIDER === 'ollama' || process.env.ROUTE_STRATEGY === 'local_first')
-                  ? `Ollama ${process.env.OLLAMA_MODEL || 'qwen3:8b'} (Local Primary)`
+                cloudProvider: (process.env.ROUTE_PROVIDER === 'llamacpp' || process.env.ROUTE_STRATEGY === 'local_first')
+                  ? `llama.cpp ${process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf'} (Local Primary)`
                   : `${process.env.GEMINI_MODEL || 'Gemini Cloud'} (Primary)`,
                 harvester: 'Tavily Deep AI Live Crawler'
               },
@@ -839,6 +838,9 @@ function tavilyDriveFPlugin() {
 
 export default defineConfig({
   plugins: [react(), tavilyDriveFPlugin()],
+  optimizeDeps: {
+    entries: ['index.html']
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

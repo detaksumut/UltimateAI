@@ -1,0 +1,45 @@
+{
+  "basicCompletion": {
+    "status": "PASS",
+    "durationMs": 47453,
+    "usage": {
+      "completion_tokens": 150,
+      "prompt_tokens": 24,
+      "total_tokens": 174,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "tps": "3.16",
+    "content": ""
+  },
+  "streaming": {
+    "status": "PASS",
+    "ttftMs": 2973,
+    "totalDurationMs": 33571,
+    "chunks": 100,
+    "content": ""
+  },
+  "longPrompt": {
+    "status": "FAIL",
+    "durationMs": 84756,
+    "retained": false,
+    "content": ""
+  },
+  "cancellation": {
+    "status": "PASS",
+    "abortedCleanly": true
+  },
+  "sequential": {
+    "status": "PASS",
+    "durationMs": 21642,
+    "out1": "",
+    "out2": ""
+  },
+  "parallel": {
+    "status": "PASS",
+    "durationMs": 18231,
+    "out1": "",
+    "out2": ""
+  }
+}

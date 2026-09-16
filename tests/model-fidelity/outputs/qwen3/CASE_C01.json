@@ -1,0 +1,9 @@
+{
+  "id": "CASE_C01",
+  "category": "C_NUMERICAL_FIDELITY",
+  "name": "Nilai Eksak Koefisien Redaman Lambda dan Eksponen Gamma",
+  "prompt": "Berapakah nilai numerik eksak untuk koefisien redaman lambda (λ) dan eksponen penalti gamma (γ) pada formula Consistency Factor (CF)?",
+  "expectedFact": "lambda = 0.35, gamma = 1.50",
+  "rawOutput": "",
+  "durationMs": 3
+}

@@ -22,15 +22,123 @@ export class SemanticIntentEngine {
     this.apiKey = apiKey || process.env.ROUTER_API_KEY || '';
   }
 
+  _normalizeUtterance(input) {
+    if (typeof input === 'string') return input.trim();
+    if (input === null || input === undefined) return '';
+    if (Array.isArray(input)) {
+      return input
+        .map(part => {
+          if (typeof part === 'string') return part;
+          if (part && typeof part === 'object') {
+            return part.text || (part.type === 'text' ? part.text : '') || '';
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    }
+    if (typeof input === 'object') {
+      if (typeof input.content === 'string') return input.content.trim();
+      if (Array.isArray(input.content)) return this._normalizeUtterance(input.content);
+      if (typeof input.text === 'string') return input.text.trim();
+      if (typeof input.prompt === 'string') return input.prompt.trim();
+      if (typeof input.message === 'string') return input.message.trim();
+    }
+    throw new TypeError(`[SemanticIntentEngine] Invariant failed: user utterance must be a string, message object, or parts array, received ${typeof input}`);
+  }
+
+  _extractTurnText(turn) {
+    if (!turn) return '';
+    if (typeof turn === 'string') return turn;
+    if (typeof turn.content === 'string') return turn.content;
+    if (Array.isArray(turn.content)) {
+      return turn.content
+        .map(part => {
+          if (typeof part === 'string') return part;
+          if (part && typeof part === 'object') {
+            return part.text || (part.type === 'text' ? part.text : '') || '';
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join(' ');
+    }
+    if (typeof turn.text === 'string') return turn.text;
+    if (typeof turn.prompt === 'string') return turn.prompt;
+    if (typeof turn.message === 'string') return turn.message;
+    if (typeof turn.content === 'object' && turn.content !== null) {
+      return turn.content.text || turn.content.message || '';
+    }
+    return '';
+  }
+
+  _findLastVisualAsset(recentTurns = []) {
+    if (!Array.isArray(recentTurns)) return null;
+    for (let i = recentTurns.length - 1; i >= 0; i--) {
+      const turn = recentTurns[i];
+      if (!turn) continue;
+
+      if (turn.imageUrl && typeof turn.imageUrl === 'string') {
+        return turn.imageUrl;
+      }
+      if (turn._agent?.imageUrl && typeof turn._agent.imageUrl === 'string') {
+        return turn._agent.imageUrl;
+      }
+      if (turn.artifact?.url && typeof turn.artifact.url === 'string') {
+        return turn.artifact.url;
+      }
+      if (Array.isArray(turn.artifacts)) {
+        const artWithUrl = turn.artifacts.find(a => a?.url && typeof a.url === 'string');
+        if (artWithUrl) return artWithUrl.url;
+      }
+      if (Array.isArray(turn.content)) {
+        for (const part of turn.content) {
+          if (part?.type === 'image_url' && (part.image_url?.url || typeof part.image_url === 'string')) {
+            return part.image_url?.url || part.image_url;
+          }
+          if (part?.imageUrl && typeof part.imageUrl === 'string') {
+            return part.imageUrl;
+          }
+          if (typeof part?.text === 'string') {
+            const m = part.text.match(/\/(?:api\/artifacts\/images|artifacts\/images)\/[a-zA-Z0-9_\-\.]+\.(?:jpg|jpeg|png|webp)/i)
+              || part.text.match(/https?:\/\/[^\s\)\"\']+\.(?:png|jpg|jpeg|webp)/i);
+            if (m) return m[0];
+          }
+        }
+      }
+      if (typeof turn.content === 'string') {
+        const m = turn.content.match(/\/(?:api\/artifacts\/images|artifacts\/images)\/[a-zA-Z0-9_\-\.]+\.(?:jpg|jpeg|png|webp)/i)
+          || turn.content.match(/https?:\/\/[^\s\)\"\']+\.(?:png|jpg|jpeg|webp)/i);
+        if (m) return m[0];
+      }
+    }
+    return null;
+  }
+
   /**
    * Interprets natural language input into a structured semantic goal.
    */
   async interpret(input, context = {}, options = {}) {
-    if (!input || !input.trim()) {
+    const raw = this._normalizeUtterance(input);
+    if (!raw) {
       return this._emptyUtterance(options);
     }
 
-    const raw = input.trim();
+    // FAST-PATH: Deterministic SLIDE_STUDIO, ARCHITECTURAL_DESIGN, IMAGE_REVISION, and IMAGE_GENERATION
+    const fastDecision =
+      this._slideStudioClassifier(raw, context.constraints || []) ||
+      this._architecturalDesignClassifier(raw, context.constraints || []) ||
+      this._imageRevisionClassifier(raw, context.recentTurns || []) ||
+      this._imageGenerationClassifier(raw, context.constraints || []);
+    if (fastDecision) {
+      return this._injectScope(raw, {
+        ...fastDecision,
+        interpretationSource: fastDecision.interpretationSource || 'DETERMINISTIC_FAST_PATH',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false
+      });
+    }
 
     const model = options.forcedModel || 'qwen3:8b';
     const transport = options.certificationTransport || 'LOCAL_ROUTER_PROXY';
@@ -171,7 +279,7 @@ AUTONOMY RULES (MANDATORY):
 
 ROUTING INTENTS (use when applicable):
 - IMAGE_GENERATION: every request to create/generate a NEW image from scratch, including any 3D render or 3D object, uses only toolsNeeded=["image.generate"]. actionRequired=true.
-- IMAGE_REVISION: every request to modify/re-render/update/revise an EXISTING visual that was created earlier in the conversation. The user references a previous visual using contextual cues like "nya", "yang tadi", "itu", "tersebut", "versi sebelumnya", or revision words like "revisi", "ubah", "ganti", "buat ulang", "edit", "modifikasi", "ulang". Uses toolsNeeded=["image.generate"]. actionRequired=true. MUST include referenceImage with the previous visual artifact URL.
+- IMAGE_REVISION: every request to modify/re-render/update/revise an EXISTING visual that was created earlier in the conversation. The user references a previous visual using contextual cues like "nya", "yang tadi", "itu", "tersebut", "versi sebelumnya", or revision words like "revisi", "ubah", "ganti", "buat ulang", "edit", "modifikasi", "ulang". Uses toolsNeeded=["image.edit"]. actionRequired=true. MUST include referenceImage with the previous visual artifact URL.
 - A 3D request is a normal visual image request. Never classify it as architecture, never create plans/elevations/models, and never invoke a dedicated 3D script.
 - RESEARCH_TASK: deep research, investigation, study, or comparing sources → toolsNeeded=["web.search"]. freshDataRequired=true.
 - EXTERNAL_DATA: real-time or internet-dependent facts (weather, prices, news, current info) → toolsNeeded=["web.search"]. freshDataRequired=true.
@@ -276,6 +384,8 @@ Analyze contextually and output strict JSON.`;
     const fallbackDecision =
       this._deterministicCasualChatClassifier(raw) ||
       this._deviceInspectionDecision(raw, context, options) ||
+      this._slideStudioClassifier(raw, context.constraints || []) ||
+      this._architecturalDesignClassifier(raw, context.constraints || []) ||
       this._imageRevisionClassifier(raw, context.recentTurns || []) ||
       this._imageGenerationClassifier(raw, context.constraints || []) ||
       this._deterministicTaskClassifier(raw, context.constraints || []);
@@ -367,12 +477,34 @@ Analyze contextually and output strict JSON.`;
     if (!targetUrl) {
       // Look back for URLs in previous conversation turns
       for (let i = history.length - 1; i >= 0; i--) {
-        const turnText = history[i].content || '';
+        const turn = history[i];
+        const turnText = this._extractTurnText(turn);
+        if (typeof turnText !== 'string') {
+          throw new TypeError(`[SemanticIntentEngine] Invariant failed: turnText must be a string, received ${typeof turnText}`);
+        }
         const prevUrlMatch = turnText.match(/https?:\/\/[^\s]+/i);
         if (prevUrlMatch) {
           targetUrl = prevUrlMatch[0];
           resolvedRefs.push(`URL: ${targetUrl}`);
           break;
+        }
+        // Direct object URL inspection (multimodal or explicit fields)
+        if (turn && typeof turn === 'object') {
+          if (turn.url && typeof turn.url === 'string') {
+            targetUrl = turn.url;
+            resolvedRefs.push(`URL: ${targetUrl}`);
+            break;
+          }
+          if (Array.isArray(turn.content)) {
+            for (const part of turn.content) {
+              if (part?.type === 'image_url' && (part.image_url?.url || typeof part.image_url === 'string')) {
+                targetUrl = part.image_url?.url || part.image_url;
+                resolvedRefs.push(`URL: ${targetUrl}`);
+                break;
+              }
+            }
+            if (targetUrl) break;
+          }
         }
       }
     }
@@ -403,8 +535,8 @@ Analyze contextually and output strict JSON.`;
       toolReason = 'Akses internet dilarang oleh batasan aktif pengguna (NO_INTERNET_ACCESS). Menggunakan data konteks yang sudah ada.';
     }
 
-    // Safe Code Computation
-    if (/hitung|kalkulasi|jalankan kode|transformasi data|eksekusi/i.test(raw) && !/jangan eksekusi/i.test(raw)) {
+    // Safe Code Computation — ONLY for explicit sandbox code execution requests
+    if (/(?:jalankan|eksekusi)\s+(?:script|skrip|kode|bash|python|perintah|command)\s+(?:di\s+)?(?:sandbox|terminal)/i.test(raw) && !/jangan eksekusi/i.test(raw)) {
       toolsNeeded.push('sandbox.execute');
       toolReason = 'Eksekusi kalkulasi atau transformasi kode dalam sandbox aman terisolasi.';
     }
@@ -559,30 +691,120 @@ Analyze contextually and output strict JSON.`;
   }
 
   /**
+   * Deterministic Slide Studio Classifier — Only triggers when user explicitly requests
+   * downloadable PowerPoint (.pptx) file generation. Does NOT hijack conversational slide outlines.
+   */
+  _slideStudioClassifier(raw, activeConstraints = []) {
+    const r = String(raw || '').trim();
+    if (!r) return null;
+
+    // ONLY trigger SlideStudio if user explicitly asks to generate/download a PowerPoint .pptx file
+    const pptxExportPattern = /\b(?:export|ekspor|download|unduh|generate)\s+(?:ke\s+|file\s+|berkas\s+)?(?:pptx|powerpoint\s+file|\.pptx)\b/i;
+
+    if (pptxExportPattern.test(r)) {
+      return {
+        intent: 'SLIDE_STUDIO',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['slide_presentation', 'slide_studio'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['slide.studio'],
+        toolReason: 'Pengguna meminta ekspor berkas PowerPoint (.pptx). Harus diarahkan ke engine produksi SLIDE_STUDIO.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.98,
+        reason: 'Deterministic classifier: explicit PPTX file generation detected.',
+        interpretationSource: 'DETERMINISTIC_SLIDE_STUDIO_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false,
+        slideIntent: {
+          prompt: r,
+          aspectRatio: '16:9',
+          style: 'corporate_enterprise'
+        }
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Deterministic Architectural Design Classifier — Detects autonomous house & architectural design projects
+   * and routes to ARCHITECTURAL_DESIGN intent. Runs BEFORE image generation.
+   */
+  _architecturalDesignClassifier(raw, activeConstraints = []) {
+    const r = String(raw || '').trim();
+    if (!r) return null;
+
+    const archDesignPattern = /(?:buatkan?|buat|bikin|generate|rancang|desain|susun)\s+(?:.*\s+)?(?:rumah|hunian|bangunan|arsitektur|villa|residence|tata\s+ruang|denah|blueprints?|site\s+plan)|\b(?:desain\s+rumah|rancang\s+bangun|denah\s+rumah|arsitektur\s+rumah|lahan\s+\d+|tanah\s+\d+|tampak\s+depan\s+rumah|gambar\s+kerja\s+rumah)\b/i;
+
+    if (archDesignPattern.test(r)) {
+      return {
+        intent: 'ARCHITECTURAL_DESIGN',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: ['architectural_design', 'house_design', 'master_design_draft'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['architectural.studio'],
+        toolReason: 'Pengguna meminta proyek rancang bangun arsitektur / desain rumah. Harus diarahkan ke engine produksi ARCHITECTURAL_STUDIO.',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.98,
+        reason: 'Deterministic classifier: architectural design / house project detected.',
+        interpretationSource: 'DETERMINISTIC_ARCHITECTURAL_STUDIO_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false,
+        architecturalIntent: {
+          prompt: r,
+          scope: 'RESIDENTIAL_ARCHITECTURE',
+          workflow: 'AUTONOMOUS_SEQUENTIAL'
+        }
+      };
+    }
+
+    return null;
+  }
+
+  /**
    * Deterministic Image Generation Classifier — Runs BEFORE generic task classifier.
-   * Detects image generation requests and routes to IMAGE_GENERATION intent.
+   * Detects image generation requests (including visual slide requests) and routes to IMAGE_GENERATION intent.
    * Matches Indonesian and English image creation vocabulary.
-   * Explicitly excludes analysis/search of existing images (cari/temukan/analisis images).
    */
   _imageGenerationClassifier(raw, activeConstraints = []) {
     const r = raw;
 
-    // Positive patterns: image creation intent
+    // Explicitly ignore architectural / house design requests (handled by ArchitecturalStudio)
+    if (/(?:desain\s+rumah|rancang\s+bangun|denah\s+rumah|lahan\s+\d+|tanah\s+\d+)/i.test(r)) {
+      return null;
+    }
+
+    // Slide visual generation intent (e.g. "buat visual slide 1", "visualkan slide ini")
+    const isVisualSlideIntent = /(?:buatkan?|buat|bikin|render|tampilkan|hasilkan)\s+(?:.*\s+)?(?:visual\s+slide|slide\s+visual|visualnya|desain\s+slide)|(?:visual\s+slide\s+\d+|slide\s+\d+\s+visual|gambar\s+slide)/i.test(r);
+
+    // General image creation patterns
     const createImagePattern = /(?:buatkan?|buat|generate|create|bikin|hasilkan|render|desain|lukis(?:kan)?|gambar(?:kan)?|ilustrasi(?:kan)?|visual(?:kan)?)\s+(?:.*\s+)?(?:gambar|image|ilustrasi|visual|poster|logo|wallpaper|foto|lukisan|karya\s+visual|desain\s+visual|artwork|anime|carton|kartun|3d|rendering)/i;
-
     const standaloneImageWord = /(?:generate|create|buatkan?|buat|bikin|tolong\s+bikin)\s+(?:sebuah\s+)?(?:gambar|image|ilustrasi|visual|foto|lukisan|poster|logo|wallpaper|artwork|anime|kartun|3d|rendering)/i;
-
     const directGenerateKeyword = /(?:generate\s+image|create\s+an?\s+image|buat\s+gambar|buatkan\s+gambar|generate\s+gambar|tolong\s+(?:buatkan?|generate|create)\s+(?:sebuah\s+)?(?:gambar|image|visual|foto|ilustrasi))/i;
-
     const gambarkanPattern = /^gambarkan\s+/i;
 
     // Negative patterns: exclude analysis/search/description of existing images
-    const negativeExclude = /(?:analisis|analysis|jelaskan|deskripsikan|bedah|baca|cari|temukan|search|find|lihat|tampilkan|download|unduh|simpan|hapus)\s+(?:.*\s+)?(?:gambar|image|foto|lukisan|ilustrasi)/i;
+    const negativeExclude = /(?:analisis|analysis|jelaskan|deskripsikan|bedah|baca|cari|temukan|search|find|lihat|download|unduh|simpan|hapus)\s+(?:.*\s+)?(?:gambar|image|foto|lukisan|ilustrasi)/i;
 
-    const isNegative = negativeExclude.test(r);
-    const matchesPositive = createImagePattern.test(r) || standaloneImageWord.test(r) || directGenerateKeyword.test(r) || gambarkanPattern.test(r);
+    const isNegative = negativeExclude.test(r) && !isVisualSlideIntent;
+    const matchesPositive = isVisualSlideIntent || createImagePattern.test(r) || standaloneImageWord.test(r) || directGenerateKeyword.test(r) || gambarkanPattern.test(r);
 
     if (matchesPositive && !isNegative) {
+      const is169 = isVisualSlideIntent || /\b(?:16[:x]9|16\/9|landscape|horizontal|mendatar|lebar|panjang|slide|presentasi)\b/i.test(r);
+      const is916 = /\b(?:9[:x]16|9\/16|portrait|vertikal|tegak|story|tiktok|reels|shorts|wallpaper(?:\s+hp|\s+ponsel)?)\b/i.test(r);
+      const detectedAr = is169 ? '16:9' : is916 ? '9:16' : '1:1';
       return {
         intent: 'IMAGE_GENERATION',
         goal: r,
@@ -594,14 +816,22 @@ Analyze contextually and output strict JSON.`;
         isContinuing: false,
         freshDataRequired: false,
         toolsNeeded: ['image.generate'],
-        toolReason: 'User requests visual image generation. Must route to ImageGeneration service.',
+        toolReason: isVisualSlideIntent
+          ? 'Pengguna meminta pembuatan visual slide presentasi 16:9 enterprise.'
+          : 'User requests visual image generation. Must route to ImageGeneration service.',
         needsClarification: false,
         clarificationQuestion: null,
-        confidence: 0.94,
-        reason: 'Deterministic classifier: image generation task detected from creation vocabulary.',
+        confidence: 0.95,
+        reason: 'Deterministic classifier: image/visual generation task detected.',
         interpretationSource: 'DETERMINISTIC_IMAGE_CLASSIFIER',
         transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: false
+        fallbackUsed: false,
+        visualIntent: {
+          mode: 'GENERIC_IMAGE',
+          action: 'generate',
+          aspectRatio: detectedAr,
+          subject: r
+        }
       };
     }
 
@@ -614,52 +844,72 @@ Analyze contextually and output strict JSON.`;
    * Matches revision vocabulary AND checks for previous visual assets in conversation history.
    */
   _imageRevisionClassifier(raw, recentTurns = []) {
-    const r = raw;
+    if (typeof raw !== 'string') {
+      throw new TypeError(`[SemanticIntentEngine] Invariant violated: raw utterance must be a string, received ${typeof raw}`);
+    }
+    const r = raw.trim();
+    if (!r) return null;
 
-    // Revision vocabulary patterns (Indonesian + English)
-    const revisionPatterns = /(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang|ubah\s+suasana|ganti\s+suasana|buat\s+versi|versi\s+baru|versi\s+lain|yang\s+tadi|nya|itu|tersebut|sebelumnya)/i;
-
-    // Contextual reference patterns (don't require "gambar" noun)
-    const contextualReference = /(?:nya|yang\s+tadi|itu|tersebut|sebelumnya|versi\s+sebelumnya|yang\s+barusan|yang\s+kita\s+bicarakan)/i;
-
-    // Check if request contains revision vocabulary
-    const hasRevisionVocab = revisionPatterns.test(r);
-
-    // Check if request contains contextual references
-    const hasContextualRef = contextualReference.test(r);
-
-    // Check if there's a previous visual asset in conversation history
-    let lastVisualAsset = null;
-    for (let i = recentTurns.length - 1; i >= 0; i--) {
-      const turn = recentTurns[i];
-      if (turn.role === 'assistant' && turn.imageUrl) {
-        lastVisualAsset = turn.imageUrl;
-        break;
-      }
-      // Also check for image_url in content array (multimodal format)
-      if (turn.role === 'assistant' && Array.isArray(turn.content)) {
-        for (const part of turn.content) {
-          if (part.type === 'image_url' && part.image_url?.url) {
-            lastVisualAsset = part.image_url.url;
-            break;
-          }
-        }
-        if (lastVisualAsset) break;
-      }
+    // Guard: Exclude document reading, outline, summary, and attached document context
+    if (r.includes('--- [BERKAS DOKUMEN') || r.includes('--- [DOKUMEN') || r.includes('--- [Konteks Dokumen') ||
+        /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|materi|rangkum|ringkas|slide\s+presentasi|buatkan\s+point)\b/i.test(r)) {
+      return null;
     }
 
-    // IMAGE_REVISION requires: revision vocabulary OR contextual reference AND previous visual exists
-    if ((hasRevisionVocab || hasContextualRef) && lastVisualAsset) {
-      // Extract modification instructions
+    // Check if there is an active visual asset in conversation context
+    const lastVisualAsset = this._findLastVisualAsset(recentTurns);
+    if (!lastVisualAsset) {
+      return null;
+    }
+
+    // 1. Revision / Change action verbs (Indonesian + English) with strict word boundaries
+    const revisionActionPatterns = /\b(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|jadikan|buat\s+jadi|bikin\s+jadi|ubah\s+jadi|ganti\s+jadi|ubah\s+ke|ganti\s+ke|jadikan\s+suasana|suasananya|buat\s+versi|bikin\s+versi|versi\s+baru|versi\s+lain|tambah(?:kan)?|kasih|taruh|pasang|hilang(?:kan)?|hapus|buang|tanpa|buat\s+lebih|bikin\s+lebih|jadikan\s+lebih|make\s+it|turn\s+into|change|modify|replace|add|remove)\b/i;
+
+    // 2. Contextual reference patterns indicating continuation of previous visual
+    const contextualReference = /\b(?:nya|yang\s+tadi|itu|tersebut|sebelumnya|versi\s+sebelumnya|yang\s+barusan|yang\s+kita\s+bicarakan|sekarang)\b/i;
+
+    // 3. Target visual modification concepts (atmosphere, scenery, lighting, weather, style)
+    const targetModificationPatterns = /\b(?:malam|night|sunset|senja|pagi|morning|siang|subuh|hujan|rain|badai|storm|salju|snow|cerah|sunny|mendung|cloudy|kabut|fog|gelap|dark|terang|bright|realistis|realistic|kartun|cartoon|anime|cyberpunk|3d|vintage|retro|hitam\s+putih|black\s+and\s+white|langit|sky|background|latar|pemandangan|view|suasana|warna|color|gambar|visual|foto|image)\b/i;
+
+    const hasAction = revisionActionPatterns.test(r);
+    const hasContextRef = contextualReference.test(r);
+    const hasTargetMod = targetModificationPatterns.test(r);
+
+    // Negative exclude: explicit commands unrelated to visual revision
+    const nonVisualExclusion = /^(?:bukan\s+itu|maksud\s+saya\s+dokumen|ganti\s+model|ubah\s+suhu|hapus\s+chat|stop|berhenti)\b/i.test(r);
+    if (nonVisualExclusion) return null;
+
+    // Core rule: must involve target modification concept or explicit visual reference
+    const isRevision = (hasAction && hasTargetMod) || (hasContextRef && hasTargetMod);
+
+    if (isRevision) {
+      // Extract modification instructions dynamically
       const modifyElements = [];
       if (/sunset|senja|matahari\s+tenggelam/i.test(r)) modifyElements.push('sunset atmosphere');
       if (/malam|night|gelap/i.test(r)) modifyElements.push('nighttime');
       if (/pagi|morning|subuh/i.test(r)) modifyElements.push('morning');
-      if (/dekat|close|besar/i.test(r)) modifyElements.push('closer view');
-      if (/jauh|far|kecil/i.test(r)) modifyElements.push('farther view');
+      if (/siang|daytime/i.test(r)) modifyElements.push('daytime');
+      if (/hujan|rain/i.test(r)) modifyElements.push('rainy atmosphere');
+      if (/salju|snow/i.test(r)) modifyElements.push('snow falling');
+      if (/badai|storm/i.test(r)) modifyElements.push('stormy weather');
       if (/mendung|cloudy|awan/i.test(r)) modifyElements.push('cloudy sky');
       if (/cerah|clear|sunny/i.test(r)) modifyElements.push('clear sky');
+      if (/kabut|foggy/i.test(r)) modifyElements.push('foggy mist');
+      if (/dekat|close|besar/i.test(r)) modifyElements.push('closer view');
+      if (/jauh|far|kecil/i.test(r)) modifyElements.push('farther view');
       if (/realistis|realistic/i.test(r)) modifyElements.push('more realistic');
+      if (/cyberpunk/i.test(r)) modifyElements.push('cyberpunk neon style');
+      if (/anime|kartun/i.test(r)) modifyElements.push('anime style');
+      if (/3d/i.test(r)) modifyElements.push('3D render');
+      if (/hitam\s+putih|black\s+and\s+white/i.test(r)) modifyElements.push('black and white');
+      if (/langit|sky/i.test(r)) modifyElements.push('modified sky');
+      if (/latar|background/i.test(r)) modifyElements.push('modified background');
+      if (/gelap|darker/i.test(r) && !modifyElements.includes('nighttime')) modifyElements.push('darker lighting');
+      if (/terang|brighter/i.test(r)) modifyElements.push('brighter lighting');
+      if (modifyElements.length === 0) {
+        const cleanMod = r.replace(/^(?:sekarang|coba|tolong)?\s*(?:jadikan|buat\s+jadi|bikin\s+jadi|ubah\s+jadi|ganti\s+jadi|ubah|ganti)\s*/i, '').trim();
+        modifyElements.push(cleanMod || 'modified visual scene');
+      }
 
       return {
         intent: 'IMAGE_REVISION',
@@ -671,12 +921,12 @@ Analyze contextually and output strict JSON.`;
         isCorrecting: false,
         isContinuing: true,
         freshDataRequired: false,
-        toolsNeeded: ['image.generate'],
-        toolReason: 'User requests modification of existing visual asset. Must route to ImageGeneration with reference.',
+        toolsNeeded: ['image.edit'],
+        toolReason: 'User requests modification of existing visual asset. Must route to ImageEditing with reference.',
         needsClarification: false,
         clarificationQuestion: null,
-        confidence: 0.92,
-        reason: 'Deterministic classifier: image revision task detected from revision vocabulary and existing visual context.',
+        confidence: 0.95,
+        reason: 'Deterministic classifier: image revision task detected from revision intent and active visual context.',
         interpretationSource: 'DETERMINISTIC_IMAGE_REVISION_CLASSIFIER',
         transportUsed: 'LOCAL_REASONING',
         fallbackUsed: false,
@@ -688,7 +938,7 @@ Analyze contextually and output strict JSON.`;
           environment: null,
           style: null,
           composition: null,
-          aspectRatio: '1:1',
+          aspectRatio: (/\b(?:16[:x]9|16\/9|landscape|horizontal|mendatar|lebar|panjang)\b/i.test(raw) ? '16:9' : /\b(?:9[:x]16|9\/16|portrait|vertikal|tegak|story|wallpaper)\b/i.test(raw) ? '9:16' : '1:1'),
           negativeConstraints: [],
           providerPrompt: null,
           referenceImage: lastVisualAsset,
@@ -702,14 +952,16 @@ Analyze contextually and output strict JSON.`;
   }
 
   /**
-   * Deterministic Task Classifier — Safety net for when LLM times out or misclassifies.
-   * Uses regex to detect action-requiring tasks and set actionRequired: true.
-   * This ensures the full pipeline (PLAN → BUILD → VERIFY) is triggered.
+   * Deterministic Task Classifier — Cleaned from over-engineering hijacking.
+   * Pure generative, analytical, reporting, and presentation tasks MUST NOT
+   * be hijacked into broken DAG AgentRuntime tool loops.
+   * They must stream directly through the LLM for natural, articulate answers.
    */
   _deterministicTaskClassifier(raw, activeConstraints = []) {
     const r = raw;
 
-    // DOCUMENT ANALYSIS — user asks to analyze/read/extract from a document
+    // DOCUMENT ANALYSIS — user asks to analyze/read/extract from a document.
+    // Handled via dedicated Document Pipeline.
     if (/analisis\s+dokumen|dokumen\s+ini|file\s+ini|pdf\s+ini|upload.*analisis|ekstrak\s+isi|baca\s+dokumen|ringkas\s+dokumen|summary\s+dokumen|buat\s+ringkasan\s+dari|buat\s+summary\s+dari/i.test(r)) {
       return {
         intent: 'DOCUMENT_ANALYSIS',
@@ -721,163 +973,42 @@ Analyze contextually and output strict JSON.`;
         isCorrecting: false,
         isContinuing: false,
         freshDataRequired: false,
-        toolsNeeded: ['doc.analyze'],
-        toolReason: 'Pengguna meminta analisis atau ekstraksi konten dari dokumen.',
+        toolsNeeded: ['document_pipeline'],
+        toolReason: 'Analisis dokumen diproses melalui dedicated Document Reading Pipeline.',
         needsClarification: false,
         clarificationQuestion: null,
-        confidence: 0.92,
-        reason: 'Deterministic classifier: document analysis task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        confidence: 0.98,
+        reason: 'Dedicated Document Pipeline for document reading and analysis.',
+        interpretationSource: 'DIRECT_REASONING',
         transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
+        fallbackUsed: false
       };
     }
 
-    // APP SYNTHESIS — user asks to build/create code, app, component
-    if (/buatkan?\s+(kode|code|script|program|aplikasi|app|website|component|function|class|class|module|widget|halaman|page|form|button|modal|popup|layout|interface|ui|api|endpoint|route|rest|graphql)|generate\s+code|create\s+(app|application|component|function|class|module)|bangun\s+(aplikasi|website|sistem|tool|utility)/i.test(r)) {
+    // PRESENTATION & OUTLINE GENERATION — direct cognitive LLM reasoning
+    if (/presentasi|slide|ppt|outline|point\s+point|poin\s+poin/i.test(r)) {
       return {
-        intent: 'APP_SYNTHESIS',
+        intent: 'PRESENTATION_REASONING',
         goal: r,
         resolvedReferences: [],
-        actionRequired: true,
-        entities: ['code_generation'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['sandbox.execute'],
-        toolReason: 'Pengguna meminta pembuatan kode atau aplikasi.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.93,
-        reason: 'Deterministic classifier: code/app synthesis task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
-      };
-    }
-
-    // DATA ANALYTICS — user asks for computation, analysis, statistics
-    if (/hitung|kalkulasi|statistik|data\s+analytics|analisis\s+data|rata-rata|persentase|growth|trend|perbandingan|komparasi|visualisasi|grafik|chart|matrix|tabel\s+data|olah\s+data|proses\s+data/i.test(r)) {
-      return {
-        intent: 'DATA_ANALYTICS',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['data_analysis'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['sandbox.execute'],
-        toolReason: 'Pengguna meminta analisis data, kalkulasi, atau visualisasi.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.91,
-        reason: 'Deterministic classifier: data analytics task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
-      };
-    }
-
-    // MULTI-STEP TASK — user asks for complex/sequential work
-    if (/langkah|step|proses|pipeline|workflow|urutan|rentetan|rangkaian|secara\s+bertahap|berurutan| tahap|fase/i.test(r) && !/^(halo|hai|hi|hey|selamat|pagi|siang|sore|malam)/i.test(r)) {
-      return {
-        intent: 'MULTI_STEP_TASK',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['multi_step'],
+        actionRequired: false,
+        entities: ['presentation'],
         constraints: activeConstraints,
         isCorrecting: false,
         isContinuing: false,
         freshDataRequired: false,
         toolsNeeded: [],
-        toolReason: 'Pengguna meminta tugas multi-langkah yang kompleks.',
+        toolReason: 'Penyusunan materi dan kerangka presentasi diproses langsung secara cerdas oleh LLM.',
         needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.88,
-        reason: 'Deterministic classifier: multi-step task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
+        confidence: 0.95,
+        reason: 'Direct LLM streaming for presentation drafting.',
+        interpretationSource: 'DIRECT_REASONING',
         transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
+        fallbackUsed: false
       };
     }
 
-    // REPORT GENERATION — user asks to create a report, summary, document
-    if (/buatkan?\s+(laporan|report|dokumen|artikel|tulisan|draft|surat|proposal|presentasi|ppt|makalah)|generate\s+(report|document|summary)|susun\s+(laporan|dokumen)/i.test(r)) {
-      return {
-        intent: 'MULTI_STEP_TASK',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['report_generation'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: [],
-        toolReason: 'Pengguna meminta pembuatan laporan atau dokumen.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.90,
-        reason: 'Deterministic classifier: report/document generation task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
-      };
-    }
-
-    // RESEARCH TASK — user asks for deep research, investigation
-    if (/riset|research|telusuri|investigasi|kaji|review\s+literatur|studi\s+kasus|benchmark|perbandingan\s+komprehensif|deep\s+dive|penelitian/i.test(r)) {
-      return {
-        intent: 'RESEARCH_TASK',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['research'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: true,
-        toolsNeeded: ['web.search'],
-        toolReason: 'Pengguna meminta riset atau investigasi mendalam.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.89,
-        reason: 'Deterministic classifier: deep research task detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
-      };
-    }
-
-    // EXTERNAL DATA — user asks for live internet data (weather, prices, news, real-time info)
-    if (/cuaca|weather|harga\s+(saham|komoditas|emas|minyak|kripto|crypto|bitcoin)|stock\s+price|market\s+data|exchange\s+rate|kurs|berita|news|informasi\s+(terbaru|terkini|latest|recent|current)|what\s+is\s+the\s+(current|latest|recent)|what\s+(are|is)\s+the\s+(current\s+)?(price|rate|value)|real-time|realtime|live\s+data|hari\s+ini|saat\s+ini|right\s+now|cari\s+(di\s+)?(internet|web|online)|search\s+(for|online)/i.test(r)) {
-      return {
-        intent: 'EXTERNAL_DATA',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['external_data'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: true,
-        toolsNeeded: ['web.search'],
-        toolReason: 'User requests real-time or internet-dependent data. Must route to Antigravity.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.94,
-        reason: 'Deterministic classifier: external/real-time data request detected.',
-        interpretationSource: 'DETERMINISTIC_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: true
-      };
-    }
-
-    // No task detected — return null to let the default return handle it
+    // ALL OTHER GENERATIVE & ANALYTICAL WORK: No hijacking, let LLM answer directly!
     return null;
   }
 }

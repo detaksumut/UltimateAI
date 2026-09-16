@@ -1,0 +1,9 @@
+{
+  "id": "CASE_H01",
+  "category": "H_EVIDENCE_GROUNDING",
+  "name": "Keterbatasan Prior Art US Patent 10,846,360",
+  "prompt": "Apa kelemahan utama dari dokumen pembanding terdahulu US Patent 10,846,360 jika dibandingkan dengan invensi AT-RQS?",
+  "expectedFact": "US Patent 10,846,360 berbasis frekuensi kata dan model regresi linear; rentan terhadap manipulasi retoris dan tidak memiliki redaman bukti non-linear",
+  "rawOutput": "",
+  "durationMs": 5
+}

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_H02",
+  "category": "H_EVIDENCE_GROUNDING",
+  "name": "Mekanisme Penguncian Integritas Bukti Kriptografis",
+  "prompt": "Teknologi kriptografi apa yang digunakan dalam AT-RQS untuk menjamin tamper-evident audit trail terhadap bukti ilmiah?",
+  "expectedFact": "Penguncian integritas kriptografis berbasis hashing SHA-256 untuk memastikan audit trail permanen dan tamper-evident",
+  "rawOutput": "",
+  "durationMs": 3
+}

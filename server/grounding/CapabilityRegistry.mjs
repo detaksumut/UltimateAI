@@ -129,8 +129,15 @@ export const CAPABILITY_REGISTRY = {
       return Boolean(probe?.available);
     }
   },
+  // --- STUDIO CAPABILITIES ---
+  'slide.studio': {
+    available: true,
+    label: 'Slide Studio',
+    description: 'Autonomous programmatic corporate presentation engine for SVG, preview image and editable PPTX.',
+    namespace: 'studio',
+    checkLiveHealth: () => true
+  },
 
-  // --- INTELLIGENCE, MEMORY & SECURITY CAPABILITIES ---
   'memory.vault': {
     available: true,
     label: 'Memory Vault Storage & Retrieval',
@@ -214,6 +221,20 @@ export const CAPABILITY_REGISTRY = {
     label: 'Universal Resource Harvester (Tavily to Drive F)',
     description: 'Menelusuri dan mengunduh berkas fisik (dokumen regulasi UU/PP/KUHP, dataset, audio MP3) via Tavily langsung ke Drive F:.',
     namespace: 'media',
+    checkLiveHealth: () => true
+  },
+  'slide.studio': {
+    available: true,
+    label: 'Corporate Slide Studio',
+    description: 'Autonomous Programmatic Corporate Presentation Engine menghasilkan Vector SVG, Preview Gambar (<500KB), dan PPTX Editable.',
+    namespace: 'studio',
+    checkLiveHealth: () => true
+  },
+  'architectural.studio': {
+    available: true,
+    label: 'Autonomous Architectural Studio',
+    description: 'Engine Rancang Bangun Arsitektur Mandiri: Analisis Tapak, Master Design Draft, dan 8 Visual Artifacts Terpisah.',
+    namespace: 'studio',
     checkLiveHealth: () => true
   },
 
@@ -328,6 +349,51 @@ export class CapabilityRegistry {
     this._aliasMap.set('media.harvest', 'media.harvest');
     this._aliasMap.set('media.download', 'media.harvest');
     this._aliasMap.set('tavily.harvest', 'media.harvest');
+
+    // Slide Studio Tool Bridge
+    const slideStudioBridge = {
+      name: 'slide.studio',
+      version: '1.0.0',
+      description: 'Generate corporate slide presentation in SVG, PNG preview and PPTX',
+      inputSchema: { prompt: 'string', options: 'object' },
+      outputSchema: { title: 'string', files: 'object' },
+      permissionLevel: 'READ_ONLY',
+      timeoutMs: 45000,
+      execute: async (params) => {
+        const { slideStudioInstance } = await import('../studio/slide/SlideStudio.mjs');
+        return await slideStudioInstance.createSlide(params.prompt || params.goal, params.options || {});
+      }
+    };
+    this._registerTool('slide.studio', slideStudioBridge);
+    this._aliasMap.set('slide.studio', 'slide.studio');
+    this._aliasMap.set('slide_studio', 'slide.studio');
+
+    // Architectural Studio Tool Bridge
+    const architecturalStudioBridge = {
+      name: 'architectural.studio',
+      version: '1.0.0',
+      description: 'Autonomous architectural design and building workflow engine',
+      inputSchema: { prompt: 'string', action: 'string', options: 'object' },
+      outputSchema: { status: 'string', project: 'object' },
+      permissionLevel: 'READ_ONLY',
+      timeoutMs: 60000,
+      execute: async (params) => {
+        const { architecturalStudioInstance } = await import('../studio/architectural/ArchitecturalStudio.mjs');
+        if (params.action === 'produce_all') {
+          return await architecturalStudioInstance.produceAllSteps();
+        } else if (params.action === 'approve') {
+          return architecturalStudioInstance.approveProject(params.projectId);
+        } else if (params.action === 'revise') {
+          return architecturalStudioInstance.applyRevision(params.instruction);
+        } else {
+          return architecturalStudioInstance.initiateDesignProject(params.prompt || params.goal, params.options || {});
+        }
+      }
+    };
+    this._registerTool('architectural.studio', architecturalStudioBridge);
+    this._aliasMap.set('architectural.studio', 'architectural.studio');
+    this._aliasMap.set('architectural_studio', 'architectural.studio');
+    this._aliasMap.set('house.design', 'architectural.studio');
   }
 
   _registerTool(name, toolInstance) {
@@ -473,7 +539,8 @@ DAFTAR NAMA RESMI SISTEM (HANYA nama ini yang boleh digunakan):
 ATURAN UTAMA:
 1. DILARANG membuat nama sistem / engine / matrix / pro module baru yang tidak ada di daftar resmi di atas.
 2. DILARANG menjanjikan pemisahan pembicara (diarization) atau deteksi jumlah pembicara eksak. Pemutar musik / MP3 online didukung penuh dan dapat dimainkan langsung di kanvas percakapan (JIN Music Player).
-3. Untuk permintaan sederhana, berikan respon langsung, ringkas, dan wajar (Minimum Sufficient Response).`;
+3. DOKUMEN & ANALISIS TEKS: Analisis berkas dokumen (PDF, DOCX, TXT, CSV, regulasi) didukung penuh. Baca seluruh teks dokumen secara seksama dan berikan jawaban yang cerdas, objektif, dan mendalam.
+4. Untuk permintaan sederhana, berikan respon langsung, ringkas, dan wajar (Minimum Sufficient Response).`;
 }
 
 export default capabilityRegistryInstance;

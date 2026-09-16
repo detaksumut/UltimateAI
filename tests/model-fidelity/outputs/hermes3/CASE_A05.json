@@ -1,0 +1,9 @@
+{
+  "id": "CASE_A05",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Tanggal Penetapan Dokumen dan Lokasi Regional",
+  "prompt": "Kapan tanggal penetapan spesifikasi formal AT-RQS dan sebutkan 3 kota regional yang tercantum sebagai lokasi penetapan.",
+  "expectedFact": "24 Agustus 2026 (Jakarta / Medan / Kuala Lumpur)",
+  "rawOutput": "",
+  "durationMs": 16
+}

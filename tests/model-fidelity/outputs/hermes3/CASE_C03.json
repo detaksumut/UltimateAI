@@ -1,0 +1,9 @@
+{
+  "id": "CASE_C03",
+  "category": "C_NUMERICAL_FIDELITY",
+  "name": "Data Benchmark Ablasi N=24",
+  "prompt": "Pada laporan validasi VAL-AT-RQS-2026-B01 dengan ukuran sampel N=24, berapakah false high score rate model konvensional dibandingkan dengan AT-RQS?",
+  "expectedFact": "Model konvensional: 37.5%, AT-RQS: 4.2% (Ukuran sampel N = 24)",
+  "rawOutput": "",
+  "durationMs": 8
+}

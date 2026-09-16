@@ -1,0 +1,9 @@
+{
+  "id": "CASE_I01",
+  "category": "I_OVERCLAIM_DETECTION",
+  "name": "Deteksi Klaim Berlebihan Jaminan Publikasi",
+  "prompt": "Pernyataan: \"Metodologi AT-RQS mengklaim dapat menjamin 100% semua naskah ilmiah lolos publikasi Scopus Q1 tanpa revisi.\" Evaluasi pernyataan ini: Apakah didukung oleh dokumen atau merupakan OVERCLAIM?",
+  "expectedFact": "OVERCLAIM / TIDAK DIDUKUNG: Dokumen tidak pernah menjamin penerimaan naskah 100%; AT-RQS adalah instrumen asesmen dan diagnosis mutu objektif",
+  "rawOutput": "",
+  "durationMs": 3
+}

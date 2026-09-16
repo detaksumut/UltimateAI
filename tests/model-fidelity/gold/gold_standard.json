@@ -1,0 +1,239 @@
+{
+  "documentIdentity": {
+    "standardDocument": "SPEC-AT-RQS-2026-V1.0",
+    "issuingEntity": "Asia Pacific Academician (ASIA) / APASIFIC",
+    "methodologyStatus": "FORMAL TECHNICAL SPECIFICATION (v1.0)",
+    "validationReport": "VAL-AT-RQS-2026-B01 (N = 24 Benchmark Dataset)",
+    "internationalRecognition": "WoS QKY-3514-2026 • Scopus 59675598500 • ORCID 0009-0006-8416-6156",
+    "establishedDate": "24 Agustus 2026",
+    "establishedLocations": [
+      "Jakarta",
+      "Medan",
+      "Kuala Lumpur"
+    ]
+  },
+  "patentSpecification": {
+    "patentTitle": "Sistem dan Metode Terkomputerisasi untuk Pemrosesan Bukti Dokumen Ilmiah Multi-Sumber Deterministik dengan Redaman Konsistensi Struktural dan Penguncian Asal-Usul Kriptografis",
+    "ipcClassification": [
+      "G06F 40/20",
+      "G06N 3/00",
+      "G06F 16/30",
+      "G06F 21/64"
+    ],
+    "patentType": "Computer-Implemented Invention (CII)",
+    "prosecutionStatus": "Ready for Patent Counsel Review (Target Filing DJKI Sept 2026 -> PCT Priority Window 12 Bulan)",
+    "applicant": "Association of Asia Pacific Academician (ASIA) / APASIFIC Academic Division"
+  },
+  "triLayerArchitecture": {
+    "layers": [
+      {
+        "layer": 1,
+        "name": "SCORE (Structured Content & Objective Rigor Evaluation)",
+        "role": "Evaluasi struktural dan objektivitas konten naskah"
+      },
+      {
+        "layer": 2,
+        "name": "SCREEN (Statistical Compliance, Rigor & Error Evaluation Network)",
+        "role": "Pemeriksaan kepatuhan statistik, metodologi, dan anomali data"
+      },
+      {
+        "layer": 3,
+        "name": "CLUE (Contextual Logic & Unbiased Evidence)",
+        "role": "Analisis logika kontekstual, penalaran kausal, dan triangulasi bukti"
+      }
+    ]
+  },
+  "aeciPillars": {
+    "fullName": "Analytical Evidence Consistency Index",
+    "symbol": "AECI",
+    "pillarCount": 5,
+    "pillars": [
+      {
+        "code": "P1",
+        "name": "Methodological Coherence",
+        "description": "Koherensi antara tujuan riset, desain metodologi, dan teknik analitik"
+      },
+      {
+        "code": "P2",
+        "name": "Data Grounding & Empirical Traceability",
+        "description": "Keterlacakan data primer/sekunder dan transparansi prosedur sampling"
+      },
+      {
+        "code": "P3",
+        "name": "Inferential Soundness",
+        "description": "Ketepatan penarikan simpulan logis bebas dari circularity dan non-sequitur"
+      },
+      {
+        "code": "P4",
+        "name": "Statistical Reproducibility",
+        "description": "Kelengkapan parameter statistik, effect size, confidence intervals"
+      },
+      {
+        "code": "P5",
+        "name": "Cross-Source Corroboration",
+        "description": "Kekuatan triangulasi temuan lintas bukti internal dan literatur eksternal"
+      }
+    ]
+  },
+  "bwsDimensionsAndWeights": {
+    "fullName": "Balanced Weight Synthesis",
+    "symbol": "BWS",
+    "dimensionCount": 7,
+    "dimensions": [
+      {
+        "code": "D1",
+        "name": "Clarity & Formulation of Problem",
+        "weight": 0.15,
+        "percentage": "15%"
+      },
+      {
+        "code": "D2",
+        "name": "Theoretical Grounding & Literature Integration",
+        "weight": 0.15,
+        "percentage": "15%"
+      },
+      {
+        "code": "D3",
+        "name": "Methodological Rigor & Data Integrity",
+        "weight": 0.2,
+        "percentage": "20%"
+      },
+      {
+        "code": "D4",
+        "name": "Empirical Analysis & Statistical Robustness",
+        "weight": 0.2,
+        "percentage": "20%"
+      },
+      {
+        "code": "D5",
+        "name": "Discussion Quality & Inferential Validity",
+        "weight": 0.15,
+        "percentage": "15%"
+      },
+      {
+        "code": "D6",
+        "name": "Contribution, Novelty & Practical Relevance",
+        "weight": 0.1,
+        "percentage": "10%"
+      },
+      {
+        "code": "D7",
+        "name": "Ethical Compliance, Data Availability & Governance",
+        "weight": 0.05,
+        "percentage": "5%"
+      }
+    ],
+    "totalWeight": 1
+  },
+  "mathematicalFormulas": {
+    "normalization": {
+      "formula": "X_norm = (X - X_min) / (X_max - X_min)",
+      "scale": "[0.0, 1.0]",
+      "boundaryConstraint": "X_norm clamped strictly to [0.0, 1.0]"
+    },
+    "consistencyFactor": {
+      "symbol": "CF",
+      "formula": "CF = 1.0 - lambda * (1.0 - AECI)^gamma",
+      "parameters": {
+        "lambda": "Damping coefficient (default lambda = 0.35)",
+        "gamma": "Non-linear penalty exponent (default gamma = 1.50)"
+      },
+      "bounds": {
+        "min": 0.65,
+        "max": 1,
+        "conditionAECI_1": "When AECI = 1.0, CF = 1.0",
+        "conditionAECI_0": "When AECI = 0.0, CF = 1.0 - 0.35 = 0.65"
+      }
+    },
+    "atRqsMasterFormula": {
+      "formula": "AT_RQS = (w_SCORE * S_SCORE + w_SCREEN * S_SCREEN + w_CLUE * S_CLUE) * CF",
+      "layerWeights": {
+        "w_SCORE": 0.35,
+        "w_SCREEN": 0.35,
+        "w_CLUE": 0.3,
+        "total": 1
+      },
+      "scale": "[0.0, 100.0] or normalized [0.0, 1.0]"
+    },
+    "artiFormula": {
+      "fullName": "Academic Rigor & Trust Index",
+      "symbol": "ARTI",
+      "formula": "ARTI = AT_RQS * sqrt(AECI)",
+      "purpose": "Menilai ketahanan naskah terhadap tekanan manipulasi sitasi dan defisiensi empiris"
+    },
+    "aacFormula": {
+      "fullName": "Auditability & Accuracy Coefficient",
+      "symbol": "AAC",
+      "formula": "AAC = min(1.0, (N_verified_claims / N_total_claims) * (1.0 - Error_Rate))",
+      "purpose": "Mengukur proporsi klaim naskah yang terverifikasi secara deterministik terhadap ground-truth"
+    }
+  },
+  "qualityClassificationBands": [
+    {
+      "grade": "TIER 1: WORLD CLASS",
+      "range": "90.00 - 100.00",
+      "recommendation": "Accepted / Eligible for Top-Tier Publication & High-Stake Grants"
+    },
+    {
+      "grade": "TIER 2: HIGH RIGOR",
+      "range": "80.00 - 89.99",
+      "recommendation": "Accepted with Minor Revisions / Target Q1-Q2 Publication"
+    },
+    {
+      "grade": "TIER 3: SUBSTANTIVE",
+      "range": "70.00 - 79.99",
+      "recommendation": "Revise & Resubmit / Methodological Refinement Required"
+    },
+    {
+      "grade": "TIER 4: DEFICIENT",
+      "range": "55.00 - 69.99",
+      "recommendation": "Major Revision / Structural Deficiencies in Data or Logic"
+    },
+    {
+      "grade": "TIER 5: SUB-STANDARD",
+      "range": "< 55.00",
+      "recommendation": "Desk Reject / Fundamental Failure in Integrity, Methodology, or Logic"
+    }
+  ],
+  "ablationBenchmarkData": {
+    "sampleSize": 24,
+    "code": "VAL-AT-RQS-2026-B01",
+    "findings": {
+      "conventionalScoringFalsePositiveRate": "37.5%",
+      "atRqsFalsePositiveRate": "4.2%",
+      "cfDampingImpact": "Berhasil mengoreksi 8 dari 9 naskah dengan kosmetika retoris tinggi tetapi integritas empiris rendah"
+    }
+  },
+  "patentClaimsScope": {
+    "totalClaims": 20,
+    "independentClaims": [
+      {
+        "claim": 1,
+        "type": "Sistem Terkomputerisasi (Apparatus/System Claim)"
+      },
+      {
+        "claim": 8,
+        "type": "Metode Terkomputerisasi (Method Claim)"
+      },
+      {
+        "claim": 15,
+        "type": "Media Penyimpan Terbaca Komputer (Non-Transitory Computer-Readable Medium Claim)"
+      }
+    ],
+    "dependentClaims": "Klaim 2-7, 9-14, 16-20 (Mencakup reduksi matematis non-linear CF, dynamic weighting BWS, audit trail SHA-256, dan thresholding ARTI/AAC)"
+  },
+  "priorArtMatrix": [
+    {
+      "priorArt": "US Patent 10,846,360 (Automated Document Scoring)",
+      "limitation": "Berbasis frekuensi kata & model regresi linear; rentan terhadap manipulasi retoris"
+    },
+    {
+      "priorArt": "EP 3,425,540 (NLP Academic Peer Review Engine)",
+      "limitation": "Menggunakan single-source LLM; tidak memiliki mekanisme redaman bukti empiris struktural"
+    },
+    {
+      "priorArt": "WO 2022/198231 (Scientific Integrity Verification)",
+      "limitation": "Hanya memeriksa kesamaan teks (plagiarisme); buta terhadap validitas inferensial & koherensi kausal"
+    }
+  ]
+}

@@ -1,120 +1,176 @@
 @echo off
-setlocal
-title JIN - UltimateAI
+setlocal EnableExtensions
+title ULTIMATEAI JIN - MASTER START
+color 0F
+
 cd /d D:\Users\ultimateai
 
-echo ==========================================
-echo        JIN / ULTIMATEAI STARTUP
-echo ==========================================
-echo.
+rem ============================================================
+rem ============================================================
+rem
+rem              ULTIMATEAI JIN MASTER START
+rem
+rem  9Router:
+rem    - SUDAH BERJALAN SECARA EKSTERNAL
+rem    - TIDAK DI-START OLEH BAT INI
+rem    - TIDAK DI-STOP OLEH BAT INI
+rem    - HANYA DI-CHECK / DIGUNAKAN SEBAGAI GATEWAY
+rem
+rem ============================================================
+rem ============================================================
 
-echo [1/4] Checking Ollama :11434...
-powershell -NoProfile -Command "$x=Test-NetConnection 127.0.0.1 -Port 11434 -WarningAction SilentlyContinue; if($x.TcpTestSucceeded){exit 0}else{exit 1}"
-
-if errorlevel 1 (
-    echo Starting Ollama with 24h RAM retention...
-    set OLLAMA_KEEP_ALIVE=24h
-    start "OLLAMA" cmd /k "set OLLAMA_KEEP_ALIVE=24h && ollama serve"
-    timeout /t 5 /nobreak >nul
-) else (
-    echo Ollama already ONLINE.
-)
-
-echo [1b] Pre-warming Qwen 3 into RAM (keep_alive: 24h)...
-powershell -NoProfile -Command ^
-"try { ^
-  $res = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/generate' -Method POST -Body '{\"model\":\"qwen3:8b\",\"keep_alive\":\"24h\"}' -ContentType 'application/json' -TimeoutSec 60; ^
-  Write-Host 'Qwen 3 successfully locked into RAM.'; ^
-} catch { ^
-  Write-Host ('Pre-warm warning: ' + $_.Exception.Message); ^
-}"
+set "NINEROUTER_URL=http://localhost:20128"
 
 echo.
-echo [2/4] Checking existing JIN Backend :20200...
-
-powershell -NoProfile -Command ^
-"$c=Get-NetTCPConnection -LocalPort 20200 -State Listen -ErrorAction SilentlyContinue; ^
-if($c){ ^
-  $p=$c.OwningProcess; ^
-  Write-Host ('Existing backend PID: ' + $p); ^
-  Stop-Process -Id $p -Force -ErrorAction SilentlyContinue; ^
-  Start-Sleep -Seconds 2 ^
-} else { ^
-  Write-Host 'No existing backend found.' ^
-}"
-
+echo ============================================================
+echo                 ULTIMATEAI JIN
+echo                 MASTER START
+echo ============================================================
 echo.
-echo [3/4] Starting LATEST JIN Backend...
-echo Project : D:\Users\ultimateai
-echo Command : npm run serve
+echo   Checking external 9Router...
+echo   Gateway : %NINEROUTER_URL%
 echo.
 
-start "JIN BACKEND - LATEST" cmd /k "cd /d D:\Users\ultimateai && npm run serve"
+rem ============================================================
+rem 9ROUTER CHECK ONLY
+rem ============================================================
 
-echo Waiting for Backend :20200...
+set "NR_HTTP="
 
-powershell -NoProfile -Command ^
-"$ok=$false; ^
-for($i=0;$i-lt60;$i++){ ^
-  $x=Test-NetConnection 127.0.0.1 -Port 20200 -WarningAction SilentlyContinue; ^
-  if($x.TcpTestSucceeded){$ok=$true;break}; ^
-  Start-Sleep 1 ^
-}; ^
-if($ok){exit 0}else{exit 1}"
+curl.exe -s -o nul -w "%%{http_code}" --max-time 5 ^
+ "%NINEROUTER_URL%/v1/models/image" ^
+ > "%TEMP%\jin_9router_check.txt" 2>nul
 
-if errorlevel 1 (
-    echo.
-    echo ==========================================
-    echo ERROR: Backend :20200 gagal start.
-    echo ==========================================
-    pause
-    exit /b 1
-)
+set /p NR_HTTP=<"%TEMP%\jin_9router_check.txt"
 
-echo Backend ONLINE.
+del /q "%TEMP%\jin_9router_check.txt" >nul 2>&1
 
-echo.
-echo [4/4] Checking JIN Frontend :5177...
+rem ------------------------------------------------------------
+rem 200 = gateway hidup dan endpoint dapat diakses
+rem 401 = gateway hidup tetapi membutuhkan API key
+rem ------------------------------------------------------------
 
-powershell -NoProfile -Command "$x=Test-NetConnection 127.0.0.1 -Port 5177 -WarningAction SilentlyContinue; if($x.TcpTestSucceeded){exit 0}else{exit 1}"
+if "%NR_HTTP%"=="200" goto NINEROUTER_OK
+if "%NR_HTTP%"=="401" goto NINEROUTER_OK
 
-if errorlevel 1 (
-    echo Starting JIN Frontend...
-    start "JIN FRONTEND" cmd /k "cd /d D:\Users\ultimateai && npm run dev -- --host 127.0.0.1"
-) else (
-    echo Frontend already ONLINE.
-)
+goto NINEROUTER_FAIL
 
-echo Waiting for Frontend :5177...
 
-powershell -NoProfile -Command ^
-"$ok=$false; ^
-for($i=0;$i-lt60;$i++){ ^
-  $x=Test-NetConnection 127.0.0.1 -Port 5177 -WarningAction SilentlyContinue; ^
-  if($x.TcpTestSucceeded){$ok=$true;break}; ^
-  Start-Sleep 1 ^
-}; ^
-if($ok){exit 0}else{exit 1}"
-
-if errorlevel 1 (
-    echo.
-    echo ==========================================
-    echo ERROR: Frontend :5177 gagal start.
-    echo ==========================================
-    pause
-    exit /b 1
-)
+:NINEROUTER_FAIL
 
 echo.
-echo ==========================================
-echo          JIN SEMUA ONLINE
-echo ==========================================
-echo Ollama  : 11434
-echo Backend : 20200
-echo Frontend: 5177
-echo ==========================================
+echo ============================================================
+echo              [FAIL] 9ROUTER TIDAK AKTIF
+echo ============================================================
+echo.
+echo   Gateway : %NINEROUTER_URL%
+echo   HTTP    : %NR_HTTP%
+echo.
+echo   START_JIN TIDAK AKAN MENJALANKAN 9Router.
+echo.
+echo   9Router harus tersedia terlebih dahulu.
+echo.
+echo ============================================================
+echo.
+pause
+exit /b 1
+
+
+:NINEROUTER_OK
+
+echo.
+echo ============================================================
+echo              [PASS] 9ROUTER TERDETEKSI
+echo ============================================================
+echo.
+echo   Gateway : %NINEROUTER_URL%
+echo   HTTP    : %NR_HTTP%
+echo.
+echo   Melanjutkan startup UltimateAI JIN...
 echo.
 
-start "" "http://127.0.0.1:5177"
 
-exit /b 0
+rem ============================================================
+rem [1/4] LLAMA.CPP
+rem ============================================================
+
+echo [1/4] Membuka MONITOR 1 - Llama.cpp Qwen :8080
+
+start "JIN [MONITOR 1] - LLAMA.CPP :8080" ^
+cmd.exe /k "D:\Users\ultimateai\scripts\run_monitor_1_llama.bat"
+
+
+rem ============================================================
+rem [2/4] COMFYUI
+rem ============================================================
+
+echo [2/4] Membuka MONITOR 2 - ComfyUI :8188
+
+start "JIN [MONITOR 2] - COMFYUI :8188" ^
+cmd.exe /k "D:\Users\ultimateai\scripts\run_monitor_2_comfyui.bat"
+
+
+rem ============================================================
+rem [3/4] BACKEND
+rem ============================================================
+
+echo [3/4] Membuka MONITOR 3 - Backend :20200
+
+start "JIN [MONITOR 3] - BACKEND :20200" ^
+cmd.exe /k "D:\Users\ultimateai\scripts\run_monitor_3_backend.bat"
+
+
+rem ============================================================
+rem [4/4] FRONTEND
+rem ============================================================
+
+echo [4/4] Membuka MONITOR 4 - Frontend :5177
+
+start "JIN [MONITOR 4] - FRONTEND :5177" ^
+cmd.exe /k "D:\Users\ultimateai\scripts\run_monitor_4_frontend.bat"
+
+
+rem ============================================================
+rem DASHBOARD
+rem ============================================================
+
+echo.
+echo ============================================================
+echo              ULTIMATEAI JIN READY
+echo ============================================================
+echo.
+echo   [9ROUTER] External Gateway
+echo              %NINEROUTER_URL%
+echo.
+echo   [MONITOR 1] Llama.cpp Qwen
+echo              http://localhost:8080
+echo.
+echo   [MONITOR 2] ComfyUI
+echo              http://localhost:8188
+echo.
+echo   [MONITOR 3] Backend Router
+echo              http://localhost:20200
+echo.
+echo   [MONITOR 4] Frontend
+echo              http://localhost:5177
+echo.
+echo   [JIN]      Simulator
+echo              http://localhost:5177/simulator
+echo.
+echo ============================================================
+echo.
+echo   9Router TIDAK dikontrol oleh START_JIN.bat.
+echo   9Router hanya digunakan sebagai external image gateway.
+echo.
+echo   CMD monitor tetap terbuka untuk kontrol dan log.
+echo ============================================================
+echo.
+
+
+rem ============================================================
+rem OPEN ULTIMATEAI SIMULATOR
+rem ============================================================
+
+start "" "http://localhost:5177/simulator"
+
+pause

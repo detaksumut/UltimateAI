@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { MAX_IMAGE_BYTES } from './ImageOutputSizePolicy.mjs';
 
 export class ArtifactManager {
   constructor(artifactsBaseDir = 'd:/Users/ultimateai/artifacts') {
@@ -46,14 +47,24 @@ export class ArtifactManager {
     let persistenceStatus = 'PERSISTED';
     let persistenceError = null;
 
-    try {
-      if (!fs.existsSync(artifactFolder)) {
-        fs.mkdirSync(artifactFolder, { recursive: true });
+    if (type === 'IMAGE') {
+      const byteLen = Buffer.isBuffer(content) ? content.length : (typeof content === 'string' ? Buffer.byteLength(content) : 0);
+      if (byteLen >= MAX_IMAGE_BYTES) {
+        persistenceStatus = 'PERSISTENCE_FAILED';
+        persistenceError = 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED';
       }
-    } catch (err) {
-      persistenceStatus = 'PERSISTENCE_FAILED';
-      persistenceError = err.message;
-      console.error(`[ArtifactManager] Error creating folder for artifact ${safeName}:`, err);
+    }
+
+    if (persistenceStatus === 'PERSISTED') {
+      try {
+        if (!fs.existsSync(artifactFolder)) {
+          fs.mkdirSync(artifactFolder, { recursive: true });
+        }
+      } catch (err) {
+        persistenceStatus = 'PERSISTENCE_FAILED';
+        persistenceError = err.message;
+        console.error(`[ArtifactManager] Error creating folder for artifact ${safeName}:`, err);
+      }
     }
 
     // Determine Version Number
@@ -140,6 +151,13 @@ export class ArtifactManager {
 
     if (criteria.requirePersisted !== false && artifact.persistenceStatus !== 'PERSISTED') {
       return { valid: false, reason: `PERSISTENCE_FAILED_${artifact.persistenceError || 'DISK_WRITE_ERROR'}` };
+    }
+
+    if (artifact.type === 'IMAGE' && artifact.contentFile && fs.existsSync(artifact.contentFile)) {
+      const stat = fs.statSync(artifact.contentFile);
+      if (stat.size >= MAX_IMAGE_BYTES) {
+        return { valid: false, reason: 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED' };
+      }
     }
 
     if (criteria.expectedType && artifact.type !== criteria.expectedType) {

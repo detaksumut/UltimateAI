@@ -1,0 +1,9 @@
+{
+  "id": "CASE_H03",
+  "category": "H_EVIDENCE_GROUNDING",
+  "name": "Peran Lapisan SCREEN dalam Menguji Integritas Data",
+  "prompt": "Apa fungsi utama lapisan analitik kedua (SCREEN) dalam mendeteksi kelemahan atau anomali naskah ilmiah?",
+  "expectedFact": "Pemeriksaan kepatuhan statistik, rigor metodologi, deteksi anomali data, dan statistical reproducibility",
+  "rawOutput": "",
+  "durationMs": 2
+}

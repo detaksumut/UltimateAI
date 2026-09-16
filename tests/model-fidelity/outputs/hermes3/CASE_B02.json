@@ -1,0 +1,9 @@
+{
+  "id": "CASE_B02",
+  "category": "B_STRUCTURED_EXTRACTION",
+  "name": "Struktur Bobot Layer Master Formula",
+  "prompt": "Berapa bobot lapisan (layer weights) masing-masing untuk S_SCORE, S_SCREEN, dan S_CLUE dalam formulasi master AT-RQS?",
+  "expectedFact": "w_SCORE = 0.35 (35%), w_SCREEN = 0.35 (35%), w_CLUE = 0.30 (30%)",
+  "rawOutput": "",
+  "durationMs": 3
+}

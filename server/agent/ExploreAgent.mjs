@@ -30,7 +30,7 @@
  */
 
 import { SCOPE, PROVIDER } from '../routing/ProviderIntelligenceRouter.mjs';
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
 import { activeMemoryCoreInstance } from '../memory/ActiveMemoryCore.mjs';
 import { KnowledgeGapDetector } from './KnowledgeGapDetector.mjs';
 import { normalizeModelResponse } from './ResponseNormalizer.mjs';
@@ -208,11 +208,11 @@ export class ExploreAgent {
         { role: 'user', content: `Goal: ${goal}\n\nAvailable tools: ${plan?.steps?.map(s => s.tool).join(', ') || 'none'}` }
       ];
 
-      const response = await ollamaProviderInstance.sendChat({
+      const routed = await modelRoutingServiceInstance.routeChat({
         messages,
-        model: 'llama3.2:3b',
         temperature: 0.2
       });
+      const response = routed?.content || '';
 
       if (response) {
         const analysis = this._parseOllamaResponse(response);

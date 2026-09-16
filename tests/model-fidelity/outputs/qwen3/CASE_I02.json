@@ -1,0 +1,9 @@
+{
+  "id": "CASE_I02",
+  "category": "I_OVERCLAIM_DETECTION",
+  "name": "Deteksi Overclaim Subtitusi Komite Etik",
+  "prompt": "Pernyataan: \"AT-RQS mengklaim bahwa algoritma ini menghapus kebutuhan atas tinjauan etik manusia dan dewan riset.\" Evaluasi pernyataan ini: Apakah didukung dokumen atau OVERCLAIM?",
+  "expectedFact": "OVERCLAIM / TIDAK DIDUKUNG: AT-RQS justru mewajibkan dimensi Ethical Compliance & Governance (D7) sebagai bagian dari audit tata kelola integritas",
+  "rawOutput": "",
+  "durationMs": 3
+}

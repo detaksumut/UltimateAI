@@ -1,0 +1,9 @@
+{
+  "id": "CASE_B04",
+  "category": "B_STRUCTURED_EXTRACTION",
+  "name": "Struktur Tiga Komponen Triangulasi Bukti",
+  "prompt": "Sebutkan 3 komponen pembuktian dalam triangulasi integritas naskah ilmiah pada metodologi AT-RQS.",
+  "expectedFact": "SCORE (Struktural), SCREEN (Statistik/Data), CLUE (Logika Kontekstual)",
+  "rawOutput": "",
+  "durationMs": 13
+}

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_E03",
+  "category": "E_CROSS_SECTION_CONSISTENCY",
+  "name": "Konsistensi Kode Laporan Validasi Benchmark N=24",
+  "prompt": "Apakah kode dokumen laporan validasi yang mencakup dataset N=24 benchmark?",
+  "expectedFact": "VAL-AT-RQS-2026-B01",
+  "rawOutput": "",
+  "durationMs": 6
+}

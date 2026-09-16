@@ -1,0 +1,9 @@
+{
+  "id": "CASE_F01",
+  "category": "F_LONG_CONTEXT_COMPREHENSION",
+  "name": "Tujuan Strategis Pengajuan Paten dan Window PCT",
+  "prompt": "Apa status tata kelola pengajuan paten AT-RQS dan berapa lama jendela prioritas PCT (Patent Cooperation Treaty) yang ditargetkan?",
+  "expectedFact": "Status: Ready for Patent Counsel Review (Target Filing DJKI Sept 2026) dengan Jendela Prioritas PCT 12 Bulan",
+  "rawOutput": "",
+  "durationMs": 10
+}

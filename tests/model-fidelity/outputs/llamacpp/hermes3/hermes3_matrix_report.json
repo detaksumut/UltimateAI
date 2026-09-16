@@ -1,0 +1,45 @@
+{
+  "basicCompletion": {
+    "status": "PASS",
+    "durationMs": 25011,
+    "usage": {
+      "completion_tokens": 67,
+      "prompt_tokens": 36,
+      "total_tokens": 103,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "tps": "2.68",
+    "content": "Isaac Newton adalah seorang ilmuwan dan filsuf Inggris yang sangat berpengaruh, terkenal sebagai penemu hukum gravitasi universal, hukum gerak kedua, dan hukum kedua termodinamika, serta mengembangkan kalkulus dan optik."
+  },
+  "streaming": {
+    "status": "PASS",
+    "ttftMs": 3487,
+    "totalDurationMs": 6355,
+    "chunks": 15,
+    "content": "5 -> 4 -> 3 -> 2 -> 1"
+  },
+  "longPrompt": {
+    "status": "PASS",
+    "durationMs": 66375,
+    "retained": true,
+    "content": "Nilai KODE_RAHASIA adalah DELTA-9872-SEC."
+  },
+  "cancellation": {
+    "status": "PASS",
+    "abortedCleanly": true
+  },
+  "sequential": {
+    "status": "PASS",
+    "durationMs": 8593,
+    "out1": "LANGKAH_1",
+    "out2": "LANGKAH_2"
+  },
+  "parallel": {
+    "status": "PASS",
+    "durationMs": 5064,
+    "out1": "PARALEL_A",
+    "out2": "PARALEL_B"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "CASE_D03",
+  "category": "D_FORMULA_FIDELITY",
+  "name": "Formulasi Indeks ARTI",
+  "prompt": "Tuliskan rumus Academic Rigor & Trust Index (ARTI) beserta variabel penyusunnya.",
+  "expectedFact": "ARTI = AT_RQS * sqrt(AECI)",
+  "rawOutput": "",
+  "durationMs": 2
+}

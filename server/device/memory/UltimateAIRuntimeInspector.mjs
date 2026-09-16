@@ -1,11 +1,11 @@
 /**
  * UltimateAIRuntimeInspector.mjs
  * Recognizes the running UltimateAI runtime on this machine:
- * Vite dev server, Local Router, central backend, Ollama, DOM bridge.
+ * Vite dev server, Local Router, central backend, llama.cpp, DOM bridge.
  *
  * Ports come from existing config / env (not random guesses):
  *   config.port (20200)          → server.mjs / LocalRouter backend
- *   config.endpoints.ollama      → Ollama
+ *   config.endpoints.llamacpp    → llama.cpp
  *   process.env.LOCAL_ROUTER_PORT(20200)
  *   vite.config server.port 5177 and jin-dom-bridge 9999 are read from
  *   DEVICE_MONITOR_PORTS env when present, else the known defaults.
@@ -34,8 +34,8 @@ export class UltimateAIRuntimeInspector {
     const vitePort = parseInt(process.env.VITE_PORT || '5177', 10);
     const routerPort = parseInt(process.env.LOCAL_ROUTER_PORT || '20200', 10);
     const backendPort = parseInt(process.env.PORT || String(config.port || '20200'), 10);
-    const ollamaUrl = config.endpoints?.ollama || 'http://127.0.0.1:11434';
-    const ollamaPort = parseInt(new URL(ollamaUrl).port || '11434', 10);
+    const llamacppUrl = config.endpoints?.llamacpp || process.env.LLAMACPP_HOST || 'http://127.0.0.1:8080';
+    const llamacppPort = parseInt(new URL(llamacppUrl).port || '8080', 10);
     const bridgePort = parseInt(process.env.JIN_DOM_BRIDGE_PORT || '9999', 10);
 
     const overrides = [];
@@ -51,7 +51,7 @@ export class UltimateAIRuntimeInspector {
       { port: vitePort, label: 'vite_dev_5177' },
       { port: routerPort, label: 'local_router_20200' },
       { port: backendPort, label: 'ultimateai_backend' },
-      { port: ollamaPort, label: 'ollama_local_llm' },
+      { port: llamacppPort, label: 'llamacpp_local_llm' },
       { port: bridgePort, label: 'jin_dom_bridge' }
     ];
     const all = [...overrides, ...base];
@@ -89,7 +89,7 @@ export class UltimateAIRuntimeInspector {
     const vitePort = this.expectedPorts.find(p => p.label === 'vite_dev_5177')?.port;
     const routerPort = this.expectedPorts.find(p => p.label === 'local_router_20200')?.port;
     const backendPort = this.expectedPorts.find(p => p.label === 'ultimateai_backend')?.port;
-    const ollamaPort = this.expectedPorts.find(p => p.label === 'ollama_local_llm')?.port;
+    const llamacppPort = this.expectedPorts.find(p => p.label === 'llamacpp_local_llm')?.port;
     const bridgePort = this.expectedPorts.find(p => p.label === 'jin_dom_bridge')?.port;
 
     const services = [
@@ -118,12 +118,12 @@ export class UltimateAIRuntimeInspector {
         state: isListening(backendPort) ? 'RUNNING' : 'DOWN'
       },
       {
-        name: 'ollama_local_llm',
-        label: 'Ollama (Local LLM)',
-        port: ollamaPort,
-        listening: isListening(ollamaPort),
-        process: this._matchNodeLine(nodeLines, /ollama/),
-        state: isListening(ollamaPort) ? 'RUNNING' : 'DOWN'
+        name: 'llamacpp_local_llm',
+        label: 'llama.cpp (Local LLM)',
+        port: llamacppPort,
+        listening: isListening(llamacppPort),
+        process: this._matchNodeLine(nodeLines, /llama|llama\.cpp/),
+        state: isListening(llamacppPort) ? 'RUNNING' : 'DOWN'
       },
       {
         name: 'jin_dom_bridge',

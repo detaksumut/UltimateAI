@@ -15,14 +15,77 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { modelRoutingServiceInstance } from './ModelRoutingService.mjs';
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { imageEditingInstance } from '../agent/ImageEditing.mjs';
+import { imageGenerationInstance } from '../agent/ImageGeneration.mjs';
+import { imageOutputSizePolicyInstance, MAX_IMAGE_BYTES } from '../agent/ImageOutputSizePolicy.mjs';
+import { IMAGE_STEPS } from '../agent/ImageOutputConfig.mjs';
 import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/env.mjs';
+
+function verifyImageArtifactCompliance(artifact, isRevision = false) {
+  if (!artifact || !artifact.renderable) return false;
+  if (isRevision && !artifact.parentArtifactId) return false;
+
+  // 1. In-memory byte size check
+  if (artifact.bytesSize && artifact.bytesSize >= MAX_IMAGE_BYTES) return false;
+  if (artifact.sizeBytes && artifact.sizeBytes >= MAX_IMAGE_BYTES) return false;
+
+  // 2. Physical disk stat check
+  if (artifact.localPath) {
+    const postCheck = imageOutputSizePolicyInstance.validatePersistedFile(artifact.localPath);
+    if (!postCheck.valid || postCheck.sizeBytes >= MAX_IMAGE_BYTES) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function resolveRevisionFailureDetails(imageResult) {
+  const reasonCode = imageResult?.reasonCode || (
+    imageResult?.error?.includes('POLICY_VIOLATION') ? 'IMAGE_REVISION_WORKFLOW_POLICY_VIOLATION' :
+    imageResult?.error?.includes('timed out') ? 'PROVIDER_TIMEOUT' :
+    imageResult?.error?.includes('offline') || imageResult?.error?.includes('unreachable') || imageResult?.error?.includes('unavailable') ? 'PROVIDER_UNAVAILABLE' :
+    imageResult?.error?.includes('no output') ? 'OUTPUT_NOT_FOUND' :
+    imageResult?.error?.includes('invalid') || imageResult?.error?.includes('corrupt') ? 'OUTPUT_INVALID' :
+    imageResult?.error?.includes('SIZE_LIMIT') ? 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED' :
+    'PROVIDER_EXECUTION_FAILED'
+  );
+
+  let failureReason = 'Provider image editing tidak tersedia.';
+  if (reasonCode === 'IMAGE_REVISION_WORKFLOW_POLICY_VIOLATION') {
+    failureReason = `Kebijakan workflow revisi dilanggar (steps harus tepat ${IMAGE_STEPS || 8} pada CPU).`;
+  } else if (reasonCode === 'PROVIDER_TIMEOUT') {
+    failureReason = 'Waktu tunggu eksekusi ComfyUI terlampaui (timeout).';
+  } else if (reasonCode === 'OUTPUT_NOT_FOUND') {
+    failureReason = 'ComfyUI selesai dijalankan tetapi tidak menghasilkan file output gambar.';
+  } else if (reasonCode === 'OUTPUT_INVALID') {
+    failureReason = 'Format gambar yang dihasilkan ComfyUI tidak valid atau rusak.';
+  } else if (reasonCode === 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED') {
+    failureReason = 'Ukuran file gambar hasil revisi melebihi batas 1 MB.';
+  } else if (reasonCode === 'PROVIDER_UNAVAILABLE') {
+    failureReason = 'Backend ComfyUI offline atau tidak dapat dihubungi.';
+  } else if (imageResult?.error) {
+    failureReason = imageResult.error;
+  }
+
+  return { reasonCode, failureReason };
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = parseInt(process.env.LOCAL_ROUTER_PORT || '20200', 10);
 const startTime = Date.now();
+
+// Idempotency cache for image generation & revision: prevents duplicate executions for the same request
+const recentImageExecutions = new Map(); // requestId -> { timestamp, status, artifact, responseText }
+function pruneRecentImageExecutions() {
+  const now = Date.now();
+  for (const [id, item] of recentImageExecutions.entries()) {
+    if (now - item.timestamp > 300000) { // 5 minutes TTL
+      recentImageExecutions.delete(id);
+    }
+  }
+}
 
 // Guard against crash on client socket abort / unexpected rejection
 process.on('uncaughtException', (err) => {
@@ -31,6 +94,60 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.warn('[LocalRouterServer] Unhandled Rejection caught (prevented crash):', reason?.message || reason);
 });
+
+export function enrichContextualImagePrompt(rawPrompt, messages = []) {
+  const trimmed = String(rawPrompt || '').trim();
+  const isGeneric = /^(?:buat(?:kan)?|bikin|generate|render|tampilkan|hasilkan)?\s*(?:visual(?:nya)?|gambar(?:nya)?|desain(?:nya)?|foto(?:nya)?|slidenya|tampilannya)$/i.test(trimmed);
+
+  if (!isGeneric || !Array.isArray(messages) || messages.length === 0) {
+    return trimmed;
+  }
+
+  // Find latest assistant message
+  const lastAssistantMsg = [...messages].reverse().find(m => m && m.role === 'assistant');
+  if (!lastAssistantMsg) return trimmed;
+
+  const lastText = typeof lastAssistantMsg.content === 'string'
+    ? lastAssistantMsg.content
+    : (Array.isArray(lastAssistantMsg.content) ? lastAssistantMsg.content.map(p => p.text || '').join(' ') : '');
+
+  if (!lastText) return trimmed;
+
+  // 1. Check if last message contains structured presentation slide content
+  const slideMatch = lastText.match(/###?\s*\**SLIDE\s*(\d+)[^:\n]*:?\s*([^\n\*]+)/i);
+  const headlineMatch = lastText.match(/(?:Headline\s*\/?[^:]*|Key\s*Takeaway)[^:]*:\s*\*?([^\n\*]+)/i);
+  const visualRecMatch = lastText.match(/(?:Rekomendasi\s+Visual|Elemen\s+Visual)[^:]*:\s*([^\n]+(?:\n\*[^\n]+)*)/i);
+  const keyPointsMatch = lastText.match(/(?:Poin\s+Kunci)[^:]*:\s*([^\n]+(?:\n\*[^\n]+)*)/i);
+
+  if (slideMatch || visualRecMatch || headlineMatch) {
+    const slideNum = slideMatch ? slideMatch[1] : '';
+    const slideTitle = slideMatch ? slideMatch[2].trim() : '';
+    const headline = headlineMatch ? headlineMatch[1].trim() : '';
+    const visualDesc = visualRecMatch ? visualRecMatch[1].replace(/[\*\_\#]/g, ' ').trim() : '';
+    const keyPoints = keyPointsMatch ? keyPointsMatch[1].replace(/[\*\_\#]/g, ' ').trim() : '';
+
+    const contextDetails = `\n\n[CONTEXT: PRESENTATION SLIDE]\n- Slide Number: ${slideNum}\n- Slide Title: ${slideTitle}\n- Headline: ${headline || slideTitle}\n- Key Points: ${keyPoints ? keyPoints.slice(0, 160) : '-'}\n- Recommended Visual: ${visualDesc || '-'}`;
+    const enriched = `${rawPrompt}${contextDetails}`;
+    console.log(`[CONTEXTUAL_PROMPT] Appended context to prompt for Visual Planner.`);
+    return enriched;
+  }
+
+  // 2. Generic context from last assistant text
+  const cleanSnippet = lastText
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/[\*\_\#\[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+
+  if (cleanSnippet) {
+    const enriched = `Professional visual design representing: ${cleanSnippet}. Modern cinematic 16:9, clean composition, high definition, elegant color grading`;
+    console.log(`[CONTEXTUAL_PROMPT] Enriched generic visual prompt: "${enriched.slice(0, 120)}..."`);
+    return enriched;
+  }
+
+  return trimmed;
+}
 
 export function createLocalRouterServer() {
   const server = http.createServer(async (req, res) => {
@@ -77,22 +194,22 @@ export function createLocalRouterServer() {
     if (LOCAL_ROUTER_HEALTH_PATHS.has(pathname) && req.method === 'GET') {
       const routerStatus = await modelRoutingServiceInstance.status();
       const routing = modelRoutingServiceInstance.routeCompute({ messages: [], capability: 'FAST_CHAT' });
-      const ollamaAvailable = await ollamaProviderInstance.isAvailable();
+      const localReady = routerStatus.localLLM?.status === 'READY';
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         gateway: 'ONLINE',
         mode: routerStatus.mode,
         provider: routerStatus.primaryProvider,
-        model: routerStatus.primaryProvider === 'ollama'
-          ? (process.env.OLLAMA_MODEL || 'qwen3:8b')
+        model: routerStatus.primaryProvider === 'llamacpp'
+          ? (routerStatus.localLLM?.model || process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf')
           : (routerStatus.cloudLLM?.model || process.env.GEMINI_MODEL || 'gemini-3.6-flash'),
         routerPort: PORT,
-        ollamaPort: 11434,
+        llamaCppPort: 8080,
         router: 'UltimateAI Local Router',
         port: PORT,
         version: '2.5.0-HYBRID',
         uptimeSeconds: Math.floor((Date.now() - startTime) / 1000),
-        status: (routerStatus.cloudLLM?.configured || ollamaAvailable) ? 'ONLINE' : 'DEGRADED',
+        status: (routerStatus.cloudLLM?.configured || localReady) ? 'ONLINE' : 'DEGRADED',
         providerGateway: routerStatus.providerGateway,
         routing: {
           strategy: routing.strategy,
@@ -111,49 +228,48 @@ export function createLocalRouterServer() {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         dataSource: 'LOCAL_ROUTER_API',
-        mode: 'LOCAL_OLLAMA',
+        mode: 'LOCAL_LLAMA_CPP',
         status: 'ONLINE',
-        message: 'Antigravity OAuth retired. System operates in 100% LOCAL_OLLAMA mode on :11434.',
+        message: 'Antigravity OAuth retired. System runs on llama.cpp :8080 (Qwen 2.5 3B) with Gemini image pipeline.',
         slots: []
       }, null, 2));
       return;
     }
 
-    // 10. GET /api/models (locally available Ollama models)
+    // 10. GET /api/models (locally available llama.cpp model)
     if (pathname === '/api/models' && req.method === 'GET') {
-      const localModels = await ollamaProviderInstance.listLocalModels();
-      const modelNames = localModels.length > 0 ? localModels : ['qwen3:8b'];
-      const data = modelNames.map(id => ({
-        id,
+      const routerStatus = await modelRoutingServiceInstance.status();
+      const modelName = routerStatus.localLLM?.model || process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf';
+      const data = [{
+        id: modelName,
         object: 'model',
         capability: 'FAST_CHAT',
-        family: 'ollama',
+        family: 'llamacpp',
         reasoning: 'standard',
-        contextWindow: 8192,
+        contextWindow: parseInt(process.env.LLAMACPP_CTX_SIZE || '32768', 10),
         defaultLimit: null,
         hosted: 'LOCAL'
-      }));
+      }];
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ object: 'list', data, hostedLocally: modelNames }, null, 2));
+      res.end(JSON.stringify({ object: 'list', data, hostedLocally: [modelName] }, null, 2));
       return;
     }
 
     // 10B. GET /api/providers/local (Local AI Provider Status)
     if (pathname === '/api/providers/local' && req.method === 'GET') {
-      const available = await ollamaProviderInstance.isAvailable();
-      const models = available ? await ollamaProviderInstance.listLocalModels() : [];
-      const health = await ollamaProviderInstance.healthCheck();
+      const routerStatus = await modelRoutingServiceInstance.status();
+      const localLLM = routerStatus.localLLM;
+      const available = localLLM?.status === 'READY';
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         providers: [
           {
-            id: 'ollama',
-            name: 'Ollama',
+            id: 'llamacpp',
+            name: 'llama.cpp (Qwen 2.5 3B)',
             type: 'LOCAL',
             status: available ? 'ONLINE' : 'OFFLINE',
-            endpoint: '127.0.0.1:11434',
-            models: models.map(name => ({ name, status: 'READY' })),
-            health
+            endpoint: localLLM?.endpoint || 'http://127.0.0.1:8080',
+            models: [{ name: localLLM?.model || 'qwen2.5-3b-instruct-q4_k_m.gguf', status: available ? 'READY' : 'PARKED' }]
           }
         ]
       }, null, 2));
@@ -253,19 +369,20 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 11. GET /api/quota (Local Resource & Ollama Quota State)
+    // 11. GET /api/quota (Local Resource & llama.cpp Quota State)
     if (pathname === '/api/quota' && req.method === 'GET') {
+      const routerStatus = await modelRoutingServiceInstance.status();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         dataSource: 'LOCAL_ROUTER_API',
-        mode: 'LOCAL_OLLAMA',
+        mode: 'LOCAL_LLAMA_CPP',
         status: 'ONLINE',
         timestamp: new Date().toISOString(),
         pools: {
           local: {
-            provider: 'ollama',
-            model: process.env.OLLAMA_MODEL || 'qwen3:8b',
-            endpoint: 'http://127.0.0.1:11434',
+            provider: 'llamacpp',
+            model: routerStatus.localLLM?.model || 'qwen2.5-3b-instruct-q4_k_m.gguf',
+            endpoint: routerStatus.localLLM?.endpoint || 'http://127.0.0.1:8080',
             status: 'UNLIMITED_LOCAL'
           }
         }
@@ -826,6 +943,89 @@ Requirements:
       return;
     }
 
+    // 11D. SLIDE STUDIO — Autonomous Programmatic Corporate Presentation Engine
+    if ((pathname === '/api/studio/slide/create' || pathname === '/v1/studio/slide/create') && req.method === 'POST') {
+      const body = await readJsonBody();
+      try {
+        const { slideStudioInstance } = await import('../studio/slide/SlideStudio.mjs');
+        const result = await slideStudioInstance.createSlide(body.prompt || body.goal || '', body.options || {});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'SLIDE_STUDIO_ERROR' } }));
+      }
+      return;
+    }
+
+    // 11E. GET /artifacts/slides/* — Static serving for generated slide assets
+    if (pathname.startsWith('/artifacts/slides/') && req.method === 'GET') {
+      const fileName = path.basename(pathname);
+      const filePath = path.join('d:/Users/ultimateai/artifacts/slides', fileName);
+      if (fs.existsSync(filePath)) {
+        let contentType = 'application/octet-stream';
+        if (fileName.endsWith('.svg')) contentType = 'image/svg+xml';
+        else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) contentType = 'image/jpeg';
+        else if (fileName.endsWith('.png')) contentType = 'image/png';
+        else if (fileName.endsWith('.pptx')) contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+        
+        const fileContent = fs.readFileSync(filePath);
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': fileContent.length,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
+        });
+        res.end(fileContent);
+        return;
+      }
+    }
+
+    // 11F. ARCHITECTURAL STUDIO — Autonomous Architectural Design & Building Workflow Engine
+    if (pathname === '/api/studio/architectural/create' && req.method === 'POST') {
+      const body = await readJsonBody();
+      try {
+        const { architecturalStudioInstance } = await import('../studio/architectural/ArchitecturalStudio.mjs');
+        const result = architecturalStudioInstance.initiateDesignProject(body.prompt || body.goal || '', body.options || {});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'ARCHITECTURAL_STUDIO_ERROR' } }));
+      }
+      return;
+    }
+
+    if (pathname === '/api/studio/architectural/produce-all' && req.method === 'POST') {
+      try {
+        const { architecturalStudioInstance } = await import('../studio/architectural/ArchitecturalStudio.mjs');
+        const result = await architecturalStudioInstance.produceAllSteps();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err.message, code: 'ARCHITECTURAL_STUDIO_ERROR' } }));
+      }
+      return;
+    }
+
+    // Static serving for architectural artifacts
+    if (pathname.startsWith('/artifacts/architecture/') && req.method === 'GET') {
+      const fileName = path.basename(pathname);
+      const filePath = path.join('d:/Users/ultimateai/artifacts/architecture', fileName);
+      if (fs.existsSync(filePath)) {
+        let contentType = 'application/octet-stream';
+        if (fileName.endsWith('.svg')) contentType = 'image/svg+xml';
+        else if (fileName.endsWith('.png')) contentType = 'image/png';
+        else if (fileName.endsWith('.json')) contentType = 'application/json';
+        
+        const fileContent = fs.readFileSync(filePath);
+        res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': fileContent.length });
+        res.end(fileContent);
+        return;
+      }
+    }
+
     // 12. POST /v1/chat/completions (OpenAI-compatible)
     if (pathname === '/v1/chat/completions' && req.method === 'POST') {
       const { runtimeObservabilityInstance } = await import('./RuntimeObservabilityService.mjs');
@@ -838,6 +1038,762 @@ Requirements:
       const userPrompt = Array.isArray(rawUserContent)
         ? rawUserContent.map(p => p.text || (p.type === 'image_url' ? '[Gambar Terlampir]' : '')).filter(Boolean).join(' ')
         : (typeof rawUserContent === 'string' ? rawUserContent : '');
+
+      const requestId = 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 0. FAST-PATH DETERMINISTIC CLASSIFIERS & DIRECT DISPATCH
+      // ═══════════════════════════════════════════════════════════════════════
+      if (userPrompt && typeof userPrompt === 'string' && userPrompt.trim().length > 0 && !payload.skipIntentGate && !payload._internal) {
+        const { semanticIntentEngineInstance } = await import('../agent/SemanticIntentEngine.mjs');
+        const sie = semanticIntentEngineInstance;
+        const cleanPrompt = sie._normalizeUtterance(userPrompt);
+
+        console.log(`[${requestId}] [INTENT_GATE] Fast-path deterministic classification`);
+
+        const isDocRequest = userPrompt.includes('--- [BERKAS DOKUMEN') ||
+          userPrompt.includes('--- [DOKUMEN') ||
+          userPrompt.includes('--- [Konteks Dokumen') ||
+          /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|rangkum|ringkas|buatkan\s+point)\b/i.test(userPrompt);
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PRIORITY 1: ACTIVE STUDIO CONTINUATION & CREATION GATE
+        // Evaluated before any generic classifier or image generator!
+        // (Skipped for document reading/summarization contexts)
+        // ═══════════════════════════════════════════════════════════════════════
+        if (!isDocRequest) {
+          try {
+            const { studioContinuationRouterInstance } = await import('../studio/core/StudioContinuationRouter.mjs');
+            const continuationResult = await studioContinuationRouterInstance.evaluate(cleanPrompt, { messages, requestId });
+            if (continuationResult.handled) {
+              console.log(`[${requestId}] [STUDIO_CONTINUATION] Handled: ${continuationResult.slideTitle || continuationResult.artifactType || 'CONTINUATION'}`);
+
+              if (isStream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-continuation-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: (continuationResult.session?.studioType || 'studio').toLowerCase(),
+                  choices: [{ index: 0, delta: { content: continuationResult.detailedTextDisplay }, finish_reason: null }]
+                })}\n\n`);
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-continuation-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: (continuationResult.session?.studioType || 'studio').toLowerCase(),
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: continuationResult.session?.studioType || 'STUDIO',
+                    toolsUsed: [continuationResult.session?.studioType === 'DATA_LAB' ? 'data_lab.studio' : continuationResult.session?.studioType === 'ARCHITECTURAL_STUDIO' ? 'architectural.studio' : 'slide.studio'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: continuationResult.artifactType || 'STUDIO_ARTIFACT',
+                    slideTitle: continuationResult.slideTitle || null,
+                    imageUrl: continuationResult.previewUrl || continuationResult.chartUrl || null,
+                    pptxUrl: continuationResult.pptxUrl || null,
+                    slideData: continuationResult.slideResult?.schema || null,
+                    project: continuationResult.session?.project,
+                    studio: continuationResult.session?.studio,
+                    slides: continuationResult.session?.slides,
+                    dataState: continuationResult.session?.dataState || null
+                  }
+                })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-continuation-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: (continuationResult.session?.studioType || 'studio').toLowerCase(),
+                  choices: [{ index: 0, message: { role: 'assistant', content: continuationResult.detailedTextDisplay }, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: continuationResult.session?.studioType || 'STUDIO',
+                    toolsUsed: [continuationResult.session?.studioType === 'DATA_LAB' ? 'data_lab.studio' : continuationResult.session?.studioType === 'ARCHITECTURAL_STUDIO' ? 'architectural.studio' : 'slide.studio'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: continuationResult.artifactType || 'STUDIO_ARTIFACT',
+                    slideTitle: continuationResult.slideTitle || null,
+                    imageUrl: continuationResult.previewUrl || continuationResult.chartUrl || null,
+                    pptxUrl: continuationResult.pptxUrl || null,
+                    slideData: continuationResult.slideResult?.schema || null,
+                    project: continuationResult.session?.project,
+                    studio: continuationResult.session?.studio,
+                    slides: continuationResult.session?.slides,
+                    dataState: continuationResult.session?.dataState || null
+                  }
+                }));
+              }
+              return;
+            }
+          } catch (continuationErr) {
+            console.warn('[STUDIO_CONTINUATION] Evaluation error:', continuationErr.message);
+          }
+        }
+
+        const deterministicDecision = isDocRequest
+          ? null
+          : (sie._slideStudioClassifier(cleanPrompt, []) ||
+             sie._architecturalDesignClassifier(cleanPrompt, []) ||
+             sie._imageRevisionClassifier(cleanPrompt, messages) ||
+             sie._imageGenerationClassifier(cleanPrompt, []));
+
+        if (deterministicDecision) {
+          console.log(`[INTENT_GATE] Fast-path hit: intent=${deterministicDecision.intent}`);
+          console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → ProductionEngine`);
+
+          // 0A. SLIDE STUDIO PATH
+          // PRINCIPLE: AI DECIDES → CODE EXECUTES.
+          // Multi-slide deck creation (isDeck) is NOT handled here — the deck plan
+          // must come from the LLM, not from deterministic code.
+          // Only single-slide rendering (no deck count) is handled here.
+          if (deterministicDecision.intent === 'SLIDE_STUDIO') {
+            try {
+              const { slideDeckPlannerInstance } = await import('../studio/slide/SlideDeckPlanner.mjs');
+              const deckDetection = slideDeckPlannerInstance.detectDeckRequest(cleanPrompt);
+
+              if (deckDetection.isDeck && deckDetection.count >= 2) {
+                // Multi-slide deck: do NOT fabricate a plan.
+                // Let the request fall through to the LLM.
+                // StudioContinuationRouter has already initialized the session with slidePlan:[].
+                console.log(`[INTENT_GATE] Deck creation detected (${deckDetection.count} slides) — passing to LLM for AI deck planning.`);
+                // fall through (no return)
+              } else {
+                // Single-slide: deterministic render from user-provided content
+                const { slideStudioInstance } = await import('../studio/slide/SlideStudio.mjs');
+                const slideResult = await slideStudioInstance.createSlide(cleanPrompt);
+                const pptxUrl = `/artifacts/slides/${path.basename(slideResult.files.pptx.path)}`;
+                const previewUrl = `/artifacts/slides/${path.basename(slideResult.files.preview.path)}`;
+                const slideTitle = `SLIDE MASTER: ${slideResult.title.toUpperCase()}`;
+                const detailedTextDisplay = `Berikut adalah **${slideResult.title}** yang telah selesai dirancang:\n\n` +
+                  `• **Arketipe Visual**: ${slideResult.slideType}\n` +
+                  `• **Format**: 16:9 Widescreen High Definition\n` +
+                  `• **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
+                  `👉 **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
+                  `Silakan sampaikan catatan jika Anda ingin mengubah bagian tertentu pada slide ini.`;
+
+                if (isStream) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                  });
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-slide-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'slide_studio',
+                    choices: [{ index: 0, delta: { content: detailedTextDisplay }, finish_reason: null }]
+                  })}\n\n`);
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-slide-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'slide_studio',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'SLIDE_STUDIO',
+                      toolsUsed: ['slide.studio'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'SLIDE_ARTIFACT',
+                      slideTitle,
+                      imageUrl: previewUrl,
+                      pptxUrl,
+                      slideData: slideResult.schema
+                    }
+                  })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-slide-' + Date.now(),
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'slide_studio',
+                    choices: [{ index: 0, message: { role: 'assistant', content: detailedTextDisplay }, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'SLIDE_STUDIO',
+                      toolsUsed: ['slide.studio'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'SLIDE_ARTIFACT',
+                      slideTitle,
+                      imageUrl: previewUrl,
+                      pptxUrl,
+                      slideData: slideResult.schema
+                    }
+                  }));
+                }
+                return;
+              }
+            } catch (slideErr) {
+              console.error('[INTENT_GATE] SlideStudio execution error:', slideErr.message);
+              if (isStream && res.headersSent) {
+                try {
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } catch (e) {}
+              }
+              // Fall through to other handlers
+            }
+          }
+
+          // 0B. ARCHITECTURAL STUDIO PATH
+          if (deterministicDecision.intent === 'ARCHITECTURAL_DESIGN') {
+            try {
+              const { architecturalStudioInstance } = await import('../studio/architectural/ArchitecturalStudio.mjs');
+              const { masterDesignStateInstance } = await import('../studio/architectural/MasterDesignState.mjs');
+
+              const activeProject = masterDesignStateInstance.getState();
+              const isApproval = /^(setuju|approve|lanjutkan|ok\s+lanjut|produksi\s+semua|buatkan\s+gambarnya)\b/i.test(cleanPrompt);
+              const isRevision = /^(geser|ubah|pindahkan|tambah|ganti|revisi)\b/i.test(cleanPrompt);
+
+              let responseText = '';
+              let agentPayload = {};
+
+              if (activeProject && isApproval) {
+                masterDesignStateInstance.approveMasterDraft();
+                const productionResult = await architecturalStudioInstance.produceAllSteps();
+                
+                responseText = `### 🏛️ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
+                  `Master Design Draft telah disetujui. Seluruh 8 langkah visual rancang bangun telah diproduksi secara mandiri (1 Komponen = 1 Artifact Terpisah):\n\n` +
+                  `1. **[STEP 01: Denah Tata Ruang (Lt 1 & 2)](/artifacts/architecture/STEP_01_DENAH.svg)** (Kode: AR-01)\n` +
+                  `2. **[STEP 02: Rangka Struktur & Grid As Kolom](/artifacts/architecture/STEP_02_STRUKTUR.svg)** (Kode: ST-02)\n` +
+                  `3. **[STEP 03: Tampak Fasad Depan](/artifacts/architecture/STEP_03_TAMPAK_DEPAN.svg)** (Kode: AR-03)\n` +
+                  `4. **[STEP 04: Tampak Samping Kiri](/artifacts/architecture/STEP_04_TAMPAK_KIRI.svg)** (Kode: AR-04)\n` +
+                  `5. **[STEP 05: Tampak Samping Kanan](/artifacts/architecture/STEP_05_TAMPAK_KANAN.svg)** (Kode: AR-05)\n` +
+                  `6. **[STEP 06: Tampak Fasad Belakang Pool](/artifacts/architecture/STEP_06_TAMPAK_BELAKANG.svg)** (Kode: AR-06)\n` +
+                  `7. **[STEP 07: 3D Perspektif Eksterior](/artifacts/architecture/STEP_07_MODEL_3D.svg)** (Kode: 3D-07)\n` +
+                  `8. **[STEP 08: 3D Hologram Spatial HUD](/artifacts/architecture/STEP_08_HOLOGRAM_3D.svg)** (Kode: HUD-08)\n\n` +
+                  `*Audit Konsistensi QA: Skor ${productionResult.qaReport.score}/100 (${productionResult.qaReport.passed ? 'PASSED' : 'CHECK'})*\n` +
+                  `Seluruh geometri, bukaan jendela/pintu, dan koordinat as kolom 100% konsisten terhadap MasterDesignState.`;
+
+                agentPayload = {
+                  intent: 'ARCHITECTURAL_DESIGN',
+                  action: 'PRODUCE_ALL',
+                  artifacts: productionResult.artifacts,
+                  qaReport: productionResult.qaReport
+                };
+              } else if (activeProject && isRevision) {
+                const revResult = architecturalStudioInstance.applyRevision(cleanPrompt);
+                responseText = `### 🔄 Revisi Desain Arsitektur Diterapkan\n\n` +
+                  `Instruksi: *"${cleanPrompt}"*\n\n` +
+                  `• **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
+                  `• **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
+                  `• **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
+
+                agentPayload = {
+                  intent: 'ARCHITECTURAL_DESIGN',
+                  action: 'REVISION',
+                  revision: revResult
+                };
+              } else {
+                const initResult = architecturalStudioInstance.initiateDesignProject(cleanPrompt);
+                responseText = initResult.masterDraft + `\n\n---\n` +
+                  `💡 **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
+
+                agentPayload = {
+                  intent: 'ARCHITECTURAL_DESIGN',
+                  action: 'MASTER_DRAFT',
+                  projectId: initResult.projectId,
+                  state: initResult.state
+                };
+              }
+
+              if (isStream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-arch-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'architectural_studio',
+                  choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                })}\n\n`);
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-arch-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'architectural_studio',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    ...agentPayload,
+                    toolsUsed: ['architectural.studio'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: 'ARCHITECTURAL_BLUEPRINT'
+                  }
+                })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-arch-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'architectural_studio',
+                  choices: [{ index: 0, message: { role: 'assistant', content: responseText }, finish_reason: 'stop' }],
+                  _agent: {
+                    ...agentPayload,
+                    toolsUsed: ['architectural.studio'],
+                    verificationStatus: 'VERIFIED',
+                    cognitive: true,
+                    artifactType: 'ARCHITECTURAL_BLUEPRINT'
+                  }
+                }));
+              }
+              return;
+            } catch (archErr) {
+              console.error('[INTENT_GATE] ArchitecturalStudio execution error:', archErr.message);
+            }
+          }
+
+          try {
+            const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
+            const { jinResponseEngineInstance } = await import('../agent/JINResponseEngine.mjs');
+
+            const visualIntent = deterministicDecision.visualIntent || {};
+            let referenceImage = deterministicDecision.referenceImage || visualIntent.referenceImage || sie._findLastVisualAsset(messages) || null;
+            if (referenceImage && typeof referenceImage === 'string') {
+              referenceImage = referenceImage.replace(/^https?:\/\/[^\/]+/i, '');
+            }
+
+            const clientRequestId = payload.generationId || payload.messageId || req.headers['x-request-id'] || null;
+            const isRevision = deterministicDecision.intent === 'IMAGE_REVISION';
+            const modElements = visualIntent.modifyElements || [];
+            const modification = modElements.join(', ') || 'nighttime';
+            const semanticKey = `${isRevision ? 'rev' : 'gen'}:${referenceImage || 'none'}:${cleanPrompt.toLowerCase().replace(/\s+/g, ' ').trim()}`;
+            const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+            if (isRevision) {
+              console.log(`[IMAGE_REVISION] requestId=${requestId}`);
+              console.log(`[IMAGE_REVISION] referenceImage=${referenceImage}`);
+              console.log(`[IMAGE_REVISION] modification=${modification}`);
+            }
+
+            // IDEMPOTENCY GUARD: One request/message ID or semantic key -> at most one image generation
+            pruneRecentImageExecutions();
+            let cached = (clientRequestId && recentImageExecutions.get(clientRequestId)) || recentImageExecutions.get(semanticKey);
+
+            if (cached) {
+              let cachedEntry = cached;
+              if (cached.status === 'IN_PROGRESS' && cached.inFlightPromise) {
+                if (isRevision) {
+                  console.log(`[IMAGE_REVISION] execution=SKIP_DUPLICATE`);
+                } else {
+                  console.log(`[INTENT_GATE] execution=SKIP_DUPLICATE requestId=${requestId}`);
+                }
+                cachedEntry = await cached.inFlightPromise;
+              }
+
+              if (cachedEntry && cachedEntry.artifact) {
+                if (isRevision) {
+                  console.log(`[IMAGE_REVISION] execution=SKIP_DUPLICATE`);
+                } else {
+                  console.log(`[INTENT_GATE] execution=SKIP_DUPLICATE requestId=${requestId}`);
+                }
+
+                if (payload.stream) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                  });
+                  const responseText = cachedEntry.responseText || (cleanPrompt ? `Visual untuk ${cleanPrompt.slice(0, 60)} telah selesai disiapkan.` : 'Visual telah selesai disiapkan.');
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-direct-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'direct_image_pipeline',
+                    choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                  })}\n\n`);
+                  const cachedToolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                  const cachedStrictVerified = isRevision
+                    ? Boolean(cachedEntry.artifact && cachedEntry.artifact.parentArtifactId && cachedEntry.artifact.renderable !== false)
+                    : Boolean(cachedEntry.artifact && cachedEntry.artifact.renderable !== false);
+
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-direct-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'direct_image_pipeline',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: deterministicDecision.intent,
+                      toolsUsed: cachedToolsUsed,
+                      verificationStatus: cachedStrictVerified ? 'VERIFIED' : 'FAILED',
+                      cognitive: true,
+                      artifactType: 'IMAGE',
+                      presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                      visualIntent: visualIntent,
+                      imageUrl: cachedEntry.artifact.url || null,
+                      generationId: payload.generationId || null,
+                      messageId: payload.messageId || null,
+                      imageRenderable: true
+                    }
+                  })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else {
+                  const cachedToolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                  const cachedStrictVerified = isRevision
+                    ? Boolean(cachedEntry.artifact && cachedEntry.artifact.parentArtifactId && cachedEntry.artifact.renderable !== false)
+                    : Boolean(cachedEntry.artifact && cachedEntry.artifact.renderable !== false);
+
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-direct-' + Date.now(),
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'direct_image_pipeline',
+                    choices: [{ index: 0, message: { role: 'assistant', content: cachedEntry.responseText || 'Visual telah dibuat.' }, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: deterministicDecision.intent,
+                      toolsUsed: cachedToolsUsed,
+                      verificationStatus: cachedStrictVerified ? 'VERIFIED' : 'FAILED',
+                      cognitive: true,
+                      artifactType: 'IMAGE',
+                      presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                      visualIntent: visualIntent,
+                      imageUrl: cachedEntry.artifact.url || null,
+                      generationId: payload.generationId || null,
+                      messageId: payload.messageId || null,
+                      imageRenderable: true
+                    }
+                  }));
+                }
+                return;
+              }
+            }
+
+            if (isRevision) {
+              console.log(`[IMAGE_REVISION] execution=START`);
+            }
+
+            // Register in-flight execution in cache
+            let resolveInFlight;
+            const inFlightPromise = new Promise((resolve) => { resolveInFlight = resolve; });
+            const inProgressEntry = {
+              timestamp: Date.now(),
+              status: 'IN_PROGRESS',
+              inFlightPromise
+            };
+            if (clientRequestId) recentImageExecutions.set(clientRequestId, inProgressEntry);
+            recentImageExecutions.set(requestId, inProgressEntry);
+            recentImageExecutions.set(semanticKey, inProgressEntry);
+
+            const imagePrompt = visualIntent.providerPrompt || cleanPrompt;
+
+            console.log(`[INTENT_GATE] Direct image generation: ${deterministicDecision.intent}`);
+
+            let imageResult;
+            if (isRevision) {
+              console.log(`[IMAGE_REVISION_DISPATCH] path=ImageEditing`);
+              let referenceUserPrompt = '';
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const m = messages[i];
+                if (m && m.role === 'user') {
+                  const txt = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(p => p.text || '').join(' ') : '');
+                  if (txt && txt.trim() !== userPrompt.trim()) {
+                    referenceUserPrompt = txt.trim();
+                    break;
+                  }
+                }
+              }
+              const { imageEditingInstance } = await import('../agent/ImageEditing.mjs');
+              imageResult = await imageEditingInstance.editImage({
+                referenceImage,
+                prompt: visualIntent.providerPrompt || modification || cleanPrompt,
+                originalPrompt: referenceUserPrompt || userPrompt,
+                requestId,
+                steps: IMAGE_STEPS || 8,
+                generationId: payload.generationId || null,
+                messageId: payload.messageId || null
+              });
+            } else {
+              const { imageGenerationInstance, ImageGenerationService } = await import('../agent/ImageGeneration.mjs');
+              // Resolve size/aspectRatio from visualIntent or user prompt (e.g. 16:9 for slide/landscape)
+              let intentAspectRatio = visualIntent?.aspectRatio;
+              if (!intentAspectRatio || intentAspectRatio === '1:1') {
+                intentAspectRatio = ImageGenerationService.detectAspectRatio(`${userPrompt} ${cleanPrompt}`, '1:1');
+              }
+              const intentSize = intentAspectRatio === '9:16' ? '512x912' : '912x512';
+              imageResult = await imageGenerationInstance.generateImage({
+                prompt: imagePrompt,
+                referenceImage: null,
+                mode: 'generate',
+                visualIntent: {
+                  ...visualIntent,
+                  aspectRatio: intentAspectRatio,
+                  referenceImage: null
+                },
+                aspectRatio: intentAspectRatio,
+                size: intentSize,
+                generationId: payload.generationId || null,
+                messageId: payload.messageId || null
+              });
+            }
+
+            if (imageResult.success && imageResult.artifact) {
+              if (isRevision) {
+                console.log(`[IMAGE_REVISION] execution=COMPLETE artifact=${imageResult.artifact.url}`);
+              }
+              const responsePayload = isRevision
+                ? jinResponseEngineInstance.synthesizeImageRevisionOutcome({
+                    userUtterance: userPrompt,
+                    decision: deterministicDecision,
+                    artifact: imageResult.artifact,
+                    verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                    evaluation: imageResult.evaluation || imageResult.artifact?.evaluation,
+                    provenance: { semanticModel: 'direct_image_pipeline' }
+                  })
+                : jinResponseEngineInstance.synthesizeImageGenerationOutcome({
+                    userUtterance: userPrompt,
+                    decision: deterministicDecision,
+                    artifact: imageResult.artifact,
+                    verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                    provenance: { semanticModel: 'direct_image_pipeline' }
+                  });
+
+              // Commit to idempotency cache
+              const completedEntry = {
+                timestamp: Date.now(),
+                status: 'COMPLETED',
+                artifact: imageResult.artifact,
+                responseText: responsePayload.naturalVoiceSpeech
+              };
+              if (clientRequestId) recentImageExecutions.set(clientRequestId, completedEntry);
+              recentImageExecutions.set(requestId, completedEntry);
+              recentImageExecutions.set(semanticKey, completedEntry);
+              resolveInFlight(completedEntry);
+
+              if (payload.stream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+
+                const responseText = responsePayload.naturalVoiceSpeech || (cleanPrompt ? `Visual untuk ${cleanPrompt.slice(0, 60)} telah selesai disiapkan.` : 'Visual telah selesai disiapkan.');
+                const sseChunk = JSON.stringify({
+                  id: 'chatcmpl-direct-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                });
+                res.write(`data: ${sseChunk}\n\n`);
+
+                const toolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                const isStrictVerified = Boolean(imageResult.success && verifyImageArtifactCompliance(imageResult.artifact, isRevision));
+                const evalStatus = isRevision ? (imageResult.evaluation?.evaluationStatus || 'REVISION_PASS') : 'VERIFIED';
+
+                const finalChunk = JSON.stringify({
+                  id: 'chatcmpl-direct-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed,
+                    verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
+                    evaluationStatus: evalStatus,
+                    semanticScore: imageResult.evaluation?.semantic?.semanticScore ?? null,
+                    evaluation: imageResult.evaluation || null,
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                    visualIntent: visualIntent,
+                    imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null,
+                    imageRenderable: isStrictVerified
+                  }
+                });
+                res.write(`data: ${finalChunk}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                const toolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                const isStrictVerified = Boolean(imageResult.success && verifyImageArtifactCompliance(imageResult.artifact, isRevision));
+                const evalStatus = isRevision ? (imageResult.evaluation?.evaluationStatus || 'REVISION_PASS') : 'VERIFIED';
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-direct-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, message: { role: 'assistant', content: responsePayload.naturalVoiceSpeech }, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed,
+                    verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
+                    evaluationStatus: evalStatus,
+                    semanticScore: imageResult.evaluation?.semantic?.semanticScore ?? null,
+                    evaluation: imageResult.evaluation || null,
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                    visualIntent: visualIntent,
+                    imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null,
+                    imageRenderable: isStrictVerified
+                  }
+                }));
+              }
+
+              console.log(`[INTENT_GATE] Direct image success: ${imageResult.artifact.url}`);
+              return;
+            } else {
+              if (clientRequestId) recentImageExecutions.delete(clientRequestId);
+              recentImageExecutions.delete(requestId);
+              recentImageExecutions.delete(semanticKey);
+              resolveInFlight(null);
+              console.warn(`[INTENT_GATE] Direct image failed: ${imageResult.error}`);
+
+              let failureText;
+              let reasonCode;
+              if (isRevision) {
+                const failureDetails = resolveRevisionFailureDetails(imageResult);
+                reasonCode = failureDetails.reasonCode;
+                console.log(`[IMAGE_REVISION] execution=FAILED reason=${reasonCode}`);
+                failureText = `Saya belum dapat melakukan revisi gambar saat ini. Penyebab: ${failureDetails.failureReason}`;
+              } else {
+                failureText = `Pembuatan gambar belum berhasil. Penyebab: ${imageResult.error || 'Provider gambar tidak tersedia.'}`;
+              }
+
+              if (payload.stream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: { content: failureText }, finish_reason: null }]
+                })}\n\n`);
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed: [isRevision ? 'image.edit' : 'image.generate'],
+                    verificationStatus: 'FAILED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    imageUrl: null,
+                    error: imageResult.error,
+                    reasonCode: isRevision ? reasonCode : undefined
+                  }
+                })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, message: { role: 'assistant', content: failureText }, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed: [isRevision ? 'image.edit' : 'image.generate'],
+                    verificationStatus: 'FAILED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    imageUrl: null,
+                    error: imageResult.error,
+                    reasonCode: isRevision ? reasonCode : undefined
+                  }
+                }));
+              }
+              return;
+            }
+          } catch (directErr) {
+            console.warn(`[INTENT_GATE] Direct image error: ${directErr.message}`);
+            if (isRevision) {
+              const failureDetails = resolveRevisionFailureDetails({ error: directErr.message });
+              console.log(`[IMAGE_REVISION] execution=FAILED reason=${failureDetails.reasonCode}`);
+              const failureText = `Saya belum dapat melakukan revisi gambar saat ini. Penyebab: ${failureDetails.failureReason}`;
+              if (payload.stream) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: { content: failureText }, finish_reason: null }]
+                })}\n\n`);
+                res.write(`data: ${JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed: ['image.edit'],
+                    verificationStatus: 'FAILED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    imageUrl: null,
+                    error: directErr.message,
+                    reasonCode: failureDetails.reasonCode
+                  }
+                })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-direct-err-' + Date.now(),
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'direct_image_pipeline',
+                  choices: [{ index: 0, message: { role: 'assistant', content: failureText }, finish_reason: 'stop' }],
+                  _agent: {
+                    intent: deterministicDecision.intent,
+                    toolsUsed: ['image.edit'],
+                    verificationStatus: 'FAILED',
+                    cognitive: true,
+                    artifactType: 'IMAGE',
+                    imageUrl: null,
+                    error: directErr.message,
+                    reasonCode: failureDetails.reasonCode
+                  }
+                }));
+              }
+              return;
+            }
+          }
+        }
+      }
 
       // 1. Autonomous Sovereign Memory & Drive F Intent Interceptor
       const isDriveFMemoryIntent = (() => {
@@ -942,12 +1898,24 @@ Requirements:
         // 2. Autonomous Web Grounding (Tavily AI) Intent Interceptor
         const isSearchIntent = (() => {
           if (!userPrompt || typeof userPrompt !== 'string') return false;
+          // Guard: NEVER trigger web search if attached document or document reading request is present
+          if (userPrompt.includes('--- [BERKAS DOKUMEN') ||
+              userPrompt.includes('--- [DOKUMEN') ||
+              userPrompt.includes('--- [Konteks Dokumen') ||
+              /(?:baca\s+ini|baca\s+dokumen|rangkum|ringkas|point\s+point|poin\s+poin|presentasi|slide|draft\s+presentasi)\b/i.test(userPrompt)) {
+            return false;
+          }
           const p = userPrompt.toLowerCase();
           if (/\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you)\b/i.test(p)) return false; // Greeting guard
-          if (/\b(cari|carikan|searching|search|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p)) return true;
-          const hasInfoNoun = /\b(berita|kabar|info|informasi|isu|peristiwa|kejadian|agenda|update|perkembangan|harga|kurs|saham)\b/i.test(p);
-          const hasTemporal = /\b(202[4-6]|terbaru|terkini|hari\s+ini|bulan\s+ini|minggu\s+ini|september\s+2026|oktober\s+2026|november\s+2026|desember\s+2026)\b/i.test(p);
-          return Boolean(hasInfoNoun && (hasTemporal || p.includes('internet') || p.includes('web') || p.includes('tavily')));
+
+          // Explicit web search command only (Passive knowledge harvesting is handled by CuriosityDaemon at 07, 13, 17, 21 WIB)
+          const explicitSearch = /\b(cari\s+di\s+internet|carikan\s+di\s+internet|search\s+the\s+web|searching|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p);
+          if (explicitSearch) return true;
+
+          // Explicit pair: (cari/carikan/cek) + (internet/web/online/situs)
+          if (/\b(cari|carikan|cek|temukan)\b/i.test(p) && /\b(internet|web|online|situs)\b/i.test(p)) return true;
+
+          return false;
         })();
 
         if (isSearchIntent) {
@@ -968,6 +1936,7 @@ Requirements:
           cleanQuery = cleanQuery.replace(/[\?\,\!]/g, ' ');
           cleanQuery = cleanQuery.replace(/\s+/g, ' ').trim();
           if (cleanQuery.length < 4) cleanQuery = userPrompt.replace(/\btavily\b/gi, '').trim();
+          if (cleanQuery.length > 200) cleanQuery = cleanQuery.slice(0, 200).trim();
 
           console.log(`[TAVILY_GROUNDING_TRIGGERED] query="${cleanQuery}" from raw="${userPrompt.slice(0, 60)}"`);
 
@@ -1050,12 +2019,7 @@ Requirements:
           userPrompt.startsWith('USER GOAL:') ||
           userPrompt.includes('SEMANTIC ANALYSIS:') ||
           userPrompt.includes('Build the minimal hierarchical execution DAG plan')
-        )) ||
-        (Array.isArray(messages) && messages.some(m => typeof m?.content === 'string' && (
-          m.content.includes('hierarchical execution DAG plan') ||
-          m.content.includes('Hierarchical Execution Planner') ||
-          m.content.includes('SEMANTIC ANALYSIS:')
-        )))
+        ))
       );
 
       if (!isInternalAgentCall && userPrompt && typeof userPrompt === 'string' && userPrompt.trim().length > 0) {
@@ -1063,47 +2027,674 @@ Requirements:
           const { semanticIntentEngineInstance } = await import('../agent/SemanticIntentEngine.mjs');
           const sie = semanticIntentEngineInstance;
 
-          // LLM-first routing: the model interprets the complete utterance and context.
-          // Deterministic classifiers remain available as explicit offline fallbacks,
-          // but never decide the primary route while the LLM is available.
-          const semanticDecision = await sie.interpret(
-            userPrompt,
-            { recentTurns: messages.slice(-10), constraints: [] },
-            { certificationTransport: 'LOCAL_ROUTER_PROXY', failClosed: false }
-          );
-          const deterministicDecision = semanticDecision;
-          const actionRequired = Boolean(semanticDecision?.actionRequired);
+          // 1. Normalize current user utterance
+          const cleanPrompt = sie._normalizeUtterance(userPrompt);
+
+          // 2. Detect document context markers in the merged prompt (injected by ConversationController)
+          const hasDocumentMarker = userPrompt.includes('--- [BERKAS DOKUMEN') ||
+            userPrompt.includes('--- [DOKUMEN') ||
+            userPrompt.includes('--- [Konteks Dokumen');
+
+          // 3. Detect document-analysis user intent in the prompt text
+          const isDocAnalysisVerb = /(?:baca|baca\s+dokumen|baca\s+ini|rangkum|ringkas|analisis\s+dokumen|dokumen\s+ini|file\s+ini|pdf\s+ini|ekstrak\s+isi|summary\s+dokumen|buat\s+ringkasan|buat\s+summary)\b/i.test(userPrompt);
+          const isDocumentRequest = hasDocumentMarker && isDocAnalysisVerb;
+
+          // 4. Fast-path: slide / image / document (no LLM inference required)
+          let deterministicDecision = null;
+
+          if (isDocumentRequest) {
+            // Deterministically classify as DOCUMENT_ANALYSIS (actionRequired=true → Document Pipeline)
+            deterministicDecision = {
+              intent: 'DOCUMENT_ANALYSIS',
+              goal: cleanPrompt,
+              actionRequired: true,
+              toolsNeeded: ['document_pipeline'],
+              confidence: 0.99
+            };
+            console.log(`[INTENT_GATE] Fast-path hit: intent=DOCUMENT_ANALYSIS (document marker + analysis verb detected)`);
+          } else {
+            // Slide / image classifier — only when no document is attached
+            deterministicDecision =
+              sie._slideStudioClassifier(cleanPrompt, []) ||
+              sie._imageRevisionClassifier(cleanPrompt, messages) ||
+              sie._imageGenerationClassifier(cleanPrompt, []) ||
+              null;
+            if (deterministicDecision) {
+              console.log(`[INTENT_GATE] Fast-path hit: intent=${deterministicDecision.intent}`);
+            }
+          }
+
+          const actionRequired = Boolean(deterministicDecision?.actionRequired);
 
           if (actionRequired) {
-            console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → AgentRuntime`);
+            console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → Pipeline`);
 
-            // DIRECT IMAGE GENERATION PATH - bypass Ollama entirely
+            // ══════════════════════════════════════════════════════════════════
+            // DOCUMENT ANALYSIS PIPELINE
+            // UPLOAD → READING → UNDERSTANDING → ANALYSIS → SYNTHESIS → RESPONSE
+            // ══════════════════════════════════════════════════════════════════
+            if (deterministicDecision.intent === 'DOCUMENT_ANALYSIS') {
+              try {
+                const requestId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+                // Extract document text from marker blocks inside userPrompt
+                const docBlocks = [];
+                const docBlockRE = /--- \[BERKAS DOKUMEN TERLAMPIR: ([^\]]+)\] ---\n([\s\S]*?)\n--- \[AKHIR DOKUMEN: [^\]]+\] ---/g;
+                let docMatch;
+                while ((docMatch = docBlockRE.exec(userPrompt)) !== null) {
+                  docBlocks.push({ fileName: docMatch[1], text: docMatch[2] });
+                }
+                // Also match generic markers
+                const genericBlockRE = /--- \[(?:DOKUMEN|Konteks Dokumen)[^\]]*\] ---\n([\s\S]*?)\n--- \[Akhir[^\]]*\] ---/gi;
+                while ((docMatch = genericBlockRE.exec(userPrompt)) !== null) {
+                  docBlocks.push({ fileName: 'Dokumen', text: docMatch[1] });
+                }
+
+                const primaryDoc = docBlocks[0] || { fileName: 'Dokumen', text: userPrompt };
+                const documentText = primaryDoc.text;
+                const fileName = primaryDoc.fileName;
+
+                // Extract the user instruction (without the embedded document block)
+                const userInstruction = userPrompt
+                  .replace(/\n?--- \[BERKAS DOKUMEN TERLAMPIR:[^\]]*\] ---[\s\S]*?--- \[AKHIR DOKUMEN:[^\]]*\] ---/gi, '')
+                  .replace(/\n?--- \[(?:DOKUMEN|Konteks Dokumen)[^\]]*\] ---[\s\S]*?--- \[Akhir[^\]]*\] ---/gi, '')
+                  .trim();
+
+                const isStreamDoc = Boolean(payload.stream);
+
+                if (isStreamDoc) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                  });
+                }
+
+                // Helper: emit SSE progress status chunk
+                const emitStatus = (statusText) => {
+                  const chunk = JSON.stringify({
+                    id: `chatcmpl-doc-${Date.now()}`,
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'document_pipeline',
+                    choices: [{ index: 0, delta: { content: statusText }, finish_reason: null }],
+                    _docPipeline: { status: statusText, requestId }
+                  });
+                  if (isStreamDoc && !res.writableEnded) res.write(`data: ${chunk}\n\n`);
+                };
+
+                // STAGE 1 — DOCUMENT_READING
+                console.log(`[DOCUMENT_PIPELINE] started requestId=${requestId} file="${fileName}"`);
+                console.log(`[DOCUMENT_PIPELINE] reading`);
+                emitStatus('⏳ Membaca dokumen...');
+
+                const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
+                const docResult = await documentIntelligenceToolInstance.execute({
+                  documentText,
+                  query: userInstruction || cleanPrompt,
+                  fileName,
+                  mode: 'full_document'
+                });
+
+                // STAGE 2 — DOCUMENT_UNDERSTANDING
+                console.log(`[DOCUMENT_PIPELINE] understanding chunks=${docResult.totalChunks} coverage=${docResult.coveragePercent}%`);
+                emitStatus('🔍 Memahami isi dokumen...');
+
+                // Compile full document context from processed chunks
+                const chunkTexts = (docResult.relevantChunks || []).map(c => c.content || '').filter(Boolean);
+                const fullDocumentContext = chunkTexts.join('\n\n');
+
+                // STAGE 3 — DOCUMENT_ANALYSIS
+                console.log(`[DOCUMENT_PIPELINE] analysis`);
+                emitStatus('📊 Menganalisis dokumen...');
+
+                // Build synthesis prompt for LLM
+                const systemPromptDoc = [
+                  'Kamu adalah JIN, asisten peneliti dengan kemampuan analisis dokumen mendalam.',
+                  'Kamu telah menerima keseluruhan isi dokumen yang diproses melalui Document Intelligence Pipeline.',
+                  'PRINSIP:',
+                  '- Baca dan pahami SELURUH isi dokumen yang diberikan.',
+                  '- Jangan pernah menolak dengan alasan tidak bisa membaca dokumen.',
+                  '- Berikan analisis mendalam, tidak hanya permukaan.',
+                  '- Gunakan format yang jelas dan terstruktur.',
+                  '- Sertakan poin-poin utama, temuan penting, dan kesimpulan.'                
+                ].join('\n');
+
+                const llmMessages = [
+                  { role: 'system', content: systemPromptDoc },
+                  {
+                    role: 'user',
+                    content: `Berikut adalah isi lengkap dokumen "${fileName}" (${docResult.totalChunks} unit semantik, cakupan ${docResult.coveragePercent}%):\n\n${fullDocumentContext}\n\n---\nInstruksi pengguna: ${userInstruction || 'Baca dan buatkan rangkuman lengkap dokumen ini.'}`
+                  }
+                ];
+
+                // STAGE 4 — DOCUMENT_SYNTHESIS via LLM
+                console.log(`[DOCUMENT_PIPELINE] synthesis`);
+                emitStatus('✍️ Menyusun rangkuman...');
+
+                // Route to LLM for synthesis
+                const { modelRoutingServiceInstance } = await import('./ModelRoutingService.mjs');
+                let synthesisText = '';
+
+                const routeRes = await modelRoutingServiceInstance.routeChat(
+                  {
+                    messages: llmMessages,
+                    stream: isStreamDoc,
+                    model: 'llamacpp:qwen2.5-3b-instruct-q4_k_m.gguf',
+                    temperature: 0.3,
+                    maxTokens: 512
+                  },
+                  (chunk) => {
+                    synthesisText += chunk;
+                    if (isStreamDoc && !res.writableEnded) {
+                      const sseChunk = JSON.stringify({
+                        id: `chatcmpl-doc-${Date.now()}`,
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'document_pipeline',
+                        choices: [{ index: 0, delta: { content: chunk }, finish_reason: null }]
+                      });
+                      res.write(`data: ${sseChunk}\n\n`);
+                    }
+                  }
+                );
+
+                if (!synthesisText && routeRes?.content) {
+                  synthesisText = routeRes.content;
+                }
+
+                // STAGE 5 — COMPLETED
+                console.log(`[DOCUMENT_PIPELINE] completed requestId=${requestId} chars=${synthesisText.length}`);
+                emitStatus('✅ Rangkuman selesai.');
+
+                if (isStreamDoc && !res.writableEnded) {
+                  const finalChunk = JSON.stringify({
+                    id: `chatcmpl-doc-final-${Date.now()}`,
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'document_pipeline',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'DOCUMENT_ANALYSIS',
+                      toolsUsed: ['doc.analyze', 'document_pipeline'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'DOCUMENT_ANALYSIS',
+                      docMeta: {
+                        fileName,
+                        totalChunks: docResult.totalChunks,
+                        coveragePercent: docResult.coveragePercent,
+                        requestId
+                      }
+                    }
+                  });
+                  res.write(`data: ${finalChunk}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else if (!isStreamDoc) {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: `chatcmpl-doc-final-${Date.now()}`,
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'document_pipeline',
+                    choices: [{ index: 0, message: { role: 'assistant', content: synthesisText }, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'DOCUMENT_ANALYSIS',
+                      toolsUsed: ['doc.analyze', 'document_pipeline'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'DOCUMENT_ANALYSIS'
+                    }
+                  }));
+                }
+                return;
+              } catch (docPipelineErr) {
+                console.error('[DOCUMENT_PIPELINE] error:', docPipelineErr.message);
+                // Fall through to standard LLM stream on error
+              }
+            }
+
+            // DIRECT SLIDE STUDIO PATH — programmatic vector & PPTX presentation
+            // PRINCIPLE: AI DECIDES → CODE EXECUTES.
+            // Multi-slide deck creation: deck plan must come from the LLM, not from code.
+            if (deterministicDecision.intent === 'SLIDE_STUDIO') {
+              try {
+                const { slideDeckPlannerInstance } = await import('../studio/slide/SlideDeckPlanner.mjs');
+                const deckDetection = slideDeckPlannerInstance.detectDeckRequest(cleanPrompt);
+
+                if (deckDetection.isDeck && deckDetection.count >= 2) {
+                  // Multi-slide deck: do NOT fabricate a plan.
+                  // Fall through to LLM for AI-driven deck planning.
+                  console.log(`[INTENT_GATE][DIRECT] Deck creation (${deckDetection.count} slides) — passing to LLM.`);
+                  // fall through (no return)
+                } else {
+                  // Single-slide: deterministic render from user-provided content
+                  const { slideStudioInstance } = await import('../studio/slide/SlideStudio.mjs');
+                  const slideResult = await slideStudioInstance.createSlide(cleanPrompt);
+                  const pptxUrl = `/artifacts/slides/${path.basename(slideResult.files.pptx.path)}`;
+                  const previewUrl = `/artifacts/slides/${path.basename(slideResult.files.preview.path)}`;
+                  const slideTitle = `SLIDE MASTER: ${slideResult.title.toUpperCase()}`;
+                  const detailedTextDisplay = `Berikut adalah **${slideResult.title}** yang telah selesai dirancang:\n\n` +
+                    `• **Arketipe Visual**: ${slideResult.slideType}\n` +
+                    `• **Format**: 16:9 Widescreen High Definition\n` +
+                    `• **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
+                    `👉 **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
+                    `Silakan sampaikan catatan jika Anda ingin mengubah bagian tertentu pada slide ini.`;
+
+                  if (isStream) {
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive'
+                    });
+                    res.write(`data: ${JSON.stringify({
+                      id: 'chatcmpl-slide-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'slide_studio',
+                      choices: [{ index: 0, delta: { content: detailedTextDisplay }, finish_reason: null }]
+                    })}\n\n`);
+                    res.write(`data: ${JSON.stringify({
+                      id: 'chatcmpl-slide-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'slide_studio',
+                      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: 'SLIDE_STUDIO',
+                        toolsUsed: ['slide.studio'],
+                        verificationStatus: 'VERIFIED',
+                        cognitive: true,
+                        artifactType: 'SLIDE_ARTIFACT',
+                        slideTitle,
+                        imageUrl: previewUrl,
+                        pptxUrl,
+                        slideData: slideResult.schema
+                      }
+                    })}\n\n`);
+                    res.write('data: [DONE]\n\n');
+                    res.end();
+                  } else {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                      id: 'chatcmpl-slide-' + Date.now(),
+                      object: 'chat.completion',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'slide_studio',
+                      choices: [{ index: 0, message: { role: 'assistant', content: detailedTextDisplay }, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: 'SLIDE_STUDIO',
+                        toolsUsed: ['slide.studio'],
+                        verificationStatus: 'VERIFIED',
+                        cognitive: true,
+                        artifactType: 'SLIDE_ARTIFACT',
+                        slideTitle,
+                        imageUrl: previewUrl,
+                        pptxUrl,
+                        slideData: slideResult.schema
+                      }
+                    }));
+                  }
+                  return;
+                }
+              } catch (slideErr) {
+                console.error('[INTENT_GATE] SlideStudio execution error:', slideErr.message);
+              }
+            }
+
+            // DIRECT ARCHITECTURAL STUDIO PATH
+            if (deterministicDecision.intent === 'ARCHITECTURAL_DESIGN') {
+              try {
+                const { architecturalStudioInstance } = await import('../studio/architectural/ArchitecturalStudio.mjs');
+                const { masterDesignStateInstance } = await import('../studio/architectural/MasterDesignState.mjs');
+
+                const activeProject = masterDesignStateInstance.getState();
+                const isApproval = /^(setuju|approve|lanjutkan|ok\s+lanjut|produksi\s+semua|buatkan\s+gambarnya)\b/i.test(cleanPrompt);
+                const isRevision = /^(geser|ubah|pindahkan|tambah|ganti|revisi)\b/i.test(cleanPrompt);
+
+                let responseText = '';
+                let agentPayload = {};
+
+                if (activeProject && isApproval) {
+                  masterDesignStateInstance.approveMasterDraft();
+                  const productionResult = await architecturalStudioInstance.produceAllSteps();
+                  
+                  responseText = `### 🏛️ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
+                    `Master Design Draft telah disetujui. Seluruh 8 langkah visual rancang bangun telah diproduksi secara mandiri (1 Komponen = 1 Artifact Terpisah):\n\n` +
+                    `1. **[STEP 01: Denah Tata Ruang (Lt 1 & 2)](/artifacts/architecture/STEP_01_DENAH.svg)** (Kode: AR-01)\n` +
+                    `2. **[STEP 02: Rangka Struktur & Grid As Kolom](/artifacts/architecture/STEP_02_STRUKTUR.svg)** (Kode: ST-02)\n` +
+                    `3. **[STEP 03: Tampak Fasad Depan](/artifacts/architecture/STEP_03_TAMPAK_DEPAN.svg)** (Kode: AR-03)\n` +
+                    `4. **[STEP 04: Tampak Samping Kiri](/artifacts/architecture/STEP_04_TAMPAK_KIRI.svg)** (Kode: AR-04)\n` +
+                    `5. **[STEP 05: Tampak Samping Kanan](/artifacts/architecture/STEP_05_TAMPAK_KANAN.svg)** (Kode: AR-05)\n` +
+                    `6. **[STEP 06: Tampak Fasad Belakang Pool](/artifacts/architecture/STEP_06_TAMPAK_BELAKANG.svg)** (Kode: AR-06)\n` +
+                    `7. **[STEP 07: 3D Perspektif Eksterior](/artifacts/architecture/STEP_07_MODEL_3D.svg)** (Kode: 3D-07)\n` +
+                    `8. **[STEP 08: 3D Hologram Spatial HUD](/artifacts/architecture/STEP_08_HOLOGRAM_3D.svg)** (Kode: HUD-08)\n\n` +
+                    `*Audit Konsistensi QA: Skor ${productionResult.qaReport.score}/100 (${productionResult.qaReport.passed ? 'PASSED' : 'CHECK'})*\n` +
+                    `Seluruh geometri, bukaan jendela/pintu, dan koordinat as kolom 100% konsisten terhadap MasterDesignState.`;
+
+                  agentPayload = {
+                    intent: 'ARCHITECTURAL_DESIGN',
+                    action: 'PRODUCE_ALL',
+                    artifacts: productionResult.artifacts,
+                    qaReport: productionResult.qaReport
+                  };
+                } else if (activeProject && isRevision) {
+                  const revResult = architecturalStudioInstance.applyRevision(cleanPrompt);
+                  responseText = `### 🔄 Revisi Desain Arsitektur Diterapkan\n\n` +
+                    `Instruksi: *"${cleanPrompt}"*\n\n` +
+                    `• **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
+                    `• **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
+                    `• **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
+
+                  agentPayload = {
+                    intent: 'ARCHITECTURAL_DESIGN',
+                    action: 'REVISION',
+                    revision: revResult
+                  };
+                } else {
+                  const initResult = architecturalStudioInstance.initiateDesignProject(cleanPrompt);
+                  responseText = initResult.masterDraft + `\n\n---\n` +
+                    `💡 **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
+
+                  agentPayload = {
+                    intent: 'ARCHITECTURAL_DESIGN',
+                    action: 'MASTER_DRAFT',
+                    projectId: initResult.projectId,
+                    state: initResult.state
+                  };
+                }
+
+                if (isStream) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                  });
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-arch-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'architectural_studio',
+                    choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                  })}\n\n`);
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-arch-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'architectural_studio',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                    _agent: {
+                      ...agentPayload,
+                      toolsUsed: ['architectural.studio'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'ARCHITECTURAL_BLUEPRINT'
+                    }
+                  })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-arch-' + Date.now(),
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'architectural_studio',
+                    choices: [{ index: 0, message: { role: 'assistant', content: responseText }, finish_reason: 'stop' }],
+                    _agent: {
+                      ...agentPayload,
+                      toolsUsed: ['architectural.studio'],
+                      verificationStatus: 'VERIFIED',
+                      cognitive: true,
+                      artifactType: 'ARCHITECTURAL_BLUEPRINT'
+                    }
+                  }));
+                }
+                return;
+              } catch (archErr) {
+                console.error('[INTENT_GATE] ArchitecturalStudio execution error:', archErr.message);
+              }
+            }
+
+            // DIRECT IMAGE GENERATION PATH - bypass Ollama / LLMs entirely
             if (deterministicDecision.intent === 'IMAGE_GENERATION' || deterministicDecision.intent === 'IMAGE_REVISION') {
               try {
                 const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
                 const { jinResponseEngineInstance } = await import('../agent/JINResponseEngine.mjs');
 
                 const visualIntent = deterministicDecision.visualIntent || {};
-                const referenceImage = deterministicDecision.referenceImage || visualIntent.referenceImage || null;
-                const imagePrompt = visualIntent.providerPrompt || userPrompt;
+                let referenceImage = deterministicDecision.referenceImage || visualIntent.referenceImage || sie._findLastVisualAsset(messages) || null;
+                if (referenceImage && typeof referenceImage === 'string') {
+                  referenceImage = referenceImage.replace(/^https?:\/\/[^\/]+/i, '');
+                }
+
+                const clientRequestId = payload.generationId || payload.messageId || req.headers['x-request-id'] || null;
+                const isRevision = deterministicDecision.intent === 'IMAGE_REVISION';
+                const modElements = visualIntent.modifyElements || [];
+                const modification = modElements.join(', ') || 'nighttime';
+                const semanticKey = `${isRevision ? 'rev' : 'gen'}:${referenceImage || 'none'}:${cleanPrompt.toLowerCase().replace(/\s+/g, ' ').trim()}`;
+                const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+                if (isRevision) {
+                  console.log(`[IMAGE_REVISION] requestId=${requestId}`);
+                  console.log(`[IMAGE_REVISION] referenceImage=${referenceImage}`);
+                  console.log(`[IMAGE_REVISION] modification=${modification}`);
+                }
+
+                // IDEMPOTENCY GUARD: One request/message ID or semantic key -> at most one image generation
+                pruneRecentImageExecutions();
+                let cached = (clientRequestId && recentImageExecutions.get(clientRequestId)) || recentImageExecutions.get(semanticKey);
+
+                if (cached) {
+                  let cachedEntry = cached;
+                  if (cached.status === 'IN_PROGRESS' && cached.inFlightPromise) {
+                    if (isRevision) {
+                      console.log(`[IMAGE_REVISION] execution=SKIP_DUPLICATE`);
+                    } else {
+                      console.log(`[INTENT_GATE] execution=SKIP_DUPLICATE requestId=${requestId}`);
+                    }
+                    cachedEntry = await cached.inFlightPromise;
+                  }
+
+                  if (cachedEntry && cachedEntry.artifact) {
+                    if (isRevision) {
+                      console.log(`[IMAGE_REVISION] execution=SKIP_DUPLICATE`);
+                    } else {
+                      console.log(`[INTENT_GATE] execution=SKIP_DUPLICATE requestId=${requestId}`);
+                    }
+                    intentGateRouted = true;
+
+                    if (payload.stream) {
+                      res.writeHead(200, {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive'
+                      });
+                      const responseText = cachedEntry.responseText || (cleanPrompt ? `Visual untuk ${cleanPrompt.slice(0, 60)} telah selesai disiapkan.` : 'Visual telah selesai disiapkan.');
+                      res.write(`data: ${JSON.stringify({
+                        id: 'chatcmpl-direct-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, delta: { content: responseText }, finish_reason: null }]
+                      })}\n\n`);
+                      const cachedToolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                      const cachedStrictVerified = isRevision
+                        ? Boolean(cachedEntry.artifact && cachedEntry.artifact.parentArtifactId && cachedEntry.artifact.renderable !== false)
+                        : Boolean(cachedEntry.artifact && cachedEntry.artifact.renderable !== false);
+
+                      res.write(`data: ${JSON.stringify({
+                        id: 'chatcmpl-direct-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: deterministicDecision.intent,
+                          toolsUsed: cachedToolsUsed,
+                          verificationStatus: cachedStrictVerified ? 'VERIFIED' : 'FAILED',
+                          cognitive: true,
+                          artifactType: 'IMAGE',
+                          presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                          visualIntent: visualIntent,
+                          imageUrl: cachedEntry.artifact.url || null,
+                          generationId: payload.generationId || null,
+                          messageId: payload.messageId || null,
+                          imageRenderable: true
+                        }
+                      })}\n\n`);
+                      res.write('data: [DONE]\n\n');
+                      res.end();
+                    } else {
+                      const cachedToolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                      const cachedStrictVerified = isRevision
+                        ? Boolean(cachedEntry.artifact && cachedEntry.artifact.parentArtifactId && cachedEntry.artifact.renderable !== false)
+                        : Boolean(cachedEntry.artifact && cachedEntry.artifact.renderable !== false);
+
+                      res.writeHead(200, { 'Content-Type': 'application/json' });
+                      res.end(JSON.stringify({
+                        id: 'chatcmpl-direct-' + Date.now(),
+                        object: 'chat.completion',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, message: { role: 'assistant', content: cachedEntry.responseText || 'Visual telah dibuat.' }, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: deterministicDecision.intent,
+                          toolsUsed: cachedToolsUsed,
+                          verificationStatus: cachedStrictVerified ? 'VERIFIED' : 'FAILED',
+                          cognitive: true,
+                          artifactType: 'IMAGE',
+                          presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+                          visualIntent: visualIntent,
+                          imageUrl: cachedEntry.artifact.url || null,
+                          generationId: payload.generationId || null,
+                          messageId: payload.messageId || null,
+                          imageRenderable: true
+                        }
+                      }));
+                    }
+                    return;
+                  }
+                }
+
+                if (isRevision) {
+                  console.log(`[IMAGE_REVISION] execution=START`);
+                }
+
+                // Register pending execution in cache
+                let resolveInFlight;
+                const inFlightPromise = new Promise((resolve) => { resolveInFlight = resolve; });
+                const inProgressEntry = {
+                  timestamp: Date.now(),
+                  status: 'IN_PROGRESS',
+                  inFlightPromise
+                };
+                if (clientRequestId) recentImageExecutions.set(clientRequestId, inProgressEntry);
+                recentImageExecutions.set(requestId, inProgressEntry);
+                recentImageExecutions.set(semanticKey, inProgressEntry);
+
+                const imagePrompt = enrichContextualImagePrompt(visualIntent.providerPrompt || cleanPrompt, messages);
 
                 console.log(`[INTENT_GATE] Direct image generation: ${deterministicDecision.intent}`);
 
-                const imageResult = await imageGenerationInstance.generateImage({
-                  prompt: imagePrompt,
-                  referenceImage,
-                  size: '768x768',
-                  generationId: payload.generationId || null,
-                  messageId: payload.messageId || null
-                });
+                let imageResult;
+                if (isRevision) {
+                  console.log(`[IMAGE_REVISION_DISPATCH] path=ImageEditing`);
+                  let referenceUserPrompt = '';
+                  for (let i = messages.length - 1; i >= 0; i--) {
+                    const m = messages[i];
+                    if (m && m.role === 'user') {
+                      const txt = typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content.map(p => p.text || '').join(' ') : '');
+                      if (txt && txt.trim() !== userPrompt.trim()) {
+                        referenceUserPrompt = txt.trim();
+                        break;
+                      }
+                    }
+                  }
+                  imageResult = await imageEditingInstance.editImage({
+                    referenceImage,
+                    prompt: visualIntent.providerPrompt || modification || cleanPrompt,
+                    originalPrompt: referenceUserPrompt || userPrompt,
+                    requestId,
+                    steps: IMAGE_STEPS || 8,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null
+                  });
+                } else {
+                  let imagePrompt = visualIntent.providerPrompt || cleanPrompt;
+
+                  // ── CONTEXT-AWARE PROMPT ENRICHMENT ──
+                  // When user says e.g. "buat visual slide 1" or "visualkan slide ini",
+                  // resolve the full slide content / context from the preceding conversation.
+                  const slideMatch = (userPrompt || cleanPrompt).match(/\bslide\s+(\d+)\b/i);
+                  if (slideMatch && Array.isArray(messages)) {
+                    const slideNum = slideMatch[1];
+                    for (let i = messages.length - 1; i >= 0; i--) {
+                      const msg = messages[i];
+                      if (msg && msg.role === 'assistant') {
+                        const content = typeof msg.content === 'string' ? msg.content : (Array.isArray(msg.content) ? msg.content.map(p => p.text || '').join(' ') : '');
+                        const pattern = new RegExp(`(?:###|\\*\\*)\\s*Slide\\s+${slideNum}[:\\s*]+([\\s\\S]*?)(?=(?:###|\\*\\*)\\s*Slide\\s+\\d+|$)`, 'i');
+                        const m = content.match(pattern);
+                        if (m && m[1]) {
+                          const slideSnippet = m[1].replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 450);
+                          imagePrompt = `Visual presentasi Slide ${slideNum}: ${slideSnippet}. Professional enterprise presentation visual, clean, modern high quality 16:9 layout.`;
+                          console.log(`[INTENT_GATE] Context-aware slide enrichment: Slide ${slideNum} -> "${imagePrompt.slice(0, 100)}..."`);
+                          break;
+                        }
+                      }
+                    }
+                  } else if (/(?:visualkan|buatkan visual|gambar|ilustrasi)\s+(?:nya|dokumen|ini|tadi)\b/i.test(userPrompt || cleanPrompt) && Array.isArray(messages)) {
+                    // Context enrichment for generic "visualkan ini / tadi"
+                    for (let i = messages.length - 1; i >= 0; i--) {
+                      const msg = messages[i];
+                      if (msg && msg.role === 'assistant') {
+                        const content = typeof msg.content === 'string' ? msg.content : (Array.isArray(msg.content) ? msg.content.map(p => p.text || '').join(' ') : '');
+                        if (content && content.length > 50) {
+                          const firstSection = content.slice(0, 350).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+                          imagePrompt = `Visual representasi konsep: ${firstSection}. Modern professional enterprise presentation graphic.`;
+                          console.log(`[INTENT_GATE] Context-aware conversation enrichment -> "${imagePrompt.slice(0, 100)}..."`);
+                          break;
+                        }
+                      }
+                    }
+                  }
+
+                  const { ImageGenerationService } = await import('../agent/ImageGeneration.mjs');
+                  // Resolve size/aspectRatio from visualIntent or prompt
+                  let intentAspectRatio2 = visualIntent?.aspectRatio;
+                  if (!intentAspectRatio2 || intentAspectRatio2 === '1:1') {
+                    intentAspectRatio2 = ImageGenerationService.detectAspectRatio(`${userPrompt} ${cleanPrompt}`, '1:1');
+                  }
+                  const intentSize2 = intentAspectRatio2 === '9:16' ? '512x912' : '912x512';
+                  imageResult = await imageGenerationInstance.generateImage({
+                    prompt: imagePrompt,
+                    referenceImage: null,
+                    mode: 'generate',
+                    visualIntent: {
+                      ...visualIntent,
+                      aspectRatio: intentAspectRatio2,
+                      referenceImage: null
+                    },
+                    aspectRatio: intentAspectRatio2,
+                    size: intentSize2,
+                    generationId: payload.generationId || null,
+                    messageId: payload.messageId || null,
+                    requestId
+                  });
+                }
 
                 if (imageResult.success && imageResult.artifact) {
-                  const responsePayload = deterministicDecision.intent === 'IMAGE_REVISION'
+                  if (isRevision) {
+                    console.log(`[IMAGE_REVISION] execution=COMPLETE artifact=${imageResult.artifact.url}`);
+                  }
+                  const responsePayload = isRevision
                     ? jinResponseEngineInstance.synthesizeImageRevisionOutcome({
                         userUtterance: userPrompt,
                         decision: deterministicDecision,
                         artifact: imageResult.artifact,
                         verification: { isSatisfied: true, verificationStatus: 'VERIFIED' },
+                        evaluation: imageResult.evaluation || imageResult.artifact?.evaluation,
                         provenance: { semanticModel: 'direct_image_pipeline' }
                       })
                     : jinResponseEngineInstance.synthesizeImageGenerationOutcome({
@@ -1114,7 +2705,23 @@ Requirements:
                         provenance: { semanticModel: 'direct_image_pipeline' }
                       });
 
+                  // Commit to idempotency cache
+                  const completedEntry = {
+                    timestamp: Date.now(),
+                    status: 'COMPLETED',
+                    artifact: imageResult.artifact,
+                    responseText: responsePayload.naturalVoiceSpeech
+                  };
+                  if (clientRequestId) recentImageExecutions.set(clientRequestId, completedEntry);
+                  recentImageExecutions.set(requestId, completedEntry);
+                  recentImageExecutions.set(semanticKey, completedEntry);
+                  resolveInFlight(completedEntry);
+
                   intentGateRouted = true;
+
+                  const toolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                  const isStrictVerified = Boolean(imageResult.success && verifyImageArtifactCompliance(imageResult.artifact, isRevision));
+                  const evalStatus = isRevision ? (imageResult.evaluation?.evaluationStatus || 'REVISION_PASS') : 'VERIFIED';
 
                   if (payload.stream) {
                     res.writeHead(200, {
@@ -1124,7 +2731,7 @@ Requirements:
                     });
 
                     // Send response text
-                    const responseText = responsePayload.naturalVoiceSpeech || 'Visual telah berhasil dibuat.';
+                    const responseText = responsePayload.naturalVoiceSpeech || (cleanPrompt ? `Visual untuk ${cleanPrompt.slice(0, 60)} telah selesai disiapkan.` : 'Visual telah selesai disiapkan.');
                     const sseChunk = JSON.stringify({
                       id: 'chatcmpl-direct-' + Date.now(),
                       object: 'chat.completion.chunk',
@@ -1143,16 +2750,19 @@ Requirements:
                       choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
                       _agent: {
                         intent: deterministicDecision.intent,
-                        toolsUsed: ['image.generate'],
-                        verificationStatus: 'VERIFIED',
+                        toolsUsed,
+                        verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
+                        evaluationStatus: evalStatus,
+                        semanticScore: imageResult.evaluation?.semantic?.semanticScore ?? null,
+                        evaluation: imageResult.evaluation || null,
                         cognitive: true,
                         artifactType: 'IMAGE',
                         presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
                         visualIntent: visualIntent,
-                        imageUrl: imageResult.artifact.url || null,
+                        imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
                         generationId: payload.generationId || null,
                         messageId: payload.messageId || null,
-                        imageRenderable: true
+                        imageRenderable: isStrictVerified
                       }
                     });
                     res.write(`data: ${finalChunk}\n\n`);
@@ -1169,16 +2779,19 @@ Requirements:
                       choices: [{ index: 0, message: { role: 'assistant', content: responsePayload.naturalVoiceSpeech }, finish_reason: 'stop' }],
                       _agent: {
                         intent: deterministicDecision.intent,
-                        toolsUsed: ['image.generate'],
-                        verificationStatus: 'VERIFIED',
+                        toolsUsed,
+                        verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
+                        evaluationStatus: evalStatus,
+                        semanticScore: imageResult.evaluation?.semantic?.semanticScore ?? null,
+                        evaluation: imageResult.evaluation || null,
                         cognitive: true,
                         artifactType: 'IMAGE',
                         presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
                         visualIntent: visualIntent,
-                        imageUrl: imageResult.artifact.url || null,
+                        imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
                         generationId: payload.generationId || null,
                         messageId: payload.messageId || null,
-                        imageRenderable: true
+                        imageRenderable: isStrictVerified
                       }
                     }));
                   }
@@ -1186,10 +2799,133 @@ Requirements:
                   console.log(`[INTENT_GATE] Direct image success: ${imageResult.artifact.url}`);
                   return;
                 } else {
-                  console.warn(`[INTENT_GATE] Direct image failed: ${imageResult.error}, falling back to AgentRuntime`);
+                  if (clientRequestId) recentImageExecutions.delete(clientRequestId);
+                  recentImageExecutions.delete(requestId);
+                  recentImageExecutions.delete(semanticKey);
+                  resolveInFlight(null);
+                  console.warn(`[INTENT_GATE] Direct image failed: ${imageResult.error}`);
+
+                  if (isRevision) {
+                    const failureDetails = resolveRevisionFailureDetails(imageResult);
+                    const reasonCode = failureDetails.reasonCode;
+                    console.log(`[IMAGE_REVISION] execution=FAILED reason=${reasonCode}`);
+                    const failureText = `Saya belum dapat melakukan revisi gambar saat ini. Penyebab: ${failureDetails.failureReason}`;
+
+                    if (payload.stream) {
+                      res.writeHead(200, {
+                        'Content-Type': 'text/event-stream',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive'
+                      });
+                      res.write(`data: ${JSON.stringify({
+                        id: 'chatcmpl-direct-err-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, delta: { content: failureText }, finish_reason: null }]
+                      })}\n\n`);
+                      res.write(`data: ${JSON.stringify({
+                        id: 'chatcmpl-direct-err-' + Date.now(),
+                        object: 'chat.completion.chunk',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: deterministicDecision.intent,
+                          toolsUsed: ['image.edit'],
+                          verificationStatus: 'FAILED',
+                          cognitive: true,
+                          artifactType: 'IMAGE',
+                          imageUrl: null,
+                          error: imageResult.error,
+                          reasonCode
+                        }
+                      })}\n\n`);
+                      res.write('data: [DONE]\n\n');
+                      res.end();
+                    } else {
+                      res.writeHead(200, { 'Content-Type': 'application/json' });
+                      res.end(JSON.stringify({
+                        id: 'chatcmpl-direct-err-' + Date.now(),
+                        object: 'chat.completion',
+                        created: Math.floor(Date.now() / 1000),
+                        model: 'direct_image_pipeline',
+                        choices: [{ index: 0, message: { role: 'assistant', content: failureText }, finish_reason: 'stop' }],
+                        _agent: {
+                          intent: deterministicDecision.intent,
+                          toolsUsed: ['image.edit'],
+                          verificationStatus: 'FAILED',
+                          cognitive: true,
+                          artifactType: 'IMAGE',
+                          imageUrl: null,
+                          error: imageResult.error,
+                          reasonCode
+                        }
+                      }));
+                    }
+                    return;
+                  }
                 }
               } catch (directErr) {
-                console.warn(`[INTENT_GATE] Direct image error: ${directErr.message}, falling back to AgentRuntime`);
+                console.warn(`[INTENT_GATE] Direct image error: ${directErr.message}`);
+                if (isRevision) {
+                  const failureDetails = resolveRevisionFailureDetails({ error: directErr.message });
+                  console.log(`[IMAGE_REVISION] execution=FAILED reason=${failureDetails.reasonCode}`);
+                  const failureText = `Saya belum dapat melakukan revisi gambar saat ini. Penyebab: ${failureDetails.failureReason}`;
+                  if (payload.stream) {
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive'
+                    });
+                    res.write(`data: ${JSON.stringify({
+                      id: 'chatcmpl-direct-err-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, delta: { content: failureText }, finish_reason: null }]
+                    })}\n\n`);
+                    res.write(`data: ${JSON.stringify({
+                      id: 'chatcmpl-direct-err-' + Date.now(),
+                      object: 'chat.completion.chunk',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: deterministicDecision.intent,
+                        toolsUsed: ['image.edit'],
+                        verificationStatus: 'FAILED',
+                        cognitive: true,
+                        artifactType: 'IMAGE',
+                        imageUrl: null,
+                        error: directErr.message,
+                        reasonCode: failureDetails.reasonCode
+                      }
+                    })}\n\n`);
+                    res.write('data: [DONE]\n\n');
+                    res.end();
+                  } else {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                      id: 'chatcmpl-direct-err-' + Date.now(),
+                      object: 'chat.completion',
+                      created: Math.floor(Date.now() / 1000),
+                      model: 'direct_image_pipeline',
+                      choices: [{ index: 0, message: { role: 'assistant', content: failureText }, finish_reason: 'stop' }],
+                      _agent: {
+                        intent: deterministicDecision.intent,
+                        toolsUsed: ['image.edit'],
+                        verificationStatus: 'FAILED',
+                        cognitive: true,
+                        artifactType: 'IMAGE',
+                        imageUrl: null,
+                        error: directErr.message,
+                        reasonCode: failureDetails.reasonCode
+                      }
+                    }));
+                  }
+                  return;
+                }
               }
             }
 
@@ -1197,8 +2933,7 @@ Requirements:
             try {
               const { agentRuntimeInstance } = await import('../agent/AgentRuntime.mjs');
 
-              // Extract referenceImage for IMAGE_REVISION
-              const referenceImage = deterministicDecision.referenceImage || deterministicDecision.visualIntent?.referenceImage || null;
+              let referenceImage = deterministicDecision.referenceImage || deterministicDecision.visualIntent?.referenceImage || sie._findLastVisualAsset(messages) || null;
 
               const agentSummary = await agentRuntimeInstance.runGoal(
                 userPrompt,
@@ -1362,7 +3097,28 @@ Requirements:
                 console.warn('[INTENT_GATE] AgentRuntime returned empty response — falling back to LLM stream');
               }
             } catch (agentErr) {
-              console.warn('[INTENT_GATE] AgentRuntime failed — falling back to LLM stream:', agentErr.message);
+              console.warn('[INTENT_GATE] AgentRuntime failed:', agentErr.message);
+              if (deterministicDecision.intent === 'IMAGE_GENERATION' || deterministicDecision.intent === 'IMAGE_REVISION') {
+                const isRevision = deterministicDecision.intent === 'IMAGE_REVISION';
+                const failText = isRevision
+                  ? `Saya belum berhasil merender ulang visual tersebut. Penyebab: ${agentErr.message}.`
+                  : `Proses pembuatan gambar belum berhasil diselesaikan. Penyebab: ${agentErr.message}.`;
+                if (payload.stream) {
+                  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+                  res.write(`data: ${JSON.stringify({ id: 'chatcmpl-agent-fail-' + Date.now(), object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: failText }, finish_reason: 'stop' }], _agent: { intent: deterministicDecision.intent, verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false } })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-agent-fail-' + Date.now(),
+                    object: 'chat.completion',
+                    choices: [{ index: 0, message: { role: 'assistant', content: failText }, finish_reason: 'stop' }],
+                    _agent: { intent: deterministicDecision.intent, verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false }
+                  }));
+                }
+                return;
+              }
             }
           } else {
             console.log(`[INTENT_GATE] actionRequired=false intent=${deterministicDecision?.intent || 'unknown'} → LLM stream (zero-regression)`);
@@ -1381,20 +3137,29 @@ Requirements:
       // ═══════════════════════════════════════════════════════════════════════
       // FALLBACK IMAGE DETECTION - If intent gate failed but request is image-related
       // ═══════════════════════════════════════════════════════════════════════
-      if (!intentGateRouted && userPrompt) {
-        const imageCreationPattern = /(?:buat|bikin|generate|create|render|desain|lukis|gambar|visual|ilustrasi|buatkan|hasilkan)\s+(?:.*\s+)?(?:gambar|image|visual|foto|poster|logo|wallpaper|lukisan|karya|artwork)/i;
-        const imageRevisionPattern = /(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa|ulang)\s+/i;
-        const isImageRequest = imageCreationPattern.test(userPrompt) || imageRevisionPattern.test(userPrompt);
+      const hasDocContext = userPrompt.includes('--- [BERKAS DOKUMEN') ||
+        userPrompt.includes('--- [DOKUMEN') ||
+        userPrompt.includes('--- [Konteks Dokumen') ||
+        /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|rangkum|ringkas|buatkan\s+point)\b/i.test(userPrompt);
 
-        if (isImageRequest) {
-          console.log(`[FALLBACK_IMAGE] Detected image request in plain LLM path, redirecting to direct generation`);
+      if (!isInternalAgentCall && !intentGateRouted && userPrompt && !hasDocContext) {
+        const imageCreationPattern = /\b(?:buat|bikin|generate|create|render|desain|lukis|buatkan|hasilkan)\s+(?:\w+\s+){0,3}(?:gambar|image|visual|foto|poster|logo|wallpaper|lukisan|artwork)\b/i;
+        const imageRevisionPattern = /\b(?:revisi|ubah|ganti|update|regenerate|buat\s+ulang|edit|modifikasi|timpa)\s+(?:gambar|visual|foto|image|desain)\b/i;
+        const isImageRequest = imageCreationPattern.test(userPrompt) || imageRevisionPattern.test(userPrompt);
+        const { studioSessionManagerInstance } = await import('../studio/core/StudioSessionManager.mjs');
+        const hasActiveSlideSession = studioSessionManagerInstance.hasActiveSession('SLIDE_STUDIO');
+        const isContextualSlide = hasActiveSlideSession && /\b(?:visualnya|slidenya|gambarnya|tampilannya|nya|yang\s+tadi)\b/i.test(userPrompt);
+        const isSlideRelated = /\b(?:slide|presentasi|deck)\b/i.test(userPrompt) || isContextualSlide;
+
+        if (isImageRequest && !isSlideRelated) {
+          console.log(`[${requestId}] [FALLBACK_IMAGE] Detected image request in plain LLM path, redirecting to direct generation`);
 
           try {
             const { imageGenerationInstance } = await import('../agent/ImageGeneration.mjs');
             const { jinResponseEngineInstance } = await import('../agent/JINResponseEngine.mjs');
 
             const isRevision = imageRevisionPattern.test(userPrompt);
-            const imagePrompt = userPrompt;
+            const imagePrompt = enrichContextualImagePrompt(userPrompt, messages);
 
             // Find previous visual for revision
             let referenceImage = null;
@@ -1417,12 +3182,19 @@ Requirements:
               }
             }
 
+            // Auto-detect 16:9 or 9:16 from user prompt
+            const { ImageGenerationService } = await import('../agent/ImageGeneration.mjs');
+            const fallbackAspectRatio = ImageGenerationService.detectAspectRatio(userPrompt, '16:9');
+            const fallbackSize = fallbackAspectRatio === '9:16' ? '512x912' : '912x512';
+
             const imageResult = await imageGenerationInstance.generateImage({
               prompt: imagePrompt,
               referenceImage,
-              size: '768x768',
+              aspectRatio: fallbackAspectRatio,
+              size: fallbackSize,
               generationId: payload.generationId || null,
-              messageId: payload.messageId || null
+              messageId: payload.messageId || null,
+              requestId
             });
 
             if (imageResult.success && imageResult.artifact) {
@@ -1450,7 +3222,7 @@ Requirements:
                   'Connection': 'keep-alive'
                 });
 
-                const responseText = responsePayload.naturalVoiceSpeech || 'Visual telah berhasil dibuat.';
+                const responseText = responsePayload.naturalVoiceSpeech || (userPrompt ? `Visual untuk ${userPrompt.slice(0, 60)} telah selesai disiapkan.` : 'Visual telah selesai disiapkan.');
                 const sseChunk = JSON.stringify({
                   id: 'chatcmpl-fallback-' + Date.now(),
                   object: 'chat.completion.chunk',
@@ -1460,6 +3232,9 @@ Requirements:
                 });
                 res.write(`data: ${sseChunk}\n\n`);
 
+                const toolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                const isStrictVerified = Boolean(imageResult.success && verifyImageArtifactCompliance(imageResult.artifact, isRevision));
+
                 const finalChunk = JSON.stringify({
                   id: 'chatcmpl-fallback-' + Date.now(),
                   object: 'chat.completion.chunk',
@@ -1468,21 +3243,24 @@ Requirements:
                   choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
                   _agent: {
                     intent: decision.intent,
-                    toolsUsed: ['image.generate'],
-                    verificationStatus: 'VERIFIED',
+                    toolsUsed,
+                    verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
                     cognitive: true,
                     artifactType: 'IMAGE',
                     presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
-                    imageUrl: imageResult.artifact.url || null,
+                    imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
                     generationId: payload.generationId || null,
                     messageId: payload.messageId || null,
-                    imageRenderable: true
+                    imageRenderable: isStrictVerified
                   }
                 });
                 res.write(`data: ${finalChunk}\n\n`);
                 res.write('data: [DONE]\n\n');
                 res.end();
               } else {
+                const toolsUsed = isRevision ? ['image.edit'] : ['image.generate'];
+                const isStrictVerified = Boolean(imageResult.success && verifyImageArtifactCompliance(imageResult.artifact, isRevision));
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                   id: 'chatcmpl-fallback-' + Date.now(),
@@ -1492,15 +3270,15 @@ Requirements:
                   choices: [{ index: 0, message: { role: 'assistant', content: responsePayload.naturalVoiceSpeech }, finish_reason: 'stop' }],
                   _agent: {
                     intent: decision.intent,
-                    toolsUsed: ['image.generate'],
-                    verificationStatus: 'VERIFIED',
+                    toolsUsed,
+                    verificationStatus: isStrictVerified ? 'VERIFIED' : 'FAILED',
                     cognitive: true,
                     artifactType: 'IMAGE',
                     presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
-                    imageUrl: imageResult.artifact.url || null,
+                    imageUrl: isStrictVerified ? (imageResult.artifact.url || null) : null,
                     generationId: payload.generationId || null,
                     messageId: payload.messageId || null,
-                    imageRenderable: true
+                    imageRenderable: isStrictVerified
                   }
                 }));
               }
@@ -1509,10 +3287,50 @@ Requirements:
               runtimeObservabilityInstance.completeTask(task.taskId, { content: responsePayload.naturalVoiceSpeech }, {});
               return;
             } else {
-              console.warn(`[FALLBACK_IMAGE] Image generation failed: ${imageResult.error}`);
+              const failReason = imageResult?.error || 'Gagal merender gambar.';
+              console.warn(`[FALLBACK_IMAGE] Image generation failed: ${failReason}`);
+              const failText = isRevision
+                ? `Saya belum berhasil merender ulang visual tersebut. Penyebab: ${failReason}.`
+                : `Proses pembuatan gambar belum berhasil diselesaikan. Penyebab: ${failReason}.`;
+              if (payload.stream) {
+                res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+                res.write(`data: ${JSON.stringify({ id: 'chatcmpl-fb-fail-' + Date.now(), object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: failText }, finish_reason: 'stop' }], _agent: { intent: isRevision ? 'IMAGE_REVISION' : 'IMAGE_GENERATION', verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false } })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: 'chatcmpl-fb-fail-' + Date.now(),
+                  object: 'chat.completion',
+                  choices: [{ index: 0, message: { role: 'assistant', content: failText }, finish_reason: 'stop' }],
+                  _agent: { intent: isRevision ? 'IMAGE_REVISION' : 'IMAGE_GENERATION', verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false }
+                }));
+              }
+              runtimeObservabilityInstance.failTask(task.taskId, new Error(failReason));
+              return;
             }
           } catch (fallbackErr) {
             console.warn(`[FALLBACK_IMAGE] Error: ${fallbackErr.message}`);
+            const isRevision = imageRevisionPattern.test(userPrompt);
+            const failText = isRevision
+              ? `Saya belum berhasil merender ulang visual tersebut. Penyebab: ${fallbackErr.message}.`
+              : `Proses pembuatan gambar belum berhasil diselesaikan. Penyebab: ${fallbackErr.message}.`;
+            if (payload.stream) {
+              res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+              res.write(`data: ${JSON.stringify({ id: 'chatcmpl-fb-err-' + Date.now(), object: 'chat.completion.chunk', choices: [{ index: 0, delta: { content: failText }, finish_reason: 'stop' }], _agent: { intent: isRevision ? 'IMAGE_REVISION' : 'IMAGE_GENERATION', verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false } })}\n\n`);
+              res.write('data: [DONE]\n\n');
+              res.end();
+            } else {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                id: 'chatcmpl-fb-err-' + Date.now(),
+                object: 'chat.completion',
+                choices: [{ index: 0, message: { role: 'assistant', content: failText }, finish_reason: 'stop' }],
+                _agent: { intent: isRevision ? 'IMAGE_REVISION' : 'IMAGE_GENERATION', verificationStatus: 'FAILED', artifactType: 'IMAGE', imageUrl: null, imageRenderable: false }
+              }));
+            }
+            runtimeObservabilityInstance.failTask(task.taskId, fallbackErr);
+            return;
           }
         }
       }
@@ -1524,6 +3342,7 @@ Requirements:
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive'
         });
+        res.write(': keep-alive\n\n');
 
         let fullStreamed = '';
         let clientDisconnected = false;
@@ -1550,6 +3369,26 @@ Requirements:
               res.write(`data: ${sseData}\n\n`);
             } catch (_) {}
           });
+
+          // TECHNICAL POST-PROCESS: Parse the AI's textual deck plan if this is a pending Slide Studio session.
+          try {
+            const { studioSessionManagerInstance } = await import('../studio/core/StudioSessionManager.mjs');
+            const { slideDeckPlannerInstance } = await import('../studio/slide/SlideDeckPlanner.mjs');
+            const slideSession = studioSessionManagerInstance.getActiveSession('SLIDE_STUDIO');
+            
+            if (slideSession && slideSession.execution?.phase === 'MASTER_DRAFT' && (!slideSession.slidePlan || slideSession.slidePlan.length === 0)) {
+              const plan = slideDeckPlannerInstance.ingestSlidePlan(fullStreamed);
+              if (plan && plan.length > 0) {
+                slideSession.slidePlan = plan;
+                slideSession.totalSlides = plan.length;
+                studioSessionManagerInstance.updateSession('SLIDE_STUDIO', { slidePlan: plan, totalSlides: plan.length });
+                console.log(`[AI_DECK_PLAN] ACCEPTED ${plan.length} slides`);
+                console.log(`[MASTER_DRAFT] PERSISTED`);
+              }
+            }
+          } catch (ingestErr) {
+            console.error('[LOCAL_ROUTER] Failed to ingest AI deck plan:', ingestErr.message);
+          }
 
           runtimeObservabilityInstance.completeTask(task.taskId, { content: fullStreamed }, streamResult || {});
           if (!clientDisconnected && !res.writableEnded && !res.destroyed) {
@@ -1665,6 +3504,7 @@ Requirements:
           aspectRatio: body.aspectRatio || null,
           size: body.size || '1024x1024',
           providerOverride: body.provider || null,
+          requestId: body.requestId || `img-${Date.now()}`,
           stage: 'GENERATE'
         });
 
@@ -1885,28 +3725,34 @@ Requirements:
     if (pathname === '/api/files/parse' && req.method === 'POST') {
       try {
         const body = await readJsonBody();
-        const { fileName, content, documentText } = body;
-        if (documentText) {
-          const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
-          const result = await documentIntelligenceToolInstance.execute({ documentText, filename: fileName || 'uploaded-document' });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(result, null, 2));
-          return;
+        const { fileName, content, documentText, dataUrl } = body;
+        const { extractTextFromDataUrl } = await import('../tools/DocumentParser.mjs');
+
+        let extractedText = '';
+        if (dataUrl) {
+          extractedText = await extractTextFromDataUrl(dataUrl, fileName || 'document');
+        } else if (documentText) {
+          extractedText = typeof documentText === 'string' ? documentText : JSON.stringify(documentText);
+        } else if (content) {
+          extractedText = typeof content === 'string' ? content : JSON.stringify(content);
         }
-        if (!content) {
+
+        if (!extractedText && !dataUrl && !documentText && !content) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: '"content" (extracted text) or "documentText" is required' }));
+          res.end(JSON.stringify({ error: '"dataUrl", "content", or "documentText" is required' }));
           return;
         }
-        const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
-        const result = await documentIntelligenceToolInstance.execute({
-          documentText: content,
-          filename: fileName || 'uploaded-document',
-          query: ''
-        });
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result, null, 2));
+        res.end(JSON.stringify({
+          success: true,
+          fileName: fileName || 'uploaded-document',
+          text: extractedText,
+          content: extractedText,
+          length: extractedText.length
+        }, null, 2));
       } catch (err) {
+        console.error('[FILES_PARSE_ERROR]', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }

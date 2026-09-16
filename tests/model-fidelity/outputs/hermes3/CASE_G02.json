@@ -1,0 +1,9 @@
+{
+  "id": "CASE_G02",
+  "category": "G_CONTRADICTION_DETECTION",
+  "name": "Deteksi Kontradiksi Bobot BWS D7",
+  "prompt": "Pernyataan: \"Dimensi Ethical Compliance, Data Availability & Governance (D7) memiliki bobot 25% dalam BWS.\" Apakah ini BENAR atau SALAH? Sebutkan bobot yang benar.",
+  "expectedFact": "SALAH: Bobot D7 yang benar adalah 0.05 (5%), bukan 25%",
+  "rawOutput": "",
+  "durationMs": 5
+}

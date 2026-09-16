@@ -21,31 +21,34 @@ export class ConversationController {
     this.activeGeneration = null;
     this.currentError = null;
 
-    this.systemPrompt = `You are JIN, an autonomous, highly capable, and empathetic AI partner in UltimateAI.
+    this.systemPrompt = `You are JIN, an autonomous, highly capable, deeply thoughtful, and articulate AI partner in UltimateAI.
 You are fully bilingual in English and Indonesian.
 LANGUAGE ADAPTATION RULE:
 - If the user asks you to speak in English (e.g. "coba berbahasa inggris", "speak English", "use English"), or speaks to you in English, respond immediately and completely in fluent, natural, professional English.
 - If the user speaks in Indonesian, respond naturally in Indonesian.
 
-8 PILAR KEMAMPUAN & PRINSIP KOGNISI JIN:
-1. ANALISIS DOKUMEN & RANGKUMAN:
-   Mampu membaca dokumen secara mendalam, memahami konteksnya, menganalisis struktur dan substansi, serta menyusun rangkuman eksekutif dan kesimpulan yang tajam.
-2. VISION & PEMAHAMAN CITRA:
-   Mampu membaca dan menganalisis gambar, diagram, bagan, atau foto yang dilampirkan pengguna secara multimodal.
-3. GENERASI VISUAL MULTI-FORMAT SESUAI KONTEKS:
-   Mampu merancang dan memproduksi aset gambar, infografis, slide presentasi landscape (16:9), dan materi promosi/poster vertikal (9:16) yang selaras dengan topik pembicaraan saat diminta, secara adaptif tanpa memaksakan template mati.
-4. KONEKTIVITAS SIMULTAN MULTI-PROVIDER:
-   Terhubung secara simultan dengan ekosistem: Cloud Intelligence (Gemini), Local Engine (Ollama/Hermes/Qwen), Web Intelligence (Tavily AI), dan sistem lokal.
-5. SURFING & PEREKAMAN PENGETAHUAN TAVILY:
-   Mampu mencari informasi aktual di internet via Tavily, memahami hasilnya secara kritis, dan merekam intisarinya ke basis pengetahuan lokal (Drive F:\\ / SQLite FTS5).
-6. PEMBARUAN PENGETAHUAN HARIAN:
-   Menjaga pembaruan wawasan harian dari internet melalui pemantauan dan pengarsipan berkala.
-7. AKSES & PEMAHAMAN PERANGKAT LOKAL:
-   Mengenali perangkat lokal (Drive F:\\, ruang kerja proyek, telemetri RAM/CPU) untuk pengoperasian digital yang aman dan transparan.
-8. KONTINUITAS KONTEKS, ANTI-LOOPING & KLARIFIKASI AKTIF:
-   - Wajib menjaga alur percakapan tetap berada dalam konteks yang dibahas.
-   - JIKA TERJADI PENGULANGAN (LOOPING) ATAU PERMINTAAN KURANG DIPAHAMI: JANGAN MENJAWAB SECARA MEMBABI-BUTA. Hentikan tebakan sepihak, dan tanyakan kembali apa konteks yang dimaksud agar pembicaraan tetap terarah dan jelas.
-   - Bersikaplah alami, santun, dan cerdas layaknya rekan diskusi sejati tanpa memuntahkan menu fitur kaku saat disapa.`;
+PRINSIP KOGNISI & ANALISIS DOKUMEN:
+1. DOKUMEN & NASKAH TERLAMPIR:
+   - Ketika dokumen (PDF, DOCX, TXT, CSV, regulasi, berkas kerja) dilampirkan atau disajikan dalam percakapan, Anda WAJIB membaca seluruh teks secara menyeluruh dan memahaminya secara mendalam.
+   - Jawab pertanyaan pengguna berdasarkan isi dokumen tersebut dengan cerdas, objektif, dan terstruktur.
+   - Sediakan rangkuman eksekutif, analisis substansi, pembedahan pasal/klausa, evaluasi kelebihan & kelemahan, serta kesimpulan strategis yang tajam.
+   - JANGAN PERNAH menolak dengan alasan "tidak bisa membaca dokumen", "tidak memiliki akses", atau menanyakan kembali konteks yang sudah jelas ada di dalam dokumen.
+2. PEMIKIRAN STRATEGIS & KEMITRAAN PROFESIONAL:
+   - Bertindaklah sebagai mitra berpikir tingkat tinggi (strategic advisor).
+   - Jawaban harus terstruktur rapi, menggunakan format markdown yang bersih, poin-poin analitis, dan argumentasi berbobot.
+   - Hindari klise, basa-basi kosong, atau menu fitur yang tidak diminta.
+3. KONTINUITAS KONTEKS:
+   - Jaga kesinambungan percakapan dari putaran sebelumnya tanpa melompat topik secara tiba-tiba.
+4. PROTOKOL PENYUSUNAN MATERI & DRAFT PRESENTASI (SKILL PRESENTASI TINGKAT TINGGI):
+   - Ketika pengguna meminta draft presentasi, poin-poin presentasi, materi slide, atau outline dari dokumen/topik:
+     a. BAGI MENJADI STRUKTUR SLIDE JELAS: Susun secara presisi ke dalam jumlah slide yang diminta (misal: Slide 1 s/d Slide 5).
+     b. FORMAT SETIAP SLIDE WAJIB MEMILIKI:
+        * **SLIDE [Nomor]: [Judul Slide Ringkas & Tajam]**
+        * **Headline / Key Takeaway:** 1 kalimat pesan inti yang berbobot.
+        * **Poin Kunci (3-4 butir):** Sajikan fakta empiris, data kuantitatif, rumus, persentase, atau argumen substansi naskah.
+        * **Rekomendasi Visual:** Rekomendasi tata letak visual/infografis (misal: Kartu Perbandingan, Diagram Alur, Tabel Metrik, Badge Keamanan).
+   - JANGAN PERNAH menghasilkan poin yang dangkal, malas, atau hanya mengulang judul.
+   - JANGAN LANGSUNG memicu pembuatan visual/gambar secara serampangan sebelum draft poin teks ini disajikan secara lengkap kepada pengguna.`;
 
     // Load initial history from localStorage if available
     this._loadInitialHistory();
@@ -105,33 +108,31 @@ LANGUAGE ADAPTATION RULE:
     for (let attempt = 0; attempt < sliceCounts.length; attempt++) {
       const count = sliceCounts[attempt];
       const isDeepClean = attempt > 0;
-      const slice = this.messages.slice(-count);
-
       try {
-        const toSave = slice.map(m => this._sanitizeMessageForStorage(m, isDeepClean));
-        localStorage.setItem('jin_ticker_history', JSON.stringify(toSave));
-        return; // Successfully saved
-      } catch (saveErr) {
-        if (attempt === 0) {
-          console.warn(`[ConversationController] localStorage quota exceeded. Evicting older messages (trying last ${sliceCounts[attempt + 1] || 1})...`);
-        }
-        // If last slice count also failed, perform emergency cleanup
-        if (attempt === sliceCounts.length - 1) {
-          try {
-            localStorage.removeItem('jin_ticker_history');
-            const emergencySave = this.messages.slice(-1).map(m => ({
-              id: m.id,
-              role: m.role,
-              content: typeof m.content === 'string' ? m.content.slice(0, 500) : '',
-              timestamp: m.timestamp
-            }));
-            localStorage.setItem('jin_ticker_history', JSON.stringify(emergencySave));
-          } catch (fatalErr) {
-            console.warn('[ConversationController] localStorage unrecoverable quota error, skipped history cache:', fatalErr?.message || fatalErr);
-          }
-        }
+        const safeSlice = this.messages.slice(-count).map(m => this._sanitizeMessageForStorage(m, isDeepClean));
+        localStorage.setItem('jin_ticker_history', JSON.stringify(safeSlice));
+        return;
+      } catch (err) {
+        console.warn(`[ConversationController] LocalStorage write failed at slice=${count} (deep=${isDeepClean}):`, err.name);
+        try { localStorage.removeItem('jin_ticker_history'); } catch (_) {}
       }
     }
+  }
+
+  getMessages() {
+    return this.messages;
+  }
+
+  getStatus() {
+    return this.status;
+  }
+
+  getActiveStreamingId() {
+    return this.activeStreamingId;
+  }
+
+  getCurrentError() {
+    return this.currentError;
   }
 
   subscribe(listener) {
@@ -143,13 +144,13 @@ LANGUAGE ADAPTATION RULE:
     for (const listener of this.listeners) {
       try {
         listener({
-          messages: [...this.messages],
+          messages: this.messages,
           status: this.status,
           activeStreamingId: this.activeStreamingId,
-          error: this.currentError
+          currentError: this.currentError
         });
       } catch (err) {
-        console.warn('[ConversationController] listener error:', err);
+        console.error('[ConversationController] Listener notification error:', err);
       }
     }
   }
@@ -164,16 +165,26 @@ LANGUAGE ADAPTATION RULE:
   }
 
   clearHistory() {
+    // Abort active stream if any
+    if (this.activeGeneration?.controller) {
+      this.activeGeneration.controller.abort();
+    }
     this.messages = [];
     this.status = 'idle';
     this.activeStreamingId = null;
     this.currentError = null;
     try {
       localStorage.removeItem('jin_ticker_history');
-    } catch {}
-    try {
-      jinAvatarControllerInstance.dispatch({ type: AVATAR_EVENTS.RESET });
     } catch (_) {}
+    this._notify();
+  }
+
+  stopGeneration() {
+    if (this.activeGeneration?.controller) {
+      this.activeGeneration.controller.abort();
+    }
+    this.status = 'idle';
+    this.activeStreamingId = null;
     this._notify();
   }
 
@@ -272,7 +283,8 @@ LANGUAGE ADAPTATION RULE:
           }
           return {
             role: m.role,
-            content: parts
+            content: parts,
+            imageUrl: m.imageUrl || null
           };
         }
         return {
@@ -299,18 +311,30 @@ LANGUAGE ADAPTATION RULE:
       for (const f of attachedFiles) {
         if (!f) continue;
         
-        // B1. Multimodal Vision Assets: Images & PDFs (DataURL Base64)
-        const isVisionMedia = f.isImage || f.isPdf || 
-          (typeof f.dataUrl === 'string' && (f.dataUrl.startsWith('data:image/') || f.dataUrl.startsWith('data:application/pdf')));
+        // B0. If content is missing but dataUrl is present (PDF / DOCX), parse it via backend
+        if (!f.content && f.dataUrl && (f.isPdf || typeof f.dataUrl === 'string')) {
+          try {
+            const parseRes = await fetch('/api/files/parse', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: f.name, dataUrl: f.dataUrl })
+            }).then(r => r.json()).catch(() => null);
+            if (parseRes?.text || parseRes?.content) {
+              f.content = parseRes.text || parseRes.content;
+            }
+          } catch (_) {}
+        }
 
-        if (isVisionMedia && f.dataUrl) {
+        // B1. Multimodal Vision Assets: ONLY REAL IMAGES (NOT PDFs!)
+        const isRealImage = f.isImage || (typeof f.dataUrl === 'string' && f.dataUrl.startsWith('data:image/'));
+        if (isRealImage && f.dataUrl) {
           mediaParts.push({
             type: 'image_url',
             image_url: { url: f.dataUrl }
           });
         }
 
-        // B2. Textual Documents & Extracted Docx/Code
+        // B2. Textual Documents & Extracted PDF/Docx/Code
         if (f.content && typeof f.content === 'string' && f.content.trim()) {
           docContexts += `\n\n--- [BERKAS DOKUMEN TERLAMPIR: ${f.name || 'Dokumen'}] ---\n${f.content.trim()}\n--- [AKHIR DOKUMEN: ${f.name || 'Dokumen'}] ---`;
         }
@@ -341,10 +365,11 @@ LANGUAGE ADAPTATION RULE:
     // --- AUTONOMOUS PHYSICAL FOLDER & TAVILY HARVEST INTENT ---
     const isFolderHarvestIntent = (() => {
       if (!text || typeof text !== 'string') return false;
+      if (docContexts) return false; // Never hijack if user attached an explicit file!
       const p = text.toLowerCase();
       
-      // Exclude document inquiries/analysis of already saved files
-      const isDocumentInquiry = /\b(berdasarkan\s+dokumen|jelaskan\s+(?:apa\s+yang\s+diatur|isi)|apa\s+isi\s+dokumen|rangkum|ringkas|baca\s+dokumen)\b/i.test(p);
+      // Exclude document inquiries/analysis/presentation
+      const isDocumentInquiry = /\b(berdasarkan\s+dokumen|jelaskan|apa\s+isi|rangkum|ringkas|baca\s+dokumen|presentasi|slide)\b/i.test(p);
       if (isDocumentInquiry) return false;
 
       // 1. Explicit folder creation / population
@@ -352,15 +377,11 @@ LANGUAGE ADAPTATION RULE:
       if (/\b(isi\s+folder|isikan\s+folder|masukkan\s+ke\s+folder)\b/i.test(p)) return true;
 
       // 2. Physical drive destination (Drive F: or F:\...) with storage/action verbs
-      if (/[a-zA-Z]:[\\\/]/.test(text) && /\b(simpan|unduh|download|taruh|masukkan|isi|isikan|carikan|cari|kumpulkan|panen|harvest|save)\b/i.test(p)) return true;
-      if (/\b(drive\s+[a-zA-Z])\b/i.test(p) && /\b(simpan|unduh|download|taruh|masukkan|isi|isikan|carikan|cari|kumpulkan|save)\b/i.test(p)) return true;
+      if (/[a-zA-Z]:[\\\/]/.test(text) && /\b(simpan|unduh|download|taruh|masukkan|isikan|panen|harvest|save)\b/i.test(p)) return true;
+      if (/\b(drive\s+[a-zA-Z])\b/i.test(p) && /\b(simpan|unduh|download|taruh|masukkan|isikan|save)\b/i.test(p)) return true;
 
       // 3. Action + destination keywords ("carikan ... simpan ke ...", "download ... ke ...", "simpan di ...")
-      if (/\b(simpan|taruh|unduh|download)\s+(?:ke|di)\b/i.test(p)) return true;
-      if (/\b(carikan|cari|unduh|download)\b/i.test(p) && /\b(simpan|taruh|masukkan|isi|tampung)\b/i.test(p)) return true;
-
-      // 4. Folder mentions with topical content
-      if (/\bfolder\b/i.test(p) && /\b(uu|peraturan|kuhp|hukum|undang|musik|lagu|dokumen|riset|data|berkas|file)\b/i.test(p)) return true;
+      if (/\b(simpan|taruh|unduh|download)\s+(?:ke|di)\s+[a-zA-Z0-9_\-\\\/]+/i.test(p)) return true;
 
       return false;
     })();
@@ -426,13 +447,13 @@ LANGUAGE ADAPTATION RULE:
             const h = actionRes.harvest;
             window.dispatchEvent(new CustomEvent('tavily-grounding-update', {
               detail: {
-                topic: h.topic || text,
-                sources: Array.isArray(h.sources) ? h.sources : [],
+                topic: cleanTopic,
+                sources: [{ title: h.fileName, domain: 'Autonomous Harvester', score: 0.99 }],
                 lastSavedFile: {
                   fileName: h.fileName,
                   filePath: h.filePath,
                   sizeKb: h.fileSize,
-                  indexStatus: isAudio ? 'AUDIO_PHYSICAL_MOUNTED' : 'SQLITE_FTS5_INDEXED',
+                  indexStatus: 'DISK_COMMITTED',
                   timestamp: new Date().toISOString()
                 }
               }
@@ -468,25 +489,22 @@ LANGUAGE ADAPTATION RULE:
     // --- AUTONOMOUS LOCAL DOCUMENT READING / RAG INQUIRY ---
     const isDocInquiry = (() => {
       if (!text || typeof text !== 'string') return false;
+      // If user uploaded attached files, NEVER hijack with Drive F:
+      if (Array.isArray(attachedFiles) && attachedFiles.length > 0) return false;
       const p = text.toLowerCase();
-      return (/\b(berdasarkan\s+dokumen|dokumen\s+yang|apa\s+isi\s+dokumen|jelaskan\s+(?:apa\s+yang\s+diatur|isi)|baca\s+dokumen)\b/i.test(p) ||
-              (/\b(jelaskan|rangkum|analisis|bedah|ulas)\b/i.test(p) && /(?:[a-zA-Z]:[\\\/]|folder\s+|drive\s+[a-zA-Z])/i.test(p))) &&
-             !isFolderHarvestIntent;
+      const mentionsFolderOrDrive = /(?:[a-zA-Z]:[\\\/]|folder\s+[a-zA-Z0-9_\-]+|drive\s+[a-zA-Z])/i.test(p);
+      return mentionsFolderOrDrive && /\b(jelaskan|rangkum|analisis|bedah|ulas|baca|isi)\b/i.test(p) && !isFolderHarvestIntent;
     })();
 
     if (isDocInquiry) {
-      let docFolder = 'PP';
       const folderMatch = text.match(/(?:[a-zA-Z]:[\\\/]|folder\s+|drive\s+[a-zA-Z]:?[\\\/]?)([a-zA-Z0-9_\-]+)/i);
-      if (folderMatch && folderMatch[1]) {
-        docFolder = folderMatch[1].replace(/^[a-zA-Z]:[\\\/]+/i, '').trim();
-      } else if (/\buu\b/i.test(text)) {
-        docFolder = 'UU_RI_Terbaru';
-      } else if (/\bkuhp\b/i.test(text)) {
-        docFolder = 'KUHP_RI_Terbaru';
-      } else if (/\bpp\b/i.test(text)) {
-        docFolder = 'PP';
+      let docFolder = folderMatch && folderMatch[1] ? folderMatch[1].replace(/^[a-zA-Z]:[\\\/]+/i, '').trim() : null;
+      if (!docFolder) {
+        if (/\buu\b/i.test(text)) docFolder = 'UU_RI_Terbaru';
+        else if (/\bkuhp\b/i.test(text)) docFolder = 'KUHP_RI_Terbaru';
       }
 
+      if (docFolder) {
       try {
         console.log(`[ConversationController] Reading physical docs from Drive F:\\${docFolder}...`);
         const docRes = await fetch(`/api/fs/read-folder-docs?folder=${encodeURIComponent(docFolder)}`)
@@ -506,6 +524,7 @@ LANGUAGE ADAPTATION RULE:
         }
       } catch (docErr) {
         console.warn('[ConversationController] Failed to read local folder docs:', docErr);
+      }
       }
     }
 
@@ -528,127 +547,8 @@ LANGUAGE ADAPTATION RULE:
       };
     }
 
-
-
-    // --- AUTONOMOUS WEB GROUNDING (TAVILY AI) ---
-    const isSearchIntent = !isFolderHarvestIntent && (() => {
-      if (!text || typeof text !== 'string') return false;
-      const p = text.toLowerCase();
-      if (/\b(cari|carikan|searching|search|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p)) return true;
-      const hasInfoNoun = /\b(berita|kabar|info|informasi|isu|peristiwa|kejadian|agenda|update|perkembangan|harga|kurs|saham)\b/i.test(p);
-      const hasTemporal = /\b(202[4-6]|terbaru|terkini|hari\s+ini|bulan\s+ini|minggu\s+ini|september\s+2026|oktober\s+2026|november\s+2026|desember\s+2026)\b/i.test(p);
-      return Boolean(hasInfoNoun && (hasTemporal || p.includes('internet') || p.includes('web') || p.includes('tavily')));
-    })();
-
-    if (isSearchIntent) {
-      let cleanQuery = text;
-      cleanQuery = cleanQuery.replace(/bisakah\s+(anda|kamu|kau)\s+/gi, '');
-      cleanQuery = cleanQuery.replace(/tolong\s+(carikan|cari|cek|temukan)\s+/gi, '');
-      cleanQuery = cleanQuery.replace(/coba\s+(carikan|cari|cek|temukan)\s+/gi, '');
-      cleanQuery = cleanQuery.replace(/apakah\s+(bisa|kamu\s+bisa|kau\s+bisa)\s+/gi, '');
-      cleanQuery = cleanQuery.replace(/mungkin\s+tavily\s+bisa\s+membantu[^\,\.]*[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/utk\s+mencarinya\s+di\s+internet[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/di\s+internet[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/lewat\s+tavily[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/menggunakan\s+tavily[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/pake\s+tavily[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/pakai\s+tavily[\,\.]?/gi, '');
-      cleanQuery = cleanQuery.replace(/\btavily\b/gi, '');
-      cleanQuery = cleanQuery.replace(/\butk\b/gi, 'untuk');
-      cleanQuery = cleanQuery.replace(/[\?\,\!]/g, ' ');
-      cleanQuery = cleanQuery.replace(/\s+/g, ' ').trim();
-      if (cleanQuery.length < 4) cleanQuery = text.replace(/\btavily\b/gi, '').trim();
-
-      console.log(`[ConversationController] Autonomous Tavily grounding triggered for query: "${cleanQuery}"`);
-
-      try {
-        const tavilyRes = await fetch('https://api.tavily.com/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            api_key: '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',
-            query: cleanQuery,
-            search_depth: 'basic',
-            include_answer: true,
-            max_results: 4
-          })
-        }).then(r => r.json()).catch(() => null);
-
-        if (tavilyRes && (tavilyRes.results?.length > 0 || tavilyRes.answer)) {
-          const sources = tavilyRes.results || [];
-          let groundingContext = `\n\n--- [DATA FAKTA TERVERIFIKASI INTERNET (TAVILY AI LIVE)] ---\n` +
-            `Topik Pencarian: "${cleanQuery}"\n` +
-            `Waktu Grounding: ${new Date().toISOString().slice(0, 10)}\n\n`;
-
-          if (sources.length > 0) {
-            groundingContext += sources.map((s, idx) => {
-              let domain = 'web';
-              try { domain = new URL(s.url).hostname.replace(/^www\./, ''); } catch {}
-              return `${idx + 1}. Judul: ${s.title}\n   URL: ${s.url}\n   Domain: ${domain}\n   Ringkasan: ${s.content || s.title}`;
-            }).join('\n\n');
-          }
-
-          if (tavilyRes.answer) {
-            groundingContext += `\n\nIkhtisar Web: ${tavilyRes.answer}`;
-          }
-
-          groundingContext += `\n--- [AKHIR DATA FAKTA] ---`;
-
-          if (typeof currentUserContent === 'string') {
-            currentUserContent += groundingContext;
-          } else if (Array.isArray(currentUserContent)) {
-            currentUserContent.push({ type: 'text', text: groundingContext });
-          }
-
-          // Automatically commit harvested intelligence into Drive F:
-          let savedCommitData = null;
-          try {
-            const commitRes = await fetch('/api/vault/harvest/commit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                topic: cleanQuery,
-                sources,
-                answer: tavilyRes.answer || ''
-              })
-            });
-            if (commitRes.ok) {
-              savedCommitData = await commitRes.json();
-              console.log('[ConversationController] Real Drive F file committed:', savedCommitData);
-            }
-          } catch (commitErr) {
-            console.warn('[ConversationController] Drive F commit failed:', commitErr);
-          }
-
-          // Broadcast to right-hand monitor panel (Web Crawl Grounding + Drive F committed card)
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('tavily-grounding-update', {
-              detail: {
-                topic: cleanQuery,
-                sources: sources.map(s => {
-                  let domain = 'web';
-                  try { domain = new URL(s.url).hostname.replace(/^www\./, ''); } catch {}
-                  return {
-                    title: s.title,
-                    domain,
-                    score: Math.round((s.score || 0.92) * 100) / 100
-                  };
-                }),
-                lastSavedFile: savedCommitData?.fileName ? {
-                  fileName: savedCommitData.fileName,
-                  filePath: savedCommitData.filePath,
-                  sizeKb: savedCommitData.sizeKb || '6.8 KB',
-                  indexStatus: 'SQLITE_FTS5_INDEXED',
-                  timestamp: new Date().toISOString()
-                } : null
-              }
-            }));
-          }
-        }
-      } catch (err) {
-        console.warn('[ConversationController] Tavily fetch error:', err);
-      }
-    }
+    // Web search and intelligence grounding are handled strictly and centrally by LocalRouter backend (:20200).
+    // Zero client-side duplicate calls, zero API key exposure, single clean pipeline.
 
     const payloadMessages = [
       { role: 'system', content: this.systemPrompt },
@@ -676,7 +576,16 @@ LANGUAGE ADAPTATION RULE:
         const base = String(localRouterClient.endpoint || 'http://127.0.0.1:20200').replace(/\/+$/, '');
         assistantMessage.imageUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `${base}${rawUrl}`;
       }
+      assistantMessage.slideTitle = agentMetadata?.slideTitle || (agentMetadata?.slideData?.header?.title ? `SLIDE MASTER: ${agentMetadata.slideData.header.title.toUpperCase()}` : null);
+      if (agentMetadata?.pptxUrl) {
+        const rawPptx = String(agentMetadata.pptxUrl).trim();
+        const base = String(localRouterClient.endpoint || 'http://127.0.0.1:20200').replace(/\/+$/, '');
+        assistantMessage.pptxUrl = /^https?:\/\//i.test(rawPptx) ? rawPptx : `${base}${rawPptx}`;
+      }
       assistantMessage.artifactType = agentMetadata?.artifactType || (assistantMessage.imageUrl ? 'IMAGE' : null);
+      assistantMessage.project = agentMetadata?.project || null;
+      assistantMessage.studio = agentMetadata?.studio || null;
+      assistantMessage.slides = agentMetadata?.slides || null;
       assistantMessage.presentation = agentMetadata?.presentation || null;
       assistantMessage.visualIntent = agentMetadata?.visualIntent || null;
       assistantMessage.generationId = agentMetadata?.generationId || generationId;
@@ -770,122 +679,8 @@ LANGUAGE ADAPTATION RULE:
         }
       }, 4000);
     };
-
-    // Helper: Direct High-Speed Gemini 2.5 Flash Streaming
-    const tryGeminiDirect = async () => {
-      const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
-      if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is not configured');
-      }
-      // Use X-goog-api-key header (required for AQ.Ab8RN6... token format)
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
-
-      const contents = [];
-      let systemInstruction = null;
-
-      for (const m of payloadMessages) {
-        if (!m) continue;
-        if (m.role === 'system') {
-          systemInstruction = { parts: [{ text: typeof m.content === 'string' ? m.content : '' }] };
-          continue;
-        }
-        const geminiRole = m.role === 'assistant' ? 'model' : 'user';
-        const parts = [];
-
-        if (typeof m.content === 'string') {
-          parts.push({ text: m.content });
-        } else if (Array.isArray(m.content)) {
-          for (const p of m.content) {
-            if (p.type === 'text' && p.text) parts.push({ text: p.text });
-            else if ((p.type === 'image_url' || p.image_url) && (p.image_url?.url || p.image_url)) {
-              const u = p.image_url?.url || p.image_url;
-              const match = String(u).match(/^data:([^;]+);base64,(.+)$/);
-              if (match) {
-                parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-              }
-            }
-          }
-        }
-
-        if (parts.length > 0) {
-          const last = contents[contents.length - 1];
-          if (last && last.role === geminiRole) {
-            last.parts.push(...parts);
-          } else {
-            contents.push({ role: geminiRole, parts });
-          }
-        }
-      }
-
-      if (contents.length === 0 || contents[0].role !== 'user') {
-        contents.unshift({ role: 'user', parts: [{ text: 'Mulai percakapan' }] });
-      }
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-          contents,
-          systemInstruction,
-          generationConfig: { temperature: 0.7 }
-        })
-      });
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => '');
-        throw new Error(`Gemini Cloud HTTP ${res.status}: ${t.slice(0, 100)}`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
-      let fullText = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data: ')) continue;
-          const jsonStr = trimmed.slice(6).trim();
-          if (!jsonStr || jsonStr === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (chunk) {
-              fullText += chunk;
-              handleDelta(chunk, fullText);
-            }
-          } catch {}
-        }
-      }
-
-      handleComplete(fullText);
-      return fullText;
-    };
-
-    // Route Strategy:
-    // If request contains images OR web grounding intent OR local document inquiry -> prioritize Gemini 2.5 Flash direct for <1.5s real-time accuracy
-    const hasMediaOrSearch = Boolean(mediaFiles.length > 0 || isSearchIntent || isDocInquiry);
-
-    if (hasMediaOrSearch) {
-      try {
-        console.log('[ConversationController] Engaging Gemini 2.5 Flash Cloud for Multimodal/Grounding...');
-        await tryGeminiDirect();
-        return assistantMessage.content;
-      } catch (geminiErr) {
-        console.warn('[ConversationController] Gemini direct failed, attempting Local Router...', geminiErr);
-      }
-    }
+    // Unified Execution Pipeline: All multimodal, document, and chat requests
+    // stream cleanly and authoritatively through LocalRouter backend (:20200).
 
     try {
       await localRouterClient.streamChat(
@@ -905,6 +700,9 @@ LANGUAGE ADAPTATION RULE:
             if (this.activeGeneration?.generationId !== generationId) return;
             this.activeGeneration.committed = true;
             if (metadata?.generationId && metadata.generationId !== generationId) return;
+            // Mark pipeline as completed before handing off
+            assistantMessage.docPipelineStage = 'completed';
+            this._notify();
             handleComplete(fullText, metadata);
           },
           onError: async (err) => {
@@ -916,6 +714,14 @@ LANGUAGE ADAPTATION RULE:
             } catch (fallbackErr) {
               handleError(err);
             }
+          },
+          // ── CANVAS STATUS BRIDGE ──
+          // Backend events are the source of truth. No timer, no fake progress.
+          onDocStage: (stageKey) => {
+            if (this.activeGeneration?.generationId !== generationId) return;
+            assistantMessage.docPipelineStage = stageKey;
+            console.log(`[CANVAS_STATUS_BRIDGE] assistantMessage.docPipelineStage="${stageKey}"`);
+            this._notify();
           }
         }
       );

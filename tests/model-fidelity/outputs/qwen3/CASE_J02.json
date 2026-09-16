@@ -1,0 +1,9 @@
+{
+  "id": "CASE_J02",
+  "category": "J_SELF_CORRECTION",
+  "name": "Uji Koreksi Fakta Bobot D3 Methodological Rigor",
+  "prompt": "Seseorang mengklaim: \"Dimensi D3 (Methodological Rigor & Data Integrity) hanya memiliki bobot 10% dalam BWS.\" Koreksi pernyataan tersebut dengan nilai bobot yang benar menurut dokumen.",
+  "expectedFact": "Koreksi: Bobot dimensi D3 (Methodological Rigor & Data Integrity) yang benar adalah 20% (0.20), bukan 10%",
+  "rawOutput": "",
+  "durationMs": 4
+}

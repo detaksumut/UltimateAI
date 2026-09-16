@@ -47,7 +47,7 @@ export class LocalRouterClient {
    * @param {Object} callbacks - { onDelta, onComplete, onError }
    * @returns {Promise<string>} Final accumulated text
    */
-  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, signal = null, generationId = null, messageId = null } = {}, { onDelta, onComplete, onError } = {}) {
+  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, signal = null, generationId = null, messageId = null } = {}, { onDelta, onComplete, onError, onDocStage } = {}) {
     let errorNotified = false;
     const baseEndpoint = this.endpoint.replace(/\/+$/, '');
     const url = baseEndpoint.endsWith('/v1')
@@ -158,7 +158,7 @@ export class LocalRouterClient {
             console.log(`[STREAM_DEBUG] sse_data_parsed`);
 
             if (parsed.error) {
-              const err = new Error(`OLLAMA_ERROR: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+              const err = new Error(parsed.error.message || JSON.stringify(parsed.error));
               if (onError && !errorNotified) {
                 errorNotified = true;
                 onError(err);
@@ -170,6 +170,24 @@ export class LocalRouterClient {
               lastAgentMetadata = parsed._agent;
             }
 
+            // ── CANVAS STATUS BRIDGE ──
+            // Deteksi stage pipeline dokumen dari backend event.
+            // Source of truth: field _docPipeline.status dari LocalRouterServer.
+            if (parsed._docPipeline?.status) {
+              const rawStatus = parsed._docPipeline.status;
+              // Derive clean stage key (strip emojis, normalize)
+              let stageKey = 'unknown';
+              if (rawStatus.includes('Membaca')) stageKey = 'reading';
+              else if (rawStatus.includes('Memahami')) stageKey = 'understanding';
+              else if (rawStatus.includes('Menganalisis')) stageKey = 'analysis';
+              else if (rawStatus.includes('Menyusun')) stageKey = 'synthesis';
+              else if (rawStatus.includes('Rangkuman') || rawStatus.includes('selesai')) stageKey = 'completed';
+              console.log(`[CANVAS_STATUS_BRIDGE] stage=${stageKey} raw="${rawStatus}"`);
+              if (onDocStage) onDocStage(stageKey);
+              // Skip: jangan masukkan status text ke fullText/bubble
+              continue;
+            }
+
             const delta = parsed.choices?.[0]?.delta?.content;
             if (typeof delta === 'string' && delta.length > 0) {
               fullText += delta;
@@ -179,7 +197,7 @@ export class LocalRouterClient {
             }
 
           } catch (jsonErr) {
-            if (jsonErr.message?.startsWith('OLLAMA_ERROR')) throw jsonErr;
+            if (jsonErr.message?.startsWith('CONTEXT_LIMIT_EXCEEDED') || jsonErr.message?.startsWith('LLAMACPP')) throw jsonErr;
             console.warn('[STREAM_DEBUG] SSE JSON parse warning:', dataStr.slice(0, 60), jsonErr.message);
           }
         }
@@ -205,6 +223,19 @@ export class LocalRouterClient {
             const parsed = JSON.parse(dataStr);
             if (parsed._agent) lastAgentMetadata = parsed._agent;
             console.log(`[STREAM_DEBUG] sse_data_parsed`);
+            // Canvas Status Bridge — flush remainder: skip stage events from fullText
+            if (parsed._docPipeline?.status) {
+              const rawStatus = parsed._docPipeline.status;
+              let stageKey = 'unknown';
+              if (rawStatus.includes('Membaca')) stageKey = 'reading';
+              else if (rawStatus.includes('Memahami')) stageKey = 'understanding';
+              else if (rawStatus.includes('Menganalisis')) stageKey = 'analysis';
+              else if (rawStatus.includes('Menyusun')) stageKey = 'synthesis';
+              else if (rawStatus.includes('Rangkuman') || rawStatus.includes('selesai')) stageKey = 'completed';
+              console.log(`[CANVAS_STATUS_BRIDGE] stage=${stageKey} raw="${rawStatus}"`);
+              if (onDocStage) onDocStage(stageKey);
+              continue;
+            }
             const delta = parsed.choices?.[0]?.delta?.content;
             if (typeof delta === 'string' && delta.length > 0) {
               fullText += delta;

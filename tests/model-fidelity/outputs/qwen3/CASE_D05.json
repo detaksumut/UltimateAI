@@ -1,0 +1,9 @@
+{
+  "id": "CASE_D05",
+  "category": "D_FORMULA_FIDELITY",
+  "name": "Persamaan Matematis Normalisasi Min-Max X_norm",
+  "prompt": "Tuliskan persamaan normalisasi standar yang digunakan untuk membawa seluruh metrik heterogen ke dalam skala seragam [0.0, 1.0].",
+  "expectedFact": "X_norm = (X - X_min) / (X_max - X_min) dengan constraint clamped strictly ke [0.0, 1.0]",
+  "rawOutput": "",
+  "durationMs": 3
+}

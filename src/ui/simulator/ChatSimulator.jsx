@@ -16,7 +16,7 @@ export default function ChatSimulator() {
   const [messageCount, setMessageCount] = useState(() => conversationControllerInstance.getSnapshot().messages.length);
   const [runtimeHealth, setRuntimeHealth] = useState({
     status: 'ACTIVE',
-    model: 'HERMES3:8B',
+    model: 'QWEN3:8B',
     provider: 'OLLAMA',
     uptime: '--:--'
   });

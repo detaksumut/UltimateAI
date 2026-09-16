@@ -24,11 +24,14 @@ import { KnowledgeGapDetector } from './KnowledgeGapDetector.mjs';
 import { routingOptimizerInstance } from '../routing/RoutingOptimizer.mjs';
 import { activeMemoryCoreInstance } from '../memory/ActiveMemoryCore.mjs';
 import { providerIntelligenceRouterInstance, SCOPE, PROVIDER } from '../routing/ProviderIntelligenceRouter.mjs';
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
+import { llamaCppAdapterInstance } from '../providers/LlamaCppAdapter.mjs';
+import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
 import { exploreAgentInstance } from './ExploreAgent.mjs';
 import { evidenceChainBuilderInstance, VERIFICATION_STATUS } from './EvidenceChain.mjs';
 import { normalizeModelResponse } from './ResponseNormalizer.mjs';
 import { imageGenerationInstance } from './ImageGeneration.mjs';
+import { semanticIntentEngineInstance } from './SemanticIntentEngine.mjs';
+import { DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
 import { getMarketOverview } from '../market/MarketDataService.mjs';
 import { getResilientMarketChart } from '../market/persistentMarket.mjs';
 import crypto from 'crypto';
@@ -233,7 +236,7 @@ export class AgentRuntime {
       // Failure-injection / provider override propagation: options → plan → executor → image.generate
       ...(options.providerOverride ? { providerOverride: options.providerOverride } : {}),
       ...(options.negativePrompt ? { negativePrompt: options.negativePrompt } : {}),
-      ...(options.size ? { size: options.size } : {})
+      size: options.size || DEFAULT_IMAGE_SIZE
     };
     let currentPlan = await AgentPlanner.planGoal(rawGoal, planOptions);
 
@@ -420,7 +423,7 @@ export class AgentRuntime {
         planningEngine: 'image_generation_6stage',
         executionTools: ['image.generate'],
         pool: 'LOCAL_IMAGE',
-        transport: verification.artifact?.provider || 'POLLINATIONS'
+        transport: verification.artifact?.provider || 'GEMINI'
       }
     }, options);
 
@@ -468,7 +471,7 @@ export class AgentRuntime {
         planningEngine: 'image_generation_6stage',
         executionTools: ['image.generate'],
         selectedPool: 'LOCAL_IMAGE',
-        transport: verification.artifact?.provider || 'POLLINATIONS'
+        transport: verification.artifact?.provider || 'GEMINI'
       },
       interpretationSource: decision.interpretationSource,
       transportUsed: 'LOCAL_REASONING',
@@ -491,7 +494,11 @@ export class AgentRuntime {
   async _executeImageRevision(rawGoal, decision, routing, sessionContext, options, startTime, timeline) {
     const generationId = options.generationId;
     const messageId = options.messageId || null;
-    const referenceImage = options.referenceImage || decision.referenceImage || decision.visualIntent?.referenceImage || null;
+    let referenceImage = options.referenceImage || decision.referenceImage || decision.visualIntent?.referenceImage || null;
+    if (!referenceImage && sessionContext) {
+      const history = sessionContext.conversationHistory || sessionContext.recentTurns || [];
+      referenceImage = semanticIntentEngineInstance._findLastVisualAsset(history);
+    }
 
     // PLAN stage: use the dedicated 6-stage image revision plan from AgentPlanner
     timeline.push({
@@ -511,7 +518,7 @@ export class AgentRuntime {
       referenceImage,
       ...(options.providerOverride ? { providerOverride: options.providerOverride } : {}),
       ...(options.negativePrompt ? { negativePrompt: options.negativePrompt } : {}),
-      ...(options.size ? { size: options.size } : {})
+      size: options.size || DEFAULT_IMAGE_SIZE
     };
     let currentPlan = await AgentPlanner.planGoal(rawGoal, planOptions);
 
@@ -569,22 +576,100 @@ export class AgentRuntime {
       }
     }
 
-    // Verification
-    const verification = await agentVerifierInstance.verify({
-      goal: rawGoal,
-      executionHistory: currentHistory,
-      decision,
-      referenceImage
-    });
+    // VERIFY stage: Inspect produced artifact and verify renderability
+    timeline.push({ event: 'VERIFY_STARTED', timestamp: new Date().toISOString() });
+    let finalArtifact = null;
+    for (let i = currentHistory.length - 1; i >= 0; i--) {
+      const res = currentHistory[i].stepResult?.result;
+      if (res?.artifact) {
+        finalArtifact = res.artifact;
+        break;
+      }
+      if (res?.url) {
+        finalArtifact = res;
+        break;
+      }
+    }
+
+    let verification;
+    if (finalArtifact && (finalArtifact.url || finalArtifact.localPath)) {
+      const imageVerification = imageGenerationInstance.verifyArtifact(finalArtifact);
+      const semanticVerification = imageGenerationInstance.verifyImageSemantic({
+        prompt: finalArtifact.originalPrompt || rawGoal,
+        normalizedPrompt: finalArtifact.normalizedPrompt || finalArtifact.prompt,
+        image: finalArtifact
+      });
+      const artifactRenderable = imageVerification.renderable;
+      const semanticCheckSatisfied = !semanticVerification.available || semanticVerification.verified;
+      const hasParentLineage = Boolean(finalArtifact.parentArtifactId || finalArtifact.metadata?.parentArtifactId);
+      const isRevisionVerified = artifactRenderable && semanticCheckSatisfied && hasParentLineage;
+      verification = {
+        isSatisfied: isRevisionVerified,
+        artifact: finalArtifact,
+        confidence: isRevisionVerified && semanticVerification.verified
+          ? 0.99
+          : isRevisionVerified
+            ? 0.85
+            : 0,
+        verificationStatus: !artifactRenderable || !hasParentLineage
+          ? VERIFICATION_STATUS.UNVERIFIED
+          : semanticVerification.available && semanticVerification.verified
+            ? VERIFICATION_STATUS.VERIFIED
+            : VERIFICATION_STATUS.PARTIALLY_VERIFIED,
+        failureReason: !hasParentLineage
+          ? 'Image revision artifact lacks verified parentArtifactId lineage'
+          : !imageVerification.renderable
+            ? imageVerification.reason
+            : semanticVerification.available && !semanticVerification.verified
+              ? semanticVerification.reason
+              : null,
+        semanticVerification
+      };
+    } else {
+      const realFailure = (currentHistory.find(h => h.observation && h.observation.valid === false)?.observation?.error)
+        || (currentHistory.find(h => h.stepResult && h.stepResult.success === false)?.stepResult?.error)
+        || 'No image artifact was produced during revision.';
+
+      verification = {
+        isSatisfied: false,
+        artifact: {
+          id: `img-failed-${Date.now()}`,
+          type: 'IMAGE',
+          status: 'failed',
+          url: null,
+          thumbnailUrl: null,
+          localPath: null,
+          mimeType: null,
+          width: null,
+          height: null,
+          provider: currentHistory.find(h => h.stepResult?.result?.provider)?.stepResult?.result?.provider || null,
+          prompt: rawGoal,
+          originalPrompt: rawGoal,
+          normalizedPrompt: imageGenerationInstance.normalizeImagePrompt(rawGoal),
+          generationId,
+          messageId,
+          bytesSize: 0,
+          createdAt: new Date().toISOString(),
+          renderable: false,
+          error: realFailure
+        },
+        confidence: 0,
+        verificationStatus: VERIFICATION_STATUS.FAILED,
+        failureReason: realFailure
+      };
+    }
 
     timeline.push({
-      event: 'VERIFICATION_COMPLETED',
+      event: 'VERIFICATION_EVALUATED',
+      isSatisfied: verification.isSatisfied,
       verificationStatus: verification.verificationStatus,
+      confidence: verification.confidence,
       timestamp: new Date().toISOString()
     });
+    timeline.push({ event: 'VERIFY_COMPLETED', isSatisfied: verification.isSatisfied, timestamp: new Date().toISOString() });
 
-    // Generate response using IMAGE_REVISION specific method
-    const responsePayload = jinResponseEngineInstance.synthesizeImageRevisionOutcome({
+    // Generate response using JIN response engine with dedicated IMAGE_REVISION handling
+    const responsePayload = await jinResponseEngineInstance.generateResponse({
       userUtterance: rawGoal,
       conversationContext: sessionContext,
       decision,
@@ -598,9 +683,9 @@ export class AgentRuntime {
       provenance: {
         semanticModel: 'image_revision_pipeline',
         planningEngine: 'image_revision_6stage',
-        executionTools: ['image.generate'],
+        executionTools: ['image.edit', 'image.generate'],
         pool: 'LOCAL_IMAGE',
-        transport: verification.artifact?.provider || 'POLLINATIONS'
+        transport: verification.artifact?.provider || 'COMFYUI'
       }
     }, options);
 
@@ -644,9 +729,9 @@ export class AgentRuntime {
       provenance: {
         semanticModel: 'image_revision_pipeline',
         planningEngine: 'image_revision_6stage',
-        executionTools: ['image.generate'],
+        executionTools: ['image.edit', 'image.generate'],
         selectedPool: 'LOCAL_IMAGE',
-        transport: verification.artifact?.provider || 'POLLINATIONS'
+        transport: verification.artifact?.provider || 'COMFYUI'
       },
       interpretationSource: decision.interpretationSource,
       transportUsed: 'LOCAL_REASONING',
@@ -1507,14 +1592,14 @@ export class AgentRuntime {
     }
 
     try {
-      const response = await ollamaProviderInstance.sendChat({
+      const routed = await modelRoutingServiceInstance.routeChat({
         messages,
-        model: 'llama3.2:3b',
         temperature: 0.3
       });
+      const response = routed?.content || '';
       return normalizeModelResponse(response) || 'Maaf, saya tidak dapat memberikan jawaban saat ini.';
     } catch (err) {
-      return `Error communicating with local Ollama: ${err.message}`;
+      return `Error communicating with local LLM: ${err.message}`;
     }
   }
 
@@ -1709,33 +1794,33 @@ export class AgentRuntime {
    * Create work orchestrator with LLM client and domain services
    */
   _createWorkOrchestrator() {
-    const llmClient = ollamaProviderInstance;
-    const taskPlanner = new TaskPlanner({ llmClient, model: 'qwen3:8b' });
+    const llmClient = llamaCppAdapterInstance;
+    const taskPlanner = new TaskPlanner({ llmClient, model: 'hermes-3-8b' });
     const domainRouter = new DomainRouter();
 
     // Register FASE 2 domain services
     const researchService = new ResearchService({
       tavilyApiKey: process.env.TAVILY_API_KEY,
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'hermes-3-8b',
     });
     domainRouter.register('RESEARCH', researchService);
 
     const documentService = new DocumentService({
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'hermes-3-8b',
     });
     domainRouter.register('DOCUMENT', documentService);
 
     const contentService = new ContentService({
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'hermes-3-8b',
     });
     domainRouter.register('CONTENT', contentService);
 
     const pptService = new PPTService({
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'hermes-3-8b',
     });
     domainRouter.register('CREATIVE', pptService);
 

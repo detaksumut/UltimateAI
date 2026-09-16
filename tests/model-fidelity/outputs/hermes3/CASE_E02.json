@@ -1,0 +1,9 @@
+{
+  "id": "CASE_E02",
+  "category": "E_CROSS_SECTION_CONSISTENCY",
+  "name": "Hubungan Antara Tiga Klaim Independen Paten",
+  "prompt": "Jelaskan perbedaan kategori subjek (subject matter) dari ketiga klaim independen AT-RQS: Klaim 1, Klaim 8, dan Klaim 15.",
+  "expectedFact": "Klaim 1: Sistem/Aparatus Terkomputerisasi; Klaim 8: Metode Terkomputerisasi; Klaim 15: Media Penyimpan Terbaca Komputer (Non-transitory medium)",
+  "rawOutput": "",
+  "durationMs": 3
+}

@@ -18,7 +18,6 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ollamaProviderInstance } from '../providers/OllamaProvider.mjs';
 import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
 import { localDriveFStorageInstance } from '../memory/LocalDriveFStorage.mjs';
 import { memoryIndexSQLiteInstance } from '../memory/MemoryIndexSQLite.mjs';
@@ -374,28 +373,15 @@ Gunakan Bahasa Indonesia profesional, presisi, dan padat pengetahuan.`;
 
       let digestionResult = '';
       try {
-        const ollamaReady = await ollamaProviderInstance.isAvailable();
-        if (ollamaReady) {
-          digestionResult = await ollamaProviderInstance.sendChat({
-            messages: [
-              { role: 'system', content: 'Anda adalah analis intelijen strategis dan saintis AI UltimateAI.' },
-              { role: 'user', content: digestionPrompt }
-            ],
-            stream: false,
-            temperature: 0.2
-          });
-        } else {
-          // Route through ModelRoutingService
-          const routed = await modelRoutingServiceInstance.routeChat({
-            messages: [
-              { role: 'system', content: 'Anda adalah analis intelijen strategis dan saintis AI UltimateAI.' },
-              { role: 'user', content: digestionPrompt }
-            ],
-            capability: 'REASONING',
-            temperature: 0.2
-          });
-          digestionResult = (routed && routed.content) || '';
-        }
+        const routed = await modelRoutingServiceInstance.routeChat({
+          messages: [
+            { role: 'system', content: 'Anda adalah analis intelijen strategis dan saintis AI UltimateAI.' },
+            { role: 'user', content: digestionPrompt }
+          ],
+          capability: 'REASONING',
+          temperature: 0.2
+        });
+        digestionResult = (routed && routed.content) || '';
       } catch (llmErr) {
         console.warn(`[CuriosityDaemon] LLM Digestion warning: ${llmErr.message}, menggunakan sintesis analitik langsung.`);
         digestionResult = `## 1. SINTESIS SEBAB-AKIBAT\n${directAnswer}\n\n## 2. MATRIKS FAKTA TERVERIFIKASI\nTerhimpun ${rawResults.length} sumber data komprehensif.`;

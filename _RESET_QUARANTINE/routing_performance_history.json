@@ -1,0 +1,18 @@
+{
+  "qwen3:8b": {
+    "totalTasks": 48,
+    "successes": 48,
+    "failures": 0,
+    "totalLatencyMs": 4924992,
+    "avgLatencyMs": 102604,
+    "verifiedCount": 48
+  },
+  "gemini-3.6-flash-high": {
+    "totalTasks": 3,
+    "successes": 3,
+    "failures": 0,
+    "totalLatencyMs": 205672,
+    "avgLatencyMs": 68557,
+    "verifiedCount": 3
+  }
+}

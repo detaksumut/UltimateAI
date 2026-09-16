@@ -1,0 +1,9 @@
+{
+  "id": "CASE_A01",
+  "category": "A_EXACT_EXTRACTION",
+  "name": "Ekstraksi Nomor Standar Dokumen",
+  "prompt": "Berdasarkan spesifikasi resmi AT-RQS, sebutkan kode identitas dokumen standar resmi (Dokumen Standar ID) yang ditetapkan.",
+  "expectedFact": "SPEC-AT-RQS-2026-V1.0",
+  "rawOutput": "",
+  "durationMs": 5
+}

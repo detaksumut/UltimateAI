@@ -1,0 +1,9 @@
+{
+  "id": "CASE_G01",
+  "category": "G_CONTRADICTION_DETECTION",
+  "name": "Deteksi Kontradiksi Model Generatif LLM",
+  "prompt": "Pernyataan: \"AT-RQS menggunakan single-source model generatif LLM untuk memberikan skor secara langsung tanpa redaman struktural.\" Apakah pernyataan ini BENAR atau SALAH menurut dokumen? Jelaskan kontradiksinya.",
+  "expectedFact": "SALAH: AT-RQS adalah sistem deterministik multi-sumber (SCORE, SCREEN, CLUE) dengan formula matematis pasti dan redaman konsistensi struktural (CF), bukan model generatif LLM tunggal",
+  "rawOutput": "",
+  "durationMs": 4
+}

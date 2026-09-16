@@ -62,10 +62,10 @@ export class OllamaProvider {
   }
 
   _generationOptions(model) {
-    const configuredNumPredict = Number(process.env.OLLAMA_NUM_PREDICT || 512);
+    const configuredNumPredict = Number(process.env.OLLAMA_NUM_PREDICT || 4096);
     const numPredict = Number.isFinite(configuredNumPredict) && configuredNumPredict > 0
       ? Math.floor(configuredNumPredict)
-      : 512;
+      : 4096;
     const thinkingDisabled = String(process.env.OLLAMA_THINK || 'false').toLowerCase() !== 'true';
     return {
       think: thinkingDisabled ? false : undefined,
@@ -73,11 +73,26 @@ export class OllamaProvider {
     };
   }
 
+  _sanitizeMessages(messages = []) {
+    if (!Array.isArray(messages)) return [];
+    return messages
+      .filter(m => m && typeof m === 'object' && m.role)
+      .map(m => {
+        const role = String(m.role).toLowerCase();
+        const msg = { role, content: typeof m.content === 'string' ? m.content : (Array.isArray(m.content) ? m.content : String(m.content || '')) };
+        if (m.name && typeof m.name === 'string') msg.name = m.name;
+        if (Array.isArray(m.images)) msg.images = m.images;
+        // Exclude internal fields like imageUrl, _agent, etc.
+        return msg;
+      });
+  }
+
   async sendChat({ messages, stream = false, model = 'qwen3:8b', temperature = 0.7 }, onChunk = null) {
     if (!(await this.isAvailable())) {
       throw new Error('OLLAMA_UNAVAILABLE: Ollama server tidak aktif. Pastikan Ollama berjalan di http://127.0.0.1:11434');
     }
 
+    const cleanMessages = this._sanitizeMessages(messages);
     const resolvedModel = this._resolveModel(model);
 
     // PRE-FLIGHT MODEL CHECK: Verify model is actually downloaded before attempting load
@@ -132,7 +147,7 @@ export class OllamaProvider {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: resolvedModel,
-            messages,
+            messages: cleanMessages,
             temperature,
             stream: Boolean(stream),
             keep_alive: '24h',

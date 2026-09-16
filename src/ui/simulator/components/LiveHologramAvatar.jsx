@@ -157,31 +157,9 @@ export default function LiveHologramAvatar({ avatarState, audioMetrics, size = '
       // Pastikan kondisi masih memenuhi syarat ketika 1 menit berlalu
       if (lampPhase !== 'IDLE' || isSpeaking || isProcessing || isListening) return;
       isGoingToSleepRef.current = true;
-
-      const bedtimeSpeech = "Jiny mau tidur dulu ya bos, kapan saja bos panggil jiny siap!";
-      console.log('[JINNY-IDLE] 1 menit hening terlewati. Jinny berpamitan tidur ke botol:', bedtimeSpeech);
-
-      try {
-        voiceControllerInstance.speak(
-          bedtimeSpeech,
-          {
-            force: true, // Pastikan suara pamit Jinny terdengar merdu
-            onEnd: () => {
-              isGoingToSleepRef.current = false;
-              // Setelah selesai berucap, melipat tangan di dada, mengangguk dengan dentang chime, dan berputar masuk botol
-              triggerRestInBottle();
-            },
-            onError: () => {
-              isGoingToSleepRef.current = false;
-              triggerRestInBottle();
-            }
-          }
-        );
-      } catch (err) {
-        console.warn('[JINNY-IDLE] Voice speak failed, proceeding to bottle directly:', err);
-        isGoingToSleepRef.current = false;
-        triggerRestInBottle();
-      }
+      console.log('[JINNY-IDLE] 1 menit hening terlewati. Jinny beristirahat masuk ke botol secara hening.');
+      triggerRestInBottle();
+      isGoingToSleepRef.current = false;
     }, 60000); // 1 Menit (60.000 ms)
   }, [lampPhase, isSpeaking, isProcessing, isListening, triggerRestInBottle]);
 
