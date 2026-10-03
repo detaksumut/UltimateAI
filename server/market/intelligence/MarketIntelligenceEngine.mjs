@@ -39,11 +39,18 @@ export async function fetchYahooCloses(ysymbol, range = '3mo', interval = '1d') 
       const closes = result?.indicators?.quote?.[0]?.close?.filter((v) => Number.isFinite(v)) || [];
       const meta = result.meta;
       const last = Number(meta.regularMarketPrice);
-      const prev = Number(meta.chartPreviousClose ?? meta.previousClose);
+      // PENTING: meta.chartPreviousClose adalah close SEBELUM RANGE (bukan kemarin),
+      // jadi untuk range 1mo/3mo nilai itu menghasilkan perubahan bulanan, bukan harian.
+      // Prioritaskan closes[-2] (session sebelumnya yang benar-benar ada di seri).
+      const seriesPrev = closes.length >= 2 ? closes[closes.length - 2] : null;
+      const prev = Number.isFinite(seriesPrev)
+        ? seriesPrev
+        : (Number.isFinite(Number(meta.chartPreviousClose)) ? Number(meta.chartPreviousClose) : NaN);
       return {
         ok: true, symbol: ysymbol,
         last: Number.isFinite(last) ? last : closes[closes.length - 1] ?? null,
-        prev: Number.isFinite(prev) ? prev : null,
+        prev,
+        prevBasis: Number.isFinite(seriesPrev) ? 'PREVIOUS_SESSION_CLOSE' : 'CHART_PREVIOUS_CLOSE',
         closes, currency: meta.currency || null, marketState: meta.marketState || null,
         source: 'Yahoo Finance',
         sourceUrl: `https://finance.yahoo.com/quote/${encodeURIComponent(ysymbol)}`,

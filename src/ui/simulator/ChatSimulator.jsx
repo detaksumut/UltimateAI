@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './simulator.css';
 import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx';
+import MarketIntelligenceView from './components/MarketIntelligenceView.jsx';
+import MarketIntelligenceModal from './components/MarketIntelligenceModal.jsx';
 import LiveHologramAvatar from './components/LiveHologramAvatar.jsx';
 import LiveTickerPanel from './components/LiveTickerPanel.jsx';
 import JINTickerConversation from './components/JINTickerConversation.jsx';
@@ -12,13 +14,59 @@ import { frontendErrorObserver } from '../../services/engineering/FrontendErrorO
 import { uiStateResolverInstance } from '../../services/grounding/UIStateResolver.js';
 import { conversationControllerInstance } from '../../services/conversation/ConversationController.js';
 
+// CONTAINMENT boundary: a render crash in any child (avatar engine, ticker
+// stream, market chart, telemetry frames) must NEVER unmount the whole app.
+// It shows a localized error tile instead of wiping the canvas & restarting.
+class JINErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    console.error(`[JINErrorBoundary:${this.props.label || 'unknown'}]`, error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="h-full w-full flex items-center justify-center p-4">
+          <div className="rounded-lg border border-red-500/40 bg-red-950/30 px-4 py-3 text-red-200 font-mono text-[11px] max-w-[420px]">
+            <div className="font-bold tracking-widest mb-1">[{this.props.label || 'KOMONEN MENGALAMI GANGGUAN'}]</div>
+            <div className="text-red-300/80 break-all">
+              {String((this.state.error && this.state.error.message) || this.state.error)}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function ChatSimulator() {
+  const [leftTab, setLeftTab] = useState('JIN');
+  // MIE popup modal: dibuka lewat tombol panel kiri ATAU voice "Mama Jin, analisis IHSG"
+  const [mieModal, setMieModal] = useState({ open: false, symbol: 'IHSG' });
   const [messageCount, setMessageCount] = useState(() => conversationControllerInstance.getSnapshot().messages.length);
+  // Honest defaults: these are "unknown" until the live probes answer. The old
+  // values ('QWEN3:8B' / 'OLLAMA') described a runtime that is not installed.
   const [runtimeHealth, setRuntimeHealth] = useState({
-    status: 'ACTIVE',
-    model: 'QWEN3:8B',
-    provider: 'OLLAMA',
-    uptime: '--:--'
+    status: 'CHECKING',
+    model: '--',
+    provider: '--',
+    uptime: '--:--',
+    reachable: false
+  });
+  const [memoryHealth, setMemoryHealth] = useState({
+    status: 'CHECKING',
+    vaultFiles: 0,
+    indexed: 0,
+    summary: ''
   });
 
   const { state: avatarState } = useJinAvatar();
@@ -27,6 +75,21 @@ export default function ChatSimulator() {
   useEffect(() => {
     frontendErrorObserver.start();
     return () => frontendErrorObserver.stop();
+  }, []);
+
+  // Voice bridge: "Mama Jin, analisis IHSG" -> buka MIE popup modal.
+  // MarketIntelligencePanel memakai hook yang sama; ini bridge tingkat ChatSimulator
+  // supaya tetap bekerja walau panel MARKET tidak sedang terbuka.
+  useEffect(() => {
+    window.__jinMarketAnalyze = (sym) => {
+      const up = String(sym || 'IHSG').toUpperCase();
+      setMieModal({ open: true, symbol: up });
+      return true;
+    };
+    window.__jinMarketOpen = () => setMieModal({ open: true, symbol: 'IHSG' });
+    return () => {
+      try { delete window.__jinMarketAnalyze; delete window.__jinMarketOpen; } catch { /* noop */ }
+    };
   }, []);
 
   // Subscribe to conversation message count
@@ -50,13 +113,41 @@ export default function ChatSimulator() {
             status: data.status || (data.gateway === 'ONLINE' ? 'ACTIVE' : 'DEGRADED'),
             model: (data.model || 'qwen3:8b').toUpperCase(),
             provider: (data.provider || 'ollama').toUpperCase(),
-            uptime: `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+            uptime: `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`,
+            reachable: true
           });
         }
-      } catch {}
+      } catch {
+        // Surface real unreachability instead of leaving stale optimistic values.
+        setRuntimeHealth((prev) => ({ ...prev, status: 'UNREACHABLE', reachable: false }));
+      }
     };
     fetchHealth();
     const interval = setInterval(fetchHealth, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Subscribe to Memory Core health — real diagnostics from the backend
+  // (Drive F / Vault / SQLite index / bridge / backup), cached 30s server-side.
+  useEffect(() => {
+    const fetchMemory = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:20200/api/memory/health', { signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+          const data = await res.json();
+          setMemoryHealth({
+            status: data.status || 'UNKNOWN',
+            vaultFiles: data.vaultFiles || 0,
+            indexed: data.indexed || 0,
+            summary: data.summary || ''
+          });
+        }
+      } catch {
+        setMemoryHealth({ status: 'UNREACHABLE', vaultFiles: 0, indexed: 0, summary: '' });
+      }
+    };
+    fetchMemory();
+    const interval = setInterval(fetchMemory, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -99,7 +190,10 @@ export default function ChatSimulator() {
               <div style={{ padding: '6px 10px' }}>
                 <div className="flex justify-between items-center" style={{ fontSize: 10.5, marginBottom: 3 }}>
                   <span style={{ color: 'rgba(148,163,184,0.6)', fontWeight: 500 }}>STATUS</span>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>{runtimeHealth.status}</span>
+                  <span style={{
+                    color: runtimeHealth.reachable === false ? '#f87171' : (/DEGRADED/i.test(runtimeHealth.status) ? '#fbbf24' : '#34d399'),
+                    fontWeight: 700
+                  }}>{runtimeHealth.status}</span>
                 </div>
                 <div className="flex justify-between items-center" style={{ fontSize: 10.5, marginBottom: 3 }}>
                   <span style={{ color: 'rgba(148,163,184,0.6)', fontWeight: 500 }}>MODEL</span>
@@ -131,6 +225,55 @@ export default function ChatSimulator() {
             </div>
 
             <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
+              <div className="hud-label">Panel</div>
+              <div style={{ padding: '6px 10px', display: 'flex', gap: 4 }}>
+                {['JIN', 'MARKET'].map((t) => (
+                  <button key={t} onClick={() => setLeftTab(t)}
+                    style={{ flex: 1, fontSize: 10, fontWeight: 800, padding: '5px 0', borderRadius: 6, cursor: 'pointer',
+                      border: `1px solid ${leftTab === t ? '#00e5ff' : 'rgba(255,255,255,0.15)'}`,
+                      background: leftTab === t ? 'rgba(0,229,255,0.12)' : 'transparent', color: leftTab === t ? '#00e5ff' : '#94a3b8' }}>{t}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* ═══ MARKET INTELLIGENCE — fungsi khusus panel kiri (popup modal) ═══ */}
+            <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
+              <div className="hud-label">Market Intelligence</div>
+              <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <button
+                  onClick={() => setMieModal({ open: true, symbol: 'IHSG' })}
+                  style={{ fontSize: 10, fontWeight: 800, padding: '6px 0', borderRadius: 6, cursor: 'pointer',
+                    border: '1px solid rgba(0,229,255,0.5)', background: 'rgba(0,229,255,0.1)', color: '#00e5ff' }}
+                >
+                  BUKA ANALISIS LIVE
+                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
+                  {[['LOKAL', '#34d399'], ['GLOBAL', '#38bdf8'], ['KOMODITAS', '#f59e0b'], ['CRYPTO', '#c084fc']].map(([l, c]) => (
+                    <button key={l} onClick={() => setMieModal({ open: true, symbol: l === 'LOKAL' ? 'IHSG' : l === 'CRYPTO' ? 'BTC' : l === 'KOMODITAS' ? 'GOLD' : 'DXY' })}
+                      title={`${l} — buka analisis`}
+                      style={{ fontSize: 7.5, fontWeight: 800, padding: '4px 0', borderRadius: 4, cursor: 'pointer',
+                        border: `1px solid ${c}44`, background: `${c}11`, color: c, letterSpacing: '0.02em' }}>{l}</button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => window.__jinVoiceInput?.('Mama Jin, analisis IHSG hari ini')}
+                  title="Panggil lewat voice"
+                  style={{ fontSize: 9, padding: '4px 0', borderRadius: 6, cursor: 'pointer',
+                    border: '1px solid rgba(192,132,252,0.4)', background: 'transparent', color: '#c084fc' }}
+                >
+                  UCAPKAN: "MAMA JIN, ANALISIS IHSG"
+                </button>
+              </div>
+            </div>
+
+            {leftTab === 'MARKET' ? (
+              <div className="hud-panel" style={{ margin: '6px 6px 0', flex: '1 1 auto', overflowY: 'auto', minHeight: 0 }}>
+                <div className="hud-label">Market Intelligence — LIVE</div>
+                <MarketIntelligenceView />
+              </div>
+            ) : (
+            <>
+            <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
               <div className="hud-label">Memory</div>
               <div style={{ padding: '6px 10px' }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#00e5ff', lineHeight: 1 }}>{messageCount}</div>
@@ -152,18 +295,58 @@ export default function ChatSimulator() {
             <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
               <div className="hud-label">Status</div>
               <div style={{ padding: '6px 10px' }}>
-                <div className="flex items-center gap-2" style={{ fontSize: 10.5, marginBottom: 4, fontWeight: 600 }}>
-                  <span className="status-indicator status-online" />
-                  <span style={{ color: 'rgba(226,232,240,0.75)' }}>NEURAL</span>
+                <div className="flex items-center justify-between" style={{ fontSize: 10.5, marginBottom: 4, fontWeight: 600 }}>
+                  <div className="flex items-center gap-2">
+                    <span className={`status-indicator ${
+                      runtimeHealth.reachable === false
+                        ? 'status-critical animate-pulse'
+                        : /DEGRADED/i.test(runtimeHealth.status)
+                        ? 'status-warning'
+                        : 'status-online'
+                    }`} />
+                    <span style={{ color: 'rgba(226,232,240,0.75)' }}>NEURAL</span>
+                  </div>
+                  <span style={{
+                    fontSize: 8.5,
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    color: runtimeHealth.reachable === false ? '#f87171' : (/DEGRADED/i.test(runtimeHealth.status) ? '#fbbf24' : '#34d399')
+                  }}>
+                    {runtimeHealth.reachable === false ? 'OFFLINE' : runtimeHealth.provider}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2" style={{ fontSize: 10.5, marginBottom: 4, fontWeight: 600 }}>
-                  <span className="status-indicator status-online" />
-                  <span style={{ color: 'rgba(226,232,240,0.75)' }}>MEMORY</span>
+                <div className="flex items-center justify-between" style={{ fontSize: 10.5, marginBottom: 4, fontWeight: 600 }}>
+                  <div className="flex items-center gap-2">
+                    <span className={`status-indicator ${
+                      memoryHealth.status === 'HEALTHY'
+                        ? 'status-online'
+                        : memoryHealth.status === 'CRITICAL'
+                        ? 'status-critical animate-pulse'
+                        : memoryHealth.status === 'DEGRADED'
+                        ? 'status-warning'
+                        : 'status-warning animate-pulse'
+                    }`} />
+                    <span style={{ color: 'rgba(226,232,240,0.75)' }}>MEMORY</span>
+                  </div>
+                  <span style={{
+                    fontSize: 8.5,
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    color: memoryHealth.status === 'HEALTHY' ? '#34d399' : (memoryHealth.status === 'CRITICAL' ? '#f87171' : '#fbbf24')
+                  }}>
+                    {memoryHealth.status === 'HEALTHY'
+                      ? `${memoryHealth.vaultFiles}V/${memoryHealth.indexed}I`
+                      : memoryHealth.status}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between" style={{ fontSize: 10.5, fontWeight: 600 }}>
                   <div className="flex items-center gap-2">
                     <span className={`status-indicator ${
-                      avatarState === 'LISTENING'
+                      avatarState === 'ERROR'
+                        ? 'status-critical animate-pulse'
+                        : avatarState === 'INTERRUPTED'
+                        ? 'status-warning animate-pulse'
+                        : avatarState === 'LISTENING'
                         ? 'status-warning animate-pulse'
                         : avatarState === 'SPEAKING'
                         ? 'status-online animate-pulse'
@@ -177,13 +360,35 @@ export default function ChatSimulator() {
                     fontSize: 9,
                     fontFamily: 'monospace',
                     fontWeight: 700,
-                    color: avatarState === 'LISTENING' ? '#34d399' : avatarState === 'SPEAKING' ? '#c084fc' : avatarState === 'PROCESSING' ? '#e879f9' : '#38bdf8'
+                    color: avatarState === 'ERROR'
+                      ? '#f87171'
+                      : avatarState === 'INTERRUPTED'
+                      ? '#fbbf24'
+                      : avatarState === 'LISTENING'
+                      ? '#34d399'
+                      : avatarState === 'SPEAKING'
+                      ? '#c084fc'
+                      : avatarState === 'PROCESSING'
+                      ? '#e879f9'
+                      : '#38bdf8'
                   }}>
-                    {avatarState === 'LISTENING' ? 'LISTENING' : avatarState === 'SPEAKING' ? 'SPEAKING' : avatarState === 'PROCESSING' ? 'ANALYZING' : 'READY'}
+                    {avatarState === 'ERROR'
+                      ? 'FAULT'
+                      : avatarState === 'INTERRUPTED'
+                      ? 'BARGE-IN'
+                      : avatarState === 'LISTENING'
+                      ? 'LISTENING'
+                      : avatarState === 'SPEAKING'
+                      ? 'SPEAKING'
+                      : avatarState === 'PROCESSING'
+                      ? 'ANALYZING'
+                      : 'READY'}
                   </span>
                 </div>
               </div>
             </div>
+            </>
+            )}
 
             {/* ═══ BAGHDAD NIGHT + ALADDIN OVERLAY — BOTTOM OF LEFT PANEL ═══ */}
             <div className="mt-auto px-2 py-2 border-t border-[rgba(0,229,255,0.12)] flex flex-col items-center justify-center" style={{ background: 'linear-gradient(180deg, rgba(4,7,17,0.4) 0%, rgba(0,229,255,0.04) 100%)' }}>
@@ -219,12 +424,14 @@ export default function ChatSimulator() {
               style={{ filter: 'drop-shadow(0 0 12px rgba(0,229,255,0.45))' }}
             />
             <h1 style={{ fontSize: 42, fontWeight: 900, letterSpacing: '0.3em', color: '#00e5ff', textShadow: '0 0 20px rgba(0,229,255,0.5)', marginBottom: 6, fontFamily: 'monospace' }}>
-              J I N
+              J I N I
             </h1>
             <p style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(0,229,255,0.4)', marginBottom: 16, fontFamily: 'monospace' }}>
               JOINT INTELLIGENCE NEURAL-INTERFACE
             </p>
-            <LiveHologramAvatar avatarState={avatarState} audioMetrics={audioMetrics} size="center" />
+            <JINErrorBoundary label="HOLO-CORE OFFLINE">
+              <LiveHologramAvatar avatarState={avatarState} audioMetrics={audioMetrics} size="center" />
+            </JINErrorBoundary>
             <div className="absolute bottom-3 left-0 right-0 flex items-center justify-between px-4">
               <span style={{ fontSize: 8, color: 'rgba(148,163,184,0.25)', letterSpacing: '0.1em' }}>SYS::ACTIVE</span>
               <span style={{ fontSize: 8, color: 'rgba(148,163,184,0.25)', letterSpacing: '0.1em' }}>LATENCY::12ms</span>
@@ -236,12 +443,23 @@ export default function ChatSimulator() {
 
         {/* ═══ RIGHT PANEL — JIN TICKER RESPONSE CONVERSATION (REBUILT) ═══ */}
         <div className="w-[42%] h-full flex flex-col border-r border-[rgba(0,229,255,0.1)]">
-          <JINTickerConversation />
+          <JINErrorBoundary label="INTELLIGENCE STREAM OFFLINE">
+            <JINTickerConversation />
+          </JINErrorBoundary>
         </div>
 
         {/* ═══ FAR RIGHT PANEL — TELEMETRY TICKER (PRESERVED) ═══ */}
+        <JINErrorBoundary label="TELEMETRY OFFLINE">
         <LiveTickerPanel />
+      </JINErrorBoundary>
       </div>
+
+      {/* ═══ MARKET INTELLIGENCE POPUP MODAL (MIE v1) ═══ */}
+      <MarketIntelligenceModal
+        open={mieModal.open}
+        initialSymbol={mieModal.symbol}
+        onClose={() => setMieModal((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }

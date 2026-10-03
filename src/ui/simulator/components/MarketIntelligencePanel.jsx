@@ -44,12 +44,9 @@ export function useMarketIntelligence() {
   useEffect(() => {
     load('IHSG');
     getMacroSnapshot().then((m) => { if (m) setMacro(m); });
-    window.__jinMarketAnalyze = (s) => {
-      const sym = String(s || 'IHSG').toUpperCase();
-      const pick = MI_SYMBOLS.includes(sym) ? sym : 'IHSG';
-      setSymbol(pick); load(pick);
-    };
-    return () => { try { delete window.__jinMarketAnalyze; } catch {} };
+    // JANGAN menimpa window.__jinMarketAnalyze: bridge itu milik ChatSimulator dan
+    // hanya membuka popup modal. Panel ini mengekspos loader untuk tab MARKET saja.
+    return () => { /* noop */ };
   }, [load]);
   return { symbol, setSymbol, data, loading, error, macro, setMacro, load };
 }
