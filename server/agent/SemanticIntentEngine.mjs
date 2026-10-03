@@ -14,7 +14,8 @@
 import { config } from '../config/env.mjs';
 import { providerRegistryInstance } from '../providers/ProviderRegistry.mjs';
 import { providerIntelligenceRouterInstance, SCOPE, PROVIDER, FALLBACK_RESTRICTION } from '../routing/ProviderIntelligenceRouter.mjs';
-import { classifyMarketIntent } from '../market/marketIntentRouter.mjs';
+import { classifyMarketIntent, classifyAnalysisIntent } from '../market/marketIntentRouter.mjs';
+import { detectLegalAuditIntent } from '../tools/LegalAuditTool.mjs';
 
 export class SemanticIntentEngine {
   constructor(proxyUrl = null, apiKey = null) {
@@ -125,10 +126,20 @@ export class SemanticIntentEngine {
       return this._emptyUtterance(options);
     }
 
-    // FAST-PATH: Deterministic SLIDE_STUDIO, ARCHITECTURAL_DESIGN, IMAGE_REVISION, and IMAGE_GENERATION
+    // FAST-PATH: Deterministic MARKET_ANALYSIS, SLIDE_STUDIO, IMAGE_REVISION, IMAGE_GENERATION
+    // MIE ("Jin, tampilkan data Indeks Saham") harus ditangkap sebelum LLM agar
+    // panel kiri membuka Market Intelligence, bukan jawaban naratif generik.
+    const analysisDecision = classifyAnalysisIntent(raw);
+    if (analysisDecision) {
+      return this._injectScope(raw, {
+        ...analysisDecision,
+        interpretationSource: 'MARKET_INTELLIGENCE_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false
+      });
+    }
+
     const fastDecision =
-      this._slideStudioClassifier(raw, context.constraints || []) ||
-      this._architecturalDesignClassifier(raw, context.constraints || []) ||
       this._imageRevisionClassifier(raw, context.recentTurns || []) ||
       this._imageGenerationClassifier(raw, context.constraints || []);
     if (fastDecision) {
@@ -140,7 +151,9 @@ export class SemanticIntentEngine {
       });
     }
 
-    const model = options.forcedModel || 'qwen3:8b';
+    // Local engine identity from the live runtime (single source of truth).
+    // 'qwen3:8b' belonged to the retired Ollama setup and is not installed here.
+    const model = options.forcedModel || process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf';
     const transport = options.certificationTransport || 'LOCAL_ROUTER_PROXY';
 
     // Build rich contextual prompt for the LLM
@@ -296,6 +309,7 @@ Rules:
    - sandbox.execute: Isolated safe code execution, transformations, or calculations.
    - threat.feed: Ingesting/scoring cybersecurity threat feeds.
    - doc.analyze: Document analysis.
+    - legal.audit: Audit of Indonesian legal documents (putusan, dakwaan, BAP, gugatan, eksepsi, replik/duplik, perkara perdata/agama) → Audit Justice with Integrity Score 0-100, and audit of public policy documents (PP/UU/Perda/APBN-APBD) → Audit Kebijakan Publik with score 0-100, risk level, UUD 1945 analysis, KKN risk. Use this tool INSTEAD of doc.analyze when the user asks for an audit (audit/bedah/cacat hukum/skor integritas/uji formil-uji materiil/deviasi anggaran) on such a document.
    - memory.vault: Storing or querying persistent facts.
    - device.inspect: Local machine inspection (RAM, CPU, disk, processes, UltimateAI runtime). Purely read-only. Use when the user asks about their local computer ("kondisi komputer", "cek penggunaan RAM", "proses paling banyak pakai memory", "kondisi UltimateAI", "cek storage", "apa yang membuat komputer berat"). Output must include a "scope" field: "overview" | "memory" | "process" | "storage" | "runtime" | "diagnosis".
 7. For IMAGE_GENERATION or IMAGE_REVISION, produce a visualIntent object from the user's meaning, not keyword substitution:
@@ -305,7 +319,7 @@ Rules:
 
 Output STRICT valid JSON:
 {
-  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|IMAGE_REVISION|RESEARCH_TASK|EXTERNAL_DATA>",
+  "intent": "<CASUAL_CHAT|RESEARCH_QUESTION|URL_INSPECTION|DOCUMENT_ANALYSIS|LEGAL_AUDIT|DATA_ANALYTICS|MEMORY_STORE|MEMORY_RETRIEVAL|MULTI_STEP_TASK|APP_SYNTHESIS|MEDIA_PLAYBACK|DEVICE_INSPECTION|CONSTRAINT_UPDATE|CORRECTION|TASK_CONTROL|IMAGE_GENERATION|IMAGE_REVISION|RESEARCH_TASK|EXTERNAL_DATA>",
   "goal": "<concise resolved goal>",
   "resolvedReferences": ["<resolved coreference entities>"],
   "actionRequired": <boolean>,
@@ -384,8 +398,6 @@ Analyze contextually and output strict JSON.`;
     const fallbackDecision =
       this._deterministicCasualChatClassifier(raw) ||
       this._deviceInspectionDecision(raw, context, options) ||
-      this._slideStudioClassifier(raw, context.constraints || []) ||
-      this._architecturalDesignClassifier(raw, context.constraints || []) ||
       this._imageRevisionClassifier(raw, context.recentTurns || []) ||
       this._imageGenerationClassifier(raw, context.constraints || []) ||
       this._deterministicTaskClassifier(raw, context.constraints || []);
@@ -694,84 +706,6 @@ Analyze contextually and output strict JSON.`;
    * Deterministic Slide Studio Classifier — Only triggers when user explicitly requests
    * downloadable PowerPoint (.pptx) file generation. Does NOT hijack conversational slide outlines.
    */
-  _slideStudioClassifier(raw, activeConstraints = []) {
-    const r = String(raw || '').trim();
-    if (!r) return null;
-
-    // ONLY trigger SlideStudio if user explicitly asks to generate/download a PowerPoint .pptx file
-    const pptxExportPattern = /\b(?:export|ekspor|download|unduh|generate)\s+(?:ke\s+|file\s+|berkas\s+)?(?:pptx|powerpoint\s+file|\.pptx)\b/i;
-
-    if (pptxExportPattern.test(r)) {
-      return {
-        intent: 'SLIDE_STUDIO',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['slide_presentation', 'slide_studio'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['slide.studio'],
-        toolReason: 'Pengguna meminta ekspor berkas PowerPoint (.pptx). Harus diarahkan ke engine produksi SLIDE_STUDIO.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.98,
-        reason: 'Deterministic classifier: explicit PPTX file generation detected.',
-        interpretationSource: 'DETERMINISTIC_SLIDE_STUDIO_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: false,
-        slideIntent: {
-          prompt: r,
-          aspectRatio: '16:9',
-          style: 'corporate_enterprise'
-        }
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Deterministic Architectural Design Classifier — Detects autonomous house & architectural design projects
-   * and routes to ARCHITECTURAL_DESIGN intent. Runs BEFORE image generation.
-   */
-  _architecturalDesignClassifier(raw, activeConstraints = []) {
-    const r = String(raw || '').trim();
-    if (!r) return null;
-
-    const archDesignPattern = /(?:buatkan?|buat|bikin|generate|rancang|desain|susun)\s+(?:.*\s+)?(?:rumah|hunian|bangunan|arsitektur|villa|residence|tata\s+ruang|denah|blueprints?|site\s+plan)|\b(?:desain\s+rumah|rancang\s+bangun|denah\s+rumah|arsitektur\s+rumah|lahan\s+\d+|tanah\s+\d+|tampak\s+depan\s+rumah|gambar\s+kerja\s+rumah)\b/i;
-
-    if (archDesignPattern.test(r)) {
-      return {
-        intent: 'ARCHITECTURAL_DESIGN',
-        goal: r,
-        resolvedReferences: [],
-        actionRequired: true,
-        entities: ['architectural_design', 'house_design', 'master_design_draft'],
-        constraints: activeConstraints,
-        isCorrecting: false,
-        isContinuing: false,
-        freshDataRequired: false,
-        toolsNeeded: ['architectural.studio'],
-        toolReason: 'Pengguna meminta proyek rancang bangun arsitektur / desain rumah. Harus diarahkan ke engine produksi ARCHITECTURAL_STUDIO.',
-        needsClarification: false,
-        clarificationQuestion: null,
-        confidence: 0.98,
-        reason: 'Deterministic classifier: architectural design / house project detected.',
-        interpretationSource: 'DETERMINISTIC_ARCHITECTURAL_STUDIO_CLASSIFIER',
-        transportUsed: 'LOCAL_REASONING',
-        fallbackUsed: false,
-        architecturalIntent: {
-          prompt: r,
-          scope: 'RESIDENTIAL_ARCHITECTURE',
-          workflow: 'AUTONOMOUS_SEQUENTIAL'
-        }
-      };
-    }
-
-    return null;
-  }
 
   /**
    * Deterministic Image Generation Classifier — Runs BEFORE generic task classifier.
@@ -780,11 +714,6 @@ Analyze contextually and output strict JSON.`;
    */
   _imageGenerationClassifier(raw, activeConstraints = []) {
     const r = raw;
-
-    // Explicitly ignore architectural / house design requests (handled by ArchitecturalStudio)
-    if (/(?:desain\s+rumah|rancang\s+bangun|denah\s+rumah|lahan\s+\d+|tanah\s+\d+)/i.test(r)) {
-      return null;
-    }
 
     // Slide visual generation intent (e.g. "buat visual slide 1", "visualkan slide ini")
     const isVisualSlideIntent = /(?:buatkan?|buat|bikin|render|tampilkan|hasilkan)\s+(?:.*\s+)?(?:visual\s+slide|slide\s+visual|visualnya|desain\s+slide)|(?:visual\s+slide\s+\d+|slide\s+\d+\s+visual|gambar\s+slide)/i.test(r);
@@ -850,9 +779,13 @@ Analyze contextually and output strict JSON.`;
     const r = raw.trim();
     if (!r) return null;
 
-    // Guard: Exclude document reading, outline, summary, and attached document context
-    if (r.includes('--- [BERKAS DOKUMEN') || r.includes('--- [DOKUMEN') || r.includes('--- [Konteks Dokumen') ||
-        /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|materi|rangkum|ringkas|slide\s+presentasi|buatkan\s+point)\b/i.test(r)) {
+    // Guard: Exclude document reading, analysis, summary, and attached document context.
+    // CRITICAL: Must check BEFORE revision pattern matching to prevent PDF+context misclassification.
+    const hasDocumentMarker = r.includes('--- [BERKAS DOKUMEN') || r.includes('--- [DOKUMEN') ||
+      r.includes('--- [Konteks Dokumen') || r.includes('--- [STATUS DOKUMEN');
+    const isDocumentTask = /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|materi|rangkum\w*|ringkas\w*|slide\s+presentasi|buatkan\s+point|analisa\w*|analisis|analiz\w*|rangkuman|summary|kesimpulan|simpulkan|ekstrak\w*|jabarkan|jelaskan\s+isi|apa\s+isi|baca\s+dan|buat\s+analisa|buatkan\s+analisa)\b/i.test(r);
+    const hasPdfReference = /\.pdf\b/i.test(r);
+    if (hasDocumentMarker || isDocumentTask || hasPdfReference) {
       return null;
     }
 
@@ -959,6 +892,38 @@ Analyze contextually and output strict JSON.`;
    */
   _deterministicTaskClassifier(raw, activeConstraints = []) {
     const r = raw;
+
+    // LEGAL AUDIT (Audit Justice + Audit Kebijakan Publik) — MUST run before the
+    // generic DOCUMENT_ANALYSIS branch below, otherwise a legal/policy audit
+    // request would be downgraded into an ordinary document summary.
+    // Shared lexicon with the LocalRouter fast-path (detectLegalAuditIntent).
+    const legalAudit = detectLegalAuditIntent(r);
+    if (legalAudit.isLegalAudit) {
+      const policyHinted = /(?:audit\s+kebijakan|kebijakan\s+publik|peraturan\s+pemerintah|perda|perpu|apbn|apbd|deviasi\s+anggaran|anggaran\s+negara|omnibus|tata\s+kelola|kebijakan)/i.test(r);
+      return {
+        intent: 'LEGAL_AUDIT',
+        goal: r,
+        resolvedReferences: [],
+        actionRequired: true,
+        entities: [policyHinted ? 'public_policy_document' : 'legal_document', 'legal_audit'],
+        constraints: activeConstraints,
+        isCorrecting: false,
+        isContinuing: false,
+        freshDataRequired: false,
+        toolsNeeded: ['legal.audit'],
+        toolReason: policyHinted
+          ? 'Permintaan audit kebijakan publik (PP/UU/Perda/APBN-APBD) → Audit Kebijakan Publik (AKP).'
+          : 'Permintaan audit dokumen hukum Indonesia → Audit Justice.',
+        auditFocus: policyHinted ? 'kebijakan publik' : 'hukum',
+        needsClarification: false,
+        clarificationQuestion: null,
+        confidence: 0.98,
+        reason: legalAudit.reason,
+        interpretationSource: 'DETERMINISTIC_LEGAL_AUDIT_CLASSIFIER',
+        transportUsed: 'LOCAL_REASONING',
+        fallbackUsed: false
+      };
+    }
 
     // DOCUMENT ANALYSIS — user asks to analyze/read/extract from a document.
     // Handled via dedicated Document Pipeline.

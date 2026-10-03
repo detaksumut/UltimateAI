@@ -77,16 +77,27 @@ export default function ChatSimulator() {
     return () => frontendErrorObserver.stop();
   }, []);
 
-  // Voice bridge: "Mama Jin, analisis IHSG" -> buka MIE popup modal.
-  // MarketIntelligencePanel memakai hook yang sama; ini bridge tingkat ChatSimulator
-  // supaya tetap bekerja walau panel MARKET tidak sedang terbuka.
+  // Voice bridge: "Jin, tampilkan data Indeks Saham" -> buka MIE popup modal.
+  // MarketIntelligencePanel tidak boleh menimpa bridge ini.
+  // Normalisasi simbol eksternal (mis. XAU/USD) -> key basket yang dipahami modal.
   useEffect(() => {
+    const toBasketKey = (raw) => {
+      const s = String(raw || 'IHSG').toUpperCase();
+      if (/^(XAU|GC=F|GOLD)/.test(s)) return 'GOLD';
+      if (/^(XAG|SILVER)/.test(s)) return 'GOLD';
+      if (/^(CL|BZ|BRENT|WTI|OIL)/.test(s)) return 'WTI';
+      if (/^(BTC|BITCOIN|XBT)/.test(s)) return 'BTC';
+      if (/^(ETH|ETHEREUM)/.test(s)) return 'BTC';
+      if (/^(DX|DXY)/.test(s)) return 'DXY';
+      if (/^(TNX|US10Y|UST10Y)/.test(s)) return 'US10Y';
+      if (/^(IDR|USDIDR|USD\/IDR)/.test(s)) return 'USDIDR';
+      return s;
+    };
     window.__jinMarketAnalyze = (sym) => {
-      const up = String(sym || 'IHSG').toUpperCase();
-      setMieModal({ open: true, symbol: up });
+      setMieModal({ open: true, symbol: toBasketKey(sym) });
       return true;
     };
-    window.__jinMarketOpen = () => setMieModal({ open: true, symbol: 'IHSG' });
+    window.__jinMarketOpen = (sym) => setMieModal({ open: true, symbol: toBasketKey(sym || 'IHSG') });
     return () => {
       try { delete window.__jinMarketAnalyze; delete window.__jinMarketOpen; } catch { /* noop */ }
     };
@@ -242,11 +253,16 @@ export default function ChatSimulator() {
               <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <button
                   onClick={() => setMieModal({ open: true, symbol: 'IHSG' })}
-                  style={{ fontSize: 10, fontWeight: 800, padding: '6px 0', borderRadius: 6, cursor: 'pointer',
-                    border: '1px solid rgba(0,229,255,0.5)', background: 'rgba(0,229,255,0.1)', color: '#00e5ff' }}
+                  style={{
+                    fontSize: 10, fontWeight: 800, padding: '7px 0', borderRadius: 6, cursor: 'pointer',
+                    border: '1px solid rgba(0,229,255,0.5)', background: 'rgba(0,229,255,0.1)', color: '#00e5ff'
+                  }}
                 >
-                  BUKA ANALISIS LIVE
+                  JIN, TAMPILKAN DATA INDEKS SAHAM
                 </button>
+                <div style={{ fontSize: 8, color: '#64748b', textAlign: 'center' }}>
+                  atau ucapkan: &ldquo;Jin, tampilkan data Indeks Saham&rdquo;
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
                   {[['LOKAL', '#34d399'], ['GLOBAL', '#38bdf8'], ['KOMODITAS', '#f59e0b'], ['CRYPTO', '#c084fc']].map(([l, c]) => (
                     <button key={l} onClick={() => setMieModal({ open: true, symbol: l === 'LOKAL' ? 'IHSG' : l === 'CRYPTO' ? 'BTC' : l === 'KOMODITAS' ? 'GOLD' : 'DXY' })}
@@ -255,14 +271,6 @@ export default function ChatSimulator() {
                         border: `1px solid ${c}44`, background: `${c}11`, color: c, letterSpacing: '0.02em' }}>{l}</button>
                   ))}
                 </div>
-                <button
-                  onClick={() => window.__jinVoiceInput?.('Mama Jin, analisis IHSG hari ini')}
-                  title="Panggil lewat voice"
-                  style={{ fontSize: 9, padding: '4px 0', borderRadius: 6, cursor: 'pointer',
-                    border: '1px solid rgba(192,132,252,0.4)', background: 'transparent', color: '#c084fc' }}
-                >
-                  UCAPKAN: "MAMA JIN, ANALISIS IHSG"
-                </button>
               </div>
             </div>
 

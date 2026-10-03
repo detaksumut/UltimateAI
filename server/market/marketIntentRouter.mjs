@@ -38,7 +38,7 @@ export const INSTRUMENTS = [
   { id: 'brent', name: 'Brent', symbol: 'BRENT', panelId: 'market.brent', category: 'energy', synonyms: ['brent', 'minyak brent'] },
   { id: 'natgas', name: 'Gas Alam', symbol: 'NG', panelId: 'market.natgas', category: 'energy', synonyms: ['gas alam', 'natgas', 'natural gas'] },
   // Indonesia / indices
-  { id: 'ihsg', name: 'IHSG', symbol: 'IHSG', panelId: 'market.ihsg', category: 'indonesia', synonyms: ['ihsg', 'idx composite', 'bursa efek indonesia', 'jakarta composite'] },
+  { id: 'ihsg', name: 'IHSG', symbol: 'IHSG', panelId: 'market.ihsg', category: 'indonesia', synonyms: ['ihsg', 'idx composite', 'bursa efek indonesia', 'jakarta composite', 'indeks saham', 'indeks saham indonesia', 'indeks indonesia', 'indeks bursa', 'indeks'] },
   { id: 'lq45', name: 'LQ45', symbol: 'LQ45', panelId: 'market.lq45', category: 'indonesia', synonyms: ['lq45', 'lq 45'] },
   { id: 'idxx30', name: 'IDX30', symbol: 'IDX30', panelId: 'market.idx30', category: 'indonesia', synonyms: ['idx30', 'idx 30'] },
   { id: 'sp500', name: 'S&P 500', symbol: 'SPX', panelId: 'market.sp500', category: 'global', synonyms: ['sp500', 's&p 500', 'spx'] },
@@ -67,6 +67,35 @@ export const CATEGORY_LABEL = {
 // instrument, it must NOT be captured by MARKET_DATA — those belong to News / Video engines.
 const NON_MARKET_OVERRIDE = /(berita|artikel|kabar|warta|wawancara|ulasan|review|pendapat|opini|video\s*(tentang|mengenai|soal)?|youtube|vlog|podcast)/i;
 
+// MIE v1 — analysis intent: "analisis IHSG" / "Jin, tampilkan data Indeks Saham"
+// Dipisah dari MARKET_DATA (harga/grafik) agar perintah "tampilkan data indeks saham"
+// membuka Market Intelligence (popup modal), bukan sekadar quote.
+const ANALYSIS_PATTERN = /(analis[ia]s|analisa|prediksi|ramalan|prospek|skenario|rekomendasi|bagaimana\s+(kondisi|prospek)|market\s+intelligence|tampilkan\s+data|buka\s+(data|analisis)|data\s+indeks\s+saham)/i;
+
+export function classifyAnalysisIntent(raw) {
+  if (!raw || !raw.trim()) return null;
+  const r = raw.trim();
+  if (NON_MARKET_OVERRIDE.test(r)) return null;
+  if (!ANALYSIS_PATTERN.test(r)) return null;
+  const resolved = resolveInstrument(r);
+  const symbol = resolved ? resolved.instrument.symbol : detectBasketSymbol(r);
+  return {
+    domain: 'market', captured: true, intent: 'MARKET_ANALYSIS',
+    subIntent: 'analysis', instrument: symbol,
+    instrumentName: resolved ? resolved.instrument.name : symbol,
+    panelId: resolved ? resolved.instrument.panelId : null,
+    toolsNeeded: ['market.analyze'], route: { engine: 'MARKET_INTELLIGENCE', source: 'mie_v1' }
+  };
+}
+
+function detectBasketSymbol(r) {
+  const t = r.toLowerCase();
+  if (/usd\/?idr|rupiah|dolar/.test(t)) return 'USDIDR';
+  if (/btc|bitcoin/.test(t)) return 'BTC';
+  if (/emas|gold|xau/.test(t)) return 'GOLD';
+  if (/oil|wti|minyak|brent/.test(t)) return 'WTI';
+  return 'IHSG';
+}
 // Generic market *vocabulary* — a "market anchor" word that, combined with an instrument,
 // confirms market-data intent even when the instrument word alone is ambiguous.
 const MARKET_ANCHORS = /harga|market|pasar|grafik|chart|candlestick|kapitalisasi|pergerakan|naik|turun|open|high|low|close|volume|bid|ask|nilai|valuasi|profit|loss|streak|trend|wti|emas|saham indeks/i;
@@ -164,4 +193,4 @@ export function classifyMarketIntent(raw) {
   };
 }
 
-export default { INSTRUMENTS, resolveInstrument, classifyMarketIntent, CATEGORY_LABEL };
+export default { INSTRUMENTS, resolveInstrument, classifyMarketIntent, classifyAnalysisIntent, CATEGORY_LABEL };
