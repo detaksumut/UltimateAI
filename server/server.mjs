@@ -4,6 +4,7 @@
  * Boots the unified Local Router Service on port 20200.
  */
 
+import path from 'path';
 import { fileURLToPath } from 'url';
 import { createLocalRouterServer } from './local_router/LocalRouterServer.mjs';
 import { config, LOCAL_ROUTER_HEALTH_PATH } from './config/env.mjs';
@@ -12,7 +13,12 @@ const PORT = config.localRouter.port || 20200;
 
 export const server = createLocalRouterServer();
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const isDirectExecution = process.argv[1] && (
+  process.argv[1] === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+);
+
+if (isDirectExecution) {
   server.listen(PORT, '127.0.0.1', () => {
     console.log(`=======================================================`);
     console.log(`  ULTIMATEAI LOCAL ROUTER BACKEND LIVE ON PORT ${PORT} `);

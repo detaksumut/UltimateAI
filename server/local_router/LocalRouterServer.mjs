@@ -3820,7 +3820,12 @@ Requirements:
   return server;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const isDirectExecution = process.argv[1] && (
+  process.argv[1] === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+);
+
+if (isDirectExecution) {
   const server = createLocalRouterServer();
   server.listen(PORT, '127.0.0.1', () => {
     console.log(`=======================================================`);
