@@ -2319,7 +2319,7 @@ Requirements:
             // DIRECT MEDIA PLAYBACK PATH (YouTube Song / Music Stream)
             if (deterministicDecision.intent === 'MEDIA_PLAYBACK') {
               try {
-                const { searchSong } = await import('../tools/YouTubeSongSearch.mjs');
+                const { searchSong, titleGate } = await import('../tools/YouTubeSongSearch.mjs');
                 console.log(`[INTENT_GATE][MEDIA_PLAYBACK] Searching song for: "${cleanPrompt}"`);
                 const songResult = await searchSong(cleanPrompt);
                 
@@ -2335,7 +2335,14 @@ Requirements:
                   channel = songResult.candidate.channel || '';
                   watchUrl = songResult.watchUrl || `https://www.youtube.com/watch?v=${videoId}`;
 
-                  playbackText = `Lagu **"${title}"**${channel ? ` karya **${channel}**` : ''} telah ditemukan di YouTube dan langsung diputar di Canvas pemutar di bawah ini:\n\n` +
+                  // Label jujur: "karya <channel>" HANYA bila channel lolos
+                  // titleGate juga (cegah "Nikita" diklaim karya "KIM WILDE &
+                  // 80s"). Selain itu tampilkan channel sebagai info netral.
+                  const channelTrusted = channel && titleGate(songResult.query || cleanPrompt, `${title} ${channel}`) !== 'NO_MATCH';
+                  const channelPart = channelTrusted
+                    ? ` karya **${channel}**`
+                    : (channel ? ` (kanal: ${channel})` : '');
+                  playbackText = `Lagu **"${title}"**${channelPart} telah ditemukan di YouTube dan langsung diputar di Canvas pemutar di bawah ini:\n\n` +
                     `<div style="width: 100%; position: relative; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background-color: #000;">\n` +
                     `  <iframe \n` +
                     `    src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" \n` +

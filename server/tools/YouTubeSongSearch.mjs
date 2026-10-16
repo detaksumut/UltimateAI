@@ -213,7 +213,10 @@ async function discoverViaScrape(query = '', signal = null) {
             if (v && v.videoId) {
               const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
               const channel = v.ownerText?.runs?.[0]?.text || v.shortBylineText?.runs?.[0]?.text || '';
-              if (title) {
+              // Guard anti-nyasar: title 1 videoRenderer milik videoId itu
+              // sendiri (bukan pairing posisi). Tolak yang tak relevan agar
+              // kasus "Kim Wilde & 80s" untuk query Nikita tak terulang.
+              if (title && titleGate(query, title) !== 'NO_MATCH') {
                 out.push({ videoId: v.videoId, title, channel, description: '', source: 'scrape_json' });
               }
             }
@@ -248,6 +251,9 @@ async function discoverViaScrape(query = '', signal = null) {
         const win = html.slice(pos.index, Math.min(next, pos.index + 12000));
         const title = grab(win, T_RES);
         if (!title) return;
+        // Guard anti-nyasar: pairing posisi rawan salah (judul video A
+        // menempel ke videoId B). Tolak yang tak relevan dengan query.
+        if (titleGate(query, title) === 'NO_MATCH') return;
         out.push({ videoId: pos.id, title, channel: grab(win, C_RES), description: '', source: 'scrape_regex' });
       });
     }
