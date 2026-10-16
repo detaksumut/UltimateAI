@@ -58,6 +58,7 @@ export class StudioCommandParser {
 
     let studioType = activeSession ? (activeSession.studioType || activeSession.studio?.type || activeSession.studio) : null;
 
+    if (!studioType) {
       return {
         matchType: MATCH_TYPES.NONE,
         isCompatible: false,

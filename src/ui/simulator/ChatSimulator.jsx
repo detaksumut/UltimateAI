@@ -251,18 +251,7 @@ export default function ChatSimulator() {
             <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
               <div className="hud-label">Market Intelligence</div>
               <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <button
-                  onClick={() => setMieModal({ open: true, symbol: 'IHSG' })}
-                  style={{
-                    fontSize: 10, fontWeight: 800, padding: '7px 0', borderRadius: 6, cursor: 'pointer',
-                    border: '1px solid rgba(0,229,255,0.5)', background: 'rgba(0,229,255,0.1)', color: '#00e5ff'
-                  }}
-                >
-                  JIN, TAMPILKAN DATA INDEKS SAHAM
-                </button>
-                <div style={{ fontSize: 8, color: '#64748b', textAlign: 'center' }}>
-                  atau ucapkan: &ldquo;Jin, tampilkan data Indeks Saham&rdquo;
-                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
                   {[['LOKAL', '#34d399'], ['GLOBAL', '#38bdf8'], ['KOMODITAS', '#f59e0b'], ['CRYPTO', '#c084fc']].map(([l, c]) => (
                     <button key={l} onClick={() => setMieModal({ open: true, symbol: l === 'LOKAL' ? 'IHSG' : l === 'CRYPTO' ? 'BTC' : l === 'KOMODITAS' ? 'GOLD' : 'DXY' })}

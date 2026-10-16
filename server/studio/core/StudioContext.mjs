@@ -104,8 +104,7 @@ export class StudioContext {
       phase: this.execution.phase,
       status: this.project.status
     };
-
-
+  } // end constructor
 
   // Complete project
   markComplete() {

@@ -44,3 +44,16 @@ test-stream*.json
 reformed_panel_screenshot.png
 REMOVE_PHASE1_SIMULATOR_ORCHESTRATOR.txt
 runtimes/
+_*
+scratch/
+scratch_isolated_index*
+*.bak*
+*.sqlite
+storage/documents/
+vite.config.js.timestamp-*
+cleanup-C-safe.ps1
+server/data/user-profile.json
+server/market/.resolution-cache.json
+server/market/intelligence/macro.snapshot.json
+server/local_router/storage/
+d:/

@@ -19,7 +19,7 @@ export const LOCAL_ROUTER_HEALTH_PATHS = new Set([
 
 export const config = {
   port: parseInt(process.env.PORT || '20200', 10),
-  defaultProvider: process.env.ROUTE_PROVIDER || 'gemini',
+  defaultProvider: process.env.ROUTE_PROVIDER || 'ninerouter',
   localRouter: {
     baseUrl: process.env.LOCAL_ROUTER_URL || 'http://127.0.0.1:20200',
     port: parseInt(process.env.LOCAL_ROUTER_PORT || '20200', 10),
@@ -32,14 +32,14 @@ export const config = {
   },
   localLLM: {
     enabled: true,
-    model: process.env.LLAMACPP_MODEL || 'qwen2.5-3b-instruct-q4_k_m.gguf',
-    baseUrl: process.env.LLAMACPP_HOST || 'http://127.0.0.1:8080',
+    model: process.env.NINEROUTER_CHAT_MODEL || process.env.LLAMACPP_MODEL || 'auto',
+    baseUrl: process.env.NINEROUTER_URL || 'http://127.0.0.1:20128',
     timeoutMs: parseInt(process.env.LLAMACPP_TIMEOUT_MS || '120000', 10),
     maxPromptChars: parseInt(process.env.LLAMACPP_MAX_PROMPT_CHARS || '48000', 10)
   },
   route: {
-    strategy: process.env.ROUTE_STRATEGY || 'cloud_first',
-    provider: process.env.ROUTE_PROVIDER || 'gemini'
+    strategy: process.env.ROUTE_STRATEGY || 'local_first',
+    provider: process.env.ROUTE_PROVIDER || 'ninerouter'
   },
   imageGeneration: {
     provider: 'ninerouter',

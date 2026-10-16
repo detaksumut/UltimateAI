@@ -38,7 +38,7 @@ function normalizeModelText(val) {
 
 export class JINResponseEngine {
   constructor(proxyUrl = null, apiKey = null) {
-    const base = proxyUrl || process.env.LLAMACPP_HOST || config.endpoints.llamacpp || 'http://127.0.0.1:8080';
+    const base = proxyUrl || process.env.NINEROUTER_URL || config.endpoints.ninerouter || 'http://127.0.0.1:20128';
     this.proxyUrl = base.replace(/\/+$/, '') + '/v1';
     this.apiKey = apiKey || '';
   }

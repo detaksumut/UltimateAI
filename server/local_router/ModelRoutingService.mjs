@@ -1,15 +1,15 @@
 /**
  * ModelRoutingService.mjs
  * Intelligent Hybrid Model Routing Service for UltimateAI / JIN Runtime.
- * Primary Local Inference Engine: llama.cpp (Qwen 2.5 3B on :8080)
+ * Primary Local Inference Engine: 9Router Gateway (http://127.0.0.1:20128)
  * Visual / Multimodal Engine: Gemini Cloud
  * 
  * STRICT POLICY:
  *  - Zero silent / hidden fallback between runtimes.
- *  - When local Qwen is chosen, failures report directly to caller.
+ *  - When 9Router is chosen, failures report directly to caller.
  */
 
-import { llamaCppAdapterInstance } from '../providers/LlamaCppAdapter.mjs';
+import { nineRouterChatAdapterInstance } from '../providers/NineRouterChatAdapter.mjs';
 import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
 import { groqProviderInstance } from '../providers/GroqProvider.mjs';
 
@@ -40,6 +40,7 @@ export class ModelRoutingService {
     if (
       process.env.ROUTER_FORCE_LOCAL === 'true' ||
       process.env.ROUTE_STRATEGY === 'local_first' ||
+      process.env.ROUTE_PROVIDER === 'ninerouter' ||
       process.env.ROUTE_PROVIDER === 'llamacpp'
     ) {
       return 'local_first';
@@ -48,7 +49,7 @@ export class ModelRoutingService {
   }
 
   _localModel() {
-    return process.env.LLAMACPP_MODEL || 'hermes-3-8b';
+    return process.env.NINEROUTER_CHAT_MODEL || process.env.LLAMACPP_MODEL || 'auto';
   }
 
   _maxPromptChars() {
@@ -57,8 +58,8 @@ export class ModelRoutingService {
   }
 
   _localRouteLabel(model) {
-    const modelName = String(model || 'hermes-3-8b').split(':')[0].replace(/[^a-z0-9]+/gi, '_').toUpperCase();
-    return `LOCAL_${modelName}_PRIMARY`;
+    const modelName = String(model || 'auto').split(':')[0].replace(/[^a-z0-9]+/gi, '_').toUpperCase();
+    return `NINEROUTER_${modelName}_PRIMARY`;
   }
 
   _normalizeCapability(capability) {
@@ -152,10 +153,11 @@ export class ModelRoutingService {
     const cleanModel = String(model || '').trim();
 
     const isExplicitGemini = cleanModel.startsWith('gemini-');
-    const isExplicitLocal  = cleanModel.startsWith('llamacpp:') || cleanModel.startsWith('hermes') || cleanModel.startsWith('ollama:');
+    const isExplicitLocal  = cleanModel.startsWith('llamacpp:') || cleanModel.startsWith('ninerouter:') || cleanModel.startsWith('hermes') || cleanModel.startsWith('ollama:');
     const isLocalPreferred = !isExplicitGemini && (
       isExplicitLocal ||
       process.env.ROUTER_FORCE_LOCAL === 'true' ||
+      process.env.ROUTE_PROVIDER === 'ninerouter' ||
       process.env.ROUTE_PROVIDER === 'llamacpp' ||
       process.env.ROUTE_STRATEGY === 'local_first'
     );
@@ -194,19 +196,19 @@ export class ModelRoutingService {
       };
     }
 
-    // 3. Local Primary Route (Hermes 3:8B via llama.cpp)
+    // 3. Local Primary Route (9Router Gateway)
     // ZERO hidden fallback.
     if (isLocalPreferred) {
       return {
         candidates: [
-          { provider: 'llamacpp', model: localModel, fallback: false }
+          { provider: 'ninerouter', model: localModel, fallback: false }
         ],
         hasMedia,
         heavy,
         capability: normalizedCapability,
         strategy: 'local_first',
-        forcedProvider: 'llamacpp',
-        provider: 'llamacpp',
+        forcedProvider: 'ninerouter',
+        provider: 'ninerouter',
         label: this._localRouteLabel(localModel)
       };
     }
@@ -228,13 +230,13 @@ export class ModelRoutingService {
     }
 
     return {
-      candidates: [{ provider: 'llamacpp', model: localModel, fallback: false }],
+      candidates: [{ provider: 'ninerouter', model: localModel, fallback: false }],
       hasMedia,
       heavy,
       capability: normalizedCapability,
       strategy: 'local_first',
-      forcedProvider: 'llamacpp',
-      provider: 'llamacpp',
+      forcedProvider: 'ninerouter',
+      provider: 'ninerouter',
       label: this._localRouteLabel(localModel)
     };
   }
@@ -261,38 +263,65 @@ export class ModelRoutingService {
 
     const sanitizedMessages = this._sanitizeMessages(messages);
 
-    // 1. LOCAL ROUTE: LLAMA.CPP
-    if (route.provider === 'llamacpp') {
-      // isAvailable() now checks for status='ok' (model fully loaded).
-      // If server just started, waitUntilReady() polls up to 30s before giving up.
-      const isReady = await llamaCppAdapterInstance.isAvailable() ||
-        await llamaCppAdapterInstance.waitUntilReady(30_000);
+    // 1. LOCAL ROUTE: 9ROUTER
+    if (route.provider === 'ninerouter') {
+      const isReady = await nineRouterChatAdapterInstance.isAvailable();
       if (!isReady) {
-        const err = new Error('LLAMACPP_UNAVAILABLE: llama-server tidak aktif atau model belum selesai dimuat di http://127.0.0.1:8080. Tunggu beberapa detik lalu coba lagi.');
-        err.code = 'LLAMACPP_UNAVAILABLE';
+        // 9Router offline — fallback to Gemini if configured
+        const hasGemini = geminiProviderInstance.isConfigured();
+        if (hasGemini) {
+          console.warn('[ModelRoutingService] 9Router offline — fallback ke Gemini Cloud.');
+          try {
+            const raw = await geminiProviderInstance.sendChat(
+              { messages: sanitizedMessages, stream, model, temperature },
+              safeOnChunk
+            );
+            const resolvedModel = geminiProviderInstance._resolveModel(model);
+            const responseId = `gemini-fallback-${Date.now()}`;
+            return {
+              content: raw,
+              model,
+              actualModel: resolvedModel,
+              providerGateway: 'GEMINI',
+              transport: 'GEMINI_CLOUD',
+              transportClass: 'CLOUD_GEMINI_FALLBACK',
+              upstreamEndpoint: `${geminiProviderInstance.baseUrl}/models`,
+              localResponseId: responseId,
+              responseId,
+              routedTo: 'gemini',
+              fallbackUsed: true,
+              fallbackReason: 'NINEROUTER_OFFLINE',
+              routePlan: route
+            };
+          } catch (geminiErr) {
+            throw new Error(`NINEROUTER_OFFLINE_GEMINI_FALLBACK_FAILED: 9Router tidak aktif dan Gemini fallback gagal: ${geminiErr.message}`);
+          }
+        }
+        const err = new Error('NINEROUTER_UNAVAILABLE: 9Router gateway tidak aktif di ' + nineRouterChatAdapterInstance.host + '. Pastikan 9Router sudah berjalan.');
+        err.code = 'NINEROUTER_UNAVAILABLE';
         err.routeAttempts = route.candidates;
         throw err;
       }
 
       try {
         const localMessages = this._truncateForLocal(sanitizedMessages, this._maxPromptChars());
-        const raw = await llamaCppAdapterInstance.sendChat(
+        const raw = await nineRouterChatAdapterInstance.sendChat(
           { messages: localMessages, stream, model: route.candidates[0].model, temperature, ...(maxTokens ? { maxTokens } : {}) },
           safeOnChunk
         );
 
-        const responseId = `llamacpp-hermes-${Date.now()}`;
+        const responseId = `ninerouter-${Date.now()}`;
         return {
           content: raw,
           model,
           actualModel: route.candidates[0].model,
-          providerGateway: 'LLAMA_CPP',
-          transport: 'LLAMA_CPP',
-          transportClass: 'LOCAL_LLAMA_CPP',
-          upstreamEndpoint: `${llamaCppAdapterInstance.host}/v1/chat/completions`,
+          providerGateway: '9ROUTER',
+          transport: '9ROUTER',
+          transportClass: 'LOCAL_9ROUTER',
+          upstreamEndpoint: `${nineRouterChatAdapterInstance.host}/v1/chat/completions`,
           localResponseId: responseId,
           responseId,
-          routedTo: 'llamacpp',
+          routedTo: 'ninerouter',
           fallbackUsed: false,
           routePlan: route
         };
@@ -300,14 +329,10 @@ export class ModelRoutingService {
         if (stream && emitted) {
           throw err;
         }
-        if (err.code === 'CONTEXT_LIMIT_EXCEEDED' || err.message?.includes('CONTEXT_LIMIT_EXCEEDED')) {
-          err.code = 'CONTEXT_LIMIT_EXCEEDED';
-          throw err;
-        }
-        // STRICT ZERO FALLBACK POLICY: Do not silently fallback to Ollama or Gemini
-        const wrappedErr = new Error(`LLAMACPP_EXECUTION_ERROR: ${err.message}`);
+        // STRICT ZERO FALLBACK POLICY
+        const wrappedErr = new Error(`NINEROUTER_EXECUTION_ERROR: ${err.message}`);
         wrappedErr.original = err;
-        wrappedErr.code = err.code || 'LLAMACPP_EXECUTION_ERROR';
+        wrappedErr.code = err.code || 'NINEROUTER_EXECUTION_ERROR';
         wrappedErr.routeAttempts = route.candidates;
         throw wrappedErr;
       }
@@ -358,7 +383,7 @@ export class ModelRoutingService {
   }
 
   async status() {
-    const llamaCheck = await llamaCppAdapterInstance.healthCheck();
+    const ninerouterCheck = await nineRouterChatAdapterInstance.healthCheck();
     const geminiAvailable = await geminiProviderInstance.isAvailable();
     const hasGemini = geminiProviderInstance.isConfigured();
     const hasGroq = groqProviderInstance.isConfigured();
@@ -366,17 +391,18 @@ export class ModelRoutingService {
 
     const isLocalPreferred =
       process.env.ROUTER_FORCE_LOCAL === 'true' ||
+      process.env.ROUTE_PROVIDER === 'ninerouter' ||
       process.env.ROUTE_PROVIDER === 'llamacpp' ||
       process.env.ROUTE_STRATEGY === 'local_first';
 
     return {
       strategy: isLocalPreferred ? 'local_first' : 'cloud_first',
-      primaryProvider: isLocalPreferred ? 'llamacpp' : 'gemini',
+      primaryProvider: isLocalPreferred ? 'ninerouter' : 'gemini',
       localLLM: {
-        provider: 'llamacpp',
-        endpoint: llamaCppAdapterInstance.host,
+        provider: 'ninerouter',
+        endpoint: nineRouterChatAdapterInstance.host,
         configured: true,
-        status: llamaCheck.status,
+        status: ninerouterCheck.status,
         model: this._localModel(),
         role: 'primary_local'
       },
@@ -392,10 +418,10 @@ export class ModelRoutingService {
         available: groqAvailable,
         model: groqProviderInstance.defaultModel
       },
-      mode: isLocalPreferred ? 'LOCAL_LLAMA_HERMES_PRIMARY' : 'HYBRID_CLOUD_PRIMARY',
-      providerGateway: isLocalPreferred ? 'LLAMA_CPP' : 'GEMINI',
+      mode: isLocalPreferred ? 'LOCAL_9ROUTER_PRIMARY' : 'HYBRID_CLOUD_PRIMARY',
+      providerGateway: isLocalPreferred ? '9ROUTER' : 'GEMINI',
       routingTiers: [
-        { tier: 1, provider: 'llamacpp', model: this._localModel(), status: llamaCheck.status },
+        { tier: 1, provider: 'ninerouter', model: this._localModel(), status: ninerouterCheck.status },
         { tier: 2, provider: 'gemini', status: geminiAvailable ? 'READY' : 'UNAVAILABLE' }
       ]
     };

@@ -608,6 +608,80 @@ Analyze contextually and output strict JSON.`;
   }
 
   /**
+   * Slide Studio Classifier — detects requests to create a slide/presentation via SLIDE_STUDIO engine.
+   * Runs BEFORE generic task classifier to intercept deck/slide creation commands.
+   * Returns SLIDE_STUDIO intent when a specific slide creation trigger is detected.
+   */
+  _slideStudioClassifier(raw, activeConstraints = []) {
+    const r = raw;
+
+    // Specific slide deck creation triggers — must be actionable (not just "buat outline")
+    const isSlideStudio =
+      /(?:buatkan?|buat|bikin|hasilkan|generate|create)\s+(?:deck|slide\s+deck|presentasi\s+slide|slide\s+presentasi|ppt|powerpoint|pptx)\b/i.test(r) ||
+      /(?:slide\s+deck|deck\s+presentasi)\s+(?:tentang|mengenai|untuk|soal|topik)/i.test(r) ||
+      /\bslide\s+\d+\s*[:—\-]\s*\S/i.test(r) || // "slide 1: Judul"
+      /(?:buatkan?|buat)\s+\d+\s+slide\b/i.test(r); // "buat 5 slide"
+
+    if (!isSlideStudio) return null;
+
+    return {
+      intent: 'SLIDE_STUDIO',
+      goal: r,
+      resolvedReferences: [],
+      actionRequired: true,
+      entities: ['slide', 'deck'],
+      constraints: activeConstraints,
+      isCorrecting: false,
+      isContinuing: false,
+      freshDataRequired: false,
+      toolsNeeded: ['slide_studio'],
+      toolReason: 'Permintaan pembuatan deck/slide → SLIDE_STUDIO engine.',
+      needsClarification: false,
+      clarificationQuestion: null,
+      confidence: 0.97,
+      reason: 'Slide deck creation intent detected.',
+      interpretationSource: 'DETERMINISTIC_SLIDE_STUDIO_CLASSIFIER',
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: false
+    };
+  }
+
+  /**
+   * Architectural Design Classifier — detects system/software architecture diagram requests.
+   * Routes to ARCHITECTURAL_STUDIO engine.
+   */
+  _architecturalDesignClassifier(raw, activeConstraints = []) {
+    const r = raw;
+
+    const isArchStudio =
+      /(?:buatkan?|buat|bikin|hasilkan|generate|design|rancang)\s+(?:arsitektur|architecture|diagram\s+sistem|system\s+diagram|diagram\s+arsitektur|software\s+architecture|er\s+diagram|erd|uml|class\s+diagram|sequence\s+diagram|flowchart\s+sistem)\b/i.test(r) ||
+      /(?:arsitektur|architecture)\s+(?:sistem|system|aplikasi|app|backend|frontend|microservice|cloud)\b/i.test(r);
+
+    if (!isArchStudio) return null;
+
+    return {
+      intent: 'ARCHITECTURAL_STUDIO',
+      goal: r,
+      resolvedReferences: [],
+      actionRequired: true,
+      entities: ['architecture', 'diagram'],
+      constraints: activeConstraints,
+      isCorrecting: false,
+      isContinuing: false,
+      freshDataRequired: false,
+      toolsNeeded: ['architectural_studio'],
+      toolReason: 'Permintaan desain arsitektur sistem → ARCHITECTURAL_STUDIO engine.',
+      needsClarification: false,
+      clarificationQuestion: null,
+      confidence: 0.96,
+      reason: 'Architectural design intent detected.',
+      interpretationSource: 'DETERMINISTIC_ARCH_STUDIO_CLASSIFIER',
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: false
+    };
+  }
+
+  /**
    * Deterministic Casual Chat Classifier — Fast-path for greetings, thanks, identity questions.
    * Must run BEFORE device inspection and task classifier.
    *
@@ -693,7 +767,7 @@ Analyze contextually and output strict JSON.`;
       fallbackUsed: false,
       sourceScope: SCOPE.LOCAL_ONLY,
       providerRouting: {
-        preferredProvider: PROVIDER.OLLAMA,
+        preferredProvider: PROVIDER.LOCAL_LLM,
         fallbackProvider: null,
         fallbackRestriction: FALLBACK_RESTRICTION.NONE,
         restrictions: [],

@@ -24,7 +24,7 @@ import { KnowledgeGapDetector } from './KnowledgeGapDetector.mjs';
 import { routingOptimizerInstance } from '../routing/RoutingOptimizer.mjs';
 import { activeMemoryCoreInstance } from '../memory/ActiveMemoryCore.mjs';
 import { providerIntelligenceRouterInstance, SCOPE, PROVIDER } from '../routing/ProviderIntelligenceRouter.mjs';
-import { llamaCppAdapterInstance } from '../providers/LlamaCppAdapter.mjs';
+import { nineRouterChatAdapterInstance } from '../providers/NineRouterChatAdapter.mjs';
 import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
 import { exploreAgentInstance } from './ExploreAgent.mjs';
 import { evidenceChainBuilderInstance, VERIFICATION_STATUS } from './EvidenceChain.mjs';
@@ -924,7 +924,7 @@ export class AgentRuntime {
         subgoal: `Execute local task: ${rawGoal}`,
         action: 'execute_local',
         tool: decision.toolsNeeded?.[0] || null,
-        providerDomain: PROVIDER.OLLAMA,
+        providerDomain: PROVIDER.LOCAL_LLM,
         params: { query: rawGoal },
         dependsOn: []
       }]
@@ -1137,7 +1137,7 @@ export class AgentRuntime {
     currentPlan.selectedPool = 'LOCAL_OLLAMA';
     currentPlan.sourceScope = SCOPE.EXTERNAL_REQUIRED;
     for (const step of currentPlan.steps) {
-      step.providerDomain = PROVIDER.OLLAMA;
+      step.providerDomain = PROVIDER.LOCAL_LLM;
     }
 
     // Ensure web.search is included for external data queries
@@ -1213,7 +1213,7 @@ export class AgentRuntime {
     // Assign provider domain per step based on tool type
     for (const step of currentPlan.steps) {
       if (step.tool === 'device.inspect' || step.tool === 'sandbox.execute' || step.tool === 'doc.analyze') {
-        step.providerDomain = PROVIDER.OLLAMA;
+        step.providerDomain = PROVIDER.LOCAL_LLM;
       } else if (step.tool === 'web.search' || step.tool === 'web.fetch') {
         step.providerDomain = PROVIDER.ANTIGRAVITY;
       } else {
@@ -1231,7 +1231,7 @@ export class AgentRuntime {
     timeline.push({
       event: 'EXPLORE_STARTED',
       scope: SCOPE.HYBRID,
-      providers: [PROVIDER.OLLAMA, PROVIDER.ANTIGRAVITY],
+      providers: [PROVIDER.LOCAL_LLM, PROVIDER.ANTIGRAVITY],
       timestamp: new Date().toISOString()
     });
     const explorationResult = await exploreAgentInstance.explore(currentPlan, decision, sessionContext);
@@ -1794,45 +1794,45 @@ export class AgentRuntime {
    * Create work orchestrator with LLM client and domain services
    */
   _createWorkOrchestrator() {
-    const llmClient = llamaCppAdapterInstance;
-    const taskPlanner = new TaskPlanner({ llmClient, model: 'hermes-3-8b' });
+    const llmClient = nineRouterChatAdapterInstance;
+    const taskPlanner = new TaskPlanner({ llmClient, model: 'auto' });
     const domainRouter = new DomainRouter();
 
     // Register FASE 2 domain services
     const researchService = new ResearchService({
       tavilyApiKey: process.env.TAVILY_API_KEY,
       llmClient,
-      llmModel: 'hermes-3-8b',
+      llmModel: 'auto',
     });
     domainRouter.register('RESEARCH', researchService);
 
     const documentService = new DocumentService({
       llmClient,
-      llmModel: 'hermes-3-8b',
+      llmModel: 'auto',
     });
     domainRouter.register('DOCUMENT', documentService);
 
     const contentService = new ContentService({
       llmClient,
-      llmModel: 'hermes-3-8b',
+      llmModel: 'auto',
     });
     domainRouter.register('CONTENT', contentService);
 
     const pptService = new PPTService({
       llmClient,
-      llmModel: 'hermes-3-8b',
+      llmModel: 'auto',
     });
     domainRouter.register('CREATIVE', pptService);
 
     const dataService = new DataService({
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'auto',
     });
     domainRouter.register('DATA', dataService);
 
     const automationService = new AutomationService({
       llmClient,
-      llmModel: 'qwen3:8b',
+      llmModel: 'auto',
     });
     domainRouter.register('AUTOMATION', automationService);
 

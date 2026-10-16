@@ -243,6 +243,39 @@ function tavilyDriveFPlugin() {
       server.middlewares.use((req, res, next) => {
         const parsedUrl = new URL(req.url, 'http://127.0.0.1:5177');
 
+        // MIE v1 — ANALISIS MAKRO & TEKNIKAL: serve langsung dari engine bila
+        // LocalRouter :20200 belum jalan (dev standalone).
+        if ((parsedUrl.pathname === '/api/market/analyze' && req.method === 'GET')
+          || (parsedUrl.pathname === '/api/market/macro' && (req.method === 'GET' || req.method === 'POST'))) {
+          (async () => {
+            try {
+              const svc = await import('./server/market/MarketIntelligenceService.mjs');
+              if (parsedUrl.pathname === '/api/market/analyze') {
+                const out = await svc.getMarketAnalysis(parsedUrl.searchParams.get('symbol') || 'IHSG');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(out));
+              } else if (req.method === 'GET') {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: true, ...svc.getMacroSnapshot() }));
+              } else {
+                let raw = '';
+                req.on('data', (c) => { raw += c; });
+                req.on('end', () => {
+                  let body = {};
+                  try { body = JSON.parse(raw || '{}'); } catch {}
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify(svc.saveMacroSnapshot(body)));
+                });
+                return;
+              }
+            } catch (err) {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ service: 'MARKET_INTELLIGENCE', ok: true, symbol: 'IHSG', marketState: 'OFFLINE', timestamp: Date.now(), error: err.message }));
+            }
+          })();
+          return;
+        }
+
         // FORWARD /api/daemon/* TO LOCAL ROUTER 20200
         if (parsedUrl.pathname.startsWith('/api/daemon')) {
           const targetUrl = `http://127.0.0.1:20200${parsedUrl.pathname}${parsedUrl.search}`;

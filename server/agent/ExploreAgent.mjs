@@ -189,13 +189,13 @@ export class ExploreAgent {
           type: 'LOCAL_ANALYSIS',
           description: `Local reasoning base ready for: ${goal || 'local task'}`,
           source: 'LOCAL_REASONING',
-          provider: PROVIDER.OLLAMA,
+          provider: PROVIDER.LOCAL_LLM,
           confidence: 0.6,
           collectedAt: new Date().toISOString()
         });
       }
       confidence = evidence.length > 0 ? 0.6 : 0;
-      return { evidence, sources, providerUsed: PROVIDER.OLLAMA, confidence };
+      return { evidence, sources, providerUsed: PROVIDER.LOCAL_LLM, confidence };
     }
 
     // Full Ollama LLM analysis (HYBRID deep context / non-structured local tasks)
@@ -222,7 +222,7 @@ export class ExploreAgent {
             type: item.type || 'LOCAL_ANALYSIS',
             description: item.description || item,
             source: item.source || 'OLLAMA_LOCAL_REASONING',
-            provider: PROVIDER.OLLAMA,
+            provider: PROVIDER.LOCAL_LLM,
             confidence: 0.8,
             collectedAt: new Date().toISOString()
           })));
@@ -231,7 +231,7 @@ export class ExploreAgent {
             id: `src_int_${Date.now()}`,
             sourceId: `src_int_${Date.now()}`,
             type: 'LOCAL_OLLAMA',
-            provider: PROVIDER.OLLAMA,
+            provider: PROVIDER.LOCAL_LLM,
             description: 'Internal Ollama analysis',
             title: 'Ollama local analysis',
             url: null,
@@ -249,13 +249,13 @@ export class ExploreAgent {
         type: 'INTERNAL_UNAVAILABLE',
         description: `Ollama internal exploration failed: ${err.message}`,
         source: 'OLLAMA_ERROR',
-        provider: PROVIDER.OLLAMA,
+        provider: PROVIDER.LOCAL_LLM,
         confidence: 0,
         collectedAt: new Date().toISOString()
       });
     }
 
-    return { evidence, sources, providerUsed: PROVIDER.OLLAMA, confidence };
+    return { evidence, sources, providerUsed: PROVIDER.LOCAL_LLM, confidence };
   }
 
   /**

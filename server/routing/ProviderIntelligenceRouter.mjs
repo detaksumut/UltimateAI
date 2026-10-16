@@ -3,18 +3,19 @@
  * TAHAP 3B-2C: Formal Provider Intelligence Routing
  *
  * Two Forces Principle:
- *   OLLAMA  = INTERNAL / LOCAL INTELLIGENCE (device, files, docs, memory, coding)
+ *   LOCAL_LLM   = INTERNAL / LOCAL INTELLIGENCE (device, files, docs, memory, coding)
+ *                 Engine: llama.cpp (Qwen 2.5 3B) on :8080
  *   ANTIGRAVITY = EXTERNAL / INTERNET INTELLIGENCE (web, news, prices, research)
  *
  * Routing is based on WHERE DATA LIVES, not message complexity.
  *
  * Scope Types:
- *   LOCAL_ONLY       → Ollama only (no internet needed)
- *   EXTERNAL_REQUIRED → Antigravity first, Ollama fallback with restrictions
- *   HYBRID           → Ollama for local context + Antigravity for internet evidence
+ *   LOCAL_ONLY       → LOCAL_LLM only (no internet needed)
+ *   EXTERNAL_REQUIRED → Antigravity first, LOCAL_LLM fallback with restrictions
+ *   HYBRID           → LOCAL_LLM for local context + Antigravity for internet evidence
  *
  * Critical Rule:
- *   Ollama MUST NEVER fabricate live internet data when Antigravity is unavailable.
+ *   LOCAL_LLM MUST NEVER fabricate live internet data when Antigravity is unavailable.
  *   Fallback restriction: NO_FRESH_EXTERNAL_CLAIMS
  */
 
@@ -25,7 +26,7 @@ export const SCOPE = {
 };
 
 export const PROVIDER = {
-  OLLAMA: 'OLLAMA',
+  LOCAL_LLM: 'LOCAL_LLM',
   ANTIGRAVITY: 'ANTIGRAVITY'
 };
 
@@ -170,19 +171,19 @@ class ProviderIntelligenceRouter {
 
     if (hybridMatches.length > 0) {
       scope = SCOPE.HYBRID;
-      preferredProvider = PROVIDER.OLLAMA;
+      preferredProvider = PROVIDER.LOCAL_LLM;
       fallbackProvider = PROVIDER.ANTIGRAVITY;
       fallbackRestriction = FALLBACK_RESTRICTION.NONE;
       restrictions = [];
     } else if (externalMatches.length > 0 || isRealtime) {
       scope = SCOPE.EXTERNAL_REQUIRED;
       preferredProvider = PROVIDER.ANTIGRAVITY;
-      fallbackProvider = PROVIDER.OLLAMA;
+      fallbackProvider = PROVIDER.LOCAL_LLM;
       fallbackRestriction = FALLBACK_RESTRICTION.NO_FRESH_EXTERNAL_CLAIMS;
       restrictions = ['NO_FRESH_EXTERNAL_CLAIMS'];
     } else {
       scope = SCOPE.LOCAL_ONLY;
-      preferredProvider = PROVIDER.OLLAMA;
+      preferredProvider = PROVIDER.LOCAL_LLM;
       fallbackProvider = null;
       fallbackRestriction = FALLBACK_RESTRICTION.NONE;
       restrictions = [];
@@ -211,19 +212,19 @@ class ProviderIntelligenceRouter {
   }
 
   /**
-   * Check if Ollama is allowed to answer a specific question based on restrictions.
+   * Check if LOCAL_LLM (llama.cpp) is allowed to answer a specific question based on restrictions.
    * @param {string} scope - Routing scope
    * @param {Array} restrictions - Active restrictions
    * @param {boolean} hasCachedEvidence - Whether cached evidence exists from prior Antigravity calls
    * @returns {Object} { allowed, reason }
    */
-  checkOllamaFallbackPermission(scope, restrictions, hasCachedEvidence = false) {
+  checkLocalLLMFallbackPermission(scope, restrictions, hasCachedEvidence = false) {
     if (scope === SCOPE.LOCAL_ONLY) {
-      return { allowed: true, reason: 'LOCAL_ONLY scope: Ollama is primary provider.' };
+      return { allowed: true, reason: 'LOCAL_ONLY scope: LOCAL_LLM is primary provider.' };
     }
 
     if (scope === SCOPE.HYBRID && !restrictions.includes(FALLBACK_RESTRICTION.NO_FRESH_EXTERNAL_CLAIMS)) {
-      return { allowed: true, reason: 'HYBRID scope: Ollama handles local context portion.' };
+      return { allowed: true, reason: 'HYBRID scope: LOCAL_LLM handles local context portion.' };
     }
 
     if (scope === SCOPE.EXTERNAL_REQUIRED) {
@@ -231,17 +232,22 @@ class ProviderIntelligenceRouter {
         if (hasCachedEvidence) {
           return {
             allowed: true,
-            reason: 'Antigravity unavailable. Ollama may analyze CACHED evidence only. NO new external claims.'
+            reason: 'Antigravity unavailable. LOCAL_LLM may analyze CACHED evidence only. NO new external claims.'
           };
         }
         return {
           allowed: false,
-          reason: 'Antigravity unavailable and no cached evidence. Ollama CANNOT fabricate external data. Transparent limitation message required.'
+          reason: 'Antigravity unavailable and no cached evidence. LOCAL_LLM CANNOT fabricate external data. Transparent limitation message required.'
         };
       }
     }
 
-    return { allowed: true, reason: 'No restrictions blocking Ollama.' };
+    return { allowed: true, reason: 'No restrictions blocking LOCAL_LLM.' };
+  }
+
+  /** @deprecated Use checkLocalLLMFallbackPermission instead */
+  checkOllamaFallbackPermission(scope, restrictions, hasCachedEvidence = false) {
+    return this.checkLocalLLMFallbackPermission(scope, restrictions, hasCachedEvidence);
   }
 
   /**

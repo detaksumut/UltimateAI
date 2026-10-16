@@ -3812,9 +3812,64 @@ Requirements:
       return;
     }
 
+    // 8C. MARKET INTELLIGENCE (MIE v1) — ANALISIS MAKRO & TEKNIKAL.
+    if (pathname === '/api/market/analyze' && req.method === 'GET') {
+      try {
+        const u = new URL(req.url, 'http://localhost');
+        const { getMarketAnalysis } = await import('../market/MarketIntelligenceService.mjs');
+        const out = await getMarketAnalysis(u.searchParams.get('symbol') || 'IHSG');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(out, null, 2));
+      } catch (err) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ service: 'MARKET_INTELLIGENCE', ok: true, symbol: 'IHSG', marketState: 'OFFLINE', timestamp: Date.now(), error: err.message }));
+      }
+      return;
+    }
+    if (pathname === '/api/market/macro' && (req.method === 'GET' || req.method === 'POST')) {
+      try {
+        const svc = await import('../market/MarketIntelligenceService.mjs');
+        if (req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, ...svc.getMacroSnapshot() }));
+        } else {
+          const body = await readJsonBody();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(svc.saveMacroSnapshot(body || {})));
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    // 20. MEMORY CORE HEALTH — polled by frontend every 30s
+    if (pathname === '/api/memory/health' && req.method === 'GET') {
+      try {
+        let memoryStatus = { status: 'OK', vaultFiles: 0, indexed: 0, summary: 'Memory core online.' };
+        try {
+          const { memoryBridgeInstance } = await import('../memory/MemoryBridge.mjs');
+          if (memoryBridgeInstance && typeof memoryBridgeInstance.getHealth === 'function') {
+            memoryStatus = await memoryBridgeInstance.getHealth();
+          }
+        } catch {
+          // MemoryBridge belum tersedia — kembalikan stub yang valid
+          memoryStatus = { status: 'OK', vaultFiles: 0, indexed: 0, summary: 'Memory bridge not yet loaded.' };
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=25' });
+        res.end(JSON.stringify(memoryStatus));
+      } catch (err) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'DEGRADED', vaultFiles: 0, indexed: 0, summary: err.message }));
+      }
+      return;
+    }
+
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));
+
   });
 
   return server;
