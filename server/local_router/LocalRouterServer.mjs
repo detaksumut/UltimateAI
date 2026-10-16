@@ -310,6 +310,33 @@ export function createLocalRouterServer() {
       return;
     }
 
+    // 10C1. POST /api/files/parse — Parse PDF / DOCX documents uploaded from the frontend.
+    // The frontend sends { fileName: string, dataUrl: string } and expects { text: string }.
+    if (pathname === '/api/files/parse' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const { fileName = '', dataUrl = '' } = payload;
+          if (!dataUrl) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'dataUrl is required' }));
+            return;
+          }
+          const { extractTextFromDataUrl } = await import('../tools/DocumentParser.mjs');
+          const text = await extractTextFromDataUrl(dataUrl, fileName);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ text: text || '', fileName }));
+        } catch (parseErr) {
+          console.error('[LocalRouter /api/files/parse] Error:', parseErr.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: parseErr.message }));
+        }
+      });
+      return;
+    }
+
     // 10C2. POST /api/agent/stream-work — SSE streaming for professional work execution
     if ((pathname === '/api/agent/stream-work' || pathname === '/v1/agent/stream-work') && req.method === 'POST') {
       let body = '';
