@@ -126,13 +126,36 @@ function extractSubBlocks(text) {
   if (!text) return [];
   const results = [];
 
-  // Strictly strip any raw HTML tags, stray unclosed divs, comments, and style definitions
+  // Match HTML canvas cards / YouTube embed players (<div ...><iframe ...></iframe></div> or <iframe ...></iframe>)
+  const htmlCardRegex = /<div\b[^>]*>(?:(?!<div\b)[\s\S])*?<iframe\b[\s\S]*?<\/iframe>(?:(?!<\/div>)[\s\S])*?<\/div>|<iframe\b[\s\S]*?<\/iframe>|<div\s+class="jin-canvas[\s\S]*?<\/div>/i;
+
+  let currentText = text;
+  while (currentText.length > 0) {
+    const cardMatch = htmlCardRegex.exec(currentText);
+    if (!cardMatch) {
+      processTextAndImages(currentText, results);
+      break;
+    }
+
+    const before = currentText.slice(0, cardMatch.index);
+    if (before) {
+      processTextAndImages(before, results);
+    }
+
+    results.push({
+      type: 'html_card',
+      content: cardMatch[0]
+    });
+
+    currentText = currentText.slice(cardMatch.index + cardMatch[0].length);
+  }
+
+  return results;
+}
+
+function processTextAndImages(text, results) {
   let cleanText = text
-    .replace(/<div\b[^>]*>[\s\S]*?<\/div>/gi, '') // complete div blocks
-    .replace(/<div\b[\s\S]*$/gi, '') // unclosed div tag at stream end
-    .replace(/<[^>]+>/g, '') // any other html tag
-    .replace(/<!--[\s\S]*?-->/g, '') // comments
-    .replace(/(?:font-family|box-sizing|aspect-ratio|border-radius|background):\s*[^;\n]+;?/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .trim();
 
   let idx = 0;
@@ -143,19 +166,23 @@ function extractSubBlocks(text) {
     const imgMatch = /!\[([^\]]*)\]\(([^)]+)\)/.exec(remaining);
 
     if (!imgMatch) {
-      results.push({ type: 'text', content: cleanText.slice(idx) });
+      const remainingClean = cleanText.slice(idx).replace(/<[^>]+>/g, '').trim();
+      if (remainingClean) {
+        results.push({ type: 'text', content: remainingClean });
+      }
       break;
     }
 
     if (imgMatch.index > 0) {
-      results.push({ type: 'text', content: cleanText.slice(idx, idx + imgMatch.index) });
+      const beforeImg = cleanText.slice(idx, idx + imgMatch.index).replace(/<[^>]+>/g, '').trim();
+      if (beforeImg) {
+        results.push({ type: 'text', content: beforeImg });
+      }
     }
 
     results.push({ type: 'image', alt: imgMatch[1], src: imgMatch[2] });
     idx += imgMatch.index + imgMatch[0].length;
   }
-
-  return results;
 }
 
 function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)", artifactType = "SLIDE_ARTIFACT", project = null, slides = null }) {
@@ -253,49 +280,74 @@ function CanvasCardRenderer({ htmlContent }) {
     } catch {}
   };
 
+  const isYouTube = /youtube\.com\/embed|youtu\.be/i.test(htmlContent);
+  const badgeTitle = isYouTube ? 'JIN CANVAS // YOUTUBE PLAYER' : 'JIN CONVERSATION CANVAS // LIVE FLYER';
+
   return (
-    <div className="my-3 rounded-xl overflow-hidden border border-emerald-500/40 shadow-[0_0_25px_rgba(46,204,113,0.18)] bg-[#020906] select-text">
+    <div className={`my-3 rounded-xl overflow-hidden border shadow-lg select-text ${
+      isYouTube 
+        ? 'border-red-500/40 shadow-[0_0_25px_rgba(239,68,68,0.2)] bg-[#080204]' 
+        : 'border-emerald-500/40 shadow-[0_0_25px_rgba(46,204,113,0.18)] bg-[#020906]'
+    }`}>
       {/* Canvas Header Bar */}
-      <div className="bg-emerald-950/85 px-3.5 py-2 border-b border-emerald-500/30 flex items-center justify-between text-[11px] font-mono select-none">
-        <div className="flex items-center gap-2 text-emerald-300 font-bold tracking-wider">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#2ecc71] animate-pulse" />
-          <span className="truncate max-w-[220px] sm:max-w-none">JIN CONVERSATION CANVAS // LIVE FLAYER</span>
+      <div className={`px-3.5 py-2 border-b flex items-center justify-between text-[11px] font-mono select-none ${
+        isYouTube ? 'bg-red-950/80 border-red-500/30' : 'bg-emerald-950/85 border-emerald-500/30'
+      }`}>
+        <div className={`flex items-center gap-2 font-bold tracking-wider ${
+          isYouTube ? 'text-red-300' : 'text-emerald-300'
+        }`}>
+          <span className={`w-2 h-2 rounded-full animate-pulse ${
+            isYouTube ? 'bg-red-400 shadow-[0_0_8px_#ef4444]' : 'bg-emerald-400 shadow-[0_0_8px_#2ecc71]'
+          }`} />
+          <span className="truncate max-w-[220px] sm:max-w-none">{badgeTitle}</span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             type="button"
             onClick={handleCopy}
-            className="px-2 py-0.5 rounded bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-[10px] transition-all flex items-center gap-1 cursor-pointer"
+            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
+              isYouTube
+                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
+                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
+            }`}
             title="Salin Kode HTML"
           >
-            {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} className="text-emerald-400" />}
+            {copied ? <Check size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} /> : <Copy size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />}
             <span>{copied ? 'Tersalin' : 'Salin'}</span>
           </button>
           <button
             type="button"
             onClick={handleOpenNewTab}
-            className="px-2 py-0.5 rounded bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-[10px] transition-all flex items-center gap-1 cursor-pointer"
+            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
+              isYouTube
+                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
+                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
+            }`}
             title="Buka Penuh di Tab Baru"
           >
-            <ExternalLink size={10} className="text-emerald-400" />
+            <ExternalLink size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />
             <span className="hidden sm:inline">Buka Penuh</span>
           </button>
           <button
             type="button"
             onClick={handleDownload}
-            className="px-2 py-0.5 rounded bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-[10px] transition-all flex items-center gap-1 cursor-pointer"
-            title="Unduh Berkas HTML Flayer"
+            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
+              isYouTube
+                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
+                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
+            }`}
+            title="Unduh Berkas HTML"
           >
-            <Download size={10} className="text-emerald-400" />
+            <Download size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />
             <span className="hidden sm:inline">Unduh</span>
           </button>
         </div>
       </div>
 
       {/* Rendered Canvas Body */}
-      <div className="p-2 bg-[#030c08]/90 overflow-x-auto custom-scrollbar">
+      <div className={`p-2 overflow-x-auto custom-scrollbar ${isYouTube ? 'bg-black' : 'bg-[#030c08]/90'}`}>
         <div 
-          className="jin-canvas-inner-content w-full min-w-[520px] flex justify-center items-center"
+          className={`jin-canvas-inner-content w-full flex justify-center items-center ${isYouTube ? 'min-w-0' : 'min-w-[520px]'}`}
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       </div>

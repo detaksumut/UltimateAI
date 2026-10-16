@@ -29,10 +29,12 @@ const NON_MUSIC_SIGNALS = [
   'news', 'berita', 'documentary', 'dokumenter', 'podcast',
   'commentary', 'komentar bola', 'vlog', 'daily vlog', 'recap',
   'episode', 'sinetron', 'trailer film',
+  'breaking news', 'kompas', 'tvone', 'tribun', 'metrotv', 'detik', 'inews', 'liputan6',
+  'musim hujan', 'cuaca', 'bencana'
 ];
 
 // Alias ejaan wajar untuk discovery.
-// "Hau Lai" (Vietnam) -> "Hou Lai /столица" (Rene Liu / Liu Ruo Ying).
+// "Hau Lai" (Vietnam) -> "Hou Lai / столица" (Rene Liu / Liu Ruo Ying).
 const TITLE_ALIASES = [
   [/^hau\s*lai$/i, ['hou lai', 'rene liu hou lai', 'liu ruo ying later']],
   [/^hou\s*lai$/i, ['hou lai', 'rene liu']],
@@ -68,22 +70,27 @@ function significantTokens(s = '') {
 /** Discovery expansion: query user + alias resmi (mis. Hau Lai -> Hou Lai). */
 export function expandDiscoveryQueries(rawQuery = '') {
   const base = String(rawQuery || '').trim();
-  const out = [base];
+  const out = [];
+  if (!/^lagu\b/i.test(base)) {
+    out.push(`lagu ${base}`);
+  }
+  out.push(base);
+  out.push(`${base} official`);
   for (const [re, aliases] of TITLE_ALIASES) {
     if (re.test(base)) { for (const a of aliases) if (!out.includes(a)) out.push(a); }
   }
-  return out.filter(Boolean).slice(0, 4);
+  return out.filter(Boolean).slice(0, 5);
 }
 
 /** Bersihkan prompt jadi judul lagu: "carikan lagu di youtube judulnya Hau Lai" -> "Hau Lai". */
 export function extractSongQuery(userPrompt = '') {
   const raw = String(userPrompt || '');
-  const m = raw.match(/(?:judul(?:nya)?|berjudul|judul\s+adalah|namanya|titled|called)\s+(.{2,80}?)\s*[.?!]*$/i);
+  const m = raw.match(/(?:judul(?:\s+lagu)?(?:nya)?|berjudul|judul\s+adalah|namanya|titled|called)\s+(?:lagu(?:nya)?\s+)?(.{2,80}?)\s*[.?!]*$/i);
   let q = m ? m[1].trim() : '';
   if (!q) {
     q = raw
       .replace(/^\s*(hai|halo|hallo|hei|ok|okey|jin|hai jin)\b[\s,!]*/i, '')
-      .replace(/\b(carikan|carilin|cari|tolong|coba|minta|bisa|boleh)\b/gi, ' ')
+      .replace(/\b(carikan|carilin|cari|tolong|coba|minta|bisa|boleh|putar|putarkan|play|dengarkan|mainkan)\b/gi, ' ')
       .replace(/\b(di|dari)\b\s+youtube/gi, ' ')
       .replace(/\byoutube\b/gi, ' ')
       .replace(/\b(lagu|musik|video|song|music|playlist|konsep|yang)\b/gi, ' ')
@@ -188,31 +195,62 @@ async function discoverViaScrape(query = '', signal = null) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
       },
-      signal: signal || AbortSignal.timeout(5000),
+      signal: signal || AbortSignal.timeout(6000),
     });
     if (!res.ok) return [];
     const html = await res.text();
-    // KUNCI PERBAIKAN: metadata diambil dari window HTML di sekitar TIAP
-    // videoId (bukan title[i] untuk videoId[i] seperti kode lama).
-    const positions = [];
-    const seen = new Set();
-    for (const m of html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)) {
-      if (!seen.has(m[1])) { seen.add(m[1]); positions.push({ id: m[1], index: m.index }); }
-      if (positions.length >= 8) break;
+
+    // 1. Prioritaskan parsing terstruktur dari ytInitialData
+    const jsonMatch = html.match(/var ytInitialData = ({[\s\S]*?});<\/script>/);
+    if (jsonMatch) {
+      try {
+        const data = JSON.parse(jsonMatch[1]);
+        const sectionList = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+        for (const sec of sectionList) {
+          const itemSection = sec.itemSectionRenderer?.contents || [];
+          for (const item of itemSection) {
+            const v = item.videoRenderer;
+            if (v && v.videoId) {
+              const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+              const channel = v.ownerText?.runs?.[0]?.text || v.shortBylineText?.runs?.[0]?.text || '';
+              if (title) {
+                out.push({ videoId: v.videoId, title, channel, description: '', source: 'scrape_json' });
+              }
+            }
+          }
+        }
+      } catch {}
     }
-    const grab = (win, patterns) => {
-      for (const re of patterns) { const m = win.match(re); if (m && m[1]) return m[1].trim(); }
-      return '';
-    };
-    const T_RES = [/\"title\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,150})\"/];
-    const C_RES = [/\"ownerText\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,80})\"/, /\"longBylineText\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,80})\"/];
-    positions.forEach((pos, k) => {
-      const next = k + 1 < positions.length ? positions[k + 1].index : html.length;
-      const win = html.slice(pos.index, Math.min(next, pos.index + 12000));
-      const title = grab(win, T_RES);
-      if (!title) return;
-      out.push({ videoId: pos.id, title, channel: grab(win, C_RES), description: '', source: 'scrape' });
-    });
+
+    // 2. Fallback regex jika ytInitialData tidak dapat diparse
+    if (out.length === 0) {
+      const positions = [];
+      const seen = new Set();
+      for (const m of html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)) {
+        if (!seen.has(m[1])) { seen.add(m[1]); positions.push({ id: m[1], index: m.index }); }
+        if (positions.length >= 8) break;
+      }
+      const grab = (win, patterns) => {
+        for (const re of patterns) { const m = win.match(re); if (m && m[1]) return m[1].trim(); }
+        return '';
+      };
+      const T_RES = [
+        /\"title\":\s*\{[^}]{0,400}?\"runs\":\s*\[\s*\{\s*\"text\":\s*\"([^\"]{2,150})\"/,
+        /\"title\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,150})\"/
+      ];
+      const C_RES = [
+        /\"ownerText\":\s*\{[^}]{0,400}?\"runs\":\s*\[\s*\{\s*\"text\":\s*\"([^\"]{2,80})\"/,
+        /\"ownerText\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,80})\"/,
+        /\"longBylineText\":\s*\{[^}]{0,400}?\"text\":\s*\"([^\"]{2,80})\"/
+      ];
+      positions.forEach((pos, k) => {
+        const next = k + 1 < positions.length ? positions[k + 1].index : html.length;
+        const win = html.slice(pos.index, Math.min(next, pos.index + 12000));
+        const title = grab(win, T_RES);
+        if (!title) return;
+        out.push({ videoId: pos.id, title, channel: grab(win, C_RES), description: '', source: 'scrape_regex' });
+      });
+    }
   } catch { /* abaikan */ }
   return out;
 }

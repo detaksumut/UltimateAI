@@ -2053,8 +2053,9 @@ Requirements:
             };
             console.log(`[INTENT_GATE] Fast-path hit: intent=DOCUMENT_ANALYSIS (document marker + analysis verb detected)`);
           } else {
-            // Slide / image classifier — only when no document is attached
+            // Media playback / slide / image classifier — only when no document is attached
             deterministicDecision =
+              sie._mediaPlaybackClassifier(cleanPrompt, []) ||
               sie._slideStudioClassifier(cleanPrompt, []) ||
               sie._imageRevisionClassifier(cleanPrompt, messages) ||
               sie._imageGenerationClassifier(cleanPrompt, []) ||
@@ -2125,12 +2126,23 @@ Requirements:
 
                 // STAGE 1 — DOCUMENT_READING
                 console.log(`[DOCUMENT_PIPELINE] started requestId=${requestId} file="${fileName}"`);
-                console.log(`[DOCUMENT_PIPELINE] reading`);
-                emitStatus('⏳ Membaca dokumen...');
+                console.log(`[DOCUMENT_PIPELINE] reading via 9Router`);
+                emitStatus('⏳ Membaca dokumen via 9Router...');
+
+                const { readViaNineRouter } = await import('../document/DocumentPipelineAdapter.mjs');
+                const nineRouterResult = await readViaNineRouter({
+                  text: documentText,
+                  fileName,
+                  query: userInstruction || cleanPrompt
+                });
+                console.log(`[DOCUMENT_PIPELINE] 9Router read status=${nineRouterResult.output.status} documentId=${nineRouterResult.output.documentId} pages=${nineRouterResult.output.pageCount} evidence=${nineRouterResult.output.evidence?.length} plan=${nineRouterResult.envelope?.executionPlan?.length}`);
+
+                const nineRouterLegacy = nineRouterResult.legacy;
+                const evidenceEnvelope = nineRouterResult.envelope;
 
                 const { documentIntelligenceToolInstance } = await import('../tools/DocumentIntelligenceTool.mjs');
                 const docResult = await documentIntelligenceToolInstance.execute({
-                  documentText,
+                  documentText: nineRouterLegacy.documentText,
                   query: userInstruction || cleanPrompt,
                   fileName,
                   mode: 'full_document'
@@ -2169,10 +2181,13 @@ Requirements:
                 ];
 
                 // STAGE 4 — DOCUMENT_SYNTHESIS via LLM
-                console.log(`[DOCUMENT_PIPELINE] synthesis`);
+                // R3/R4/R8 Invariant: Qwen dilarang untuk analisis dokumen (dokumen milik 9Router).
+                // R11/R12: DOC_QWEN_BOUNDARY default OFF di produksi, opt-in eksplisit via env DOC_QWEN_BOUNDARY === '1'.
+                const useQwenBoundary = process.env.DOC_QWEN_BOUNDARY === '1';
+                console.log(`[DOCUMENT_PIPELINE] synthesis boundary_qwen=${useQwenBoundary}`);
                 emitStatus('✍️ Menyusun rangkuman...');
 
-                // Route to LLM for synthesis
+                // Route to LLM for synthesis with strict capability
                 const { modelRoutingServiceInstance } = await import('./ModelRoutingService.mjs');
                 let synthesisText = '';
 
@@ -2180,7 +2195,7 @@ Requirements:
                   {
                     messages: llmMessages,
                     stream: isStreamDoc,
-                    model: 'llamacpp:qwen2.5-3b-instruct-q4_k_m.gguf',
+                    capability: 'DOCUMENT_ANALYSIS',
                     temperature: 0.3,
                     maxTokens: 512
                   },
@@ -2216,7 +2231,7 @@ Requirements:
                     choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
                     _agent: {
                       intent: 'DOCUMENT_ANALYSIS',
-                      toolsUsed: ['doc.analyze', 'document_pipeline'],
+                      toolsUsed: ['doc.analyze', 'document_pipeline', '9router'],
                       verificationStatus: 'VERIFIED',
                       cognitive: true,
                       artifactType: 'DOCUMENT_ANALYSIS',
@@ -2224,7 +2239,13 @@ Requirements:
                         fileName,
                         totalChunks: docResult.totalChunks,
                         coveragePercent: docResult.coveragePercent,
-                        requestId
+                        requestId,
+                        nineRouter: {
+                          documentId: nineRouterResult.output.documentId,
+                          pageCount: nineRouterResult.output.pageCount,
+                          evidenceCount: nineRouterResult.output.evidence?.length,
+                          executionPlan: evidenceEnvelope.executionPlan
+                        }
                       }
                     }
                   });
@@ -2241,10 +2262,22 @@ Requirements:
                     choices: [{ index: 0, message: { role: 'assistant', content: synthesisText }, finish_reason: 'stop' }],
                     _agent: {
                       intent: 'DOCUMENT_ANALYSIS',
-                      toolsUsed: ['doc.analyze', 'document_pipeline'],
+                      toolsUsed: ['doc.analyze', 'document_pipeline', '9router'],
                       verificationStatus: 'VERIFIED',
                       cognitive: true,
-                      artifactType: 'DOCUMENT_ANALYSIS'
+                      artifactType: 'DOCUMENT_ANALYSIS',
+                      docMeta: {
+                        fileName,
+                        totalChunks: docResult.totalChunks,
+                        coveragePercent: docResult.coveragePercent,
+                        requestId,
+                        nineRouter: {
+                          documentId: nineRouterResult.output.documentId,
+                          pageCount: nineRouterResult.output.pageCount,
+                          evidenceCount: nineRouterResult.output.evidence?.length,
+                          executionPlan: evidenceEnvelope.executionPlan
+                        }
+                      }
                     }
                   }));
                 }
@@ -2252,6 +2285,96 @@ Requirements:
               } catch (docPipelineErr) {
                 console.error('[DOCUMENT_PIPELINE] error:', docPipelineErr.message);
                 // Fall through to standard LLM stream on error
+              }
+            }
+
+            // DIRECT MEDIA PLAYBACK PATH (YouTube Song / Music Stream)
+            if (deterministicDecision.intent === 'MEDIA_PLAYBACK') {
+              try {
+                const { searchSong } = await import('../tools/YouTubeSongSearch.mjs');
+                console.log(`[INTENT_GATE][MEDIA_PLAYBACK] Searching song for: "${cleanPrompt}"`);
+                const songResult = await searchSong(cleanPrompt);
+                
+                let playbackText = '';
+                let videoId = null;
+                let watchUrl = null;
+                let title = '';
+                let channel = '';
+
+                if (songResult.status === 'VERIFIED' && songResult.candidate?.videoId) {
+                  videoId = songResult.candidate.videoId;
+                  title = songResult.candidate.title || cleanPrompt;
+                  channel = songResult.candidate.channel || '';
+                  watchUrl = songResult.watchUrl || `https://www.youtube.com/watch?v=${videoId}`;
+
+                  playbackText = `Lagu **"${title}"**${channel ? ` karya **${channel}**` : ''} telah ditemukan di YouTube dan langsung diputar di Canvas pemutar di bawah ini:\n\n` +
+                    `<div style="width: 100%; position: relative; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background-color: #000;">\n` +
+                    `  <iframe \n` +
+                    `    src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" \n` +
+                    `    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" \n` +
+                    `    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" \n` +
+                    `    allowfullscreen \n` +
+                    `    title="${title}">\n` +
+                    `  </iframe>\n` +
+                    `</div>\n\n` +
+                    `🔗 [Buka "${title}" di YouTube](${watchUrl})`;
+                } else {
+                  playbackText = `Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **"${cleanPrompt}"** di YouTube. Anda dapat mencoba kata kunci atau nama penyanyi yang lebih spesifik.`;
+                }
+
+                if (isStream) {
+                  res.writeHead(200, {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive'
+                  });
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-media-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'media_playback',
+                    choices: [{ index: 0, delta: { content: playbackText }, finish_reason: null }]
+                  })}\n\n`);
+                  res.write(`data: ${JSON.stringify({
+                    id: 'chatcmpl-media-' + Date.now(),
+                    object: 'chat.completion.chunk',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'media_playback',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'MEDIA_PLAYBACK',
+                      toolsUsed: ['youtube.search'],
+                      verificationStatus: songResult.status,
+                      cognitive: true,
+                      videoId,
+                      watchUrl,
+                      title
+                    }
+                  })}\n\n`);
+                  res.write('data: [DONE]\n\n');
+                  res.end();
+                } else {
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    id: 'chatcmpl-media-' + Date.now(),
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: 'media_playback',
+                    choices: [{ index: 0, message: { role: 'assistant', content: playbackText }, finish_reason: 'stop' }],
+                    _agent: {
+                      intent: 'MEDIA_PLAYBACK',
+                      toolsUsed: ['youtube.search'],
+                      verificationStatus: songResult.status,
+                      cognitive: true,
+                      videoId,
+                      watchUrl,
+                      title
+                    }
+                  }));
+                }
+                return;
+              } catch (mediaErr) {
+                console.error('[INTENT_GATE] Media playback execution error:', mediaErr.message);
               }
             }
 

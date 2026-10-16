@@ -464,6 +464,12 @@ Analyze contextually and output strict JSON.`;
       return casualDecision;
     }
 
+    // 2B. MEDIA PLAYBACK (YouTube song & music stream)
+    const mediaDecision = this._mediaPlaybackClassifier(raw, activeConstraints);
+    if (mediaDecision) {
+      return mediaDecision;
+    }
+
     // 3. Negative Constraints: "Jangan pakai internet", "tanpa internet", "jangan cari web"
     const hasNegativeInternetConstraint = /jangan\s+(pakai|gunakan|cari|akses)?\s*(internet|web|online)|tanpa\s+internet/i.test(raw);
     if (hasNegativeInternetConstraint) {
@@ -604,6 +610,41 @@ Analyze contextually and output strict JSON.`;
         restrictions: routing.restrictions,
         requiresRealTimeData: routing.requiresRealTimeData
       }
+    };
+  }
+
+  /**
+   * Media Playback Classifier — detects requests to search or play a song/music from YouTube.
+   * Routes to MEDIA_PLAYBACK intent.
+   */
+  _mediaPlaybackClassifier(raw, activeConstraints = []) {
+    const r = raw.trim();
+    const isSongRequest = 
+      /(?:carikan|cari|putar|putarkan|play|dengarkan|nyalakan|tampilkan)?\s*(?:lagu|musik|video|song|music|mv)\s+(?:di\s+youtube\s+)?(?:judul(?:nya)?|berjudul|called|titled)?\s*(.+)/i.test(r) ||
+      /(?:di\s+youtube\s+)?(?:judul(?:nya)?|berjudul)\s+(?:lagu(?:nya)?\s+)?(.+)/i.test(r) ||
+      /\b(?:carikan\s+lagu|putar\s+lagu|putarkan\s+lagu|play\s+lagu)\b/i.test(r);
+
+    if (!isSongRequest) return null;
+
+    return {
+      intent: 'MEDIA_PLAYBACK',
+      goal: r,
+      resolvedReferences: [],
+      actionRequired: true,
+      entities: ['music', 'youtube'],
+      constraints: activeConstraints,
+      isCorrecting: false,
+      isContinuing: false,
+      freshDataRequired: true,
+      toolsNeeded: ['youtube.search'],
+      toolReason: 'Mencari lagu di YouTube dan memuat pemutar Canvas langsung.',
+      needsClarification: false,
+      clarificationQuestion: null,
+      confidence: 0.98,
+      reason: 'Deterministic media playback classifier: user requested YouTube song/music stream.',
+      interpretationSource: 'DETERMINISTIC_MEDIA_PLAYBACK_CLASSIFIER',
+      transportUsed: 'LOCAL_REASONING',
+      fallbackUsed: false
     };
   }
 

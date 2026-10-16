@@ -15,6 +15,9 @@
 import { JIN_OPERATING_DOCTRINE } from './AgentPolicy.mjs';
 import { routingOptimizerInstance } from '../routing/RoutingOptimizer.mjs';
 
+// Enforce invariant R14: DOCUMENT_INTELLIGENCE_POLICY
+const { DOCUMENT_INTELLIGENCE_POLICY } = JIN_OPERATING_DOCTRINE;
+
 const PLANNER_PROXY_URL = process.env.ROUTER_PROXY_URL || 'http://127.0.0.1:20200/v1';
 
 const AVAILABLE_TOOLS_MANIFEST = [

@@ -180,6 +180,23 @@ export class ModelRoutingService {
       };
     }
 
+    // 1B. DOCUMENT_ANALYSIS: WAJIB AG/Gemini (doc_analysis_ag_only) — ZERO local/Qwen fallback
+    if (normalizedCapability === 'DOCUMENT_ANALYSIS') {
+      return {
+        candidates: hasGemini
+          ? [{ provider: 'gemini', model: geminiModel, fallback: false }]
+          : [],
+        hasMedia,
+        heavy: true,
+        capability: normalizedCapability,
+        strategy: 'doc_analysis_ag_only',
+        forcedProvider: 'gemini',
+        provider: 'gemini',
+        strictCapability: true,
+        label: 'CLOUD_GEMINI_DOC_ANALYSIS'
+      };
+    }
+
     // 2. Multimodal messages (images/documents) MUST route to Gemini Vision
     if (hasMedia && hasGemini) {
       return {
@@ -365,6 +382,11 @@ export class ModelRoutingService {
       } catch (err) {
         if (stream && emitted) {
           throw err;
+        }
+        if (route.strategy === 'doc_analysis_ag_only') {
+          const docErr = new Error(`DOCUMENT_ANALYSIS_UNAVAILABLE: Engine sintesis dokumen (9Router AG / Gemini) tidak tersedia: ${err.message}`);
+          docErr.code = 'DOCUMENT_ANALYSIS_UNAVAILABLE';
+          throw docErr;
         }
         if (route.hasMedia) {
           console.error(`[ModelRoutingService] Gemini Multimodal failed: ${err.message}`);

@@ -3,6 +3,8 @@
  * Operational Doctrine & Governance Guidelines for the UltimateAI Autonomous Agent.
  */
 
+import { DOCUMENT_INTELLIGENCE_PRINCIPLES } from '../routing/EngineRoutingContract.mjs';
+
 export const JIN_OPERATING_DOCTRINE = {
   PRINCIPLES: [
     'UNDERSTAND_BEFORE_ACTING',
@@ -13,6 +15,8 @@ export const JIN_OPERATING_DOCTRINE = {
     'NEVER_FABRICATE_EXECUTION',
     'RESPECT_PERMISSION_BOUNDARIES'
   ],
+
+  DOCUMENT_INTELLIGENCE_POLICY: DOCUMENT_INTELLIGENCE_PRINCIPLES,
 
   SPECIALIST_ROUTING_POLICY: {
     FAST_RESEARCH: ['qwen3:8b'],
