@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Mic, Send, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { readUploadedDocument } from '../../../utils/documentReader.js';
 
 export default function CyberHUDVoiceBar({
   avatarState,
@@ -13,73 +14,15 @@ export default function CyberHUDVoiceBar({
   const [attachedFiles, setAttachedFiles] = useState([]);
   const fileInputRef = useRef(null);
 
-  const readFileAsDataUrl = (file) => new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-
-  const readFileAsText = (file) => new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => resolve('');
-    reader.readAsText(file);
-  });
-
-  const readFileAsArrayBuffer = (file) => new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => resolve(null);
-    reader.readAsArrayBuffer(file);
-  });
-
   const handleFilesSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const processed = await Promise.all(files.map(async (file) => {
-      const isImage = file.type.startsWith('image/');
-      const isText = file.type.startsWith('text/') || file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.js') || file.name.endsWith('.py') || file.name.endsWith('.html') || file.name.endsWith('.css') || file.name.endsWith('.md') || file.name.endsWith('.txt');
-      const isDoc = file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx');
+    const processed = await Promise.all(
+      files.map((file) => readUploadedDocument(file))
+    );
 
-      let dataUrl = null;
-      let content = '';
-
-      if (isImage && file.size < 10 * 1024 * 1024) {
-        dataUrl = await readFileAsDataUrl(file);
-      } else if (isText && file.size < 5 * 1024 * 1024) {
-        content = await readFileAsText(file);
-      } else if (isDoc && file.size < 25 * 1024 * 1024) {
-        dataUrl = await readFileAsDataUrl(file);
-        try {
-          const parseRes = await fetch('/api/files/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: file.name, dataUrl })
-          }).then(r => r.json());
-          if (parseRes?.text || parseRes?.content) {
-            content = parseRes.text || parseRes.content;
-          }
-        } catch (_) {
-          content = `[DOKUMEN: ${file.name}]`;
-        }
-      } else if (file.size < 1024 * 1024) {
-        content = await readFileAsText(file);
-      }
-
-      return {
-        id: `${file.name}-${Date.now()}-${Math.random()}`,
-        name: file.name,
-        size: file.size,
-        type: file.type || 'document',
-        isImage,
-        dataUrl,
-        content
-      };
-    }));
-
-    setAttachedFiles(prev => [...prev, ...processed]);
+    setAttachedFiles((prev) => [...prev, ...processed]);
     e.target.value = '';
   };
 

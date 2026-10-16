@@ -1081,7 +1081,8 @@ Requirements:
         const isDocRequest = userPrompt.includes('--- [BERKAS DOKUMEN') ||
           userPrompt.includes('--- [DOKUMEN') ||
           userPrompt.includes('--- [Konteks Dokumen') ||
-          /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|rangkum|ringkas|buatkan\s+point)\b/i.test(userPrompt);
+          userPrompt.includes('--- [STATUS DOKUMEN') ||
+          /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|rangkum|ringkas|buatkan\s+point|buat\s+analisa|buatkan\s+analisa|analisa\s+kamu|analisis\s+dokumen|kesimpul\w*|simpulkan)\b/i.test(userPrompt);
 
         // ═══════════════════════════════════════════════════════════════════════
         // PRIORITY 1: ACTIVE STUDIO CONTINUATION & CREATION GATE

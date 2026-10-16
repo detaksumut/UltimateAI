@@ -12,45 +12,12 @@ import {
   Paperclip, FileText, Image as ImageIcon, X, Download, Mic, MicOff,
   ExternalLink, Copy, Check, Sparkles, Square
 } from 'lucide-react';
-import JSZip from 'jszip';
+import { readUploadedDocument, readFileAsDataUrl, readFileAsText } from '../../../utils/documentReader.js';
 import { conversationControllerInstance } from '../../../services/conversation/ConversationController.js';
+import { RouterConfig } from '../../../services/router/RouterConfig.js';
 import { typingSoundEngineInstance } from '../../../services/audio/TypingSoundEngine.js';
 import { voiceControllerInstance } from '../../../services/voice/VoiceController.js';
 import JINMusicPlayerCard from './JINMusicPlayerCard.jsx';
-
-// Helpers to safely read uploaded files as DataURL or Text
-const readFileAsDataUrl = (file) => new Promise((resolve) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result);
-  reader.onerror = () => resolve(null);
-  reader.readAsDataURL(file);
-});
-
-const readFileAsText = (file) => new Promise((resolve) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result);
-  reader.onerror = () => resolve('');
-  reader.readAsText(file);
-});
-
-const readDocxAsText = async (file) => {
-  try {
-    const zip = await JSZip.loadAsync(file);
-    const docXml = await zip.file('word/document.xml')?.async('text');
-    if (docXml) {
-      return docXml
-        .replace(/<w:p\b[^>]*>/gi, '\n')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-  } catch (err) {
-    console.warn('[TickerInput] Failed to extract docx text via JSZip:', err);
-  }
-  return '';
-};
-
-// Helper to safely handle Unicode surrogate pairs (e.g. emojis)
 function getCharStep(text, index) {
   if (index >= text.length) return 1;
   const code = text.charCodeAt(index);
@@ -886,78 +853,8 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
     setIsReadingFiles(true);
     try {
       const processed = await Promise.all(
-        rawFiles.map(async (file) => {
-          const isImage = file.type.startsWith('image/');
-          const isText =
-            file.type.startsWith('text/') ||
-            file.name.endsWith('.json') ||
-            file.name.endsWith('.csv') ||
-            file.name.endsWith('.js') ||
-            file.name.endsWith('.ts') ||
-            file.name.endsWith('.py') ||
-            file.name.endsWith('.html') ||
-            file.name.endsWith('.css') ||
-            file.name.endsWith('.md') ||
-            file.name.endsWith('.txt') ||
-            file.name.endsWith('.log');
-          const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-          const isDocx =
-            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-            file.name.endsWith('.docx');
-
-          let dataUrl = null;
-          let content = '';
-
-          if (isImage && file.size < 10 * 1024 * 1024) {
-            dataUrl = await readFileAsDataUrl(file);
-          } else if (isPdf && file.size < 25 * 1024 * 1024) {
-            dataUrl = await readFileAsDataUrl(file);
-            try {
-              const parseRes = await fetch('/api/files/parse', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, dataUrl })
-              }).then((r) => r.json());
-              if (parseRes?.text || parseRes?.content) {
-                content = parseRes.text || parseRes.content;
-              }
-            } catch (pErr) {
-              console.warn('[TickerInput] Backend PDF parse error:', pErr);
-            }
-          } else if (isDocx && file.size < 15 * 1024 * 1024) {
-            content = await readDocxAsText(file);
-            if (!content) {
-              dataUrl = await readFileAsDataUrl(file);
-              try {
-                const parseRes = await fetch('/api/files/parse', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fileName: file.name, dataUrl })
-                }).then((r) => r.json());
-                if (parseRes?.text || parseRes?.content) {
-                  content = parseRes.text || parseRes.content;
-                }
-              } catch (_) {}
-            }
-          } else if (isText && file.size < 5 * 1024 * 1024) {
-            content = await readFileAsText(file);
-          } else if (file.size < 2 * 1024 * 1024) {
-            content = await readFileAsText(file);
-          }
-
-          return {
-            id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            name: file.name,
-            size: file.size,
-            type: file.type || 'document',
-            isImage,
-            isPdf,
-            dataUrl,
-            content
-          };
-        })
+        rawFiles.map((file) => readUploadedDocument(file))
       );
-
       setAttachedFiles((prev) => [...prev, ...processed]);
     } catch (err) {
       console.warn('[TickerInput] File read error:', err);

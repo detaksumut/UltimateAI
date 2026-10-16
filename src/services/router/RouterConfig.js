@@ -23,6 +23,16 @@ export const RouterConfig = {
     return `${this.getEndpoint()}${this.LOCAL_ROUTER_HEALTH_PATH}`;
   },
 
+  // Resolve backend API path to absolute LocalRouter URL.
+  // Alasan: di deploy publik (Vercel) fetch('/api/...') nyasar ke origin
+  // statis -> 405/HTML. Semua API JINI hidup di LocalRouter :20200
+  // (mesin user sendiri), jadi harus absolut ke sana.
+  api(path = '') {
+    const base = String(this.getEndpoint() || 'http://127.0.0.1:20200').replace(/\/+$/, '');
+    const p = String(path || '');
+    return `${base}${p.startsWith('/') ? p : `/${p}`}`;
+  },
+
   // Model routing preferences
   DEFAULT_MODEL: 'qwen3:8b',
   FALLBACK_MODEL: null,

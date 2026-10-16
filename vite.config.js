@@ -205,41 +205,39 @@ function tavilyDriveFPlugin() {
     return { success: true, results: harvestedResults };
   }
 
-  // Autonomous Cron Timer (checks every 60 seconds for 07:00 WIB)
-  const cronTimer = setInterval(() => {
-    try {
-      const now = new Date();
-      // Format current time in Asia/Jakarta timezone
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Asia/Jakarta',
-        hour: '2-digit',
-        minute: '2-digit',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).formatToParts(now);
-
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      const minute = parts.find(p => p.type === 'minute')?.value;
-      const day = parts.find(p => p.type === 'day')?.value;
-      const month = parts.find(p => p.type === 'month')?.value;
-      const year = parts.find(p => p.type === 'year')?.value;
-      const todayDateStr = `${year}-${month}-${day}`;
-
-      // Check if it's 07:00 WIB and hasn't run yet today
-      if (hour === '07' && minute === '00' && morningState.lastRunDate !== todayDateStr) {
-        console.log(`[SCHEDULE TRIGGER] It is 07:00 WIB on ${todayDateStr}! Triggering Autonomous Morning Harvest...`);
-        executeMorningHarvest('AUTOMATIC_CRON_0700_WIB');
-      }
-    } catch (e) {
-      console.warn('[ScheduleTimer] Error in cron tick:', e.message);
-    }
-  }, 60000);
-  if (cronTimer.unref) cronTimer.unref();
-
   return {
     name: 'tavily-drive-f-plugin',
     configureServer(server) {
+      // Autonomous Cron Timer (checks every 60 seconds for 07:00 WIB in dev server only)
+      const cronTimer = setInterval(() => {
+        try {
+          const now = new Date();
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Jakarta',
+            hour: '2-digit',
+            minute: '2-digit',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).formatToParts(now);
+
+          const hour = parts.find(p => p.type === 'hour')?.value;
+          const minute = parts.find(p => p.type === 'minute')?.value;
+          const day = parts.find(p => p.type === 'day')?.value;
+          const month = parts.find(p => p.type === 'month')?.value;
+          const year = parts.find(p => p.type === 'year')?.value;
+          const todayDateStr = `${year}-${month}-${day}`;
+
+          if (hour === '07' && minute === '00' && morningState.lastRunDate !== todayDateStr) {
+            console.log(`[SCHEDULE TRIGGER] It is 07:00 WIB on ${todayDateStr}! Triggering Autonomous Morning Harvest...`);
+            executeMorningHarvest('AUTOMATIC_CRON_0700_WIB');
+          }
+        } catch (e) {
+          console.warn('[ScheduleTimer] Error in cron tick:', e.message);
+        }
+      }, 60000);
+      if (cronTimer.unref) cronTimer.unref();
+
       server.middlewares.use((req, res, next) => {
         const parsedUrl = new URL(req.url, 'http://127.0.0.1:5177');
 
@@ -869,8 +867,11 @@ function tavilyDriveFPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), tavilyDriveFPlugin()],
+export default defineConfig(({ command }) => ({
+  plugins: [
+    react(),
+    ...(command === 'serve' ? [tavilyDriveFPlugin()] : [])
+  ],
   optimizeDeps: {
     entries: ['index.html']
   },
@@ -914,4 +915,4 @@ export default defineConfig({
       ignored: ['**/storage/**', '**/server/data/**', '**/tests/**', '**/.git/**', '**/scratch/**']
     }
   }
-});
+}));

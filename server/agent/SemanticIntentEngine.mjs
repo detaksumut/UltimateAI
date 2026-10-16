@@ -1041,8 +1041,10 @@ Analyze contextually and output strict JSON.`;
     }
 
     // DOCUMENT ANALYSIS — user asks to analyze/read/extract from a document.
-    // Handled via dedicated Document Pipeline.
-    if (/analisis\s+dokumen|dokumen\s+ini|file\s+ini|pdf\s+ini|upload.*analisis|ekstrak\s+isi|baca\s+dokumen|ringkas\s+dokumen|summary\s+dokumen|buat\s+ringkasan\s+dari|buat\s+summary\s+dari/i.test(r)) {
+    // Handled via dedicated Document Pipeline. Juga mencakup follow-up
+    // lintas giliran ("buat analisa kamu", "buat kesimpulannya") yang
+    // membawa --- [Konteks Dokumen ...] hasil re-inject frontend.
+    if (/--- \[BERKAS DOKUMEN|--- \[DOKUMEN|--- \[Konteks Dokumen|--- \[STATUS DOKUMEN|analisis\s+dokumen|dokumen\s+ini|file\s+ini|pdf\s+ini|upload.*analisis|ekstrak\s+isi|baca\s+dokumen|ringkas\s+dokumen|summary\s+dokumen|buat\s+ringkasan\s+dari|buat\s+summary\s+dari|buat\s+analisa|buatkan\s+analisa|analisa\s+kamu|buat\s+kesimpulan|kesimpul\w*|simpulkan/i.test(r)) {
       return {
         intent: 'DOCUMENT_ANALYSIS',
         goal: r,

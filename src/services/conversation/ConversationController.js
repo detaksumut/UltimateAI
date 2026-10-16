@@ -88,6 +88,11 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       presentation: isDeepClean ? null : (m.presentation || null),
       visualIntent: isDeepClean ? null : (m.visualIntent || null),
       musicPlayer: isDeepClean ? null : (m.musicPlayer || null),
+      // docContexts wajib persist agar re-inject lintas giliran selamat
+      // dari reload (dipotong saat deep-clean agar localStorage tak jebol).
+      docContexts: typeof m.docContexts === 'string'
+        ? (isDeepClean ? m.docContexts.slice(0, 4000) : m.docContexts.slice(0, 60000))
+        : undefined,
       files: Array.isArray(m.files)
         ? m.files.map(f => ({
             id: f.id,
@@ -95,6 +100,10 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
             size: f.size,
             type: f.type,
             isImage: f.isImage,
+            isPdf: f.isPdf,
+            // content teks (bukan dataUrl biner) aman & wajib disimpan
+            // agar konteks dokumen tidak hilang saat reload.
+            content: typeof f.content === 'string' ? f.content.slice(0, 60000) : '',
             dataUrl: null // Never store raw dataUrl into localStorage
           }))
         : undefined
@@ -234,6 +243,8 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
             size: f.size,
             type: f.type,
             isImage: Boolean(f.isImage),
+            isPdf: Boolean(f.isPdf),
+            content: typeof f.content === 'string' ? f.content : '',
             dataUrl: f.dataUrl || null
           }))
         : undefined
@@ -311,20 +322,6 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       for (const f of attachedFiles) {
         if (!f) continue;
         
-        // B0. If content is missing but dataUrl is present (PDF / DOCX), parse it via backend
-        if (!f.content && f.dataUrl && (f.isPdf || typeof f.dataUrl === 'string')) {
-          try {
-            const parseRes = await fetch('/api/files/parse', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: f.name, dataUrl: f.dataUrl })
-            }).then(r => r.json()).catch(() => null);
-            if (parseRes?.text || parseRes?.content) {
-              f.content = parseRes.text || parseRes.content;
-            }
-          } catch (_) {}
-        }
-
         // B1. Multimodal Vision Assets: ONLY REAL IMAGES (NOT PDFs!)
         const isRealImage = f.isImage || (typeof f.dataUrl === 'string' && f.dataUrl.startsWith('data:image/'));
         if (isRealImage && f.dataUrl) {
@@ -334,9 +331,32 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
           });
         }
 
-        // B2. Textual Documents & Extracted PDF/Docx/Code
+        // B2. Textual Documents & Extracted PDF/Docx/Doc/Code
         if (f.content && typeof f.content === 'string' && f.content.trim()) {
           docContexts += `\n\n--- [BERKAS DOKUMEN TERLAMPIR: ${f.name || 'Dokumen'}] ---\n${f.content.trim()}\n--- [AKHIR DOKUMEN: ${f.name || 'Dokumen'}] ---`;
+        } else if (!isRealImage && f.dataUrl && typeof f.dataUrl === 'string' && f.dataUrl.startsWith('data:')) {
+          // Parse gagal/sunyi: jangan kirim marker kosong ("belum terlampir").
+          // Ekstrak ulang otomatis di sini via backend; bila backend diam,
+          // teruskan status FAILED yang jujur agar JINI tidak buta.
+          try {
+            const { RouterConfig } = await import('../router/RouterConfig.js');
+            const parseRes = await fetch(RouterConfig.api('/api/files/parse'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: f.name || 'Dokumen', dataUrl: f.dataUrl }),
+              signal: AbortSignal.timeout(30000)
+            }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+            const reText = (parseRes?.text || parseRes?.content || '').trim();
+            if (reText) {
+              docContexts += `\n\n--- [BERKAS DOKUMEN TERLAMPIR: ${f.name || 'Dokumen'}] ---\n${reText}\n--- [AKHIR DOKUMEN: ${f.name || 'Dokumen'}] ---\n(diekstrak ulang otomatis dari lampiran giliran sebelumnya)`;
+            } else {
+              docContexts += `\n\n--- [STATUS DOKUMEN: ${f.name || 'Dokumen'}] ---\nendpoint /api/files/parse tidak merespons — dokumen belum terbaca (FAILED). Minta pengguna memastikan LocalRouter :20200 aktif lalu kirim ulang.\n--- [AKHIR STATUS] ---`;
+            }
+          } catch (_) {
+            docContexts += `\n\n--- [STATUS DOKUMEN: ${f.name || 'Dokumen'}] ---\nendpoint /api/files/parse tidak merespons — dokumen belum terbaca (FAILED). Minta pengguna memastikan LocalRouter :20200 aktif lalu kirim ulang.\n--- [AKHIR STATUS] ---`;
+          }
+        } else if (!isRealImage && f.name) {
+          docContexts += `\n\n--- [BERKAS DOKUMEN TERLAMPIR: ${f.name}] ---\n(Dokumen ${f.name} terlampir oleh pengguna. Analisis berdasarkan judul dan konteks dokumen ini)\n--- [AKHIR DOKUMEN: ${f.name}] ---`;
         }
       }
     }
@@ -348,6 +368,29 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
         ? `${mergedTextPrompt}${docContexts}` 
         : `Tolong baca, pahami, dan jelaskan isi dokumen yang saya lampirkan berikut:${docContexts}`;
     }
+
+    // ── KONTINUITAS LINTAS GILIRAN (anti "baca tapi buta") ──
+    // Pola nyata: giliran-1 upload PDF, giliran-2 "buat analisa kamu" tanpa
+    // lampiran. Tanpa ini backend hanya menerima "buat analisa kamu" dan
+    // menjawab "belum terlampir". Re-inject konteks dokumen terakhir.
+    // currentTurnDocContexts = lampiran eksplisit giliran BERJALAN saja —
+    // konteks riwayat TIDAK boleh dihitung agar guard harvest tetap benar.
+    const currentTurnDocContexts = docContexts || '';
+    if (!currentTurnDocContexts) {
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+        const prev = this.messages[i];
+        if (prev && typeof prev.docContexts === 'string' && prev.docContexts.trim()) {
+          const followupRe = /(buat|buatkan|bikin)\s+(analisa|analisis|kesimpulan|rangkuman|ringkasan)|analisa\s+kamu|analisis\s+ini|rangkum|ringkas|jelaskan|simpulkan|kesimpul\w*/i;
+          if (followupRe.test(text || '')) {
+            docContexts = `\n\n--- [Konteks Dokumen (diekstrak ulang otomatis dari lampiran giliran sebelumnya)] ---${prev.docContexts}\n--- [Akhir Konteks Dokumen] ---`;
+            mergedTextPrompt = `${(text || '').trim()}${docContexts}`;
+          }
+          break;
+        }
+      }
+    }
+    // Simpan konteks dokumen (asli giliran ini) ke riwayat untuk giliran berikut.
+    userMsg.docContexts = (currentTurnDocContexts || docContexts) || undefined;
 
     // Assemble currentUserContent: Multimodal Parts Array if media is present, or clean string
     if (mediaParts.length > 0) {
@@ -365,7 +408,7 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
     // --- AUTONOMOUS PHYSICAL FOLDER & TAVILY HARVEST INTENT ---
     const isFolderHarvestIntent = (() => {
       if (!text || typeof text !== 'string') return false;
-      if (docContexts) return false; // Never hijack if user attached an explicit file!
+      if (currentTurnDocContexts) return false; // Never hijack if user attached an explicit file!
       const p = text.toLowerCase();
       
       // Exclude document inquiries/analysis/presentation
