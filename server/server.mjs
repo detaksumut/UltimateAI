@@ -19,9 +19,11 @@ const isDirectExecution = process.argv[1] && (
 );
 
 if (isDirectExecution) {
-  server.listen(PORT, '127.0.0.1', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`=======================================================`);
     console.log(`  ULTIMATEAI LOCAL ROUTER BACKEND LIVE ON PORT ${PORT} `);
+    console.log(`  - Local:       http://127.0.0.1:${PORT}`);
+    console.log(`  - Network:     http://0.0.0.0:${PORT}`);
     console.log(`  - Dashboard:   http://127.0.0.1:${PORT}/dashboard/connections`);
     console.log(`  - Health:      http://127.0.0.1:${PORT}${LOCAL_ROUTER_HEALTH_PATH}`);
     console.log(`  - Quota SSOT:  http://127.0.0.1:${PORT}/api/quota`);

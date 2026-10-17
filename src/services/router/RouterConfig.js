@@ -13,8 +13,20 @@ export const RouterConfig = {
   LOCAL_ROUTER_HEALTH_PATH: '/health',
 
   getEndpoint() {
-    if (typeof window !== 'undefined' && window.__ULTIMATE_ROUTER_ENDPOINT__) {
-      return window.__ULTIMATE_ROUTER_ENDPOINT__;
+    if (typeof window !== 'undefined') {
+      if (window.__ULTIMATE_ROUTER_ENDPOINT__) {
+        return window.__ULTIMATE_ROUTER_ENDPOINT__;
+      }
+      try {
+        const custom = localStorage.getItem('jin_custom_endpoint');
+        if (custom) return custom;
+      } catch (_) {}
+
+      const host = window.location.hostname;
+      // When opened on HP / smartphone via LAN IP (e.g. 192.168.1.3:5177 or 100.x.x.x)
+      if (host && host !== 'localhost' && host !== '127.0.0.1' && !host.includes('vercel.app')) {
+        return window.location.origin;
+      }
     }
     return 'http://127.0.0.1:20200';
   },

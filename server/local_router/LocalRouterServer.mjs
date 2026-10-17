@@ -800,6 +800,18 @@ Requirements:
           respond({ service: 'DEVICE_INTELLIGENCE', ...(await deviceIntelligenceRuntimeInstance.runDiagnosis()) });
         } else if (pathname === '/api/device/journal' && req.method === 'GET') {
           respond({ service: 'DEVICE_INTELLIGENCE', journal: deviceIntelligenceRuntimeInstance.getJournal() });
+        } else if (pathname === '/api/device/network' && req.method === 'GET') {
+          const os = await import('os');
+          const nets = os.networkInterfaces();
+          const ips = [];
+          for (const [name, netList] of Object.entries(nets)) {
+            for (const net of netList || []) {
+              if (net.family === 'IPv4' && !net.internal) {
+                ips.push({ interface: name, address: net.address, port: 5177, url: `http://${net.address}:5177` });
+              }
+            }
+          }
+          respond({ service: 'DEVICE_NETWORK', success: true, localIps: ips });
         } else if (pathname === '/api/device/policy' && req.method === 'GET') {
           respond({ service: 'DEVICE_INTELLIGENCE', policy: deviceIntelligenceRuntimeInstance.getPolicy() });
         } else {

@@ -75,10 +75,18 @@ export class NineRouterChatAdapter extends ModelRuntime {
     return false;
   }
 
+  _resolveModel(requestedModel) {
+    if (requestedModel && requestedModel !== 'auto' && requestedModel !== 'qwen3:8b') {
+      return requestedModel;
+    }
+    return process.env.NINEROUTER_CHAT_MODEL || 'ag/gemini-3-flash';
+  }
+
   async sendChat({ messages, stream = false, model, temperature = 0.7, maxTokens = 8192 }, onChunk = null) {
     const endpoint = `${this.host}/v1/chat/completions`;
+    let activeModel = this._resolveModel(model || this.defaultModel);
     const payload = {
-      model: model || this.defaultModel,
+      model: activeModel,
       messages, temperature,
       max_tokens: maxTokens, stream
     };
@@ -88,12 +96,24 @@ export class NineRouterChatAdapter extends ModelRuntime {
     if (!stream) timeoutId = setTimeout(() => abortCtrl.abort(), NON_STREAM_TIMEOUT_MS);
 
     try {
-      const res = await fetch(endpoint, {
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: this._baseHeaders(),
         body: JSON.stringify(payload),
         signal: abortCtrl.signal
       });
+
+      // Resilient fallback: if requested model is 404/not found, retry with ag/gemini-3-flash
+      if (!res.ok && res.status === 404 && payload.model !== 'ag/gemini-3-flash') {
+        console.warn(`[NineRouterChatAdapter] Model "${payload.model}" returned 404. Falling back to "ag/gemini-3-flash"...`);
+        payload.model = 'ag/gemini-3-flash';
+        res = await fetch(endpoint, {
+          method: 'POST',
+          headers: this._baseHeaders(),
+          body: JSON.stringify(payload),
+          signal: abortCtrl.signal
+        });
+      }
 
       if (!res.ok) {
         const errText = await res.text().catch(() => String(res.status));

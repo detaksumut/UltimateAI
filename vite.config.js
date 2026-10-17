@@ -891,24 +891,11 @@ export default defineConfig(({ command }) => ({
     }
   },
   server: {
+    host: '0.0.0.0',
     port: 5177,
     proxy: {
-      '/api/memory': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/conversations': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/sandbox': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/files': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/voice': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/device': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/market': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/antigravity': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/quota': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/models': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/providers': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/agent': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/control-center': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/runtime': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/engineering': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api/artifacts': { target: 'http://127.0.0.1:20200', changeOrigin: true },
+      '/health': { target: 'http://127.0.0.1:20200', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:20200', changeOrigin: true },
       '/v1': { target: 'http://127.0.0.1:20200', changeOrigin: true }
     },
     watch: {

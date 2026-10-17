@@ -1045,15 +1045,15 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
       )}
 
       {/* Input Action Bar */}
-      <form onSubmit={handleSubmit} action="javascript:void(0);" className="ticker-input-bar p-3 flex items-center gap-2">
+      <form onSubmit={handleSubmit} action="javascript:void(0);" className="ticker-input-bar p-2 sm:p-3 flex items-center gap-1 sm:gap-2 flex-shrink-0">
         {onClear && (
           <button
             type="button"
             onClick={onClear}
             title="Bersihkan Riwayat Obrolan"
-            className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+            className="p-1.5 sm:p-2 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </button>
         )}
 
@@ -1073,13 +1073,13 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
           onClick={handleToggleMic}
           disabled={isBusy || isReadingFiles}
           title={isListening ? 'Mikrofon Aktif (Klik untuk berhenti)' : 'Bicara ke JIN (Klik Mikrofon)'}
-          className={`p-2 rounded border transition-all flex items-center justify-center ${
+          className={`p-1.5 sm:p-2 rounded border transition-all flex items-center justify-center flex-shrink-0 ${
             isListening
               ? 'bg-emerald-500/30 border-emerald-400 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse scale-105'
               : 'text-cyan-400/80 hover:text-cyan-200 hover:bg-cyan-500/20 border-cyan-500/30 shadow-[0_0_10px_rgba(0,229,255,0.08)]'
           } disabled:opacity-40`}
         >
-          {isListening ? <Mic size={16} className="text-emerald-300 animate-pulse" /> : <Mic size={16} />}
+          {isListening ? <Mic size={15} className="text-emerald-300 animate-pulse" /> : <Mic size={15} />}
         </button>
 
         {/* Attach File Button */}
@@ -1088,12 +1088,12 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
           onClick={() => fileInputRef.current?.click()}
           disabled={isBusy || isReadingFiles}
           title="Lampirkan Dokumen atau Gambar (PDF, DOCX, TXT, CSV, JPG, PNG)"
-          className="p-2 text-cyan-400/80 hover:text-cyan-200 hover:bg-cyan-500/20 rounded border border-cyan-500/30 transition-all disabled:opacity-40 flex items-center justify-center shadow-[0_0_10px_rgba(0,229,255,0.08)]"
+          className="p-1.5 sm:p-2 text-cyan-400/80 hover:text-cyan-200 hover:bg-cyan-500/20 rounded border border-cyan-500/30 transition-all disabled:opacity-40 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(0,229,255,0.08)]"
         >
-          <Paperclip size={16} />
+          <Paperclip size={15} />
         </button>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           <input
             type="text"
             value={text}
@@ -1102,17 +1102,17 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
             onPaste={handlePaste}
             placeholder={
               isListening
-                ? '🎙 Mendengarkan suara Anda... (Bicara sekarang)'
+                ? '🎙 Mendengarkan suara Anda...'
                 : isReadingFiles
-                ? 'Sedang membaca file lampiran...'
+                ? 'Membaca file...'
                 : isBusy
-                ? 'JIN is streaming response...'
+                ? 'JIN sedang merespons...'
                 : attachedFiles.length > 0
-                ? 'Tulis instruksi untuk file terlampir... (Enter untuk kirim)'
-                : 'Ketik pesan untuk JIN... (Enter untuk kirim)'
+                ? 'Instruksi file... (Enter)'
+                : 'Ketik pesan... (Enter)'
             }
             disabled={isBusy || isReadingFiles}
-            className={`w-full bg-slate-950/80 border ${isListening ? 'border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-cyan-500/30'} rounded px-4 py-2.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-cyan-400 placeholder:text-slate-600 disabled:opacity-50`}
+            className={`w-full bg-slate-950/80 border ${isListening ? 'border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-cyan-500/30'} rounded px-2.5 py-2 sm:px-4 sm:py-2.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-cyan-400 placeholder:text-slate-600 disabled:opacity-50`}
           />
         </div>
 
@@ -1120,20 +1120,20 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
           <button
             type="button"
             onClick={onStop}
-            className="px-4 py-2.5 bg-red-500/20 border border-red-500/50 text-red-300 rounded text-xs font-mono font-semibold hover:bg-red-500/40 transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse"
+            className="px-2.5 sm:px-4 py-2 sm:py-2.5 bg-red-500/20 border border-red-500/50 text-red-300 rounded text-xs font-mono font-semibold hover:bg-red-500/40 transition-all flex items-center gap-1 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse flex-shrink-0"
             title="Hentikan respons (Escape)"
           >
-            <Square size={13} className="fill-red-400" />
-            <span>STOP</span>
+            <Square size={12} className="fill-red-400" />
+            <span className="hidden xs:inline">STOP</span>
           </button>
         ) : (
           <button
             type="submit"
             disabled={!hasContentToSend || isReadingFiles}
-            className="px-4 py-2.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 rounded text-xs font-mono font-semibold hover:bg-cyan-500/30 disabled:opacity-30 disabled:hover:bg-cyan-500/20 transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,229,255,0.1)]"
+            className="px-2.5 sm:px-4 py-2 sm:py-2.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 rounded text-xs font-mono font-semibold hover:bg-cyan-500/30 disabled:opacity-30 disabled:hover:bg-cyan-500/20 transition-all flex items-center gap-1 shadow-[0_0_15px_rgba(0,229,255,0.1)] flex-shrink-0"
           >
-            <Send size={14} />
-            <span>KIRIM</span>
+            <Send size={13} />
+            <span className="hidden xs:inline">KIRIM</span>
           </button>
         )}
       </form>
@@ -1187,14 +1187,14 @@ export default function JINTickerConversation() {
   return (
     <div className="jin-ticker-conversation w-full h-full flex flex-col bg-[#040711]/60">
       {/* Header with status and Sound Toggle */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-cyan-500/20 bg-black/20">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 border-b border-cyan-500/20 bg-black/20 overflow-x-auto custom-scrollbar flex-shrink-0 gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <Terminal size={14} className="text-cyan-400" />
           <span className="font-mono text-xs font-bold text-cyan-300 tracking-wider">
             INTELLIGENCE STREAM
           </span>
-          <span className="text-[10px] text-slate-500 font-mono">
-            ({messages.length} messages)
+          <span className="text-[10px] text-slate-500 font-mono hidden xs:inline">
+            ({messages.length})
           </span>
 
           {/* 🔊 JIN Speaker Voice Toggle */}
