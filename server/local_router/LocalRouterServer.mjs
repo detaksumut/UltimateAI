@@ -2058,6 +2058,61 @@ Requirements:
           // 1. Normalize current user utterance
           const cleanPrompt = sie._normalizeUtterance(userPrompt);
 
+          // 1.5. Autonomous Self-Correction & Evolution Gate (9Router)
+          // When USER reports an unfulfilled request, complaint, or error from previous turn
+          const { selfEvolvingAgentEngineInstance } = await import('../engineering/SelfEvolvingAgentEngine.mjs');
+          if (selfEvolvingAgentEngineInstance.detectUserCorrection(cleanPrompt, messages)) {
+            console.log(`[SELF_EVOLUTION] User correction/unfulfilled signal detected: "${cleanPrompt}"`);
+            const evolutionResult = await selfEvolvingAgentEngineInstance.evolve({
+              userComplaint: cleanPrompt,
+              messages
+            });
+
+            if (evolutionResult?.responseMarkdown) {
+              const streamEvolution = Boolean(payload.stream);
+              if (streamEvolution) {
+                res.writeHead(200, {
+                  'Content-Type': 'text/event-stream',
+                  'Cache-Control': 'no-cache',
+                  'Connection': 'keep-alive'
+                });
+                const sseChunk = JSON.stringify({
+                  id: `chatcmpl-evolve-${Date.now()}`,
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'ninerouter-self-evolution',
+                  choices: [{ index: 0, delta: { content: evolutionResult.responseMarkdown }, finish_reason: null }]
+                });
+                res.write(`data: ${sseChunk}\n\n`);
+                const finalChunk = JSON.stringify({
+                  id: `chatcmpl-evolve-final-${Date.now()}`,
+                  object: 'chat.completion.chunk',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'ninerouter-self-evolution',
+                  choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                  _agent: { cognitive: true, artifactType: 'SELF_EVOLUTION_REPORT' }
+                });
+                res.write(`data: ${finalChunk}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+              } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  id: `chatcmpl-evolve-${Date.now()}`,
+                  object: 'chat.completion',
+                  created: Math.floor(Date.now() / 1000),
+                  model: 'ninerouter-self-evolution',
+                  choices: [{
+                    index: 0,
+                    message: { role: 'assistant', content: evolutionResult.responseMarkdown },
+                    finish_reason: 'stop'
+                  }]
+                }));
+              }
+              return;
+            }
+          }
+
           // 2. Detect document context markers in the merged prompt (injected by ConversationController)
           const hasDocumentMarker = userPrompt.includes('--- [BERKAS DOKUMEN') ||
             userPrompt.includes('--- [DOKUMEN') ||

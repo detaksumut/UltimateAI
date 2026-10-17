@@ -36,14 +36,20 @@ export class NineRouterChatAdapter extends ModelRuntime {
 
   async healthCheck() {
     try {
-      const res = await fetch(`${this.host}/health`, {
+      let res = await fetch(`${this.host}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS)
-      });
+      }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`${this.host}/v1/models`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS)
+        }).catch(() => null);
+      }
       return {
         provider: this.name, configured: true,
-        status: res.ok ? 'READY' : 'UNAVAILABLE',
-        code: res.status, host: this.host
+        status: res?.ok ? 'READY' : 'UNAVAILABLE',
+        code: res?.status || 503, host: this.host
       };
     } catch (err) {
       return { provider: this.name, configured: true, status: 'OFFLINE', error: err.message, host: this.host };
@@ -52,8 +58,11 @@ export class NineRouterChatAdapter extends ModelRuntime {
 
   async isAvailable() {
     try {
-      const res = await fetch(`${this.host}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
-      return res.ok;
+      let res = await fetch(`${this.host}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`${this.host}/v1/models`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) }).catch(() => null);
+      }
+      return Boolean(res?.ok);
     } catch { return false; }
   }
 

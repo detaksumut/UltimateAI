@@ -1,5 +1,33 @@
 [
   {
+    "id": "EVOLVE-1792197573967-GTFB",
+    "key": "EVOLUTION_RULE_PLAYER_EMBED",
+    "content": "[9ROUTER EVOLUTION RULE] Masalah: Video YouTube layar hitam saat diputar | Solusi/Aturan: Player Embed harus validasi format video sebelum pemutaran.",
+    "tier": "SELF_EVOLVED_RULE",
+    "confidence": 0.99,
+    "provenance": "NINEROUTER_AUTONOMOUS_CORRECTION",
+    "createdAt": "2026-10-17T00:39:33.968Z",
+    "metadata": {
+      "targetSubsystem": "Player Embed",
+      "rootCause": "Kesalahan dalam embed player. Tidak menangani format video dengan benar.",
+      "actionCategory": "SCRIPT_REFINEMENT"
+    }
+  },
+  {
+    "id": "EVOLVE-1792197535709-J0K9",
+    "key": "EVOLUTION_RULE_ADAPTIVE_RUNTIME___TOOL_EXECUTION_PIPELINE",
+    "content": "[9ROUTER EVOLUTION RULE] Masalah: Permintaan user tidak terpenuhi: \"kenapa video youtube layarnya hitam\" | Solusi/Aturan: Selalu utamakan bentuk native/langsung sesuai instruksi user dan hindari wrapper buatan yang tidak diminta.",
+    "tier": "SELF_EVOLVED_RULE",
+    "confidence": 0.99,
+    "provenance": "NINEROUTER_AUTONOMOUS_CORRECTION",
+    "createdAt": "2026-10-17T00:38:55.709Z",
+    "metadata": {
+      "targetSubsystem": "Adaptive Runtime & Tool Execution Pipeline",
+      "rootCause": "Inkonsistensi antara intent yang diharapkan user dengan hasil eksekusi tool/script.",
+      "actionCategory": "DYNAMIC_RULE"
+    }
+  },
+  {
     "id": "MEM-1789290452476-15SA",
     "key": "buat rangkuman analisanya",
     "content": "Berikut adalah **Rangkuman Eksekutif & Analisis Komprehensif** atas Berkas Dokumen Induk Paten Terpa",

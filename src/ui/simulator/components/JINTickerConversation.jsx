@@ -281,6 +281,20 @@ function YouTubeNativeEmbed({ htmlContent }) {
   );
 }
 
+// ── YouTube detection & sanitisation helpers ──
+// Diekspor agar dapat diuji secara terpisah dari komponen React.
+export function extractYouTubeVideoId(htmlContent = '') {
+  const match = String(htmlContent || '').match(/(?:embed\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  return match ? match[1] : null;
+}
+
+// Buang tag <iframe> mentah dari HTML yang akan disuntik via innerHTML —
+// browser TIDAK memuat konten iframe dari innerHTML (area hitam), jadi
+// harus di-render melalui komponen React asli (YouTubeNativeEmbed).
+export function sanitizeYouTubeHtml(htmlContent = '') {
+  return String(htmlContent || '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+}
+
 function CanvasCardRenderer({ htmlContent }) {
   const [copied, setCopied] = useState(false);
 
@@ -290,11 +304,8 @@ function CanvasCardRenderer({ htmlContent }) {
   // menginisialisasi browsing context) -> area hitam, suara pun tak ada.
   // Solusinya: render player via komponen React asli (YouTubeNativeEmbed),
   // dan buang iframe mentah dari HTML yang ditampilkan.
-  const ytMatch = (htmlContent || '').match(/(?:embed\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-  const ytVideoId = ytMatch ? ytMatch[1] : null;
-  const sanitizedHtml = ytVideoId
-    ? String(htmlContent || '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    : htmlContent;
+  const ytVideoId = extractYouTubeVideoId(htmlContent);
+  const sanitizedHtml = ytVideoId ? sanitizeYouTubeHtml(htmlContent) : htmlContent;
   const canvasLabel = ytVideoId ? 'JIN CANVAS // YOUTUBE PLAYER' : 'JIN CONVERSATION CANVAS // LIVE FLYER';
 
   const handleCopy = () => {
