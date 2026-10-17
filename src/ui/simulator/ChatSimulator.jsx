@@ -225,15 +225,16 @@ export default function ChatSimulator() {
           </div>
           <div className="flex justify-between items-center" style={{ fontSize: 10.5, marginBottom: 4 }}>
             <span style={{ color: 'rgba(148,163,184,0.6)', fontWeight: 500 }}>PORT</span>
-            <span style={{ color: 'rgba(226,232,240,0.75)', fontFamily: 'monospace', fontWeight: 600 }}>:5177 (LAN)</span>
+            <span style={{ color: 'rgba(226,232,240,0.75)', fontFamily: 'monospace', fontWeight: 600 }}>:{typeof window !== 'undefined' && window.location.port ? window.location.port : '5178'} (LAN)</span>
           </div>
           <button
             type="button"
             onClick={() => {
               const host = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '192.168.1.3' : window.location.hostname;
-              const url = `http://${host}:5177`;
+              const port = window.location.port ? `:${window.location.port}` : ':5178';
+              const url = `http://${host}${port}`;
               try { navigator.clipboard?.writeText?.(url); } catch (_) {}
-              alert(`📱 Link Akses JINI dari HP:\n\n${url}\n\n(Tersalin ke clipboard! Buka di browser Chrome/Safari di HP yang terhubung ke Wi-Fi yang sama)`);
+              alert(`📱 Link Akses JINI dari HP:\n\n${url}\n\n(Tersalin ke clipboard! Buka di browser Chrome/Safari di HP yang terhubung ke Wi-Fi STARWARS 3)`);
             }}
             title="Klik untuk menyalin link HP"
             className="w-full mt-1.5 py-1.5 px-2 rounded bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 hover:text-cyan-100 hover:bg-cyan-900/60 font-mono text-[9px] flex items-center justify-center gap-1.5 transition-all shadow-[0_0_8px_rgba(0,229,255,0.15)] cursor-pointer"

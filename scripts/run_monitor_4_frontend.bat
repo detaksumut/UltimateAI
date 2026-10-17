@@ -10,7 +10,7 @@ echo   UI       : React Vite Dev Server
 echo ============================================================
 echo.
 
-call npm run dev -- --host 127.0.0.1 --port 5177
+call npm run dev -- --host 0.0.0.0 --port 5177
 
 echo.
 echo ============================================================

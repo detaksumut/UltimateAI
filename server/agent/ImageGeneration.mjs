@@ -367,6 +367,8 @@ export class ImageGenerationService {
       let chosenModel = null;
       let lastGatewayError = null;
       let aspectMismatch = null;
+      let bestAttemptFallback = null;
+
       for (const candidate of candidates) {
         // Size string is ONLY a hint: try [preferred, fallback] per candidate
         // (never "912x512" — live-probed to map to a 3:2 canvas on a provider).
@@ -416,6 +418,14 @@ maxBytes=1000000`);
               requested: requestedAspectLabel
             };
             console.warn(`${tag}[IMAGE_POLICY] FAIL aspect (requested=${requestedAspectLabel}, got ${meta ? meta.width : '?'}x${meta ? meta.height : '?'})`);
+            if (!bestAttemptFallback) {
+              bestAttemptFallback = {
+                attempt,
+                model: candidate.model,
+                meta,
+                sizeHint: sizeHint || 'default'
+              };
+            }
             continue; // try fallback size, then next candidate
           }
           console.log(`${tag}[IMAGE_POLICY] PASS aspect`);
@@ -435,6 +445,17 @@ maxBytes=1000000`);
           break;
         }
       }
+
+      // If strict aspect match wasn't found but we got a valid generated image from 9Router,
+      // adapt and accept it rather than failing the user completely!
+      if (!generation && bestAttemptFallback) {
+        console.warn(`${tag}[IMAGE_POLICY] Using successful image candidate ${bestAttemptFallback.model} (aspect adapted from ${bestAttemptFallback.meta?.width}x${bestAttemptFallback.meta?.height} for requested ${requestedAspectLabel})`);
+        generation = bestAttemptFallback.attempt;
+        chosenModel = bestAttemptFallback.model;
+        generation._meta = bestAttemptFallback.meta || null;
+        generation._requestedSize = bestAttemptFallback.sizeHint;
+      }
+
       if (!generation) {
         const err = lastGatewayError || {};
         console.error(`${tag}[9ROUTER] All ${candidates.length} discovered candidate(s) failed (code=${err.code}): ${err.error}${aspectMismatch ? `; last aspect mismatch on ${aspectMismatch.candidate}@${aspectMismatch.size}: requested ${aspectMismatch.requested}, got ${aspectMismatch.width}x${aspectMismatch.height}` : ''}`);
