@@ -271,7 +271,7 @@ function YouTubeNativeEmbed({ htmlContent }) {
       style={{ aspectRatio: '16 / 9', width: '100%', minHeight: '260px', position: 'relative' }}
     >
       <iframe
-        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&playsinline=1`}
         title="YouTube video player"
         style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -283,6 +283,19 @@ function YouTubeNativeEmbed({ htmlContent }) {
 
 function CanvasCardRenderer({ htmlContent }) {
   const [copied, setCopied] = useState(false);
+
+  // ── Deteksi video YouTube di dalam kartu ──
+  // KUNCI PERBAIKAN: <iframe> yang disuntik via dangerouslySetInnerHTML
+  // TIDAK memuat kontennya (spesifikasi browser: innerHTML iframe tidak
+  // menginisialisasi browsing context) -> area hitam, suara pun tak ada.
+  // Solusinya: render player via komponen React asli (YouTubeNativeEmbed),
+  // dan buang iframe mentah dari HTML yang ditampilkan.
+  const ytMatch = (htmlContent || '').match(/(?:embed\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  const ytVideoId = ytMatch ? ytMatch[1] : null;
+  const sanitizedHtml = ytVideoId
+    ? String(htmlContent || '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    : htmlContent;
+  const canvasLabel = ytVideoId ? 'JIN CANVAS // YOUTUBE PLAYER' : 'JIN CONVERSATION CANVAS // LIVE FLYER';
 
   const handleCopy = () => {
     try {
@@ -320,7 +333,7 @@ function CanvasCardRenderer({ htmlContent }) {
       <div className="px-3.5 py-2 border-b border-emerald-500/30 bg-emerald-950/85 flex items-center justify-between text-[11px] font-mono select-none">
         <div className="flex items-center gap-2 font-bold tracking-wider text-emerald-300">
           <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_#2ecc71]" />
-          <span className="truncate max-w-[220px] sm:max-w-none">JIN CONVERSATION CANVAS // LIVE FLYER</span>
+          <span className="truncate max-w-[220px] sm:max-w-none">{canvasLabel}</span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
@@ -355,9 +368,14 @@ function CanvasCardRenderer({ htmlContent }) {
 
       {/* Rendered Canvas Body */}
       <div className="p-2 overflow-x-auto custom-scrollbar bg-[#030c08]/90">
+        {/* Player YouTube asli (React iframe) — MEMUAT konten sungguhan,
+            berbeda dengan iframe hasil suntikan innerHTML yang selalu hitam. */}
+        {ytVideoId && (
+          <YouTubeNativeEmbed htmlContent={`https://www.youtube.com/embed/${ytVideoId}`} />
+        )}
         <div 
           className="jin-canvas-inner-content w-full min-w-[520px] flex justify-center items-center"
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
         />
       </div>
     </div>
