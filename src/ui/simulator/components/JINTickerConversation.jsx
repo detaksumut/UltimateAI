@@ -18,6 +18,7 @@ import { RouterConfig } from '../../../services/router/RouterConfig.js';
 import { typingSoundEngineInstance } from '../../../services/audio/TypingSoundEngine.js';
 import { voiceControllerInstance } from '../../../services/voice/VoiceController.js';
 import JINMusicPlayerCard from './JINMusicPlayerCard.jsx';
+import { extractYouTubeVideoId, sanitizeYouTubeHtml } from '../../../utils/youtubeCardHelpers.mjs';
 function getCharStep(text, index) {
   if (index >= text.length) return 1;
   const code = text.charCodeAt(index);
@@ -279,20 +280,6 @@ function YouTubeNativeEmbed({ htmlContent }) {
       />
     </div>
   );
-}
-
-// ── YouTube detection & sanitisation helpers ──
-// Diekspor agar dapat diuji secara terpisah dari komponen React.
-export function extractYouTubeVideoId(htmlContent = '') {
-  const match = String(htmlContent || '').match(/(?:embed\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-  return match ? match[1] : null;
-}
-
-// Buang tag <iframe> mentah dari HTML yang akan disuntik via innerHTML —
-// browser TIDAK memuat konten iframe dari innerHTML (area hitam), jadi
-// harus di-render melalui komponen React asli (YouTubeNativeEmbed).
-export function sanitizeYouTubeHtml(htmlContent = '') {
-  return String(htmlContent || '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
 }
 
 function CanvasCardRenderer({ htmlContent }) {
