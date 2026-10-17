@@ -6,14 +6,10 @@
     <title>UltimateAI – Build Research Apps Instantly</title>
     <link rel="icon" type="image/png" href="/logo-ultimateAI-transparent.png" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-      try {
-        if (window.pdfjsLib) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-      } catch (_) {}
-    </script>
+    <!-- CATATAN: pdf.js TIDAK lagi dimuat dari CDN di sini.
+         Script CDN sync di <head> membuat halaman blank saat CDN lambat/diblokir
+         (Edge InPrivate Tracking Prevention memblokir cdnjs -> DCL tertunda).
+         Parser PDF kini 100% lokal: pdfjs-dist (npm) + /pdf.worker.min.mjs (public). -->
   </head>
   <body>
     <div id="root"></div>

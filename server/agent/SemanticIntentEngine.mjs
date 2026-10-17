@@ -620,9 +620,12 @@ Analyze contextually and output strict JSON.`;
   _mediaPlaybackClassifier(raw, activeConstraints = []) {
     const r = raw.trim();
     const isSongRequest = 
-      /(?:carikan|cari|putar|putarkan|play|dengarkan|nyalakan|tampilkan)?\s*(?:lagu|musik|video|song|music|mv)\s+(?:di\s+youtube\s+)?(?:judul(?:nya)?|berjudul|called|titled)?\s*(.+)/i.test(r) ||
+      /(?:carikan|cari|putar|putarkan|play|dengarkan|nyalakan|tampilkan|setel|mainkan)?\s*(?:lagu|musik|video|song|music|mv)\s+(?:di\s+youtube\s+)?(?:judul(?:nya)?|berjudul|called|titled)?\s*(.+)/i.test(r) ||
       /(?:di\s+youtube\s+)?(?:judul(?:nya)?|berjudul)\s+(?:lagu(?:nya)?\s+)?(.+)/i.test(r) ||
-      /\b(?:carikan\s+lagu|putar\s+lagu|putarkan\s+lagu|play\s+lagu)\b/i.test(r);
+      /\b(?:carikan\s+lagu|putar\s+lagu|putarkan\s+lagu|play\s+lagu|setel\s+lagu|mainkan\s+lagu|dengarkan\s+lagu)\b/i.test(r) ||
+      /\b(?:youtube|yt)\b.*?\b(?:putar|play|setel|mainkan|dengarkan|canvas)\b/i.test(r) ||
+      /\b(?:putar|play|setel|mainkan|dengarkan)\b.*?\b(?:youtube|yt)\b/i.test(r) ||
+      /\b(?:cari|carikan)\b.*?\b(?:youtube|yt)\b.*?\b(?:putar|play|canvas)\b/i.test(r);
 
     if (!isSongRequest) return null;
 

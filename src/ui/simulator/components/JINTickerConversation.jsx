@@ -27,6 +27,49 @@ function getCharStep(text, index) {
   return 1;
 }
 
+function renderInlineMarkdown(text) {
+  if (!text || typeof text !== 'string') return text;
+  // Match [label](url) or **bold**
+  const regex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*/g;
+  const elements = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      elements.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1] && match[2]) {
+      // Link: [match[1]](match[2])
+      elements.push(
+        <a
+          key={match.index}
+          href={match[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="text-cyan-400 hover:text-cyan-300 underline font-semibold transition-colors inline-flex items-center gap-1 mx-0.5 cursor-pointer"
+        >
+          {match[1]}
+        </a>
+      );
+    } else if (match[3]) {
+      // Bold: **match[3]**
+      elements.push(
+        <strong key={match.index} className="font-bold text-cyan-100">
+          {match[3]}
+        </strong>
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    elements.push(text.slice(lastIndex));
+  }
+
+  return elements.length > 0 ? elements : text;
+}
+
 /**
  * Streaming-Aware Markdown Parser
  * Parses both completed and OPEN/STREAMING code fences (```lang ... without closing ```)
@@ -214,6 +257,30 @@ function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)", 
   );
 }
 
+function YouTubeNativeEmbed({ htmlContent }) {
+  const match = htmlContent.match(/(?:embed\/|v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  const videoId = match ? match[1] : null;
+
+  if (!videoId) {
+    return null;
+  }
+
+  return (
+    <div 
+      className="my-3 w-full rounded-xl overflow-hidden shadow-2xl bg-black border border-cyan-500/30"
+      style={{ aspectRatio: '16 / 9', width: '100%', minHeight: '260px', position: 'relative' }}
+    >
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+        title="YouTube video player"
+        style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
 function CanvasCardRenderer({ htmlContent }) {
   const [copied, setCopied] = useState(false);
 
@@ -247,74 +314,49 @@ function CanvasCardRenderer({ htmlContent }) {
     } catch {}
   };
 
-  const isYouTube = /youtube\.com\/embed|youtu\.be/i.test(htmlContent);
-  const badgeTitle = isYouTube ? 'JIN CANVAS // YOUTUBE PLAYER' : 'JIN CONVERSATION CANVAS // LIVE FLYER';
-
   return (
-    <div className={`my-3 rounded-xl overflow-hidden border shadow-lg select-text ${
-      isYouTube 
-        ? 'border-red-500/40 shadow-[0_0_25px_rgba(239,68,68,0.2)] bg-[#080204]' 
-        : 'border-emerald-500/40 shadow-[0_0_25px_rgba(46,204,113,0.18)] bg-[#020906]'
-    }`}>
+    <div className="my-3 rounded-xl overflow-hidden border border-emerald-500/40 shadow-[0_0_25px_rgba(46,204,113,0.18)] bg-[#020906] select-text">
       {/* Canvas Header Bar */}
-      <div className={`px-3.5 py-2 border-b flex items-center justify-between text-[11px] font-mono select-none ${
-        isYouTube ? 'bg-red-950/80 border-red-500/30' : 'bg-emerald-950/85 border-emerald-500/30'
-      }`}>
-        <div className={`flex items-center gap-2 font-bold tracking-wider ${
-          isYouTube ? 'text-red-300' : 'text-emerald-300'
-        }`}>
-          <span className={`w-2 h-2 rounded-full animate-pulse ${
-            isYouTube ? 'bg-red-400 shadow-[0_0_8px_#ef4444]' : 'bg-emerald-400 shadow-[0_0_8px_#2ecc71]'
-          }`} />
-          <span className="truncate max-w-[220px] sm:max-w-none">{badgeTitle}</span>
+      <div className="px-3.5 py-2 border-b border-emerald-500/30 bg-emerald-950/85 flex items-center justify-between text-[11px] font-mono select-none">
+        <div className="flex items-center gap-2 font-bold tracking-wider text-emerald-300">
+          <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400 shadow-[0_0_8px_#2ecc71]" />
+          <span className="truncate max-w-[220px] sm:max-w-none">JIN CONVERSATION CANVAS // LIVE FLYER</span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             type="button"
             onClick={handleCopy}
-            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
-              isYouTube
-                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
-                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
-            }`}
+            className="px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300"
             title="Salin Kode HTML"
           >
-            {copied ? <Check size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} /> : <Copy size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />}
+            {copied ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} className="text-emerald-400" />}
             <span>{copied ? 'Tersalin' : 'Salin'}</span>
           </button>
           <button
             type="button"
             onClick={handleOpenNewTab}
-            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
-              isYouTube
-                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
-                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
-            }`}
+            className="px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300"
             title="Buka Penuh di Tab Baru"
           >
-            <ExternalLink size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />
+            <ExternalLink size={10} className="text-emerald-400" />
             <span className="hidden sm:inline">Buka Penuh</span>
           </button>
           <button
             type="button"
             onClick={handleDownload}
-            className={`px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer ${
-              isYouTube
-                ? 'bg-red-950/90 hover:bg-red-900 border-red-500/30 text-red-300'
-                : 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300'
-            }`}
+            className="px-2 py-0.5 rounded border text-[10px] transition-all flex items-center gap-1 cursor-pointer bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500/30 text-emerald-300"
             title="Unduh Berkas HTML"
           >
-            <Download size={10} className={isYouTube ? 'text-red-400' : 'text-emerald-400'} />
+            <Download size={10} className="text-emerald-400" />
             <span className="hidden sm:inline">Unduh</span>
           </button>
         </div>
       </div>
 
       {/* Rendered Canvas Body */}
-      <div className={`p-2 overflow-x-auto custom-scrollbar ${isYouTube ? 'bg-black' : 'bg-[#030c08]/90'}`}>
+      <div className="p-2 overflow-x-auto custom-scrollbar bg-[#030c08]/90">
         <div 
-          className={`jin-canvas-inner-content w-full flex justify-center items-center ${isYouTube ? 'min-w-0' : 'min-w-[520px]'}`}
+          className="jin-canvas-inner-content w-full min-w-[520px] flex justify-center items-center"
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       </div>
@@ -569,6 +611,10 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
         <span key={idx}>
           {subBlocks.map((sub, sIdx) => {
             if (sub.type === 'html_card') {
+              const isYouTube = /youtube\.com|youtu\.be/i.test(sub.content);
+              if (isYouTube) {
+                return <YouTubeNativeEmbed key={sIdx} htmlContent={sub.content} />;
+              }
               return <CanvasCardRenderer key={sIdx} htmlContent={sub.content} />;
             }
 
@@ -583,7 +629,7 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
                 {lines.map((line, lIdx) => (
                   <React.Fragment key={lIdx}>
                     {lIdx > 0 && <br />}
-                    {line}
+                    {renderInlineMarkdown(line)}
                   </React.Fragment>
                 ))}
               </span>

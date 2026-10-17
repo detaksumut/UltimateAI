@@ -19,42 +19,40 @@ export const readFileAsDataUrl = (file) =>
 
 let _pdfjsPromise = null;
 
+// Worker pdf.js 100% LOKAL (public/pdf.worker.min.mjs, seri 5.4.x =
+// identik dengan pdfjs-dist npm). CDN hanya cadangan terakhir agar
+// Edge InPrivate (Tracking Prevention memblokir cdnjs) tak pernah
+// mematikan fitur ekstraksi PDF.
+const LOCAL_PDF_WORKER = '/pdf.worker.min.mjs';
+
 function loadPdfJs() {
   if (typeof window === 'undefined') return Promise.resolve(null);
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   if (_pdfjsPromise) return _pdfjsPromise;
 
-  _pdfjsPromise = new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.async = true;
-    script.onload = () => {
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        resolve(window.pdfjsLib);
-      } else {
-        resolve(null);
-      }
-    };
-    script.onerror = () => {
-      const fallbackScript = document.createElement('script');
-      fallbackScript.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-      fallbackScript.async = true;
-      fallbackScript.onload = () => {
-        if (window.pdfjsLib) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-          resolve(window.pdfjsLib);
-        } else {
-          resolve(null);
+  _pdfjsPromise = (async () => {
+    // 1. Global (jika sudah dimuat).
+    if (window.pdfjsLib) return window.pdfjsLib;
+
+    // 2. Load PDF.js via script tag (non-blocking for Vite bundler).
+    return await new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.async = true;
+      script.onload = () => {
+        if (window.pdfjsLib) resolve(window.pdfjsLib);
+        else {
+          const fb = document.createElement('script');
+          fb.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+          fb.async = true;
+          fb.onload = () => resolve(window.pdfjsLib || null);
+          fb.onerror = () => resolve(null);
+          document.head.appendChild(fb);
         }
       };
-      fallbackScript.onerror = () => resolve(null);
-      document.head.appendChild(fallbackScript);
-    };
-    document.head.appendChild(script);
-  });
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  })();
 
   return _pdfjsPromise;
 }
@@ -69,8 +67,7 @@ export async function readPdfAsText(file) {
     if (!pdfjsLib) return '';
 
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = LOCAL_PDF_WORKER;
     }
 
     const arrayBuffer = await file.arrayBuffer();

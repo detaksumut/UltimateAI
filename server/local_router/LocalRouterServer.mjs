@@ -2321,7 +2321,7 @@ Requirements:
               try {
                 const { searchSong, titleGate } = await import('../tools/YouTubeSongSearch.mjs');
                 console.log(`[INTENT_GATE][MEDIA_PLAYBACK] Searching song for: "${cleanPrompt}"`);
-                const songResult = await searchSong(cleanPrompt);
+                const songResult = await searchSong(cleanPrompt, { messages });
                 
                 let playbackText = '';
                 let videoId = null;
@@ -2342,17 +2342,23 @@ Requirements:
                   const channelPart = channelTrusted
                     ? ` karya **${channel}**`
                     : (channel ? ` (kanal: ${channel})` : '');
+                  
+                  const topicNotice = songResult.isTopic
+                    ? `\n\n*Catatan: Video ini bersumber dari audio distributor (${channel}) dengan proteksi hak cipta pemutaran eksternal. Jika pemutar menampilkan batasan, silakan putar langsung via tautan YouTube di atas.*`
+                    : '';
+
                   playbackText = `Lagu **"${title}"**${channelPart} telah ditemukan di YouTube dan langsung diputar di Canvas pemutar di bawah ini:\n\n` +
                     `<div style="width: 100%; position: relative; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background-color: #000;">\n` +
                     `  <iframe \n` +
                     `    src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" \n` +
                     `    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" \n` +
-                    `    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" \n` +
+                    `    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" \n` +
                     `    allowfullscreen \n` +
+                    `    referrerpolicy="strict-origin-when-cross-origin" \n` +
                     `    title="${title}">\n` +
                     `  </iframe>\n` +
                     `</div>\n\n` +
-                    `🔗 [Buka "${title}" di YouTube](${watchUrl})`;
+                    `🔗 [Buka "${title}" di YouTube](${watchUrl})${topicNotice}`;
                 } else {
                   playbackText = `Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **"${cleanPrompt}"** di YouTube. Anda dapat mencoba kata kunci atau nama penyanyi yang lebih spesifik.`;
                 }

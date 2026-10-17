@@ -67,7 +67,12 @@ function significantTokens(s = '') {
   return normalizeTitle(s).split(' ').filter((t) => t.length >= 3);
 }
 
-/** Discovery expansion: query user + alias resmi (mis. Hau Lai -> Hou Lai). */
+export function isTopicChannel(channel = '') {
+  const ch = String(channel || '').trim().toLowerCase();
+  return /[-–—]\s*topic$/i.test(ch) || /\btopic$/i.test(ch) || ch.endsWith('topic');
+}
+
+/** Discovery expansion: query user + official video / VEVO + alias resmi. */
 export function expandDiscoveryQueries(rawQuery = '') {
   const base = String(rawQuery || '').trim();
   const out = [];
@@ -75,7 +80,9 @@ export function expandDiscoveryQueries(rawQuery = '') {
     out.push(`lagu ${base}`);
   }
   out.push(base);
+  out.push(`${base} official music video`);
   out.push(`${base} official`);
+  out.push(`${base} vevo`);
   for (const [re, aliases] of TITLE_ALIASES) {
     if (re.test(base)) { for (const a of aliases) if (!out.includes(a)) out.push(a); }
   }
@@ -83,20 +90,44 @@ export function expandDiscoveryQueries(rawQuery = '') {
 }
 
 /** Bersihkan prompt jadi judul lagu: "carikan lagu di youtube judulnya Hau Lai" -> "Hau Lai". */
-export function extractSongQuery(userPrompt = '') {
+export function extractSongQuery(userPrompt = '', history = []) {
   const raw = String(userPrompt || '');
   const m = raw.match(/(?:judul(?:\s+lagu)?(?:nya)?|berjudul|judul\s+adalah|namanya|titled|called)\s+(?:lagu(?:nya)?\s+)?(.{2,80}?)\s*[.?!]*$/i);
   let q = m ? m[1].trim() : '';
-  if (!q) {
-    q = raw
-      .replace(/^\s*(hai|halo|hallo|hei|ok|okey|jin|hai jin)\b[\s,!]*/i, '')
-      .replace(/\b(carikan|carilin|cari|tolong|coba|minta|bisa|boleh|putar|putarkan|play|dengarkan|mainkan)\b/gi, ' ')
-      .replace(/\b(di|dari)\b\s+youtube/gi, ' ')
-      .replace(/\byoutube\b/gi, ' ')
-      .replace(/\b(lagu|musik|video|song|music|playlist|konsep|yang)\b/gi, ' ')
+  if (q) {
+    q = q
+      .replace(/,\s*(?:penyanyi(?:nya)?|artis(?:nya)?|singer|vocalist)\s*(?:adalah|:)?\s*/gi, ' ')
+      .replace(/\b(?:penyanyi(?:nya)?|artis(?:nya)?|singer|vocalist)\s*(?:adalah|:)?\s*/gi, ' ')
       .replace(/["'?!]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  if (!q) {
+    q = raw
+      .replace(/^\s*(hai|halo|hallo|hei|ok|okey|jin|hai jin)\b[\s,!]*/i, '')
+      .replace(/\b(carikan|carilin|cari|tolong|coba|minta|bisa|boleh|putar|putarkan|play|dengarkan|mainkan|setel)\b/gi, ' ')
+      .replace(/\b(di|dari)\b\s+youtube/gi, ' ')
+      .replace(/\byoutube\b/gi, ' ')
+      .replace(/\b(canvas|percakapan|langsung)\b/gi, ' ')
+      .replace(/\b(lagu|musik|video|song|music|playlist|konsep|yang|aku|mau|jini|lalu)\b/gi, ' ')
+      .replace(/\b(?:penyanyi(?:nya)?|artis(?:nya)?|singer|vocalist)\s*(?:adalah|:)?\s*/gi, ' ')
+      .replace(/["'?!]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  // Jika prompt referensial (mis. "Yang aku mau JINI cari di Youtube lalu putar langsung di canvas"),
+  // periksa riwayat percakapan sebelumnya untuk menemukan judul lagu yang dimaksud
+  if (q.length < 2 && Array.isArray(history) && history.length > 0) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const prev = history[i]?.content;
+      if (typeof prev === 'string') {
+        const found = extractSongQuery(prev);
+        if (found && found.length >= 2 && !/\b(canvas|youtube|putar|cari)\b/i.test(found)) {
+          return found;
+        }
+      }
+    }
   }
   if (q.length < 2) q = raw.replace(/\s+/g, ' ').trim();
   return q;
@@ -139,10 +170,34 @@ export function verifyCandidate(query = '', candidate = {}) {
  * Verifikasi kandidat dari SEMUA query discovery terhadap query VERIFIKASI
  * (query asli user + tiap aliasnya — alias boleh memverifikasi juga karena
  * "Hau Lai" memang ejaan alternatif "Hou Lai").
+ *
+ * FILTER PENTING EMBEDDING:
+ * Prioritas 1: Kandidat NON-Topic Channel (VEVO, Official Artist, Label Channel).
+ * Topic Channel (* - Topic) adalah rilis YouTube Music dengan DRM audio yang melarang
+ * pemutaran di situs luar / iframe (menyebabkan YouTube Error 150 atau layar hitam).
  */
 export function pickVerified(verifyQueries = [], candidates = []) {
   const list = Array.isArray(candidates) ? candidates : [];
   const vqs = (Array.isArray(verifyQueries) ? verifyQueries : [verifyQueries]).filter(Boolean);
+
+  // PASS 1: Utamakan kandidat BUKAN Topic Channel agar embed Canvas 100% playable
+  for (const vq of vqs) {
+    for (const c of list) {
+      if (isTopicChannel(c.channel)) continue;
+      const r = verifyCandidate(vq, c);
+      if (r.status === 'VERIFY') {
+        return {
+          status: YT_SONG_STATUS.VERIFIED,
+          query: vq,
+          candidate: { videoId: c.videoId, title: c.title || '', channel: c.channel || '' },
+          gate: r.reason,
+          isTopic: false,
+        };
+      }
+    }
+  }
+
+  // PASS 2: Fallback jika seluruh kandidat hanya berasal dari Topic Channel
   for (const vq of vqs) {
     for (const c of list) {
       const r = verifyCandidate(vq, c);
@@ -152,10 +207,12 @@ export function pickVerified(verifyQueries = [], candidates = []) {
           query: vq,
           candidate: { videoId: c.videoId, title: c.title || '', channel: c.channel || '' },
           gate: r.reason,
+          isTopic: true,
         };
       }
     }
   }
+
   if (list.length === 0) return { status: YT_SONG_STATUS.NO_MATCH, query: vqs[0] || '', candidate: null, reason: 'NO_CANDIDATES' };
   return { status: YT_SONG_STATUS.NO_MATCH, query: vqs[0] || '', candidate: null, reason: 'ALL_CANDIDATES_REJECTED', checked: list.length };
 }
@@ -277,7 +334,8 @@ async function confirmPlayable(videoId = '') {
  * Tidak pernah mengembalikan "video pertama hasil search" tanpa verifikasi.
  */
 export async function searchSong(userPromptOrQuery = '', options = {}) {
-  const query = extractSongQuery(userPromptOrQuery);
+  const history = options.messages || [];
+  const query = extractSongQuery(userPromptOrQuery, history);
   if (!query) return { status: YT_SONG_STATUS.INSUFFICIENT_EVIDENCE, query: '', candidate: null, reason: 'EMPTY_QUERY' };
   const discoveryQueries = expandDiscoveryQueries(query);
   const seen = new Set();
@@ -306,6 +364,7 @@ export async function searchSong(userPromptOrQuery = '', options = {}) {
     query,
     candidate: { ...verdict.candidate, title: proof.title || verdict.candidate.title, channel: proof.channel || verdict.candidate.channel },
     gate: verdict.gate,
+    isTopic: Boolean(verdict.isTopic),
     watchUrl,
     discoveryQueries,
     checked: candidates.length,

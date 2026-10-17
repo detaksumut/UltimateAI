@@ -878,5 +878,49 @@
     "createdAt": "2026-09-16T08:32:11.249Z",
     "lastAccessedAt": "2026-09-16T08:32:11.249Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1792192280661-V5M2",
+    "key": "cek JINI",
+    "content": "Halo! Saya **JIN**, siap membantu Anda. \n\nSistem dan seluruh fungsi kognisi saya aktif penuh. Ada ya",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-16T23:11:20.661Z",
+    "lastAccessedAt": "2026-10-16T23:11:20.661Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792192300873-EVB8",
+    "key": "buatkan gambar pesawat terbang",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: QWEN_VISUAL_PLANNER_FAILED (Qwen",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-16T23:11:40.873Z",
+    "lastAccessedAt": "2026-10-16T23:11:40.873Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792192334416-OGEC",
+    "key": "carikan lagu di youtube dengan judul Ras",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"carikan lagu di y",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-16T23:12:14.416Z",
+    "lastAccessedAt": "2026-10-16T23:12:14.416Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792192514241-S0BX",
+    "key": "carikan lagu di youtube judul lagu Forev",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"carikan lagu di y",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-16T23:15:14.241Z",
+    "lastAccessedAt": "2026-10-16T23:15:14.241Z",
+    "accessCount": 1
   }
 ]
