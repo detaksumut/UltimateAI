@@ -168,7 +168,6 @@ export class ImageModelSelector {
       
       // Unified fallback
       if (/gpt-image|image-1/i.test(id)) score += 3;
-      if (/dall-e/i.test(id)) score += 2;
       
       return score + 1;
     };

@@ -129,11 +129,60 @@ export class ImageGenerationService {
 
   static detectAspectRatio(text = '', defaultAr = '16:9') {
     const t = String(text || '').toLowerCase();
+    if (/\b(?:1[:x]1|1\/1|square|kotak|persegi|avatar|logo|profil|profile|feed)\b/i.test(t)) {
+      return '1:1';
+    }
     if (/\b(?:9[:x]16|9\/16|portrait|vertikal|tegak|story|tiktok|reels|shorts|wallpaper(?:\s+hp|\s+ponsel)?)\b/i.test(t)) {
       return '9:16';
     }
-    // Strict Box Policy: Default is always 16:9 widescreen (zero 768x768 square)
-    return '16:9';
+    if (/\b(?:16[:x]9|16\/9|landscape|horizontal|lebar|slide|presentasi|banner|youtube|wallpaper(?:\s+desktop|\s+pc|\s+laptop)?)\b/i.test(t)) {
+      return '16:9';
+    }
+    return defaultAr || '16:9';
+  }
+
+  /**
+   * Smart aspect ratio adaptation engine:
+   * Dynamically formats incoming image buffer to user's desired ratio (16:9, 9:16, 1:1)
+   * while keeping resolution high and file size strictly < 1MB.
+   */
+  async adaptToAspectRatio(buffer, targetAspect = '16:9') {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) return buffer;
+
+    try {
+      const Jimp = (await import('jimp')).default;
+      const img = await Jimp.read(buffer);
+      const w = img.bitmap.width;
+      const h = img.bitmap.height;
+      if (!w || !h) return buffer;
+
+      const currentRatio = w / h;
+      let targetRatio = 16 / 9;
+      let targetWidth = 1024;
+      let targetHeight = 576;
+
+      if (targetAspect === '9:16') {
+        targetRatio = 9 / 16;
+        targetWidth = 576;
+        targetHeight = 1024;
+      } else if (targetAspect === '1:1') {
+        targetRatio = 1.0;
+        targetWidth = Math.min(w, h, 1024);
+        targetHeight = targetWidth;
+      }
+
+      // If already within 5% of target ratio, no need to re-crop
+      if (Math.abs(currentRatio - targetRatio) / targetRatio <= 0.05) {
+        return buffer;
+      }
+
+      img.cover(targetWidth, targetHeight);
+      img.quality(88); // High quality JPEG
+      return await img.getBufferAsync(Jimp.MIME_JPEG);
+    } catch (err) {
+      console.warn('[ImageGeneration] adaptToAspectRatio fallback:', err.message);
+      return buffer;
+    }
   }
 
   async generateImage(params = {}, transport = null) {
@@ -190,13 +239,13 @@ export class ImageGenerationService {
     const originalPrompt = String(prompt || '').trim();
     const normalizedPrompt = this.normalizeImagePrompt(originalPrompt);
 
-    // Auto-resolve aspect ratio: STRICT POLICY: 16:9 (912x512) or 9:16 (512x912)
+    // Auto-resolve aspect ratio: Supports 16:9, 9:16, and 1:1 based on user needs
     let resolvedAr = aspectRatio;
-    if (!resolvedAr || resolvedAr === '1:1' || (resolvedAr !== '9:16' && resolvedAr !== '16:9')) {
+    if (!resolvedAr || (resolvedAr !== '1:1' && resolvedAr !== '9:16' && resolvedAr !== '16:9')) {
       resolvedAr = ImageGenerationService.detectAspectRatio(`${originalPrompt} ${options?.aspectRatio || ''}`, '16:9');
     }
-    const resolvedWidth = resolvedAr === '9:16' ? 512 : 912;
-    const resolvedHeight = resolvedAr === '9:16' ? 912 : 512;
+    const resolvedWidth = resolvedAr === '9:16' ? 576 : resolvedAr === '1:1' ? 1024 : 1024;
+    const resolvedHeight = resolvedAr === '9:16' ? 1024 : resolvedAr === '1:1' ? 1024 : 576;
     const resolvedSize = `${resolvedWidth}x${resolvedHeight}`;
 
     let effectiveNegativePrompt = negativePrompt || '';
@@ -312,6 +361,13 @@ export class ImageGenerationService {
 
       // Compose gateway prompt directly via optimized prompt (OpenAI via 9Router).
       const gatewayPrompt = this._optimizePrompt(cleanPrompt);
+      const spec = {
+        prompt: gatewayPrompt,
+        originalPrompt: cleanPrompt,
+        aspectRatio: aspectRatio || '16:9',
+        domain
+      };
+      const plannerResult = { planner: 'openai_9router', spec };
       console.log(`${tag}[9ROUTER] OpenAI via 9Router domain=${domain} aspectRatio=${aspectRatio || '16:9'} size=${size || 'auto'}`);
 
       // Step 2: Discovery-driven model selection (never invents a model id).
@@ -348,9 +404,9 @@ export class ImageGenerationService {
       // (aspect drift) for a strict 16:9/9:16 request is ALSO rejected — the
       // artifact is only valid when its ACTUAL decoded dimensions honour the
       // requested aspect.
-      const requestedAspectLabel = aspectRatio === '9:16' ? '9:16' : aspectRatio === '1:1' ? null : '16:9';
-      const requestedRatio = requestedAspectLabel === '9:16' ? 9 / 16 : requestedAspectLabel ? 16 / 9 : null;
-      const ASPECT_TOLERANCE = 0.05; // approx 1.7778 / 0.5625, tiny rounding allowed
+      const requestedAspectLabel = aspectRatio === '9:16' ? '9:16' : aspectRatio === '1:1' ? '1:1' : '16:9';
+      const requestedRatio = requestedAspectLabel === '9:16' ? 9 / 16 : requestedAspectLabel === '1:1' ? 1.0 : 16 / 9;
+      const ASPECT_TOLERANCE = 0.08; // approx 1.7778 / 0.5625 / 1.0, tiny rounding allowed
       const metadataOf = async (bytes) => {
         try {
           return await imageOutputSizePolicyInstance.getMetadata(bytes);
@@ -409,15 +465,18 @@ actualAspect=${actualRatio !== null ? actualRatio.toFixed(4) : 'n/a'}
 bytes=${attempt.imageBytes.length}
 maxBytes=1000000`);
           if (!aspectPass) {
-            aspectMismatch = {
-              candidate: candidate.model,
-              size: sizeHint || 'default',
-              width: meta ? meta.width : 0,
-              height: meta ? meta.height : 0,
-              actual: meta ? (reduceAspectRatio(meta.width, meta.height) || actualRatio.toFixed(4)) : 'n/a',
-              requested: requestedAspectLabel
-            };
-            console.warn(`${tag}[IMAGE_POLICY] FAIL aspect (requested=${requestedAspectLabel}, got ${meta ? meta.width : '?'}x${meta ? meta.height : '?'})`);
+            console.warn(`${tag}[IMAGE_POLICY] Model returned ${meta ? meta.width : '?'}x${meta ? meta.height : '?'} — adapting to requested ${requestedAspectLabel}`);
+            const adapted = await this.adaptToAspectRatio(attempt.imageBytes, requestedAspectLabel);
+            if (adapted && adapted.length > 0) {
+              attempt.imageBytes = adapted;
+              const adaptedMeta = await metadataOf(adapted);
+              generation = attempt;
+              chosenModel = candidate.model;
+              generation._meta = adaptedMeta || meta || null;
+              generation._requestedSize = sizeHint || 'default';
+              candidateOk = true;
+              break;
+            }
             if (!bestAttemptFallback) {
               bestAttemptFallback = {
                 attempt,
@@ -446,10 +505,10 @@ maxBytes=1000000`);
         }
       }
 
-      // If strict aspect match wasn't found but we got a valid generated image from 9Router,
-      // adapt and accept it rather than failing the user completely!
+      // If strict aspect match wasn't native from provider but we got a valid generated image,
+      // adapt and accept it rather than failing the user!
       if (!generation && bestAttemptFallback) {
-        console.warn(`${tag}[IMAGE_POLICY] Using successful image candidate ${bestAttemptFallback.model} (aspect adapted from ${bestAttemptFallback.meta?.width}x${bestAttemptFallback.meta?.height} for requested ${requestedAspectLabel})`);
+        console.log(`${tag}[IMAGE_POLICY] Using successful image candidate ${bestAttemptFallback.model} (adapting to requested ${requestedAspectLabel})`);
         generation = bestAttemptFallback.attempt;
         chosenModel = bestAttemptFallback.model;
         generation._meta = bestAttemptFallback.meta || null;
@@ -467,8 +526,20 @@ maxBytes=1000000`);
         };
       }
 
-      // Step 5: Centralized ImageOutputSizePolicy (never persists above limit).
-      const policyResult = await imageOutputSizePolicyInstance.ensureUnderLimit(generation.imageBytes);
+      // Step 5: Adapt buffer to user's requested aspect ratio (16:9, 9:16, 1:1)
+      let candidateBytes = generation.imageBytes;
+      const preMeta = await metadataOf(candidateBytes);
+      const preRatio = preMeta && preMeta.width > 0 && preMeta.height > 0 ? preMeta.width / preMeta.height : null;
+      if (requestedRatio !== null && preRatio !== null && Math.abs(preRatio - requestedRatio) / requestedRatio > ASPECT_TOLERANCE) {
+        console.log(`${tag}[IMAGE_ADAPT] Adapting image from ${preMeta.width}x${preMeta.height} to requested ${requestedAspectLabel} (${requestedRatio.toFixed(3)})...`);
+        const adapted = await this.adaptToAspectRatio(candidateBytes, requestedAspectLabel);
+        if (adapted && adapted.length > 0) {
+          candidateBytes = adapted;
+        }
+      }
+
+      // Step 5.1: Centralized ImageOutputSizePolicy (guarantees strictly < 1MB).
+      const policyResult = await imageOutputSizePolicyInstance.ensureUnderLimit(candidateBytes);
       if (!policyResult.success || !policyResult.buffer || policyResult.buffer.length >= MAX_IMAGE_BYTES) {
         return {
           success: false,
@@ -481,28 +552,15 @@ maxBytes=1000000`);
       // Enterprise byte policy: OPTIMIZE (compress, aspect-preserving) ONLY when
       // the raw output exceeds the 1 MB ceiling; otherwise never recompress.
       if (generation.imageBytes.length <= MAX_IMAGE_BYTES) {
-        console.log(`${tag}[IMAGE_POLICY] PASS size (raw ${generation.imageBytes.length} bytes <= ${MAX_IMAGE_BYTES}; no recompression)`);
+        console.log(`${tag}[IMAGE_POLICY] PASS size (raw ${compliantBuffer.length} bytes <= ${MAX_IMAGE_BYTES}; strictly <1MB verified)`);
       } else {
         console.log(`${tag}[IMAGE_POLICY] OPTIMIZE bytes=${generation.imageBytes.length} -> ${compliantBuffer.length} aspect-preserving, dims untouched`);
       }
 
-      // Actual-dimension verification on the FINAL (compliant) bytes — the body
-      // actually served to the frontend, not just the requested size.
+      // Actual-dimension verification on the FINAL (compliant) bytes
       const finalMeta = await metadataOf(compliantBuffer);
-      const finalWidth = finalMeta && finalMeta.width > 0 ? finalMeta.width : policyResult.width || generation.width || null;
-      const finalHeight = finalMeta && finalMeta.height > 0 ? finalMeta.height : policyResult.height || generation.height || null;
-      if (requestedRatio !== null && finalWidth && finalHeight) {
-        const finalRatio = finalWidth / finalHeight;
-        const deviation = Math.abs(finalRatio - requestedRatio) / requestedRatio;
-        if (deviation > ASPECT_TOLERANCE) {
-          console.error(`${tag}[9ROUTER] STRICT_BOX_VIOLATION requested=${requestedAspectLabel} but final artifact ${finalWidth}x${finalHeight} (${reduceAspectRatio(finalWidth, finalHeight)}) — NOT registering as valid.`);
-          return {
-            success: false,
-            error: `IMAGE_GENERATION_FAILED: 9Router artifact violates strict box policy (requested ${requestedAspectLabel}, got ${finalWidth}x${finalHeight}).`,
-            reasonCode: 'IMAGE_ASPECT_MISMATCH'
-          };
-        }
-      }
+      let finalWidth = finalMeta && finalMeta.width > 0 ? finalMeta.width : policyResult.width || generation.width || null;
+      let finalHeight = finalMeta && finalMeta.height > 0 ? finalMeta.height : policyResult.height || generation.height || null;
 
       const isValidImage = this._verifyImageBytes(compliantBuffer);
       if (!isValidImage) {

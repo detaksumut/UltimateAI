@@ -1,6 +1,58 @@
 import JSZip from 'jszip';
 import { RouterConfig } from '../services/router/RouterConfig.js';
 
+// ── IMAGE COMPRESSION (Mobile Smooth Upload) ─────────────────────────────
+// Kompres gambar sebelum kirim ke backend agar upload cepat di HP.
+// Max dimensi 1920px, kualitas JPEG 0.82 — cukup tajam untuk OCR/Vision.
+const IMG_MAX_DIM = 1920;
+const IMG_QUALITY = 0.82;
+
+export async function compressImageFile(file, { maxDim = IMG_MAX_DIM, quality = IMG_QUALITY } = {}) {
+  if (!file || !file.type.startsWith('image/')) return file;
+  // Jika kecil, tidak perlu kompres
+  if (file.size < 300 * 1024) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    let { width, height } = bitmap;
+    if (width > maxDim || height > maxDim) {
+      const scale = maxDim / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) return file;
+    // Hanya pakai hasil jika lebih kecil
+    if (blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+}
+
+// ── AUTO-RETRY for backend parse ─────────────────────────────────────────
+async function fetchWithRetry(url, options = {}, retries = 2, delayMs = 1200) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 export const readFileAsText = (file) =>
   new Promise((resolve) => {
     const reader = new FileReader();
@@ -206,18 +258,19 @@ export async function readUploadedDocument(file) {
 
   let dataUrl = null;
   let content = '';
+  let effectiveSize = file.size;
 
   if (isImage && file.size < 10 * 1024 * 1024) {
-    dataUrl = await readFileAsDataUrl(file);
+    // Kompres gambar agar upload smooth di HP
+    const compressed = await compressImageFile(file);
+    dataUrl = await readFileAsDataUrl(compressed);
+    effectiveSize = compressed.size;
   } else if (isPdf && file.size < 35 * 1024 * 1024) {
     dataUrl = await readFileAsDataUrl(file);
     content = await readPdfAsText(file);
     if (!content) {
-      // Fallback: parser backend via URL absolut LocalRouter.
-      // JANGAN pakai '/api/...' relatif — di hosting statis (Vercel)
-      // itu me-rewrite ke index.html -> 405 Method Not Allowed.
       try {
-        const parseRes = await fetch(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
@@ -232,7 +285,7 @@ export async function readUploadedDocument(file) {
     if (!content) {
       dataUrl = await readFileAsDataUrl(file);
       try {
-        const parseRes = await fetch(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
@@ -247,7 +300,7 @@ export async function readUploadedDocument(file) {
     if (!content) {
       dataUrl = await readFileAsDataUrl(file);
       try {
-        const parseRes = await fetch(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
@@ -269,7 +322,8 @@ export async function readUploadedDocument(file) {
   return {
     id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: file.name,
-    size: file.size,
+    size: effectiveSize,
+    originalSize: file.size,
     type: file.type || (isPdf ? 'application/pdf' : isDoc || isDocx ? 'application/msword' : 'document'),
     isImage,
     isPdf,

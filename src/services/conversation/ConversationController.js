@@ -571,27 +571,6 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       }
     }
 
-    // --- AUTONOMOUS MUSIC & LIVE RADIO PLAYER INTENT ---
-    const isMusicIntent = !isFolderHarvestIntent && (() => {
-      if (!text || typeof text !== 'string') return false;
-      const p = text.toLowerCase();
-      // Jangan buka radio/mp3 player bila permintaan secara spesifik ditujukan ke YouTube
-      if (/\b(youtube|youtu\.be)\b/i.test(p)) return false;
-      return /\b(putar|mainkan|hidupkan|bunyikan|nyalakan|play|setel|dengarkan)\s+(musik|lagu|audio|mp3|soundtrack|lofi|lo-fi|instrumen|instrument|synthwave|radio|siaran|streaming)\b/i.test(p) ||
-             /\b(radio|radio\s+online|live\s+radio|streaming\s+radio|prambors|elshinta|rri|delta\s+fm)\b/i.test(p) ||
-             /\b(player\s+mp3|mp3\s+player|pemutar\s+musik|pemutar\s+mp3|music\s+player|player\s+musik|radio\s+player|audio\s+canvas)\b/i.test(p) ||
-             /\b(tampilkan\s+player|buka\s+player|aktifkan\s+player|nyalakan\s+player|tampilkan\s+radio)\b/i.test(p) ||
-             /\b(putar\s+lofi|musik\s+lofi|lo-fi\s+player|lagu\s+santai|putar\s+radio)\b/i.test(p);
-    })();
-
-    if (isMusicIntent) {
-      assistantMessage.musicPlayer = {
-        active: true,
-        autoPlay: true,
-        requestedQuery: text
-      };
-    }
-
     // Web search and intelligence grounding are handled strictly and centrally by LocalRouter backend (:20200).
     // Zero client-side duplicate calls, zero API key exposure, single clean pipeline.
 

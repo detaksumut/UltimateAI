@@ -17,7 +17,6 @@ import { conversationControllerInstance } from '../../../services/conversation/C
 import { RouterConfig } from '../../../services/router/RouterConfig.js';
 import { typingSoundEngineInstance } from '../../../services/audio/TypingSoundEngine.js';
 import { voiceControllerInstance } from '../../../services/voice/VoiceController.js';
-import JINMusicPlayerCard from './JINMusicPlayerCard.jsx';
 import { extractYouTubeVideoId, sanitizeYouTubeHtml } from '../../../utils/youtubeCardHelpers.mjs';
 function getCharStep(text, index) {
   if (index >= text.length) return 1;
@@ -743,14 +742,7 @@ export function TickerResponse({ message, isStreaming, onContentGrowth }) {
           />
         )}
 
-        {/* JIN Interactive Online Music Player */}
-        {message.musicPlayer && (
-          <JINMusicPlayerCard
-            initialTrackIndex={message.musicPlayer.initialTrackIndex ?? 0}
-            autoPlay={message.musicPlayer.autoPlay ?? false}
-            customUrl={message.musicPlayer.customUrl || ''}
-          />
-        )}
+
 
         {/* ── CANVAS STATUS BRIDGE ──
             One-line status bar driven exclusively by backend _docPipeline events.
@@ -862,8 +854,10 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
   const [text, setText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isReadingFiles, setIsReadingFiles] = useState(false);
+  const [readingFileName, setReadingFileName] = useState('');
   const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const isBusy = status === 'sending' || status === 'streaming';
 
   const handleToggleMic = () => {
@@ -914,14 +908,17 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
 
     setIsReadingFiles(true);
     try {
-      const processed = await Promise.all(
-        rawFiles.map((file) => readUploadedDocument(file))
-      );
+      const processed = [];
+      for (const file of rawFiles) {
+        setReadingFileName(file.name);
+        processed.push(await readUploadedDocument(file));
+      }
       setAttachedFiles((prev) => [...prev, ...processed]);
     } catch (err) {
       console.warn('[TickerInput] File read error:', err);
     } finally {
       setIsReadingFiles(false);
+      setReadingFileName('');
       if (e.target) e.target.value = '';
     }
   };
@@ -1004,6 +1001,16 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
 
   return (
     <div className="ticker-input-wrapper border-t border-cyan-500/20 bg-[#030712]/95 flex flex-col">
+      {/* Reading Progress Indicator (Mobile Smooth UX) */}
+      {isReadingFiles && (
+        <div className="flex items-center gap-2 px-3 pt-2 pb-1 border-b border-cyan-500/10 bg-cyan-950/20">
+          <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <span className="text-[11px] font-mono text-cyan-300 truncate">
+            Membaca: {readingFileName || 'file...'}
+          </span>
+        </div>
+      )}
+
       {/* Attached Files Preview Chips */}
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 px-3 pt-2.5 pb-1 border-b border-cyan-500/10 bg-cyan-950/20">
@@ -1029,7 +1036,9 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
                 {file.name}
               </span>
               <span className="text-[9px] text-cyan-400/60 font-mono">
-                ({Math.round((file.size || 0) / 1024) || 1} KB)
+                {file.originalSize && file.size < file.originalSize
+                  ? `${Math.round(file.size / 1024)} KB ↓`
+                  : `(${Math.round((file.size || 0) / 1024) || 1} KB)`}
               </span>
               <button
                 type="button"
@@ -1066,6 +1075,30 @@ export function TickerInput({ onSend, status, onClear, onStop }) {
           onChange={handleFilesSelect}
           className="hidden"
         />
+
+        {/* Hidden Camera Input (Mobile: langsung buka kamera belakang) */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFilesSelect}
+          className="hidden"
+        />
+
+        {/* Camera Capture Button (Hanya tampil di mobile) */}
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={isBusy || isReadingFiles}
+          title="Ambil Foto Dokumen (Kamera)"
+          className="lg:hidden p-1.5 sm:p-2 text-slate-400 hover:text-cyan-300 transition-colors flex-shrink-0"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </button>
 
         {/* Microphone Button (🎙 Push-to-Talk / Toggle) */}
         <button
