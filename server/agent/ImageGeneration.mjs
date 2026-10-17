@@ -9,7 +9,7 @@
  * Routing flow:
  *   capabilityProbe() → 9Router discovery (`/v1/models/image`)
  *   generateImage(params, transport?) →
- *     QwenVisualPlanner → Qwen (llama.cpp :8080) → VisualSpec (JSON)
+ *     OpenAI via 9Router → VisualSpec (JSON)
  *     → NineRouterGatewayAdapter.select() → model selected from DISCOVERED list
  *     → NineRouterGatewayAdapter.generateImage() → b64 bytes
  *     → ImageOutputSizePolicy → _persistArtifact → IMAGE_STUDIO reference
@@ -40,7 +40,6 @@ import { imageOutputSizePolicyInstance, MAX_IMAGE_BYTES, TARGET_IMAGE_BYTES } fr
 import { IMAGE_WIDTH, IMAGE_HEIGHT, DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
 import { assertNoPollinationsImageProvider } from './adapters/GeminiImageAdapter.mjs';
 import { nineRouterGatewayAdapterInstance, reduceAspectRatio } from './adapters/NineRouterGatewayAdapter.mjs';
-import { qwenVisualPlannerInstance } from './planner/QwenVisualPlanner.mjs';
 import { imageStudioInstance } from '../studio/image/ImageStudio.mjs';
 
 const CRC_TABLE = (() => {
@@ -295,9 +294,9 @@ export class ImageGenerationService {
 
   // ── NineRouter Implementation (the ONLY image-generation gateway) ────────
   //
-  // Flow: QwenVisualPlanner (llama.cpp :8080) → visual spec → discovery-driven
-  // model selection → 9Router /v1/images/generations → size policy → artifact
-  // persistence → IMAGE_STUDIO reference registration.
+  // Flow: OpenAI via 9Router → visual spec → discovery-driven model selection
+  // → 9Router /v1/images/generations → size policy → artifact persistence
+  // → IMAGE_STUDIO reference registration.
 
   async _generateNineRouter(params, fetchFn) {
     const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, size, generationId, messageId, signal, requestId, options = {} } = params;
@@ -306,37 +305,21 @@ export class ImageGenerationService {
     const cleanPrompt = prompt || normalizedPrompt || originalPrompt || '';
 
     try {
-      // Step 1: Visual design planning by Qwen (llama.cpp :8080).
-      const plannerResult = await qwenVisualPlannerInstance.generateVisualSpec({
-        prompt: cleanPrompt,
-        originalPrompt: originalPrompt || cleanPrompt,
-        negativePrompt: negativePrompt || '',
-        aspectRatio: aspectRatio || '16:9',
-        requestId: reqId,
-        fetchFn,
-        signal: this._requestSignal(signal, 90000),
-        domain: params.intent === 'SLIDE_STUDIO' || /slide|presentasi|presentation/i.test(cleanPrompt) ? 'PRESENTATION'
-          : params.intent === 'HOUSE_DESIGN' || /rumah|hunian|arsitektur|house|building/i.test(cleanPrompt) ? 'HOUSE_DESIGN'
-          : 'GENERAL'
-      });
+      // Step 1: Use OpenAI via 9Router for image generation (no Qwen/llama.cpp planner).
+      const domain = params.intent === 'SLIDE_STUDIO' || /slide|presentasi|presentation/i.test(cleanPrompt) ? 'PRESENTATION'
+        : params.intent === 'HOUSE_DESIGN' || /rumah|hunian|arsitektur|house|building/i.test(cleanPrompt) ? 'HOUSE_DESIGN'
+        : 'GENERAL';
 
-      if (!plannerResult.success || !plannerResult.spec) {
-        console.error(`${tag}[9ROUTER] Qwen visual planner failed: ${plannerResult.reason || 'no spec'}`);
-        return {
-          success: false,
-          error: `IMAGE_GENERATION_FAILED: QWEN_VISUAL_PLANNER_FAILED (${plannerResult.reason || 'unknown'})`,
-          reasonCode: 'QWEN_VISUAL_PLANNER_FAILED'
-        };
-      }
-      const spec = plannerResult.spec;
-      console.log(`${tag}[9ROUTER] Visual planner=${plannerResult.planner} aspectRatio=${spec.aspectRatio} size=${spec.size || size || 'auto'}`);
+      // Compose gateway prompt directly via optimized prompt (OpenAI via 9Router).
+      const gatewayPrompt = this._optimizePrompt(cleanPrompt);
+      console.log(`${tag}[9ROUTER] OpenAI via 9Router domain=${domain} aspectRatio=${aspectRatio || '16:9'} size=${size || 'auto'}`);
 
       // Step 2: Discovery-driven model selection (never invents a model id).
       const selection = await nineRouterGatewayAdapterInstance.select({
         preferred: options.imageModel || process.env.NINEROUTER_IMAGE_MODEL || null,
-        domain: spec.domain || 'GENERAL',
-        aspectRatio: spec.aspectRatio || aspectRatio || '16:9',
-        size: spec.size || size || null,
+        domain: domain,
+        aspectRatio: aspectRatio || '16:9',
+        size: size || null,
         quality: options.quality || 'high',
         n: 1,
         fetchFn,
@@ -355,11 +338,7 @@ export class ImageGenerationService {
         console.warn(`${tag}[9ROUTER] Requested imageModel "${options.imageModel}" not in discovered list; using discovered "${selection.model}".`);
       }
 
-      // Step 3: Compose the gateway prompt from the planner spec.
-      let gatewayPrompt = spec.prompt;
-      if (!spec.prompt || spec.prompt.length < 12) {
-        gatewayPrompt = this._optimizePrompt(cleanPrompt);
-      }
+      // Step 3: Gateway prompt already composed from optimized prompt (OpenAI via 9Router).
 
       // Step 4: Generate via 9Router — iterate the RANKED discovered candidates
       // best-first. Switching between candidates stays INSIDE the 9Router
@@ -369,7 +348,7 @@ export class ImageGenerationService {
       // (aspect drift) for a strict 16:9/9:16 request is ALSO rejected — the
       // artifact is only valid when its ACTUAL decoded dimensions honour the
       // requested aspect.
-      const requestedAspectLabel = spec.aspectRatio === '9:16' ? '9:16' : spec.aspectRatio === '1:1' ? null : '16:9';
+      const requestedAspectLabel = aspectRatio === '9:16' ? '9:16' : aspectRatio === '1:1' ? null : '16:9';
       const requestedRatio = requestedAspectLabel === '9:16' ? 9 / 16 : requestedAspectLabel ? 16 / 9 : null;
       const ASPECT_TOLERANCE = 0.05; // approx 1.7778 / 0.5625, tiny rounding allowed
       const metadataOf = async (bytes) => {
@@ -401,7 +380,7 @@ export class ImageGenerationService {
           const attempt = await nineRouterGatewayAdapterInstance.generateImage({
             prompt: gatewayPrompt,
             model: candidate.model,
-            negativePrompt: spec.negativePrompt || negativePrompt || '',
+            negativePrompt: negativePrompt || '',
             size: sizeHint || null,
             quality: candidate.quality || null,
             n: candidate.n || 1,
@@ -521,7 +500,7 @@ maxBytes=1000000`);
         generationId,
         messageId,
         requestId: reqId,
-        negativePrompt: spec.negativePrompt || negativePrompt || '',
+        negativePrompt: negativePrompt || '',
         provider: 'NINEROUTER',
         model: chosenModel,
         width: finalWidth,
