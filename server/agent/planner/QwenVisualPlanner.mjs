@@ -107,49 +107,79 @@ export class QwenVisualPlanner {
   }
 
   /** Call llama.cpp /v1/chat/completions and return raw text. */
+  _resolveModel() {
+    if (this._model && !this._model.includes('.gguf') && this._model !== 'auto') {
+      return this._model;
+    }
+    return process.env.NINEROUTER_CHAT_MODEL || 'ag/gemini-3-flash';
+  }
+
+  /** Call 9Router /v1/chat/completions and return raw text. */
   async _askQwen({ messages, fetchFn, signal }) {
     const fn = fetchFn || globalThis.fetch;
     const url = `${this._llamaUrl}/v1/chat/completions`;
+    const model = this._resolveModel();
     const body = JSON.stringify({
-      model: this._model,
+      model,
       messages,
       temperature: 0.2,
       max_tokens: 900,
       stream: false
     });
 
+    const headers = { 'Content-Type': 'application/json' };
+    const key = String(process.env.NINEROUTER_KEY || '').trim();
+    if (key && !['NINEROUTER_KEY_ANDA', 'YOUR_NINEROUTER_KEY'].includes(key)) {
+      headers['Authorization'] = `Bearer ${key}`;
+    }
+
     const res = await fn(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body,
       signal: this._requestSignal(signal, this._timeoutMs)
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Qwen HTTP ${res.status}: ${maskSecrets(text).slice(0, 200)}`);
+      throw new Error(`9Router HTTP ${res.status}: ${maskSecrets(text).slice(0, 200)}`);
     }
     const json = await res.json();
     const content = json?.choices?.[0]?.message?.content || '';
-    if (!content) throw new Error('Qwen returned empty content');
+    if (!content) throw new Error('Planner returned empty content');
     return content;
   }
 
-
+  _deterministicSpec({ prompt, originalPrompt, aspectRatio = '16:9', domain = 'GENERAL' }) {
+    const p = String(prompt || originalPrompt || 'visual illustration').trim();
+    const ar = ['16:9', '9:16', '1:1'].includes(aspectRatio) ? aspectRatio : '16:9';
+    const size = ar === '9:16' ? '512x912' : ar === '1:1' ? '1024x1024' : '912x512';
+    return {
+      subject: p.slice(0, 80),
+      visualIntent: 'photorealistic',
+      style: 'cinematic',
+      composition: 'centered subject, dynamic framing with natural lighting and deep contrast',
+      lighting: 'cinematic studio lighting with subtle ambient illumination',
+      camera: 'eye-level-medium, sharp focus, 8k resolution',
+      colorPalette: ['#0f172a', '#00e5ff', '#38bdf8', '#f8fafc'],
+      aspectRatio: ar,
+      size,
+      prompt: `${p}, highly detailed, sharp focus, professional digital art, photorealistic, cinematic composition, masterpiece, 8k`,
+      negativePrompt: 'blurry, distorted, low quality, oversaturated, deformed, watermark, text',
+      domain: domain || 'GENERAL'
+    };
+  }
 
   /**
    * Main entry: generate a validated visual design spec.
-   * Tries Qwen (llama.cpp) up to MAX_REPAIR_ATTEMPTS, then falls back to deterministic.
-   * @returns {{ success:true, spec, planner:'QWEN'|'DETERMINISTIC', requestId, error? } |
-   *            { success:false, reason, requestId }}
+   * Tries 9Router up to MAX_REPAIR_ATTEMPTS, then falls back to deterministic compiler.
+   * @returns {{ success:true, spec, planner:'QWEN'|'DETERMINISTIC', requestId, error? }}
    */
   async generateVisualSpec({ prompt, originalPrompt, aspectRatio = '16:9', negativePrompt = '', requestId = null, fetchFn = null, signal = null, domain = 'GENERAL' } = {}) {
     const reqId = requestId || `qp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const tag = `[${reqId}] `;
 
-    // Attempt Qwen (llama.cpp :8080)
     let lastError = null;
     let spec = null;
-    let planner = 'QWEN';
 
     for (let attempt = 0; attempt <= MAX_REPAIR_ATTEMPTS; attempt++) {
       const repairNote = attempt === 0 ? '' : `\n\nREPAIR INSTRUCTION: Your previous output was invalid JSON (${lastError || 'parse error'}). Return ONLY valid raw JSON matching the schema. No markdown.`;
@@ -173,18 +203,18 @@ export class QwenVisualPlanner {
         }
       } catch (err) {
         lastError = maskSecrets(err.message);
-        // AbortSignal means intent lost or timeout — bail immediately.
         if (err.name === 'AbortError' || err.name === 'TimeoutError') break;
       }
     }
 
     if (spec) {
-      console.log(`${tag}[9ROUTER|QWEN] Visual planner SUCCESS via Qwen (attempt closed).`);
+      console.log(`${tag}[9ROUTER|PLANNER] Visual planner SUCCESS via LLM.`);
       return { success: true, spec, planner: 'QWEN', requestId: reqId };
     }
 
-    console.warn(`${tag}[9ROUTER|QWEN] Qwen planner failed (${lastError}). No fallback allowed.`);
-    return { success: false, reason: lastError, requestId: reqId };
+    console.warn(`${tag}[9ROUTER|PLANNER] LLM planner failed (${lastError}). Engaging deterministic visual spec compiler.`);
+    const fallbackSpec = this._deterministicSpec({ prompt, originalPrompt, aspectRatio, domain });
+    return { success: true, spec: fallbackSpec, planner: 'DETERMINISTIC', requestId: reqId };
   }
 }
 
