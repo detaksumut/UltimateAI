@@ -333,6 +333,7 @@ export default async function handler(req, res) {
       // Prefer 9Router (SAME provider as localhost) when configured/reachable;
       // fall back to Gemini when 9Router is unavailable/unconfigured.
       let gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
+      const nineRouterError = gen.success ? null : gen.error;
       if (!gen.success) {
         gen = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio);
       }
@@ -352,6 +353,9 @@ export default async function handler(req, res) {
         };
       } else {
         textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}`;
+        if (nineRouterError) {
+          textContent += `\n\n[JALUR UTAMA 9ROUTER/TUNNEL GAGAL: ${nineRouterError}]`;
+        }
       }
 
       if (stream) {
