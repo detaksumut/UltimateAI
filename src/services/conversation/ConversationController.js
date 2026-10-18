@@ -735,12 +735,10 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
           onError: async (err) => {
             if (this.activeGeneration?.generationId !== generationId) return;
             if (generationController.signal.aborted) return;
-            console.warn('[ConversationController] LocalRouter error, engaging instant Gemini Cloud failover...', err.message);
-            try {
-              await tryGeminiDirect();
-            } catch (fallbackErr) {
-              handleError(err);
-            }
+            console.warn('[ConversationController] LocalRouter error:', err.message);
+            // tryGeminiDirect() belum diimplementasi — langsung surface error
+            // agar user tahu backend tidak tersedia, bukan crash diam-diam.
+            handleError(err);
           },
           // ── CANVAS STATUS BRIDGE ──
           // Backend events are the source of truth. No timer, no fake progress.

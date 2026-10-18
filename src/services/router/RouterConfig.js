@@ -24,8 +24,9 @@ export const RouterConfig = {
 
       const host = window.location.hostname;
       // When opened on HP / smartphone via LAN IP, Vercel, or cloud domain
+      // Serverless functions live under /api/ on Vercel, so prefix the base.
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        return window.location.origin;
+        return window.location.origin + '/api';
       }
     }
     return 'http://127.0.0.1:20200';
