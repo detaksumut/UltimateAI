@@ -186,15 +186,19 @@ function detectMimeFromB64(b64) {
  * provider that powers localhost image generation.
  *
  * Reads NINEROUTER_URL + NINEROUTER_KEY from env (identical to local .env).
- * On localhost these point to 127.0.0.1:20128; on Vercel they must be set to a
- * publicly reachable 9Router URL — otherwise the gateway is unreachable from the
- * cloud and this returns { success:false, skip:true } so the caller falls back.
+ * Falls back to the user's public 9Router tunnel when NINEROUTER_URL is unset,
+ * because http://127.0.0.1:20128 is unreachable from Vercel's cloud servers.
+ * Returns { success:false, skip:true } when no key is configured so the caller
+ * can fall back to Gemini.
  */
 async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
-  const base = String(process.env.NINEROUTER_URL || '').trim().replace(/\/+$/, '');
+  // URL publik dari dashboard 9Router user (Tunnel1). Bisa dioverride via env.
+  // JANGAN default ke 127.0.0.1 di sini — tak terjangkau dari cloud.
+  const NINEROUTER_PUBLIC_URL = 'https://r8ggih7.abc-tunnel.us';
+  const base = String(process.env.NINEROUTER_URL || NINEROUTER_PUBLIC_URL).trim().replace(/\/+$/, '');
   const key = String(process.env.NINEROUTER_KEY || '').trim();
-  if (!base || !key) {
-    return { success: false, skip: true, error: 'NINEROUTER_URL/NINEROUTER_KEY belum di-set.' };
+  if (!key) {
+    return { success: false, skip: true, error: 'NINEROUTER_KEY belum di-set di environment Vercel.' };
   }
 
   const auth = { Authorization: `Bearer ${key}` };
@@ -220,33 +224,44 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   }
 
   // 2. Generate — POST /v1/images/generations (first discovered model, like local).
+  // Prefer response_format=url (tiny payload, safe for Vercel limits) and retry
+  // without it when the gateway rejects the parameter.
   const model = models[0];
-  try {
-    const gr = await fetch(`${base}/v1/images/generations`, {
-      method: 'POST',
-      headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt: fullPrompt, n: 1 }),
-      signal: signal || AbortSignal.timeout(90000)
-    });
-    if (!gr.ok) {
-      const t = await gr.text().catch(() => '');
-      return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
+  const attemptBodies = [
+    { model, prompt: fullPrompt, n: 1, response_format: 'url' },
+    { model, prompt: fullPrompt, n: 1 }
+  ];
+  for (const reqBody of attemptBodies) {
+    try {
+      const gr = await fetch(`${base}/v1/images/generations`, {
+        method: 'POST',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody),
+        signal: signal || AbortSignal.timeout(90000)
+      });
+      if (!gr.ok) {
+        const t = await gr.text().catch(() => '');
+        const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
+        if (unknownParam) continue; // retry without response_format
+        return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
+      }
+      const gj = await gr.json().catch(() => null);
+      const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
+      let dataUrl = null;
+      if (typeof entry?.url === 'string' && entry.url) {
+        dataUrl = entry.url;
+      } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
+        dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
+      }
+      if (!dataUrl) {
+        return { success: false, error: '9Router tidak mengembalikan data gambar.' };
+      }
+      return { success: true, dataUrl, model, gateway: '9ROUTER' };
+    } catch (err) {
+      return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
     }
-    const gj = await gr.json().catch(() => null);
-    const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
-    let dataUrl = null;
-    if (typeof entry?.b64_json === 'string' && entry.b64_json) {
-      dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
-    } else if (typeof entry?.url === 'string' && entry.url) {
-      dataUrl = entry.url;
-    }
-    if (!dataUrl) {
-      return { success: false, error: '9Router tidak mengembalikan data gambar.' };
-    }
-    return { success: true, dataUrl, model, gateway: '9ROUTER' };
-  } catch (err) {
-    return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
   }
+  return { success: false, error: '9Router menolak parameter response_format.' };
 }
 
 /** Write an OpenAI-compatible SSE delta chunk (with optional _agent metadata). */
