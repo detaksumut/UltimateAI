@@ -845,7 +845,12 @@ Analyze contextually and output strict JSON.`;
     // Negative patterns: exclude analysis/search/description of existing images
     const negativeExclude = /(?:analisis|analysis|jelaskan|deskripsikan|bedah|baca|cari|temukan|search|find|lihat|download|unduh|simpan|hapus)\s+(?:.*\s+)?(?:gambar|image|foto|lukisan|ilustrasi)/i;
 
-    const isNegative = negativeExclude.test(r) && !isVisualSlideIntent;
+    // Negative patterns: capability inquiries (asking IF the AI can do something,
+    // not requesting the action itself). E.g. "apakah kamu bisa generate image?"
+    const capabilityInquiry = /(?:apakah|apakh|bisakah|bisa(?:kah)?|can you|do you|are you able|mampukah|mampu(?:kah)?)\b[^?!.]*\b(?:bisa|mampu|dapat|can|able)\b[^?!.]*\b(?:generate|buat|bikin|create|hasilkan|render|desain|gambar|image|ilustrasi|visual|foto|lukisan|video|musik|lagu|artikel|dokumen)\b/i.test(r)
+      || /^(?:apakah|apakh|bisakah|bisa(?:kah)?|can you|do you)\b.*$/i.test(r);
+
+    const isNegative = (negativeExclude.test(r) && !isVisualSlideIntent) || capabilityInquiry;
     const matchesPositive = isVisualSlideIntent || createImagePattern.test(r) || standaloneImageWord.test(r) || directGenerateKeyword.test(r) || gambarkanPattern.test(r);
 
     if (matchesPositive && !isNegative) {
