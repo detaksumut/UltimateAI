@@ -598,7 +598,10 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       if (agentMetadata?.imageUrl) {
         const rawUrl = String(agentMetadata.imageUrl).trim();
         const base = String(localRouterClient.endpoint || 'http://127.0.0.1:20200').replace(/\/+$/, '');
-        assistantMessage.imageUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `${base}${rawUrl}`;
+        // Preserve absolute http(s) AND base64 data URLs; only relativize other paths.
+        assistantMessage.imageUrl = (/^https?:\/\//i.test(rawUrl) || rawUrl.startsWith('data:'))
+          ? rawUrl
+          : `${base}${rawUrl}`;
       }
       assistantMessage.slideTitle = agentMetadata?.slideTitle || (agentMetadata?.slideData?.header?.title ? `SLIDE MASTER: ${agentMetadata.slideData.header.title.toUpperCase()}` : null);
       if (agentMetadata?.pptxUrl) {

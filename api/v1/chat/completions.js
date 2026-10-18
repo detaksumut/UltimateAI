@@ -1,7 +1,15 @@
 /**
  * api/v1/chat/completions.js
  * Vercel Serverless Function for OpenAI-compatible Chat Completions.
- * Handles live media (YouTube) playback and Gemini 3 Flash / Gemini cloud inference.
+ * Handles:
+ *   1. IMAGE GENERATION via Gemini image API (cloud-reachable) — returns a
+ *      base64 data-URL inside `_agent.imageUrl` + `artifactType: 'IMAGE'`,
+ *      mirroring the local JIN runtime contract (JINResponseEngine).
+ *   2. Live media (YouTube) playback.
+ *   3. JIN conversational intelligence via Gemini Cloud (system-prompt aware).
+ *
+ * NOTE: Local-only providers (llama.cpp :8080, ComfyUI :8188, 9Router :20128)
+ * are NOT reachable from Vercel serverless and are intentionally not used here.
  */
 
 async function searchYouTubeVideo(query) {
@@ -37,6 +45,144 @@ async function searchYouTubeVideo(query) {
   return null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Gemini helpers (self-contained; no imports from server/agent/* to keep the
+// serverless bundle lean and avoid local-only dependencies).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Collect the Gemini key pool (primary + numbered rotation keys). */
+function collectGeminiKeys() {
+  const keys = [];
+  const primary = process.env.GEMINI_API_KEY;
+  if (primary && primary.trim()) keys.push(primary.trim());
+  for (let i = 1; i <= 15; i++) {
+    const k = process.env[`GEMINI_API_KEY_${i}`];
+    if (k && k.trim()) keys.push(k.trim());
+  }
+  return keys;
+}
+
+/** Mask any secret-looking tokens before they reach logs or responses. */
+function maskSecrets(text) {
+  if (typeof text !== 'string') return text;
+  return text
+    .replace(/AIzaSy[a-zA-Z0-9_-]{33}/g, '[REDACTED_GEMINI_KEY]')
+    .replace(/AQ\.[a-zA-Z0-9_-]{50,}/g, '[REDACTED_GEMINI_KEY]')
+    .replace(/key=[^&\s]+/g, 'key=[REDACTED_KEY]')
+    .replace(/Bearer\s+[a-zA-Z0-9_.-]+/g, 'Bearer [REDACTED_TOKEN]');
+}
+
+const ASPECT_TOKEN_RE = /\b(16\s*:\s*9|9\s*:\s*16|1\s*:\s*1|4\s*:\s*3|3\s*:\s*4|3\s*:\s*2|2\s*:\s*3)\b/i;
+const IMAGE_VERB_RE = /\b(buatkan|buat|bikin|bikinkan|create|make|generate|gambar|gambarkan|image|ilustrasi|illustration|lukisan|render|desain|design|foto|photo|visual|poster|wallpaper|meme|sketsa|sketch|rancang|lukis)\b/i;
+// "Capability inquiry" = asking IF the AI can do something, not requesting it.
+const CAPABILITY_INQUIRY_RE = /^(?:apakah|apakh|bisakah|bisa(?:kah)?|can you|do you|are you able|mampukah|mampu(?:kah)?)\b/i;
+
+/**
+ * Deterministic image-generation intent detection (mirrors the local
+ * SemanticIntentEngine image classifier). Returns { prompt, aspectRatio } or null.
+ */
+function detectImageIntent(rawPrompt) {
+  const p = String(rawPrompt || '').trim();
+  if (!p) return null;
+  if (CAPABILITY_INQUIRY_RE.test(p)) return null; // "apakah kamu bisa ...?" → not an action
+  if (!IMAGE_VERB_RE.test(p)) return null;
+
+  const arMatch = p.match(ASPECT_TOKEN_RE);
+  const aspectRatio = arMatch ? arMatch[1].replace(/\s+/g, '') : '16:9';
+
+  const clean = p
+    .replace(/\b(buatkan|buat|bikin|bikinkan|create|make|generate|gambarkan|gambar|image|ilustrasi|illustration|lukisan|render|desain|design|foto|photo|visual|poster|wallpaper|meme|sketsa|sketch|rancang|lukis)\b/gi, ' ')
+    .replace(new RegExp(ASPECT_TOKEN_RE.source, 'gi'), ' ')
+    .replace(/\b(rasio|aspect|ratio|with|of|yang|di|a|an|the)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return { prompt: clean || p, aspectRatio };
+}
+
+/**
+ * Generate an image via the Gemini image API (cloud). Returns
+ * { success, dataUrl?, model?, error? }. No dummy/fake image is ever returned.
+ */
+async function generateImageWithGemini(prompt, aspectRatio, signal) {
+  const keys = collectGeminiKeys();
+  if (keys.length === 0) {
+    return {
+      success: false,
+      error: 'GEMINI_API_KEY belum di-set di environment Vercel. Buka Vercel → Settings → Environment Variables, tambahkan GEMINI_API_KEY (dan opsional GEMINI_API_KEY_1..N untuk rotasi), lalu redeploy.'
+    };
+  }
+
+  // gemini-2.5-flash-image is the current image-capable model (older
+  // gemini-2.0-flash-exp has been retired → 404). Override via GEMINI_IMAGE_MODEL.
+  const model = (process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image').trim();
+  const modelPath = model.startsWith('models/') ? model : `models/${model}`;
+  const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
+  let lastError = null;
+
+  for (const key of keys) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${encodeURIComponent(key)}`;
+      const requestBody = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `Generate an image based on this description${aspectHint}: ${prompt}` }]
+          }
+        ],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: signal || AbortSignal.timeout(90000)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        lastError = `HTTP ${response.status}: ${maskSecrets(errText.slice(0, 160))}`;
+        // Rotate to next key on quota / transient server errors.
+        if (response.status === 429 || response.status >= 500) continue;
+        return { success: false, error: `IMAGE_GENERATION_FAILED: ${lastError}` };
+      }
+
+      const data = await response.json();
+      const imagePart =
+        (data.candidates?.[0]?.content?.parts || []).find((part) => part.inlineData?.data) ||
+        (data.output || []).find((part) => part.inlineData?.data);
+
+      if (!imagePart?.inlineData?.data) {
+        lastError = 'Gemini tidak mengembalikan data gambar (hanya teks). Coba model image lain di GEMINI_IMAGE_MODEL.';
+        continue;
+      }
+
+      const b64 = imagePart.inlineData.data;
+      const mime = imagePart.inlineData.mimeType || 'image/png';
+      return { success: true, dataUrl: `data:${mime};base64,${b64}`, model };
+    } catch (err) {
+      lastError = maskSecrets(err.message);
+      continue;
+    }
+  }
+
+  return { success: false, error: `IMAGE_GENERATION_FAILED: ${lastError || 'Semua Gemini API key habis.'}` };
+}
+
+/** Write an OpenAI-compatible SSE delta chunk (with optional _agent metadata). */
+function writeSSE(res, { id, model, delta = {}, agent = null, finish = null }) {
+  const payload = {
+    id,
+    object: 'chat.completion.chunk',
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [{ index: 0, delta, finish_reason: finish }]
+  };
+  if (agent) payload._agent = agent;
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
 export default async function handler(req, res) {
   // 1. CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -58,11 +204,55 @@ export default async function handler(req, res) {
     }
     body = body || {};
 
-    const { messages = [], stream = false, model = 'ag/gemini-3-flash' } = body;
+    const { messages = [], stream = false, model = 'ag/gemini-3-flash', generationId = null, messageId = null } = body;
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
     const userPrompt = typeof lastUserMessage === 'string' ? lastUserMessage : JSON.stringify(lastUserMessage);
 
-    // 2. DETECT YOUTUBE / MUSIC PLAYBACK REQUESTS
+    // 2. IMAGE GENERATION (deterministic intent — runs BEFORE YouTube/general chat)
+    const imageIntent = detectImageIntent(userPrompt);
+    if (imageIntent) {
+      const sseId = 'chatcmpl-image-' + Date.now();
+      const sseModel = model || 'gemini-image';
+
+      const gen = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio);
+
+      let textContent;
+      let agentMeta = null;
+      if (gen.success) {
+        textContent = `Visual untuk **"${imageIntent.prompt}"** rasio ${imageIntent.aspectRatio} telah berhasil dibuat (model ${gen.model}).`;
+        agentMeta = {
+          intent: 'IMAGE_GENERATION',
+          artifactType: 'IMAGE',
+          presentation: { artifactType: 'IMAGE', mode: 'GENERIC_IMAGE', surface: 'CONVERSATION_CANVAS' },
+          imageUrl: gen.dataUrl,
+          generationId,
+          messageId
+        };
+      } else {
+        textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}`;
+      }
+
+      if (stream) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+        writeSSE(res, { id: sseId, model: sseModel, delta: { role: 'assistant', content: textContent } });
+        if (agentMeta) writeSSE(res, { id: sseId, model: sseModel, delta: {}, agent: agentMeta });
+        writeSSE(res, { id: sseId, model: sseModel, delta: {}, finish: 'stop' });
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      const payload = {
+        id: sseId,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: sseModel,
+        choices: [{ index: 0, message: { role: 'assistant', content: textContent }, finish_reason: 'stop' }]
+      };
+      if (agentMeta) payload._agent = agentMeta;
+      return res.status(200).json(payload);
+    }
+
+    // 3. DETECT YOUTUBE / MUSIC PLAYBACK REQUESTS
     const isYouTubeIntent = /\b(youtube|lagu|musik|music|song|video|putar|play|setel|dengarkan)\b/i.test(userPrompt);
 
     if (isYouTubeIntent) {
@@ -132,26 +322,33 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3. GENERAL AI CONVERSATION (Gemini Cloud API fallback)
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_1 || process.env.NINEROUTER_KEY;
+    // 4. GENERAL AI CONVERSATION (Gemini Cloud, system-prompt aware + key rotation)
+    const textKeys = collectGeminiKeys();
     let assistantReply = `Halo! Saya JINI, AI partner Anda. Bagaimana saya bisa membantu Anda hari ini?`;
 
-    if (geminiKey) {
-      try {
-        const contents = messages
-          .filter(m => m.role !== 'system')
-          .map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }]
-          }));
+    const systemText = messages
+      .filter(m => m.role === 'system')
+      .map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
+      .join('\n\n');
+    const contents = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }]
+      }));
 
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+    const textModel = (process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash').trim();
+    const textModelPath = textModel.startsWith('models/') ? textModel : `models/${textModel}`;
+
+    for (const key of textKeys) {
+      try {
+        const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
+        if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
+
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${textModelPath}:generateContent?key=${encodeURIComponent(key)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-          }),
+          body: JSON.stringify(requestBody),
           signal: AbortSignal.timeout(20000)
         });
 
@@ -160,10 +357,13 @@ export default async function handler(req, res) {
           const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (candidateText) {
             assistantReply = candidateText;
+            break; // success — stop key rotation
           }
+        } else if (geminiRes.status === 429 || geminiRes.status >= 500) {
+          continue; // rotate to next key on quota/transient errors
         }
       } catch (geminiErr) {
-        console.warn('[GeminiCloud] Error:', geminiErr.message);
+        console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr.message));
       }
     }
 
