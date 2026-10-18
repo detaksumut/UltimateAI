@@ -101,6 +101,9 @@ export default function TavilyDriveFMonitor() {
         const res = await fetch(`http://127.0.0.1:20200${endpoint}`, options);
         if (res.ok) return res;
       } catch (_) {}
+      // Local router unreachable: return null instead of falling through to
+      // the /api proxy (which would 502 Bad Gateway on every poll).
+      return null;
     }
     return fetch(endpoint, options);
   };
@@ -115,6 +118,7 @@ export default function TavilyDriveFMonitor() {
       if (!canReachLocalRuntime) return;
       try {
         const res = await fetchDaemon('/api/daemon/status');
+        if (!res || !isMounted) return;
         if (res.ok && isMounted) {
           const json = await res.json();
           setDaemonStatus(json);
@@ -176,6 +180,10 @@ export default function TavilyDriveFMonitor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cluster: targetTag })
       });
+      if (!res) {
+        setIsCrawlingCluster(false);
+        return;
+      }
       if (res.ok) {
         const result = await res.json();
         setData(prev => ({
