@@ -157,8 +157,11 @@ async function generateImageWithGemini(prompt, aspectRatio, signal) {
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
         lastError = `HTTP ${response.status}: ${maskSecrets(errText.slice(0, 160))}`;
-        // Rotate to next key on quota / transient server errors.
-        if (response.status === 429 || response.status >= 500) continue;
+        // Rotate to next key on quota / transient server errors AND on 403:
+        // 403 = "Gemini API not enabled in THIS key's project" is
+        // project-scoped — a key from another project can still succeed, so
+        // fall through to the next key instead of aborting the whole run.
+        if (response.status === 403 || response.status === 429 || response.status >= 500) continue;
         return { success: false, error: `IMAGE_GENERATION_FAILED: ${lastError}` };
       }
 
