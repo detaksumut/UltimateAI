@@ -12,6 +12,8 @@
  * are NOT reachable from Vercel serverless and are intentionally not used here.
  */
 
+import { resolveRequestSizes } from '../../server/agent/ImageOutputConfig.mjs';
+
 async function searchYouTubeVideo(query) {
   try {
     const cleanQ = query
@@ -170,7 +172,6 @@ async function generateImageWithGemini(prompt, aspectRatio, signal) {
   return { success: false, error: `IMAGE_GENERATION_FAILED: ${lastError || 'Semua Gemini API key habis.'}` };
 }
 
-/** Detect image mime type from a base64 payload's magic bytes. */
 function detectMimeFromB64(b64) {
   const head = String(b64).slice(0, 12);
   if (head.startsWith('iVBOR')) return 'image/png';
@@ -205,6 +206,12 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
   const fullPrompt = `Generate an image based on this description${aspectHint}: ${prompt}`;
 
+  // 3. Target size for this aspect ratio (from shared global config; request
+  //    `size` is only a hint — the gateway maps it to an internal canvas and the
+  //    strict box is re-validated against the ACTUAL decoded image bytes).
+  const requestSizes = resolveRequestSizes(aspectRatio);
+  const targetSize = requestSizes[0];
+
   // 1. Discovery — GET /v1/models/image (cached by gateway; cheap to call).
   let models = [];
   try {
@@ -228,8 +235,8 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   // without it when the gateway rejects the parameter.
   const model = models[0];
   const attemptBodies = [
-    { model, prompt: fullPrompt, n: 1, response_format: 'url' },
-    { model, prompt: fullPrompt, n: 1 }
+    { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
+    { model, prompt: fullPrompt, n: 1, size: targetSize }
   ];
   for (const reqBody of attemptBodies) {
     try {

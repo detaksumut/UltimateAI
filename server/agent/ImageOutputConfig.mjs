@@ -55,9 +55,9 @@ export const DEFAULT_IMAGE_SIZE = `${IMAGE_WIDTH}x${IMAGE_HEIGHT}`;
 // ── Presentation resolution hints for the Strict Box Policy ────────────────
 // Order matters: [preferred, fallback]. These are request hints only — the
 // strict box is ALWAYS validated against ACTUAL decoded dimensions afterwards.
-export const PRESENTATION_16X9_SIZES = ['1024x576', '912x513'];
-export const PRESENTATION_9X16_SIZES = ['576x1024', '513x912'];
-export const PRESENTATION_SQUARE_SIZES = ['1024x1024'];
+export const PRESENTATION_16X9_SIZES = ['768x432', '640x360'];
+export const PRESENTATION_9X16_SIZES = ['432x768', '360x640'];
+export const PRESENTATION_SQUARE_SIZES = ['768x768'];
 
 /**
  * Resolve the ordered request-size hints for a requested aspect ratio.
