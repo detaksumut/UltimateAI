@@ -12,8 +12,6 @@
  * are NOT reachable from Vercel serverless and are intentionally not used here.
  */
 
-import { resolveRequestSizes } from '../../server/agent/ImageOutputConfig.mjs';
-
 async function searchYouTubeVideo(query) {
   try {
     const cleanQ = query
@@ -72,6 +70,20 @@ function maskSecrets(text) {
     .replace(/AQ\.[a-zA-Z0-9_-]{50,}/g, '[REDACTED_GEMINI_KEY]')
     .replace(/key=[^&\s]+/g, 'key=[REDACTED_KEY]')
     .replace(/Bearer\s+[a-zA-Z0-9_.-]+/g, 'Bearer [REDACTED_TOKEN]');
+}
+
+/**
+ * Inlined from server/agent/ImageOutputConfig.mjs (Vercel serverless cannot
+ * import files outside api/ directory).
+ * Resolve ordered request-size hints for a requested aspect ratio.
+ * @param {string} aspectRatio '16:9' | '9:16' | '1:1' (anything else -> '16:9')
+ * @returns {string[]} [preferred, fallback]
+ */
+function resolveRequestSizes(aspectRatio) {
+  const ar = String(aspectRatio || '16:9');
+  if (ar === '9:16') return ['432x768', '360x640'];
+  if (ar === '1:1') return ['768x768'];
+  return ['768x432', '640x360'];
 }
 
 const ASPECT_TOKEN_RE = /\b(16\s*:\s*9|9\s*:\s*16|1\s*:\s*1|4\s*:\s*3|3\s*:\s*4|3\s*:\s*2|2\s*:\s*3)\b/i;
