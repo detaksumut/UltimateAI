@@ -170,6 +170,85 @@ async function generateImageWithGemini(prompt, aspectRatio, signal) {
   return { success: false, error: `IMAGE_GENERATION_FAILED: ${lastError || 'Semua Gemini API key habis.'}` };
 }
 
+/** Detect image mime type from a base64 payload's magic bytes. */
+function detectMimeFromB64(b64) {
+  const head = String(b64).slice(0, 12);
+  if (head.startsWith('iVBOR')) return 'image/png';
+  if (head.startsWith('/9j/')) return 'image/jpeg';
+  if (head.startsWith('UklGR')) return 'image/webp';
+  return 'image/png';
+}
+
+/**
+ * Generate an image via the 9Router gateway (OpenAI-compatible), mirroring the
+ * local NineRouterGatewayAdapter exactly: GET /v1/models/image (discovery) then
+ * POST /v1/images/generations with the discovered model. This is the SAME
+ * provider that powers localhost image generation.
+ *
+ * Reads NINEROUTER_URL + NINEROUTER_KEY from env (identical to local .env).
+ * On localhost these point to 127.0.0.1:20128; on Vercel they must be set to a
+ * publicly reachable 9Router URL — otherwise the gateway is unreachable from the
+ * cloud and this returns { success:false, skip:true } so the caller falls back.
+ */
+async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
+  const base = String(process.env.NINEROUTER_URL || '').trim().replace(/\/+$/, '');
+  const key = String(process.env.NINEROUTER_KEY || '').trim();
+  if (!base || !key) {
+    return { success: false, skip: true, error: 'NINEROUTER_URL/NINEROUTER_KEY belum di-set.' };
+  }
+
+  const auth = { Authorization: `Bearer ${key}` };
+  const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
+  const fullPrompt = `Generate an image based on this description${aspectHint}: ${prompt}`;
+
+  // 1. Discovery — GET /v1/models/image (cached by gateway; cheap to call).
+  let models = [];
+  try {
+    const dr = await fetch(`${base}/v1/models/image`, {
+      headers: auth,
+      signal: AbortSignal.timeout(15000)
+    });
+    if (dr.ok) {
+      const dj = await dr.json().catch(() => null);
+      models = (Array.isArray(dj?.data) ? dj.data : [])
+        .map((m) => (typeof m === 'string' ? m : m?.id))
+        .filter(Boolean);
+    }
+  } catch (_) { /* fallthrough */ }
+  if (models.length === 0) {
+    return { success: false, error: '9Router tidak mengekspos model image (discovery kosong).' };
+  }
+
+  // 2. Generate — POST /v1/images/generations (first discovered model, like local).
+  const model = models[0];
+  try {
+    const gr = await fetch(`${base}/v1/images/generations`, {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt: fullPrompt, n: 1 }),
+      signal: signal || AbortSignal.timeout(90000)
+    });
+    if (!gr.ok) {
+      const t = await gr.text().catch(() => '');
+      return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
+    }
+    const gj = await gr.json().catch(() => null);
+    const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
+    let dataUrl = null;
+    if (typeof entry?.b64_json === 'string' && entry.b64_json) {
+      dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
+    } else if (typeof entry?.url === 'string' && entry.url) {
+      dataUrl = entry.url;
+    }
+    if (!dataUrl) {
+      return { success: false, error: '9Router tidak mengembalikan data gambar.' };
+    }
+    return { success: true, dataUrl, model, gateway: '9ROUTER' };
+  } catch (err) {
+    return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
+  }
+}
+
 /** Write an OpenAI-compatible SSE delta chunk (with optional _agent metadata). */
 function writeSSE(res, { id, model, delta = {}, agent = null, finish = null }) {
   const payload = {
@@ -214,12 +293,18 @@ export default async function handler(req, res) {
       const sseId = 'chatcmpl-image-' + Date.now();
       const sseModel = model || 'gemini-image';
 
-      const gen = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio);
+      // Prefer 9Router (SAME provider as localhost) when configured/reachable;
+      // fall back to Gemini when 9Router is unavailable/unconfigured.
+      let gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
+      if (!gen.success) {
+        gen = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio);
+      }
 
       let textContent;
       let agentMeta = null;
       if (gen.success) {
-        textContent = `Visual untuk **"${imageIntent.prompt}"** rasio ${imageIntent.aspectRatio} telah berhasil dibuat (model ${gen.model}).`;
+        const via = gen.gateway ? ` via ${gen.gateway}` : '';
+        textContent = `Visual untuk **"${imageIntent.prompt}"** rasio ${imageIntent.aspectRatio} telah berhasil dibuat (model ${gen.model}${via}).`;
         agentMeta = {
           intent: 'IMAGE_GENERATION',
           artifactType: 'IMAGE',
