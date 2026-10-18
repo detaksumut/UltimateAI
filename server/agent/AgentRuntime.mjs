@@ -36,6 +36,7 @@ import { DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
 import { getMarketOverview } from '../market/MarketDataService.mjs';
 import { getResilientMarketChart } from '../market/persistentMarket.mjs';
 import crypto from 'crypto';
+import { JINContext } from './JINContext.mjs';
 
 // Architectural Design Engine v1 (Fase 1 - 4)
 
@@ -65,9 +66,27 @@ export class AgentRuntime {
 
     timeline.push({ event: 'TASK_CREATED', timestamp: new Date().toISOString(), goal: rawGoal });
 
+    // ── FULL CONTEXT: Bangun JINContext dari sessionContext agar setiap lapisan
+    //     pemahaman konteks penuh (user, riwayat, gambar, intent, tool history). ──
+    const jinContext = sessionContext instanceof JINContext
+      ? sessionContext
+      : new JINContext({
+        userId: sessionContext.userId || options.userId || 'anonymous',
+        sessionId: sessionContext.sessionId || options.sessionId,
+        conversationHistory: sessionContext.conversationHistory || options.conversationHistory || [],
+        currentUtterance: rawGoal,
+        currentIntent: sessionContext.currentIntent || null,
+        imageContext: sessionContext.imageContext || null,
+        executionHistory: sessionContext.executionHistory || options.executionHistory || [],
+        systemState: sessionContext.systemState || options.systemState || {},
+        providerRouting: sessionContext.providerRouting || options.providerRouting || {},
+        sourceScope: sessionContext.sourceScope || options.sourceScope || 'LOCAL_ONLY',
+        timestamp: startTime
+      });
+
     // 1. SEMANTIC DECISION ENGINE & SCOPE CLASSIFICATION
-    const decision = await decisionEngineInstance.decide(rawGoal, sessionContext, options);
-    const routing = providerIntelligenceRouterInstance.classifyScope(rawGoal, sessionContext);
+    const decision = await decisionEngineInstance.decide(rawGoal, jinContext, options);
+    const routing = providerIntelligenceRouterInstance.classifyScope(rawGoal, jinContext);
 
     timeline.push({
       event: 'SCOPE_CLASSIFIED',
@@ -110,15 +129,14 @@ export class AgentRuntime {
         }
       }
 
-      // ── MULTIMODAL ROUTING: Jika ada image parts dalam riwayat percakapan,
+            // ── MULTIMODAL ROUTING: Jika ada image parts dalam riwayat percakapan,
       //     alihkan ke Gemini (multimodal-capable) untuk menjaga konteks visual. ──
       let useMultimodalGemini = false;
       let multimodalResponse = null;
-      const convHistory = options.conversationHistory || sessionContext?.conversationHistory || [];
-      if (this._isMultimodalRoute(convHistory)) {
+      if (jinContext.hasImages()) {
         useMultimodalGemini = true;
         try {
-          const multimodalMessages = this._buildMultimodalMessages(convHistory);
+          const multimodalMessages = jinContext.toGeminiMessages();
           multimodalResponse = await geminiProviderInstance.sendChat({
             messages: multimodalMessages,
             stream: false,
@@ -154,7 +172,8 @@ export class AgentRuntime {
 
       const responsePayload = await jinResponseEngineInstance.generateResponse({
         userUtterance: rawGoal,
-        conversationContext: sessionContext,
+        jinContext,
+        conversationContext: jinContext,
         decision,
         sourceScope: routing.scope,
         providerRouting: routing
@@ -258,72 +277,6 @@ export class AgentRuntime {
   // ═══════════════════════════════════════════════════════════════════════════
   // IMAGE_GENERATION PATH — Dedicated image generation pipeline
   // ═══════════════════════════════════════════════════════════════════════════
-// MULTIMODAL HELPER METHODS
-
-  /** Check if conversation history contains image parts */
-  _hasConversationImages(conversationHistory = []) {
-    if (!Array.isArray(conversationHistory)) return false;
-    for (const msg of conversationHistory) {
-      if (!msg || !msg.content) continue;
-      if (Array.isArray(msg.content)) {
-        for (const part of msg.content) {
-          if (part?.type === 'image_url' || part?.type === 'image' || part?.image_url || part?.inlineData) return true;
-        }
-      }
-      if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) return true;
-      if (msg.inlineData) return true;
-    }
-    return false;
-  }
-
-  /** Detect if image context should route to multimodal model (Gemini) */
-  _isMultimodalRoute(conversationHistory) {
-    if (!this._hasConversationImages(conversationHistory)) return false;
-    if (!geminiProviderInstance.isConfigured()) return false;
-    const route = modelRoutingServiceInstance.determineRoute({
-      messages: conversationHistory,
-      capability: 'FAST_CHAT'
-    });
-    return route.provider === 'gemini' || route.strategy === 'cloud_multimodal';
-  }
-
-  /** Convert conversation history to multimodal-capable message format for Gemini */
-  _buildMultimodalMessages(conversationHistory = []) {
-    const messages = [];
-    for (const msg of conversationHistory) {
-      if (!msg || !msg.content) continue;
-      const textParts = [];
-      const imageParts = [];
-      if (Array.isArray(msg.content)) {
-        for (const part of msg.content) {
-          if (!part) continue;
-          if (part.type === 'text' || typeof part === 'string') {
-            textParts.push(typeof part === 'string' ? { text: part } : { text: part.text || part });
-          } else if (part.type === 'image_url' || part.type === 'image' || part.image_url || part.inlineData) {
-            const url = part.image_url?.url || part.image_url || part.dataUrl || null;
-            if (url) imageParts.push(url);
-          }
-        }
-      } else if (typeof msg.content === 'string') {
-        textParts.push({ text: msg.content });
-      }
-      if (imageParts.length > 0) {
-        messages.push({
-          role: msg.role,
-          parts: [
-            ...textParts.map(t => ({ text: t.text })),
-            ...imageParts.map(url => ({ inlineData: { mimeType: 'image/jpeg', data: url } }))
-          ]
-        });
-      } else if (textParts.length > 0) {
-        messages.push({
-          role: msg.role,
-          parts: textParts.map(t => ({ text: t.text }))
-        });
-      }
-    }
-    return messages;
-  }
 
   async _executeImageGeneration(rawGoal, decision, routing, sessionContext, options, startTime, timeline) {
     const generationId = options.generationId;

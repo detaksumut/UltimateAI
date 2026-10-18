@@ -136,11 +136,32 @@ export class ImageEditingService {
 
     const probe = await provider.capabilityProbe(transport);
     if (!probe.available) {
-      return {
-        success: false,
-        error: `Provider ${selectedProviderName} is unavailable: ${probe.reason}`,
-        reasonCode: 'PROVIDER_UNAVAILABLE'
-      };
+      // ── FULL AUTONOMY: Try 9ROUTER cloud editing instead of failing outright.
+      //     Local-only COMFYUI being offline must not block sunset-atmosphere style
+      //     revisions when a cloud vision model is reachable. ──
+      const fallbackOrder = ['9ROUTER', 'MOCK'].filter(n => n !== selectedProviderName);
+      let fallbackErr = `Provider ${selectedProviderName} is unavailable: ${probe.reason}`;
+      for (const fbName of fallbackOrder) {
+        const fbProvider = this.providers.get(fbName);
+        if (!fbProvider) continue;
+        const fbProbe = await fbProvider.capabilityProbe(transport);
+        if (!fbProbe.available) {
+          console.warn(`[IMAGE_REVISION] Fallback ${fbName} unavailable: ${fbProbe.reason}`);
+          continue;
+        }
+        console.log(`[IMAGE_REVISION] Fallback: ${selectedProviderName} offline → ${fbName}`);
+        provider = fbProvider;
+        selectedProviderName = fbProvider.name;
+        fallbackErr = null;
+        break;
+      }
+      if (fallbackErr) {
+        return {
+          success: false,
+          error: fallbackErr,
+          reasonCode: 'PROVIDER_UNAVAILABLE'
+        };
+      }
     }
 
     // 2. Dispatch to Provider (Minimal Path, no masks, no evaluations)

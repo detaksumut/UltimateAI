@@ -16,6 +16,9 @@ import { responseGroundingGuardInstance } from '../grounding/ResponseGroundingGu
 import { getCapabilityPromptContext } from '../grounding/CapabilityRegistry.mjs';
 import { providerIntelligenceRouterInstance, SCOPE } from '../routing/ProviderIntelligenceRouter.mjs';
 import { normalizeModelResponse, stripTrailingPunctuation } from './ResponseNormalizer.mjs';
+import { JINContext } from './JINContext.mjs';
+import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
+import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
 
 function sanitizeOutput(val) {
   if (typeof val !== 'string') return String(val ?? '');
@@ -49,6 +52,7 @@ export class JINResponseEngine {
   async generateResponse(input, options = {}) {
     const {
       userUtterance = '',
+      jinContext = null,
       conversationContext = {},
       decision = {},
       executionHistory = [],
@@ -87,10 +91,23 @@ export class JINResponseEngine {
       }
     }
 
+    // ── FULL CONTEXT: Resolve effective conversational context from JINContext
+    //     so every downstream synthesis sees the same user/history/image state. ──
+    const effectiveConversationContext = jinContext instanceof JINContext
+      ? {
+        recentTurns: jinContext.getRecentTextTurns(10),
+        conversationHistory: jinContext.conversationHistory,
+        hasImages: jinContext.hasImages(),
+        imageUrls: jinContext.getImageUrls(),
+        sessionId: jinContext.sessionId,
+        userId: jinContext.userId
+      }
+      : conversationContext;
+
     // 1. NON-ACTION CONVERSATIONAL DIALOGUE
     if (!decision.actionRequired) {
       return this._normalizePayload(
-        await this.synthesizeConversationalDialogue(userUtterance, conversationContext, decision, options)
+        await this.synthesizeConversationalDialogue(userUtterance, effectiveConversationContext, decision, options)
       );
     }
 
@@ -167,6 +184,51 @@ CORE GROUNDING RULES:
 6. UI REALITY: Never claim a module or HTML app is "di atas" unless verified in the UI Reality state.
 
 ${getCapabilityPromptContext()}`;
+
+    // ── FULL CONTEXT: If images exist in history and Gemini is available,
+    //     answer via Gemini Vision so JIN actually "sees" the image. ──
+    try {
+      const imageUrls = Array.isArray(conversationContext?.imageUrls)
+        ? conversationContext.imageUrls.filter(Boolean)
+        : [];
+      const historyHasImages = conversationContext?.hasImages === true || imageUrls.length > 0;
+      if (historyHasImages && geminiProviderInstance.isConfigured()) {
+        const history = Array.isArray(conversationContext?.conversationHistory)
+          ? conversationContext.conversationHistory
+          : [...(conversationContext?.recentTurns || [])];
+        const route = modelRoutingServiceInstance.determineRoute({
+          messages: history,
+          capability: 'FAST_CHAT'
+        });
+        if (route.provider === 'gemini' || route.strategy === 'cloud_multimodal') {
+          const geminiMessages = [
+            ...(history || []).slice(-10),
+            { role: 'user', content: raw }
+          ];
+          const visionText = await geminiProviderInstance.sendChat(
+            { messages: geminiMessages, stream: false, model: options.forcedModel || process.env.GEMINI_MODEL || 'gemini-3.6-flash' },
+            null
+          );
+          const finalContent = normalizeModelResponse(visionText);
+          if (finalContent) {
+            return {
+              naturalVoiceSpeech: finalContent.split('\n')[0] || finalContent,
+              detailedTextDisplay: finalContent,
+              responseMode: 'MULTIMODAL_CONVERSATION',
+              responseSource: 'GEMINI_MULTIMODAL',
+              sourceType: 'MODEL_KNOWLEDGE',
+              modelUsed: 'gemini_multimodal',
+              approvedFacts: [],
+              claims: [],
+              evidenceRefs: [],
+              voiceIntent: 'SPEAK'
+            };
+          }
+        }
+      }
+    } catch (visionErr) {
+      console.error(`[JINResponseEngine] Vision routing failed, falling back to local LLM: ${visionErr.message}`);
+    }
 
     try {
       const response = await fetch(`${this.proxyUrl}/chat/completions`, {
