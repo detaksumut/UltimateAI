@@ -11,17 +11,10 @@ import { BlueprintGenerator } from "./BlueprintGenerator";
 import { IDomainBlueprint } from "../../foundation/blueprint/IDomainBlueprint";
 import { RuntimeIntegrationAdapter, RuntimeBus } from "./RuntimeIntegrationAdapter";
 import { IBlueprintRegistry } from "../../foundation/blueprint/BlueprintRegistry";
+import { DomainAnalysisResult } from "./JournalTypes";
 
-export interface DomainAnalysisResult {
-  readonly normalizedRequirements: NormalizedRequirements;
-  readonly observations: string[];
-  readonly recommendations: Recommendation[];
-  readonly complianceResults: ComplianceResult[];
-  readonly confidence: ConfidenceDerivation;
-  readonly explainability: string[];
-  readonly warnings: string[];
-  readonly nextAction: string;
-}
+// Re-export for backward compatibility (validate_foundation_b3/b4 import it from here).
+export { DomainAnalysisResult } from "./JournalTypes";
 
 export interface JournalDomainContext extends IRuntimeContext {
   readonly requirements?: InputRequirements;

@@ -1,5 +1,4 @@
-import { RequestPriority, ResourceBudget } from "./ExecutionScheduler";
-import { ScheduledRequest } from "./ExecutionScheduler";
+import { RequestPriority, ResourceBudget, ScheduledRequest } from "./SchedulerTypes";
 
 /**
  * IScheduler — Scheduler interface that makes no single-node assumptions.

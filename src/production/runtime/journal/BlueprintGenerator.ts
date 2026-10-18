@@ -1,6 +1,6 @@
 import { IDomainBlueprint } from "../../foundation/blueprint/IDomainBlueprint";
 import { BlueprintValidator } from "../../foundation/blueprint/BlueprintValidator";
-import { DomainAnalysisResult } from "./JournalRuntime";
+import { DomainAnalysisResult } from "./JournalTypes";
 import * as crypto from "crypto";
 
 export class BlueprintGenerator {

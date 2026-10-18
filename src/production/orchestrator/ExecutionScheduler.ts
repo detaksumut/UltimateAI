@@ -1,21 +1,10 @@
 import { ExecutionStateStore } from "./ExecutionStateStore";
 import { IScheduler } from "./IScheduler";
+import { RequestPriority, ScheduledRequest, ResourceBudget } from "./SchedulerTypes";
 
-export type RequestPriority = "high" | "normal" | "low";
-
-export interface ScheduledRequest {
-  readonly requestId: string;
-  readonly priority: RequestPriority;
-  readonly queuedAt: string;
-  readonly resourceBudget: ResourceBudget;
-}
-
-export interface ResourceBudget {
-  /** Maximum total execution time in milliseconds. */
-  readonly maxTimeMs: number;
-  /** Maximum memory allowed in megabytes (advisory; enforced by Orchestrator). */
-  readonly maxMemoryMb: number;
-}
+// Re-export shared scheduler types for backward compatibility (importers such
+// as OrchestrationManifest/OrchestratorEngine still import them from here).
+export { RequestPriority, ScheduledRequest, ResourceBudget } from "./SchedulerTypes";
 
 export const DEFAULT_RESOURCE_BUDGET: ResourceBudget = {
   maxTimeMs: 120_000,   // 2 minutes
