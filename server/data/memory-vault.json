@@ -1148,5 +1148,148 @@
     "createdAt": "2026-10-18T02:48:04.637Z",
     "lastAccessedAt": "2026-10-18T02:48:04.637Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1792305344227-MEHH",
+    "key": "hallo JINI",
+    "content": "Halo. Cari lagu Huang Hun versi lain. Putar: `https://www.youtube.com/watch?v=R9U0X8Z7C3A` (pilih co",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:35:44.227Z",
+    "lastAccessedAt": "2026-10-18T06:35:44.227Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792305379594-H72C",
+    "key": "Hallo",
+    "content": "Hello. State query.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:36:19.594Z",
+    "lastAccessedAt": "2026-10-18T06:36:19.594Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792305445398-OU4Y",
+    "key": "apakah kamu bisa generate image",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:37:25.398Z",
+    "lastAccessedAt": "2026-10-18T06:37:25.398Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306337368-HZNG",
+    "key": "bisakah kamu generate image JINI?",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:52:17.368Z",
+    "lastAccessedAt": "2026-10-18T06:52:17.368Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306432578-GKJC",
+    "key": "buatkan gambar kucing",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:53:52.578Z",
+    "lastAccessedAt": "2026-10-18T06:53:52.578Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306566444-OPQ8",
+    "key": "halo jini",
+    "content": "Halo. Ada yang bisa dibantu?",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:56:06.444Z",
+    "lastAccessedAt": "2026-10-18T06:56:06.444Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306583984-3MK5",
+    "key": "kamu siapa?",
+    "content": "JIN. Mitra AI UltimateAI. Bilingual Inggris-Indonesian. Analisis dokumen, strategi, teks teknis. \n\nP",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:56:23.984Z",
+    "lastAccessedAt": "2026-10-18T06:56:23.984Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306642559-3T77",
+    "key": "apakah kamu bisa generate image?",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:57:22.559Z",
+    "lastAccessedAt": "2026-10-18T06:57:22.559Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306738614-KKVT",
+    "key": "bagaimana caranya kamu bisa perbaiki sen",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T06:58:58.614Z",
+    "lastAccessedAt": "2026-10-18T06:58:58.614Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792306839411-926H",
+    "key": "buatkan gambar kucing 16:9 rasio",
+    "content": "Pembuatan gambar belum berhasil. Penyebab: IMAGE_GENERATION_FAILED: 9Router artifact violates strict",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T07:00:39.411Z",
+    "lastAccessedAt": "2026-10-18T07:00:39.411Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792307333490-3I6G",
+    "key": "buatkan gambar kucing rasio 16:9",
+    "content": "Visual untuk kucing rasio 16:9 telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T07:08:53.490Z",
+    "lastAccessedAt": "2026-10-18T07:08:53.490Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792307602374-0I9B",
+    "key": "buatkan gambar pesawat terbang melintas",
+    "content": "Visual untuk pesawat terbang melintas gunung, rasio 16:9 telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T07:13:22.374Z",
+    "lastAccessedAt": "2026-10-18T07:13:22.374Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792307667841-AK6J",
+    "key": "ubah suasananya jadi suasana senja, gamb",
+    "content": "Saya belum dapat melakukan revisi gambar saat ini. Penyebab: Backend ComfyUI offline atau tidak dapa",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T07:14:27.841Z",
+    "lastAccessedAt": "2026-10-18T07:14:27.841Z",
+    "accessCount": 1
   }
 ]
