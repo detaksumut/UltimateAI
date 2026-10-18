@@ -82,12 +82,26 @@ export default function TavilyDriveFMonitor() {
   const [lastSyncTime, setLastSyncTime] = useState('Baru saja');
   const [daemonStatus, setDaemonStatus] = useState(null);
 
-  // Safe Daemon Fetch (Direct to Local Router 20200 with relative fallback)
+  // Local Router (:20200) is reachable directly only from localhost, and the
+  // vite /api proxy only exists on the dev server. On Vercel serverless neither
+  // is available — polling them just spams net::ERR_CONNECTION_REFUSED / 404 in
+  // the live console (the exact difference vs localhost). Detect runtime once so
+  // the live build degrades gracefully instead.
+  const onLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const canReachLocalRuntime = import.meta.env.DEV === true || onLocalhost;
+
+  // Safe Daemon Fetch: hit Local Router 20200 directly only when actually on
+  // localhost (fast path); otherwise use the relative URL (vite proxy on dev,
+  // serverless rewrite on cloud).
   const fetchDaemon = async (endpoint, options = {}) => {
-    try {
-      const res = await fetch(`http://127.0.0.1:20200${endpoint}`, options);
-      if (res.ok) return res;
-    } catch (_) {}
+    if (onLocalhost) {
+      try {
+        const res = await fetch(`http://127.0.0.1:20200${endpoint}`, options);
+        if (res.ok) return res;
+      } catch (_) {}
+    }
     return fetch(endpoint, options);
   };
 
@@ -95,6 +109,10 @@ export default function TavilyDriveFMonitor() {
   useEffect(() => {
     let isMounted = true;
     const pollStatus = async () => {
+      // Cloud build (Vercel): no Local Router :20200 and no /api/daemon|vault
+      // serverless equivalents — skip local-only polling so the live console
+      // stays clean like localhost (no ERR_CONNECTION_REFUSED / 404 every 3s).
+      if (!canReachLocalRuntime) return;
       try {
         const res = await fetchDaemon('/api/daemon/status');
         if (res.ok && isMounted) {
