@@ -1,10 +1,11 @@
-﻿// src/App.jsx â€“ Main application with routing
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ChatSimulator from './ui/simulator/ChatSimulator';
-import MyProjects from './pages/MyProjects';
-import GeneratedApps from './pages/GeneratedApps';
-import ResearchBuilder from './pages/ResearchBuilder';
+
+// Lazy load secondary pages to prevent Vite bundling overhead on initial load
+const MyProjects = lazy(() => import('./pages/MyProjects'));
+const GeneratedApps = lazy(() => import('./pages/GeneratedApps'));
+const ResearchBuilder = lazy(() => import('./pages/ResearchBuilder'));
 
 function BackgroundMusic() {
   const audioRef = useRef(null);
@@ -78,13 +79,15 @@ function App() {
   return (
     <Router>
       <BackgroundMusic />
-      <Routes>
-        <Route path="/" element={<Navigate to="/simulator" replace />} />
-        <Route path="/simulator" element={<ChatSimulator />} />
-        <Route path="/my-projects" element={<MyProjects />} />
-        <Route path="/generated-apps" element={<GeneratedApps />} />
-        <Route path="/research-builder" element={<ResearchBuilder />} />
-      </Routes>
+      <Suspense fallback={<div className="min-h-screen bg-slate-900 text-slate-400 flex items-center justify-center font-mono text-sm">Memuat modul...</div>}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/simulator" replace />} />
+          <Route path="/simulator" element={<ChatSimulator />} />
+          <Route path="/my-projects" element={<MyProjects />} />
+          <Route path="/generated-apps" element={<GeneratedApps />} />
+          <Route path="/research-builder" element={<ResearchBuilder />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

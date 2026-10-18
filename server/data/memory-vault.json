@@ -950,5 +950,203 @@
     "createdAt": "2026-10-16T23:15:14.241Z",
     "lastAccessedAt": "2026-10-16T23:15:14.241Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1792269150133-SLTU",
+    "key": "Jin buatkan gamnar pesawat terbang rasio",
+    "content": "Pembuatan gambar gagal. Penyebab: API key tidak valid. Ganti kunci API pada konfigurasi sistem.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T20:32:30.133Z",
+    "lastAccessedAt": "2026-10-17T20:32:30.133Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792277978490-LFCW",
+    "key": "carikan lagu di yotube judul Hau Lai",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"carikan lagu di y",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T22:59:38.490Z",
+    "lastAccessedAt": "2026-10-17T22:59:38.490Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278017485-3EOP",
+    "key": "cari lagu \"Hau Lai\"",
+    "content": "Lagu **\"Hau Sen - Sing Ta Lai Ah\"** karya **Phualva Melmuh Tongsan Collection** telah ditemukan di Y",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:00:17.485Z",
+    "lastAccessedAt": "2026-10-17T23:00:17.485Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278095988-A5CY",
+    "key": "Jangan kau ubah dengan yang lain, ygn ku",
+    "content": "Hasil pencarian YouTube query \"HAU LAI\":\n\nVideo: \"Hau Lai\"\nURL: https://www.youtube.com/watch?v=dQw4",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:01:35.988Z",
+    "lastAccessedAt": "2026-10-17T23:01:35.988Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278172175-RLWT",
+    "key": "itu lagunya Rick Atslay NEVER GIVE YOU U",
+    "content": "Query: \"Hau Lai\" song.\nURL: https://www.youtube.com/watch?v=5qap5aO4i9A\n\n<div style=\"width: 100%; po",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:02:52.175Z",
+    "lastAccessedAt": "2026-10-17T23:02:52.175Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278195261-SJYB",
+    "key": "cari lagi",
+    "content": "Judul \"Hau Lai\" tidak spesifik. Sebut nama artis atau lirik lain. \n\nCoba:\n- \"Hau Lai\" artis [Nama Ar",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:03:15.261Z",
+    "lastAccessedAt": "2026-10-17T23:03:15.261Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278225643-7ZMG",
+    "key": "kamu tampilkan saja laternatif linknya",
+    "content": "Alternatif link YouTube query \"Hau Lai\":\n\n1. Link 1: https://www.youtube.com/results?search_query=Ha",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:03:45.643Z",
+    "lastAccessedAt": "2026-10-17T23:03:45.643Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278328827-9120",
+    "key": "2. Link 2: https://www.youtube.com/resul",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"2. Link 2: https:",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:05:28.827Z",
+    "lastAccessedAt": "2026-10-17T23:05:28.827Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278383842-K23B",
+    "key": "kamu lihat ini",
+    "content": "Terima kasih atas tangkapan layarnya! Sekarang sangat jelas.\n\nLagu yang Anda maksud adalah **\"Hou La",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:06:23.842Z",
+    "lastAccessedAt": "2026-10-17T23:06:23.842Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278426211-UX1Z",
+    "key": "masih kosong yg kamu kirim",
+    "content": "Lagu **\"Kosong\"** (kanal: Yazmin Aziz - Topic) telah ditemukan di YouTube dan langsung diputar di Ca",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:07:06.211Z",
+    "lastAccessedAt": "2026-10-17T23:07:06.211Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278520263-M98X",
+    "key": "carikan lagu Hou LAI",
+    "content": "Lagu **\"Hou Lai (后来) - Rene Liu (刘若英) | Rock Cover 🎸💔\"** karya **Celestial Rock** telah ditemukan",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:08:40.263Z",
+    "lastAccessedAt": "2026-10-17T23:08:40.263Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792278624756-NMM0",
+    "key": "catat di memory jika diminta cari lagu H",
+    "content": "Lagu **\"hou lai\"** (kanal: Kwok 1017) telah ditemukan di YouTube dan langsung diputar di Canvas pemu",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-17T23:10:24.756Z",
+    "lastAccessedAt": "2026-10-17T23:10:24.756Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291427713-PY1M",
+    "key": "Lagu HOU LAI",
+    "content": "Lagu **\"Hou Lai (后来) - Rene Liu (刘若英) | Rock Cover 🎸💔\"** karya **Celestial Rock** telah ditemukan",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:43:47.713Z",
+    "lastAccessedAt": "2026-10-18T02:43:47.713Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291476955-V5RL",
+    "key": "Lagu HUANG HUEN",
+    "content": "Lagu **\"huang huen   Luo Wen (lirik dan terjemahan)\"** karya **Hermanto** telah ditemukan di YouTube",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:44:36.955Z",
+    "lastAccessedAt": "2026-10-18T02:44:36.955Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291535277-PFSD",
+    "key": "bukan ini HUANG HUN judulnya",
+    "content": "⚙️ **[JINI AUTONOMOUS SELF-CORRECTION // 9ROUTER]**\nSaya mendeteksi bahwa permintaan Anda sebelumnya",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:45:35.277Z",
+    "lastAccessedAt": "2026-10-18T02:45:35.277Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291570345-82GJ",
+    "key": "cari yang lain",
+    "content": "Pilihan lain lagu Huang Hun (黄昏):\n\n<div style=\"width: 100%; position: relative; padding-bottom: 56.2",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:46:10.345Z",
+    "lastAccessedAt": "2026-10-18T02:46:10.345Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291604513-1QFK",
+    "key": "itu kosong jangan pernah tamplkan lagi,",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"itu kosong jangan",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:46:44.513Z",
+    "lastAccessedAt": "2026-10-18T02:46:44.513Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792291684637-DJTG",
+    "key": "Lagu Hueng Hen",
+    "content": "Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **\"Lagu Hueng Hen\"**",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-18T02:48:04.637Z",
+    "lastAccessedAt": "2026-10-18T02:48:04.637Z",
+    "accessCount": 1
   }
 ]

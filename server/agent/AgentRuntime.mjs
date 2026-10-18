@@ -26,6 +26,7 @@ import { activeMemoryCoreInstance } from '../memory/ActiveMemoryCore.mjs';
 import { providerIntelligenceRouterInstance, SCOPE, PROVIDER } from '../routing/ProviderIntelligenceRouter.mjs';
 import { nineRouterChatAdapterInstance } from '../providers/NineRouterChatAdapter.mjs';
 import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
+import { geminiProviderInstance } from '../providers/GeminiProvider.mjs';
 import { exploreAgentInstance } from './ExploreAgent.mjs';
 import { evidenceChainBuilderInstance, VERIFICATION_STATUS } from './EvidenceChain.mjs';
 import { normalizeModelResponse } from './ResponseNormalizer.mjs';
@@ -107,6 +108,48 @@ export class AgentRuntime {
           this.sessionGoalHistory.push(summary);
           return this._normalizeSummary(summary);
         }
+      }
+
+      // ── MULTIMODAL ROUTING: Jika ada image parts dalam riwayat percakapan,
+      //     alihkan ke Gemini (multimodal-capable) untuk menjaga konteks visual. ──
+      let useMultimodalGemini = false;
+      let multimodalResponse = null;
+      const convHistory = options.conversationHistory || sessionContext?.conversationHistory || [];
+      if (this._isMultimodalRoute(convHistory)) {
+        useMultimodalGemini = true;
+        try {
+          const multimodalMessages = this._buildMultimodalMessages(convHistory);
+          multimodalResponse = await geminiProviderInstance.sendChat({
+            messages: multimodalMessages,
+            stream: false,
+            model: options.forcedModel || process.env.GEMINI_MODEL || 'gemini-3.6-flash'
+          }, options.onChunk || null);
+        } catch (multimodalErr) {
+          console.error(`[AGENT_RUNTIME] Multimodal Gemini routing failed: ${multimodalErr.message}`);
+          useMultimodalGemini = false;
+        }
+      }
+
+      // Use multimodal Gemini response if available
+      if (useMultimodalGemini && multimodalResponse) {
+        const summary = {
+          goal: rawGoal,
+          success: true,
+          confidence: 1.0,
+          actionRequired: false,
+          intent: decision.intent,
+          sourceScope: routing.scope,
+          providerRouting: routing,
+          responseSource: 'GEMINI_MULTIMODAL',
+          responseMessage: multimodalResponse,
+          detailedDisplay: multimodalResponse,
+          claims: [],
+          evidenceRefs: [],
+          timeline,
+          durationMs: Date.now() - startTime
+        };
+        this.sessionGoalHistory.push(summary);
+        return this._normalizeSummary(summary);
       }
 
       const responsePayload = await jinResponseEngineInstance.generateResponse({
@@ -215,6 +258,73 @@ export class AgentRuntime {
   // ═══════════════════════════════════════════════════════════════════════════
   // IMAGE_GENERATION PATH — Dedicated image generation pipeline
   // ═══════════════════════════════════════════════════════════════════════════
+// MULTIMODAL HELPER METHODS
+
+  /** Check if conversation history contains image parts */
+  _hasConversationImages(conversationHistory = []) {
+    if (!Array.isArray(conversationHistory)) return false;
+    for (const msg of conversationHistory) {
+      if (!msg || !msg.content) continue;
+      if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part?.type === 'image_url' || part?.type === 'image' || part?.image_url || part?.inlineData) return true;
+        }
+      }
+      if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) return true;
+      if (msg.inlineData) return true;
+    }
+    return false;
+  }
+
+  /** Detect if image context should route to multimodal model (Gemini) */
+  _isMultimodalRoute(conversationHistory) {
+    if (!this._hasConversationImages(conversationHistory)) return false;
+    if (!geminiProviderInstance.isConfigured()) return false;
+    const route = modelRoutingServiceInstance.determineRoute({
+      messages: conversationHistory,
+      capability: 'FAST_CHAT'
+    });
+    return route.provider === 'gemini' || route.strategy === 'cloud_multimodal';
+  }
+
+  /** Convert conversation history to multimodal-capable message format for Gemini */
+  _buildMultimodalMessages(conversationHistory = []) {
+    const messages = [];
+    for (const msg of conversationHistory) {
+      if (!msg || !msg.content) continue;
+      const textParts = [];
+      const imageParts = [];
+      if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (!part) continue;
+          if (part.type === 'text' || typeof part === 'string') {
+            textParts.push(typeof part === 'string' ? { text: part } : { text: part.text || part });
+          } else if (part.type === 'image_url' || part.type === 'image' || part.image_url || part.inlineData) {
+            const url = part.image_url?.url || part.image_url || part.dataUrl || null;
+            if (url) imageParts.push(url);
+          }
+        }
+      } else if (typeof msg.content === 'string') {
+        textParts.push({ text: msg.content });
+      }
+      if (imageParts.length > 0) {
+        messages.push({
+          role: msg.role,
+          parts: [
+            ...textParts.map(t => ({ text: t.text })),
+            ...imageParts.map(url => ({ inlineData: { mimeType: 'image/jpeg', data: url } }))
+          ]
+        });
+      } else if (textParts.length > 0) {
+        messages.push({
+          role: msg.role,
+          parts: textParts.map(t => ({ text: t.text }))
+        });
+      }
+    }
+    return messages;
+  }
+
   async _executeImageGeneration(rawGoal, decision, routing, sessionContext, options, startTime, timeline) {
     const generationId = options.generationId;
     const messageId = options.messageId || null;

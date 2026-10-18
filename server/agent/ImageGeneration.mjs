@@ -38,7 +38,7 @@ import zlib from 'zlib';
 import '../config/env.mjs';
 import { imageOutputSizePolicyInstance, MAX_IMAGE_BYTES, TARGET_IMAGE_BYTES } from './ImageOutputSizePolicy.mjs';
 import { IMAGE_WIDTH, IMAGE_HEIGHT, DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
-import { assertNoPollinationsImageProvider } from './adapters/GeminiImageAdapter.mjs';
+import { assertNoPollinationsImageProvider, geminiImageAdapterInstance } from './adapters/GeminiImageAdapter.mjs';
 import { nineRouterGatewayAdapterInstance, reduceAspectRatio } from './adapters/NineRouterGatewayAdapter.mjs';
 import { imageStudioInstance } from '../studio/image/ImageStudio.mjs';
 
@@ -72,6 +72,8 @@ const IMAGE_PROVIDERS = {
   MOCK: 'MOCK',
   MOCK_FAILURE: 'MOCK_FAILURE',
   NINEROUTER: 'NINEROUTER',
+  // Auto-fallback when 9Router is unavailable (offline/down)
+  GEMINI_FALLBACK: 'GEMINI_FALLBACK',
   // Deactivated historical providers — kept ONLY for explicit rejection messages.
   DEACTIVATED: ['GEMINI', 'TOGETHER_AI', 'OLLAMA', 'POLLINATIONS']
 };
@@ -117,11 +119,28 @@ export class ImageGenerationService {
       return { available: false, provider: IMAGE_PROVIDERS.NINEROUTER, reason: forceResult.reason };
     }
 
-    // 2. Default: live 9Router discovery probe (the ONLY image gateway).
+    // 2. Default: live 9Router discovery probe (PRIMARY image gateway).
     const probeResult = await nineRouterGatewayAdapterInstance.probe({ fetchFn });
     if (probeResult.available) {
       return { available: true, provider: IMAGE_PROVIDERS.NINEROUTER, reason: probeResult.reason };
     }
+
+    // 3. Auto-fallback: when 9Router is offline, try Gemini direct API.
+    //    This is NOT a permanent provider switch — 9Router remains primary.
+    //    Activates only when 9Router is completely unreachable (port down, etc).
+    const hasGeminiKey = (() => {
+      try {
+        const keys = geminiImageAdapterInstance && geminiImageAdapterInstance.name ? true : false;
+        const rawKey = process.env.GEMINI_API_KEY || '';
+        return rawKey.length > 0;
+      } catch { return false; }
+    })();
+    const hasGeminiModel = !!(process.env.GEMINI_IMAGE_MODEL || '').trim();
+    if (hasGeminiKey && hasGeminiModel) {
+      console.warn('[ImageGeneration] 9Router unavailable — activating Gemini direct fallback. Reason: ' + probeResult.reason);
+      return { available: true, provider: IMAGE_PROVIDERS.GEMINI_FALLBACK, reason: `9Router offline; Gemini fallback active (model: ${process.env.GEMINI_IMAGE_MODEL})` };
+    }
+
     return { available: false, provider: IMAGE_PROVIDERS.NINEROUTER, reason: probeResult.reason };
   }
 
@@ -312,6 +331,9 @@ export class ImageGenerationService {
       result = await this._generateMock(normalizedParams);
     } else if (dispatchProvider === IMAGE_PROVIDERS.NINEROUTER) {
       result = await this._generateNineRouter(normalizedParams, fetchFn);
+    } else if (dispatchProvider === IMAGE_PROVIDERS.GEMINI_FALLBACK) {
+      // 9Router was offline at probe time — use Gemini direct as auto-fallback.
+      result = await this._generateGeminiFallback(normalizedParams, fetchFn);
     } else if (IMAGE_PROVIDERS.DEACTIVATED.includes(dispatchProvider)) {
       // Explicit hard boundary: providers below are intentionally deactivated.
       result = {
@@ -341,7 +363,93 @@ export class ImageGenerationService {
     return result;
   }
 
-  // ── NineRouter Implementation (the ONLY image-generation gateway) ────────
+  // ── Gemini Fallback (activated ONLY when 9Router is offline) ────────────
+  //
+  // This path is automatically activated by capabilityProbe() when 9Router
+  // (port 20128) is completely unreachable. It bridges GeminiImageAdapter
+  // output to the same artifact format used by _generateNineRouter().
+
+  async _generateGeminiFallback(params, fetchFn) {
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, generationId, messageId, signal } = params;
+    const reqId = params.requestId || generationId || messageId || `gemini-fb-${Date.now()}`;
+    const tag = `[ImageGeneration|${reqId}|GEMINI_FALLBACK] `;
+    const cleanPrompt = prompt || normalizedPrompt || originalPrompt || '';
+
+    console.log(`${tag}Generating via Gemini fallback. aspectRatio=${aspectRatio || '16:9'} model=${process.env.GEMINI_IMAGE_MODEL}`);
+
+    let geminiResult;
+    try {
+      geminiResult = await geminiImageAdapterInstance.generateImage({
+        prompt: cleanPrompt,
+        negativePrompt: negativePrompt || '',
+        aspectRatio: aspectRatio || '16:9',
+        requestId: reqId,
+        signal: signal || null,
+        fetchFn: fetchFn || globalThis.fetch
+      });
+    } catch (err) {
+      console.error(`${tag}Gemini fallback threw: ${err.message}`);
+      return {
+        success: false,
+        error: `IMAGE_GENERATION_FAILED: Gemini fallback error: ${err.message}`,
+        reasonCode: 'GEMINI_FALLBACK_ERROR'
+      };
+    }
+
+    if (!geminiResult || !geminiResult.success) {
+      const errMsg = geminiResult?.error || 'Gemini fallback returned no result';
+      console.error(`${tag}Gemini fallback failed: ${errMsg}`);
+      return {
+        success: false,
+        error: `IMAGE_GENERATION_FAILED: ${errMsg}`,
+        reasonCode: geminiResult?.reasonCode || 'GEMINI_FALLBACK_FAILED'
+      };
+    }
+
+    // Apply size policy (< 1 MB)
+    const rawBuffer = geminiResult.buffer || geminiResult.bytes;
+    if (!rawBuffer || rawBuffer.length === 0) {
+      return { success: false, error: 'IMAGE_GENERATION_FAILED: Gemini fallback returned empty buffer', reasonCode: 'GEMINI_FALLBACK_EMPTY' };
+    }
+
+    // Adapt aspect ratio if needed
+    const adaptedBuffer = await this.adaptToAspectRatio(rawBuffer, aspectRatio || '16:9');
+    const finalBuffer = adaptedBuffer || rawBuffer;
+
+    // Apply size policy
+    const policyResult = await imageOutputSizePolicyInstance.ensureUnderLimit(finalBuffer);
+    const outputBuffer = policyResult?.success && policyResult.buffer ? policyResult.buffer : finalBuffer;
+
+    // Persist artifact same as NineRouter path (_persistArtifact is synchronous)
+    let artifact;
+    try {
+      artifact = this._persistArtifact(outputBuffer, {
+        prompt: cleanPrompt,
+        originalPrompt: cleanPrompt,
+        normalizedPrompt: cleanPrompt,
+        aspectRatio: aspectRatio || '16:9',
+        provider: 'GEMINI_FALLBACK',
+        model: geminiResult.model || process.env.GEMINI_IMAGE_MODEL || 'gemini',
+        requestId: reqId,
+        mimeType: geminiResult.mimeType || 'image/jpeg'
+      });
+    } catch (persistErr) {
+      console.error(`${tag}Artifact persist failed: ${persistErr.message}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Artifact persistence failed: ${persistErr.message}`, reasonCode: 'ARTIFACT_PERSIST_FAILED' };
+    }
+
+    console.log(`${tag}Gemini fallback SUCCESS. bytes=${outputBuffer.length} artifact=${artifact?.url}`);
+    return {
+      success: true,
+      artifact,
+      provider: 'GEMINI_FALLBACK',
+      model: geminiResult.model || process.env.GEMINI_IMAGE_MODEL,
+      fallbackUsed: true,
+      requestId: reqId
+    };
+  }
+
+  // ── NineRouter Implementation (PRIMARY image-generation gateway) ─────────
   //
   // Flow: OpenAI via 9Router → visual spec → discovery-driven model selection
   // → 9Router /v1/images/generations → size policy → artifact persistence

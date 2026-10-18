@@ -154,21 +154,21 @@ export class ImageModelSelector {
 
     const scoreFor = (id) => {
       let score = 0;
-      
-      // Unified Scoring: Hanya mementingkan parameter rasio (honourAspect), bukan "jenis pipeline"
-      if (honourAspect) {
-        // Prioritas model aspect-capable untuk rasio lebar/panjang (16:9 / 9:16)
-        if (/cx\/gpt-5/i.test(id)) score += 12;
-        if (/gemini/i.test(id)) score += 6;
-      } else {
-        // Prioritas model cepat (ultra-fast) untuk rasio kotak (1:1)
-        if (/gemini/i.test(id)) score += 12;
-        if (/cx\/gpt-5/i.test(id)) score += 8;
-      }
-      
-      // Unified fallback
-      if (/gpt-image|image-1/i.test(id)) score += 3;
-      
+
+      // ag/gemini models: proven to work, prioritize for ALL aspect ratios
+      if (/ag\/gemini/i.test(id)) score += 20;
+      // Standard gemini image models
+      if (/gemini.*image|gemini.*flash.*image/i.test(id)) score += 15;
+      // Any other gemini variants
+      if (/gemini/i.test(id) && score === 0) score += 8;
+
+      // cx/gpt-5 models: often fail on Codex accounts ("not supported")
+      // Keep them discoverable but DON'T choose them first.
+      if (/cx\/gpt-5/i.test(id)) score += 2;
+
+      // gpt-image / dall-e style fallbacks
+      if (/gpt-image|image-1|dall-e/i.test(id)) score += 3;
+
       return score + 1;
     };
 

@@ -1,6 +1,8 @@
 /* index.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@source "./src";
+@source "./index.html";
 
 @theme {
   /* Override Tailwind v4 default indigo to APASIFIC Gold */

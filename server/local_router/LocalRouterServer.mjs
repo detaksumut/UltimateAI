@@ -3413,10 +3413,10 @@ Requirements:
               }
             }
 
-            // Auto-detect 16:9 or 9:16 from user prompt
+            // Auto-detect 16:9, 9:16, or 1:1 from user prompt
             const { ImageGenerationService } = await import('../agent/ImageGeneration.mjs');
             const fallbackAspectRatio = ImageGenerationService.detectAspectRatio(userPrompt, '16:9');
-            const fallbackSize = fallbackAspectRatio === '9:16' ? '512x912' : '912x512';
+            const fallbackSize = fallbackAspectRatio === '9:16' ? '576x1024' : fallbackAspectRatio === '1:1' ? '1024x1024' : '1024x576';
 
             const imageResult = await imageGenerationInstance.generateImage({
               prompt: imagePrompt,
