@@ -337,13 +337,12 @@ export default async function handler(req, res) {
       const sseId = 'chatcmpl-image-' + Date.now();
       const sseModel = model || 'gemini-image';
 
-      // Prefer 9Router (SAME provider as localhost) when configured/reachable;
-      // fall back to Gemini when 9Router is unavailable/unconfigured.
-      let gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
-      const nineRouterError = gen.success ? null : gen.error;
-      if (!gen.success) {
-        gen = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio);
-      }
+      // LIVE IMAGE POLICY: 9Router-only — IDENTICAL mechanism to localhost.
+      // Do NOT fall back to direct Gemini here: the owner's own Gemini keys
+      // keep hitting project (403) / quota (429) walls, while 9Router serves
+      // image from its own provider account (ag/gemini-3.1-flash-image).
+      // On failure the real 9Router/tunnel error is reported honestly below.
+      const gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
 
       let textContent;
       let agentMeta = null;
@@ -359,10 +358,7 @@ export default async function handler(req, res) {
           messageId
         };
       } else {
-        textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}`;
-        if (nineRouterError) {
-          textContent += `\n\n[JALUR UTAMA 9ROUTER/TUNNEL GAGAL: ${nineRouterError}]`;
-        }
+        textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}\n\n(Jalur ini sama persis dengan localhost: via 9Router Tunnel1. Pastikan 9Router (:20128) hidup dan tunnel aktif.)`;
       }
 
       if (stream) {
