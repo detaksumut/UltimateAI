@@ -129,7 +129,14 @@ async function generateImageWithGemini(prompt, aspectRatio, signal) {
 
   // gemini-2.5-flash-image is the current image-capable model (older
   // gemini-2.0-flash-exp has been retired → 404). Override via GEMINI_IMAGE_MODEL.
-  const model = (process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image').trim();
+  // Guard against STALE env config: if the env pins a known-retired model,
+  // silently fall back to the current default instead of failing every key.
+  const RETIRED_IMAGE_MODELS = ['gemini-2.0-flash-exp', 'gemini-2.0-flash'];
+  let model = (process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image').trim();
+  if (RETIRED_IMAGE_MODELS.includes(model)) {
+    console.warn(`[GeminiImage] Env GEMINI_IMAGE_MODEL="${model}" is retired; using gemini-2.5-flash-image instead.`);
+    model = 'gemini-2.5-flash-image';
+  }
   const modelPath = model.startsWith('models/') ? model : `models/${model}`;
   const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
   let lastError = null;
