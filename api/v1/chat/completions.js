@@ -260,7 +260,11 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
     { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
     { model, prompt: fullPrompt, n: 1, size: targetSize }
   ];
-  for (const reqBody of attemptBodies) {
+  // The free trycloudflare tunnel in front of a home 9Router can drop long-lived generation POSTs with a transient 502 (16s proxy cut observed). Retry those (and connection resets) up to 3 attempts before giving up.
+  const MAX_GEN_ATTEMPTS = 3;
+  let lastTransientError = null;
+  for (let generationAttempt = 1; generationAttempt <= MAX_GEN_ATTEMPTS; generationAttempt++) {
+    for (const reqBody of attemptBodies) {
     try {
       const gr = await fetch(`${base}/v1/images/generations`, {
         method: 'POST',
@@ -272,6 +276,10 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
         const t = await gr.text().catch(() => '');
         const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
         if (unknownParam) continue; // retry without response_format
+        if ((gr.status === 502 || gr.status === 503 || gr.status === 504) && generationAttempt < MAX_GEN_ATTEMPTS) {
+          lastTransientError = `9Router HTTP ${gr.status}`;
+          break; // outer loop: start a fresh full attempt
+        }
         return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
       }
       const gj = await gr.json().catch(() => null);
@@ -287,10 +295,18 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
       }
       return { success: true, dataUrl, model, gateway: '9ROUTER' };
     } catch (err) {
-      return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
+      if (signal?.aborted) {
+        return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
+      }
+      lastTransientError = `9Router error: ${maskSecrets(err.message)}`;
+      break; // outer loop: fresh attempt
     }
   }
-  return { success: false, error: '9Router menolak parameter response_format.' };
+    if (generationAttempt < MAX_GEN_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 1500 * generationAttempt));
+    }
+  }
+  return { success: false, error: lastTransientError || '9Router menolak parameter response_format.' };
 }
 
 /** Write an OpenAI-compatible SSE delta chunk (with optional _agent metadata). */
@@ -532,3 +548,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: { message: err.message } });
   }
 }
+
+
