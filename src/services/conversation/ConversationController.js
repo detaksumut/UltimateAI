@@ -640,9 +640,14 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       }
 
       // Display-Speech Separation & TTS Voice Synthesis (Speaker Toggle aware)
+      // MEDIA PLAYBACK responses (YouTube/iframe autoplays its own audio) must
+      // NEVER be TTS-spoken — otherwise two players (TTS + video) speak at once.
       let speechTriggered = false;
+      const isMediaPlayback =
+        (agentMetadata && (agentMetadata.intent === 'MEDIA_PLAYBACK' || agentMetadata.videoId)) ||
+        (agentMetadata && Array.isArray(agentMetadata.toolsUsed) && agentMetadata.toolsUsed.includes('youtube.search'));
       try {
-        if (voiceControllerInstance.isSpeakerEnabled()) {
+        if (voiceControllerInstance.isSpeakerEnabled() && !isMediaPlayback) {
           const separationResult = displaySpeechSeparationEngineInstance.separate(fullText, text);
           const speechContent = separationResult?.speechContent || '';
           if (speechContent) {
