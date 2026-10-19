@@ -196,13 +196,39 @@ function processTextAndImages(text, results) {
 }
 
 function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)", artifactType = "SLIDE_ARTIFACT", project = null, slides = null }) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Race-free load tracking: isLoaded is DERIVED (loadedSrc === src), never a
+  // bare boolean reset by an effect. A ~1MB data: URL can finish loading
+  // BEFORE React flushes the mount-passive-effect; the old implementation
+  // then clobbered isLoaded back to false and — since src never changed —
+  // onLoad never fired again → permanent spinner despite img.complete=true.
+  const [loadedSrc, setLoadedSrc] = useState(null);
   const [hasError, setHasError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  const imgRef = useRef(null);
+
+  const isLoaded = Boolean(src) && loadedSrc === src;
 
   useEffect(() => {
-    setIsLoaded(false);
     setHasError(false);
-  }, [src]);
+    // If the element already finished decoding before/around mount (cached or
+    // instant data: URL), mark loaded directly — event ordering doesn't matter.
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) {
+      setLoadedSrc(src);
+      return undefined;
+    }
+    // Watchdog: never spin forever. If the asset fails to decode within the
+    // budget, surface an error state (with retry) instead of eternal spinner.
+    const timer = setTimeout(() => {
+      const live = imgRef.current;
+      if (live && live.complete && live.naturalWidth > 0) {
+        setLoadedSrc(src);
+      } else {
+        setHasError(true);
+      }
+    }, 25000);
+    return () => clearTimeout(timer);
+  }, [src, retryKey]);
 
   const isSlideStudio = artifactType === 'SLIDE_ARTIFACT' || artifactType === 'SLIDE_DECK' || artifactType === 'SLIDE_DECK_ARTIFACT';
   const badgePrefix = isSlideStudio ? 'SLIDE STUDIO' : 'JIN VISUAL ASSET';
@@ -241,11 +267,38 @@ function SlideVisualOrchestrator({ src, title = "SLIDE PRESENTATION (16:9 HD)", 
         </div>
       )}
 
+      {/* Explicit failure state (replaces silent blank box): asset could not
+          be decoded. Keep the download link + a retry that remounts the img. */}
+      {hasError && !isLoaded && (
+        <div className="w-full p-4 bg-red-950/30 border border-red-500/30 text-center font-mono text-xs text-red-300 flex flex-col items-center gap-2">
+          <span className="font-bold">VISUAL ASSET GAGAL DIMUAT</span>
+          <span className="text-[10px] text-slate-400">Pratinjau tidak dapat di-decode. Coba lagi, atau unduh asetnya langsung.</span>
+          <div className="flex items-center gap-2">
+            <a
+              href={src}
+              download={`jin_visual_${Date.now()}.jpg`}
+              className="px-2.5 py-1 rounded bg-cyan-900/60 hover:bg-cyan-800 border border-cyan-500/40 text-cyan-200 text-[10px]"
+            >
+              Unduh Visual
+            </a>
+            <button
+              type="button"
+              onClick={() => setRetryKey((k) => k + 1)}
+              className="px-2.5 py-1 rounded bg-red-900/60 hover:bg-red-800 border border-red-500/40 text-red-200 text-[10px]"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Orchestrated Image */}
       <img 
+        ref={imgRef}
+        key={retryKey}
         src={src} 
         alt="Master Slide Visual" 
-        onLoad={() => setIsLoaded(true)}
+        onLoad={() => setLoadedSrc(src)}
         onError={() => setHasError(true)}
         className={`w-full max-h-[480px] object-contain cursor-pointer hover:opacity-95 transition-opacity block ${
           isLoaded ? 'block' : 'hidden'
