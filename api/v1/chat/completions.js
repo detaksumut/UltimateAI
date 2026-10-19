@@ -358,7 +358,12 @@ export default async function handler(req, res) {
       // keep hitting project (403) / quota (429) walls, while 9Router serves
       // image from its own provider account (ag/gemini-3.1-flash-image).
       // On failure the real 9Router/tunnel error is reported honestly below.
-      const gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
+      let gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
+      if (!gen.success) {
+        const g2 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, signal);
+        if (g2.success) gen = g2;
+        else gen.error = '9Router: ' + gen.error + ' | Gemini: ' + g2.error;
+      }
 
       let textContent;
       let agentMeta = null;
