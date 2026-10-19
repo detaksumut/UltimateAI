@@ -529,6 +529,7 @@ export class ImageGenerationService {
 
       let generation = null;
       let chosenModel = null;
+      let firstGatewayError = null;
       let lastGatewayError = null;
       let aspectMismatch = null;
       let bestAttemptFallback = null;
@@ -557,6 +558,7 @@ export class ImageGenerationService {
           });
           if (!attempt.success || !attempt.imageBytes) {
             lastGatewayError = attempt;
+            if (!firstGatewayError) firstGatewayError = attempt;
             console.warn(`${tag}[MODEL_SWITCH] candidate ${candidate.model} size=${sizeHint || 'default'} failed (${attempt.code || 'NINEROUTER_HTTP'}) — trying next size/candidate (still within 9ROUTER).`);
             continue;
           }
@@ -624,8 +626,13 @@ maxBytes=1000000`);
       }
 
       if (!generation) {
-        const err = lastGatewayError || {};
-        console.error(`${tag}[9ROUTER] All ${candidates.length} discovered candidate(s) failed (code=${err.code}): ${err.error}${aspectMismatch ? `; last aspect mismatch on ${aspectMismatch.candidate}@${aspectMismatch.size}: requested ${aspectMismatch.requested}, got ${aspectMismatch.width}x${aspectMismatch.height}` : ''}`);
+        // Report the FIRST failure (root cause — e.g. 429 quota on the primary
+        // model), not the last (which is usually a low-priority fallback model
+        // and hides why generation actually failed).
+        const err = firstGatewayError || lastGatewayError || {};
+        const lastErr = lastGatewayError || {};
+        const tail = lastErr.error && lastErr.error !== err.error ? ` | last candidate: ${lastErr.error}` : '';
+        console.error(`${tag}[9ROUTER] All ${candidates.length} discovered candidate(s) failed (code=${err.code}): ${err.error}${tail}${aspectMismatch ? `; last aspect mismatch on ${aspectMismatch.candidate}@${aspectMismatch.size}: requested ${aspectMismatch.requested}, got ${aspectMismatch.width}x${aspectMismatch.height}` : ''}`);
         return {
           success: false,
           error: err.error || 'IMAGE_GENERATION_FAILED',

@@ -123,7 +123,16 @@ export class ImageModelSelector {
       return { ok: false, reason: 'IMAGE_MODEL_UNAVAILABLE: 9Router returned no discoverable image models.', code: 'IMAGE_MODEL_UNAVAILABLE' };
     }
 
-    const ids = availableModels.map((m) => (typeof m === 'string' ? m : m?.id)).filter(Boolean);
+    // HARD CUT (localhost policy): models that ALWAYS fail on this gateway
+    // (Codex/ChatGPT account rejects gpt-5.x image: "not supported when using
+    // Codex"). They stay discoverable in /v1/models/image logs, but are NEVER
+    // generation candidates — so they cannot leak into the final error as the
+    // "last failure" that hides the real root cause (e.g. 429 quota).
+    const ALWAYS_BROKEN_MODEL_RE = /^(?:cx|codex)\/gpt-5/i;
+    const ids = availableModels
+      .map((m) => (typeof m === 'string' ? m : m?.id))
+      .filter(Boolean)
+      .filter((id) => !ALWAYS_BROKEN_MODEL_RE.test(id));
     const infoOf = (id) => (typeof fetchModelInfo === 'function' ? (fetchModelInfo(id) || null) : null);
     const paramsOf = (id) => {
       const p = infoOf(id)?.params;
