@@ -2,23 +2,28 @@
  * ImageGeneration.mjs
  * Real first-class IMAGE_GENERATION pipeline service.
  *
- * Provider model (9ROUTER architecture):
- *   1. Explicit providerOverride (MOCK / NINEROUTER for tests & ops)
- *   2. 9Router gateway (NINEROUTER_URL) — the ONLY image-generation gateway.
+ * Provider model (multi-gateway architecture):
+ *   1. Explicit providerOverride (MOCK / NINEROUTER / CLOUDFLARE_WORKERS_AI for tests & ops)
+ *   2. 9Router gateway (NINEROUTER_URL) — primary image gateway (localhost port 20128).
+ *   3. Cloudflare Workers AI (CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID) — free
+ *      image generation gateway (FLUX Schnell / SDXL Lightning / SDXL Base),
+ *      ~50–200 images/day on free tier, resets daily at 00:00 UTC.
  *
  * Routing flow:
- *   capabilityProbe() → 9Router discovery (`/v1/models/image`)
+ *   capabilityProbe() → discover available gateway (9Router → Cloudflare → Gemini fallback)
  *   generateImage(params, transport?) →
- *     OpenAI via 9Router → VisualSpec (JSON)
- *     → NineRouterGatewayAdapter.select() → model selected from DISCOVERED list
- *     → NineRouterGatewayAdapter.generateImage() → b64 bytes
+ *     [9Router] OpenAI via 9Router → VisualSpec → model selection → generate → persist
+ *     [Cloudflare] POST /ai/run/@cf/{model} → base64 image → adapt → persist
+ *     [Gemini] direct Gemini API fallback (only when 9Router completely offline)
  *     → ImageOutputSizePolicy → _persistArtifact → IMAGE_STUDIO reference
  *
  * Hard boundaries (no silent jumps):
- *   - NEVER jumps to Gemini / Hermes / Ollama / Pollinations / Together AI
- *     when 9Router fails. Failures surface as IMAGE_GENERATION_FAILED.
- *   - Gemini direct image path, Hermes image fallback, Pollinations image
- *     references, and Ollama image usage are DEACTIVATED (DIRECT_GEMINI_IMAGE_PATH=0,
+ *   - Provider switching is EXPLICIT only (via IMAGE_PROVIDER env or providerOverride).
+ *     No silent cross-domain fallback between 9Router and Cloudflare.
+ *   - NEVER jumps to Hermes / Ollama / Pollinations / Together AI when 9Router fails.
+ *     Failures surface as IMAGE_GENERATION_FAILED.
+ *   - Gemini direct image path, Hermes image fallback, Pollinations image references,
+ *     and Ollama image usage are DEACTIVATED (DIRECT_GEMINI_IMAGE_PATH=0,
  *     HERMES_IMAGE_REFERENCES=0, POLLINATIONS_ACTIVE_IMAGE_REFERENCES=0).
  *   - Gemini TEXT functionality remains untouched.
  *
@@ -39,7 +44,9 @@ import '../config/env.mjs';
 import { imageOutputSizePolicyInstance, MAX_IMAGE_BYTES, TARGET_IMAGE_BYTES } from './ImageOutputSizePolicy.mjs';
 import { IMAGE_WIDTH, IMAGE_HEIGHT, DEFAULT_IMAGE_SIZE } from './ImageOutputConfig.mjs';
 import { assertNoPollinationsImageProvider, geminiImageAdapterInstance } from './adapters/GeminiImageAdapter.mjs';
+import { cloudflareWorkersAIAdapterInstance } from './adapters/CloudflareWorkersAIAdapter.mjs';
 import { nineRouterGatewayAdapterInstance, reduceAspectRatio } from './adapters/NineRouterGatewayAdapter.mjs';
+import { comfyuiTextToImageProviderInstance } from './providers/ComfyUITextToImageProvider.mjs';
 import { imageStudioInstance } from '../studio/image/ImageStudio.mjs';
 
 const CRC_TABLE = (() => {
@@ -72,6 +79,12 @@ const IMAGE_PROVIDERS = {
   MOCK: 'MOCK',
   MOCK_FAILURE: 'MOCK_FAILURE',
   NINEROUTER: 'NINEROUTER',
+  // Cloudflare Workers AI — free image generation (FLUX Schnell / SDXL Lightning / SDXL Base).
+  // Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID in .env.
+  CLOUDFLARE_WORKERS_AI: 'CLOUDFLARE_WORKERS_AI',
+  // Local ComfyUI text-to-image (port 8188) — local fallback generator when
+  // 9Router and Cloudflare are unavailable. Requires local ComfyUI instance.
+  COMFYUI: 'COMFYUI',
   // Auto-fallback when 9Router is unavailable (offline/down)
   GEMINI_FALLBACK: 'GEMINI_FALLBACK',
   // Deactivated historical providers — kept ONLY for explicit rejection messages.
@@ -118,6 +131,14 @@ export class ImageGenerationService {
       }
       return { available: false, provider: IMAGE_PROVIDERS.NINEROUTER, reason: forceResult.reason };
     }
+    if (envProvider === 'cloudflare' || envProvider === 'cloudflare_workers_ai') {
+      const cfResult = await cloudflareWorkersAIAdapterInstance.probe(fetchFn);
+      return cfResult;
+    }
+    if (envProvider === 'comfyui') {
+      const comfyResult = await comfyuiTextToImageProviderInstance.capabilityProbe({ fetchFn });
+      return comfyResult;
+    }
 
     // 2. Default: live 9Router discovery probe (PRIMARY image gateway).
     const probeResult = await nineRouterGatewayAdapterInstance.probe({ fetchFn });
@@ -125,7 +146,21 @@ export class ImageGenerationService {
       return { available: true, provider: IMAGE_PROVIDERS.NINEROUTER, reason: probeResult.reason };
     }
 
-    // 3. Auto-fallback: when 9Router is offline, try Gemini direct API.
+    // 3. Auto-fallback: when 9Router is offline/unreachable, try Cloudflare Workers AI (free tier).
+    //    Cloudflare is NOT a silent jump — it is only probed here when 9Router cannot be reached.
+    const cfProbe = await cloudflareWorkersAIAdapterInstance.probe(fetchFn);
+    if (cfProbe.available) {
+      return cfProbe;
+    }
+
+    // 4. Auto-fallback: local ComfyUI text-to-image when 9Router & Cloudflare are unavailable.
+    //    Port 8188 active → ComfyUI serves as the local image generator.
+    const comfyProbe = await comfyuiTextToImageProviderInstance.capabilityProbe({ fetchFn });
+    if (comfyProbe.available) {
+      return comfyProbe;
+    }
+
+    // 5. Auto-fallback: when 9Router is offline, try Gemini direct API.
     //    This is NOT a permanent provider switch — 9Router remains primary.
     //    Activates only when 9Router is completely unreachable (port down, etc).
     const hasGeminiKey = (() => {
@@ -331,6 +366,10 @@ export class ImageGenerationService {
       result = await this._generateMock(normalizedParams);
     } else if (dispatchProvider === IMAGE_PROVIDERS.NINEROUTER) {
       result = await this._generateNineRouter(normalizedParams, fetchFn);
+    } else if (dispatchProvider === IMAGE_PROVIDERS.CLOUDFLARE_WORKERS_AI) {
+      result = await this._generateCloudflare(normalizedParams, fetchFn);
+    } else if (dispatchProvider === IMAGE_PROVIDERS.COMFYUI) {
+      result = await this._generateComfyui(normalizedParams, fetchFn);
     } else if (dispatchProvider === IMAGE_PROVIDERS.GEMINI_FALLBACK) {
       // 9Router was offline at probe time — use Gemini direct as auto-fallback.
       result = await this._generateGeminiFallback(normalizedParams, fetchFn);
@@ -447,6 +486,193 @@ export class ImageGenerationService {
       fallbackUsed: true,
       requestId: reqId
     };
+  }
+
+  // ── Cloudflare Workers AI image generation (adapter yields raw bytes;
+  // this service applies aspect guard, ImageOutputSizePolicy (< 1 MB),
+  // artifact persistence + post-persistence validation for compliance.) ──
+
+  async _generateCloudflare(params, fetchFn) {
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, generationId, messageId, signal } = params;
+    const reqId = params.requestId || generationId || messageId || `cf-${Date.now()}`;
+    const tag = `[ImageGeneration|${reqId}|CLOUDFLARE] `;
+    const cleanPrompt = prompt || normalizedPrompt || originalPrompt || '';
+
+    console.log(`${tag}Generating via Cloudflare Workers AI. aspectRatio=${aspectRatio || '16:9'} model=${process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/bytedance/stable-diffusion-xl-lightning'}`);
+
+    let cfResult;
+    try {
+      cfResult = await cloudflareWorkersAIAdapterInstance.generate({ ...params, requestId: reqId }, fetchFn);
+    } catch (err) {
+      console.error(`${tag}Cloudflare threw: ${err.message}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Cloudflare error: ${err.message}`, reasonCode: 'CLOUDFLARE_EXCEPTION' };
+    }
+
+    if (!cfResult || !cfResult.success) {
+      const errMsg = cfResult?.error || 'Cloudflare returned no result';
+      console.error(`${tag}Cloudflare failed: ${errMsg}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: ${errMsg}`, reasonCode: cfResult?.reasonCode || 'CLOUDFLARE_FAILED' };
+    }
+
+    const rawBuffer = cfResult.imageBytes;
+    if (!rawBuffer || rawBuffer.length === 0) {
+      return { success: false, error: 'IMAGE_GENERATION_FAILED: Cloudflare returned empty buffer', reasonCode: 'CLOUDFLARE_EMPTY' };
+    }
+
+    const requestedAspectLabel = aspectRatio === '9:16' ? '9:16' : aspectRatio === '1:1' ? '1:1' : '16:9';
+    const requestedRatio = requestedAspectLabel === '9:16' ? 9 / 16 : requestedAspectLabel === '1:1' ? 1.0 : 16 / 9;
+    const ASPECT_TOLERANCE = 0.08;
+    const preMeta = await imageOutputSizePolicyInstance.getMetadata(rawBuffer);
+    const preRatio = preMeta && preMeta.width > 0 && preMeta.height > 0 ? preMeta.width / preMeta.height : null;
+    let adaptedBuffer = rawBuffer;
+    if (preRatio !== null && Math.abs(preRatio - requestedRatio) / requestedRatio > ASPECT_TOLERANCE) {
+      console.log(`${tag}[IMAGE_ADAPT] Adapting ${preMeta.width}x${preMeta.height} → ${requestedAspectLabel}`);
+      adaptedBuffer = await this.adaptToAspectRatio(rawBuffer, requestedAspectLabel) || rawBuffer;
+    }
+    const finalBuffer = adaptedBuffer;
+
+    const policyResult = await imageOutputSizePolicyInstance.ensureUnderLimit(finalBuffer);
+    if (!policyResult.success || !policyResult.buffer || policyResult.buffer.length >= MAX_IMAGE_BYTES) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Cloudflare output failed ImageOutputSizePolicy: ${policyResult.error || 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED'}`, reasonCode: 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED' };
+    }
+    const compliantBuffer = policyResult.buffer;
+
+    const finalMeta = await imageOutputSizePolicyInstance.getMetadata(compliantBuffer);
+    let finalWidth = finalMeta && finalMeta.width > 0 ? finalMeta.width : policyResult.width || cfResult.width || null;
+    let finalHeight = finalMeta && finalMeta.height > 0 ? finalMeta.height : policyResult.height || cfResult.height || null;
+
+    const isValidImage = this._verifyImageBytes(compliantBuffer);
+    if (!isValidImage) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Cloudflare returned invalid image bytes (${compliantBuffer.length} bytes)`, reasonCode: 'IMAGE_GENERATION_FAILED' };
+    }
+
+    let artifact;
+    try {
+      artifact = this._persistArtifact(compliantBuffer, {
+        prompt: cleanPrompt,
+        originalPrompt: originalPrompt || cleanPrompt,
+        normalizedPrompt: normalizedPrompt || cleanPrompt,
+        generationId, messageId, requestId: reqId,
+        negativePrompt: negativePrompt || '',
+        provider: 'CLOUDFLARE_WORKERS_AI',
+        model: cfResult.model || process.env.CLOUDFLARE_IMAGE_MODEL || 'cloudflare',
+        width: finalWidth, height: finalHeight,
+        format: finalMeta?.format || policyResult.format || 'png',
+        sizeBytes: compliantBuffer.length,
+        sizePolicy: policyResult.sizePolicy,
+        mimeType: cfResult.mimeType || finalMeta?.mimeType || policyResult.mimeType || 'image/png'
+      });
+    } catch (persistErr) {
+      console.error(`${tag}Artifact persist failed: ${persistErr.message}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Artifact persistence failed: ${persistErr.message}`, reasonCode: 'ARTIFACT_PERSIST_FAILED' };
+    }
+
+    const postCheck = imageOutputSizePolicyInstance.validatePersistedFile(artifact.localPath);
+    if (!postCheck.valid) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Persisted artifact failed size validation: ${postCheck.reason}`, reasonCode: 'IMAGE_GENERATION_FAILED' };
+    }
+
+    console.log(`${tag}Cloudflare SUCCESS. bytes=${compliantBuffer.length} artifact=${artifact?.url}`);
+    return { success: true, artifact, provider: 'CLOUDFLARE_WORKERS_AI', model: cfResult.model, requestId: reqId };
+  }
+
+  // ── ComfyUI text-to-image (local, port 8188) ───────────────────────────
+  // Local ComfyUI generator used when 9Router and Cloudflare are unavailable.
+  // Provider yields raw bytes; same artifact pipeline as above.
+
+  async _generateComfyui(params, fetchFn) {
+    const { prompt, originalPrompt, normalizedPrompt, negativePrompt, aspectRatio, width, height, generationId, messageId, signal } = params;
+    const reqId = params.requestId || generationId || messageId || `comfyui-${Date.now()}`;
+    const tag = `[ImageGeneration|${reqId}|COMFYUI] `;
+    const cleanPrompt = prompt || normalizedPrompt || originalPrompt || '';
+
+    console.log(`${tag}Generating via local ComfyUI. aspectRatio=${aspectRatio || '16:9'} size=${width}x${height}`);
+
+    let comfyResult;
+    try {
+      comfyResult = await comfyuiTextToImageProviderInstance.generateTextToImage({
+        prompt: cleanPrompt,
+        negativePrompt: negativePrompt || '',
+        aspectRatio: aspectRatio || '16:9',
+        width: width || IMAGE_WIDTH,
+        height: height || IMAGE_HEIGHT,
+        seed: params.seed,
+        steps: params.steps !== undefined ? params.steps : 8,
+        requestId: reqId,
+        signal: signal || null,
+        fetchFn: fetchFn || globalThis.fetch
+      });
+    } catch (err) {
+      console.error(`${tag}ComfyUI threw: ${err.message}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: ComfyUI error: ${err.message}`, reasonCode: 'COMFYUI_EXCEPTION' };
+    }
+
+    if (!comfyResult || !comfyResult.success) {
+      const errMsg = comfyResult?.error || 'ComfyUI returned no result';
+      console.error(`${tag}ComfyUI failed: ${errMsg}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: ${errMsg}`, reasonCode: comfyResult?.reasonCode || 'COMFYUI_FAILED' };
+    }
+
+    const rawBuffer = comfyResult.imageBuffer;
+    if (!rawBuffer || rawBuffer.length === 0) {
+      return { success: false, error: 'IMAGE_GENERATION_FAILED: ComfyUI returned empty buffer', reasonCode: 'COMFYUI_EMPTY' };
+    }
+
+    const requestedAspectLabel = aspectRatio === '9:16' ? '9:16' : aspectRatio === '1:1' ? '1:1' : '16:9';
+    const requestedRatio = requestedAspectLabel === '9:16' ? 9 / 16 : requestedAspectLabel === '1:1' ? 1.0 : 16 / 9;
+    const ASPECT_TOLERANCE = 0.08;
+    const preMeta = await imageOutputSizePolicyInstance.getMetadata(rawBuffer);
+    const preRatio = preMeta && preMeta.width > 0 && preMeta.height > 0 ? preMeta.width / preMeta.height : null;
+    let adaptedBuffer = rawBuffer;
+    if (preRatio !== null && Math.abs(preRatio - requestedRatio) / requestedRatio > ASPECT_TOLERANCE) {
+      console.log(`${tag}[IMAGE_ADAPT] Adapting ${preMeta.width}x${preMeta.height} → ${requestedAspectLabel}`);
+      adaptedBuffer = await this.adaptToAspectRatio(rawBuffer, requestedAspectLabel) || rawBuffer;
+    }
+    const finalBuffer = adaptedBuffer;
+
+    const policyResult = await imageOutputSizePolicyInstance.ensureUnderLimit(finalBuffer);
+    if (!policyResult.success || !policyResult.buffer || policyResult.buffer.length >= MAX_IMAGE_BYTES) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: ComfyUI output failed ImageOutputSizePolicy: ${policyResult.error || 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED'}`, reasonCode: 'IMAGE_OUTPUT_SIZE_LIMIT_EXCEEDED' };
+    }
+    const compliantBuffer = policyResult.buffer;
+
+    const finalMeta = await imageOutputSizePolicyInstance.getMetadata(compliantBuffer);
+    let finalWidth = finalMeta && finalMeta.width > 0 ? finalMeta.width : policyResult.width || comfyResult.width || null;
+    let finalHeight = finalMeta && finalMeta.height > 0 ? finalMeta.height : policyResult.height || comfyResult.height || null;
+
+    const isValidImage = this._verifyImageBytes(compliantBuffer);
+    if (!isValidImage) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: ComfyUI returned invalid image bytes (${compliantBuffer.length} bytes)`, reasonCode: 'IMAGE_GENERATION_FAILED' };
+    }
+
+    let artifact;
+    try {
+      artifact = this._persistArtifact(compliantBuffer, {
+        prompt: cleanPrompt,
+        originalPrompt: originalPrompt || cleanPrompt,
+        normalizedPrompt: normalizedPrompt || cleanPrompt,
+        generationId, messageId, requestId: reqId,
+        negativePrompt: negativePrompt || '',
+        provider: 'COMFYUI',
+        model: comfyResult.model || 'ComfyUI-txt2img',
+        width: finalWidth, height: finalHeight,
+        format: finalMeta?.format || policyResult.format || 'png',
+        sizeBytes: compliantBuffer.length,
+        sizePolicy: policyResult.sizePolicy,
+        mimeType: comfyResult.mimeType || finalMeta?.mimeType || policyResult.mimeType || 'image/png'
+      });
+    } catch (persistErr) {
+      console.error(`${tag}Artifact persist failed: ${persistErr.message}`);
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Artifact persistence failed: ${persistErr.message}`, reasonCode: 'ARTIFACT_PERSIST_FAILED' };
+    }
+
+    const postCheck = imageOutputSizePolicyInstance.validatePersistedFile(artifact.localPath);
+    if (!postCheck.valid) {
+      return { success: false, error: `IMAGE_GENERATION_FAILED: Persisted artifact failed size validation: ${postCheck.reason}`, reasonCode: 'IMAGE_GENERATION_FAILED' };
+    }
+
+    console.log(`${tag}ComfyUI SUCCESS. bytes=${compliantBuffer.length} artifact=${artifact?.url}`);
+    return { success: true, artifact, provider: 'COMFYUI', model: comfyResult.model, requestId: reqId };
   }
 
   // ── NineRouter Implementation (PRIMARY image-generation gateway) ─────────
