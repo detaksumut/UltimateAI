@@ -253,57 +253,75 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   }
 
   // 2. Generate — POST /v1/images/generations (first discovered model, like local).
-  // Prefer response_format=url (tiny payload, safe for Vercel limits) and retry
-  // without it when the gateway rejects the parameter.
+  // Prefer response_format=url (tiny payload, safe for Vercel limits) and fall back
+  // to the request without it when the gateway rejects the parameter.
   const model = models[0];
   const attemptBodies = [
     { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
     { model, prompt: fullPrompt, n: 1, size: targetSize }
   ];
-  // The free trycloudflare tunnel in front of a home 9Router can drop long-lived generation POSTs with a transient 502 (16s proxy cut observed). Retry those (and connection resets) up to 3 attempts before giving up.
-  const MAX_GEN_ATTEMPTS = 3;
+  // The free trycloudflare tunnel in front of a home 9Router drops long-lived
+  // generation POSTs with a transient 502 (observed ~16s proxy cut). Chain a few
+  // fresh attempts, trying both request shapes per attempt, before giving up.
+  const MAX_GEN_ATTEMPTS = 4;
+  const RETRY_DELAY_MS = 2000;
   let lastTransientError = null;
+
   for (let generationAttempt = 1; generationAttempt <= MAX_GEN_ATTEMPTS; generationAttempt++) {
+    let attemptFailed = false;
     for (const reqBody of attemptBodies) {
-    try {
-      const gr = await fetch(`${base}/v1/images/generations`, {
-        method: 'POST',
-        headers: { ...auth, 'Content-Type': 'application/json' },
-        body: JSON.stringify(reqBody),
-        signal: signal || AbortSignal.timeout(90000)
-      });
-      if (!gr.ok) {
-        const t = await gr.text().catch(() => '');
-        const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
-        if (unknownParam) continue; // retry without response_format
-        if ((gr.status === 502 || gr.status === 503 || gr.status === 504) && generationAttempt < MAX_GEN_ATTEMPTS) {
-          lastTransientError = `9Router HTTP ${gr.status}`;
-          break; // outer loop: start a fresh full attempt
+      try {
+        // Per-attempt 24s: chained with the stage signal (50s in handler) so
+        // the total retry chain fits inside Vercel 60s maxDuration.
+        const perAttemptCtrl = new AbortController();
+        const perAttemptTimer = setTimeout(
+          () => perAttemptCtrl.abort(new Error('9Router attempt timeout (24s)')),
+          24000
+        );
+        const combinedSignal = signal
+          ? AbortSignal.any([signal, perAttemptCtrl.signal])
+          : perAttemptCtrl.signal;
+        const gr = await fetch(`${base}/v1/images/generations`, {
+          method: 'POST',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody),
+          signal: combinedSignal
+        });
+        clearTimeout(perAttemptTimer);
+        if (!gr.ok) {
+          const t = await gr.text().catch(() => '');
+          const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
+          if (unknownParam) continue; // gateway rejected this param; try the other shape
+          if ((gr.status === 502 || gr.status === 503 || gr.status === 504)) {
+            lastTransientError = `9Router HTTP ${gr.status}`;
+            attemptFailed = true;
+            continue; // try the other request shape before backing off
+          }
+          return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
         }
-        return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
+        const gj = await gr.json().catch(() => null);
+        const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
+        let dataUrl = null;
+        if (typeof entry?.url === 'string' && entry.url) {
+          dataUrl = entry.url;
+        } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
+          dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
+        }
+        if (!dataUrl) {
+          return { success: false, error: '9Router tidak mengembalikan data gambar.' };
+        }
+        return { success: true, dataUrl, model, gateway: '9ROUTER' };
+      } catch (err) {
+        if (signal?.aborted) {
+          return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
+        }
+        lastTransientError = `9Router error: ${maskSecrets(err.message)}`;
+        attemptFailed = true;
+        continue; // connection reset / tunnel drop; try the other request shape
       }
-      const gj = await gr.json().catch(() => null);
-      const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
-      let dataUrl = null;
-      if (typeof entry?.url === 'string' && entry.url) {
-        dataUrl = entry.url;
-      } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
-        dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
-      }
-      if (!dataUrl) {
-        return { success: false, error: '9Router tidak mengembalikan data gambar.' };
-      }
-      return { success: true, dataUrl, model, gateway: '9ROUTER' };
-    } catch (err) {
-      if (signal?.aborted) {
-        return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
-      }
-      lastTransientError = `9Router error: ${maskSecrets(err.message)}`;
-      break; // outer loop: fresh attempt
     }
-  }
-    if (generationAttempt < MAX_GEN_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, 1500 * generationAttempt));
+    if (attemptFailed && generationAttempt < MAX_GEN_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * generationAttempt));
     }
   }
   return { success: false, error: lastTransientError || '9Router menolak parameter response_format.' };
@@ -358,11 +376,24 @@ export default async function handler(req, res) {
       // keep hitting project (403) / quota (429) walls, while 9Router serves
       // image from its own provider account (ag/gemini-3.1-flash-image).
       // On failure the real 9Router/tunnel error is reported honestly below.
-      let gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio);
-      if (!gen.success) {
-        const g2 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, signal);
-        if (g2.success) gen = g2;
-        else gen.error = '9Router: ' + gen.error + ' | Gemini: ' + g2.error;
+      // Vercel 60s budget: cap the ENTIRE image stage at 50s so the handler
+      // always returns before FUNCTION_INVOCATION_TIMEOUT. Abort early instead
+      // of letting 9Router(90s/try)+Gemini(90s/key) overrun. This also fixes the
+      // latent ReferenceError (bare `signal` was never defined in handler scope).
+      const stageCtrl = new AbortController();
+      const stageTimer = setTimeout(() => stageCtrl.abort(), 50000);
+      let gen;
+      try {
+        gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio, stageCtrl.signal);
+        if (!gen.success && !stageCtrl.signal.aborted) {
+          const g2 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, stageCtrl.signal);
+          if (g2.success) gen = g2;
+          else gen.error = `9Router: ${gen.error} | Gemini: ${g2.error}`;
+        }
+      } catch (stageErr) {
+        gen = gen || { success: false, error: `Tahap gambar dibatalkan agar tidak timeout (budget 50s): ${maskSecrets(stageErr.message)}` };
+      } finally {
+        clearTimeout(stageTimer);
       }
 
       let textContent;
