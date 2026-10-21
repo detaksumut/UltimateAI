@@ -20,6 +20,9 @@ import { imageGenerationInstance } from '../agent/ImageGeneration.mjs';
 import { imageOutputSizePolicyInstance, MAX_IMAGE_BYTES } from '../agent/ImageOutputSizePolicy.mjs';
 import { IMAGE_STEPS } from '../agent/ImageOutputConfig.mjs';
 import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/env.mjs';
+import { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';
+import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
+import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
   if (!artifact || !artifact.renderable) return false;
@@ -1946,14 +1949,20 @@ Requirements:
             return false;
           }
           const p = userPrompt.toLowerCase();
-          if (/\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you)\b/i.test(p)) return false; // Greeting guard
+
+          // Deteksi pertanyaan waktu/tanggal — jawab dari waktu sistem, bukan pencarian internet
+          const isDateTimeQuestion = /\b(tahun berapa|tanggal berapa|hari ini|sekarang|jam berapa|what (is|are) the (date|time|year)|hari apa|waktu saat ini)\b/i.test(p);
+          if (isDateTimeQuestion) return false;
+
+          // Greeting guard
+          if (/\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you)\b/i.test(p)) return false;
 
           // Explicit web search command only (Passive knowledge harvesting is handled by CuriosityDaemon at 07, 13, 17, 21 WIB)
-          const explicitSearch = /\b(cari\s+di\s+internet|carikan\s+di\s+internet|search\s+the\s+web|searching|browsing|browsingkan|cek\s+internet|lihat\s+internet|buka\s+internet|tavily|googling|gugling)\b/i.test(p);
+          const explicitSearch = /\b(cari\s+di\s+internet|carikan\s+di\s+internet|coba\s+cek\s+internet|cek\s+di\s+internet|search\s+the\s+web|searching|browsing|browsingkan|lihat\s+internet|buka\s+internet|googling|gugling)\b/i.test(p);
           if (explicitSearch) return true;
 
-          // Explicit pair: (cari/carikan/cek) + (internet/web/online/situs)
-          if (/\b(cari|carikan|cek|temukan)\b/i.test(p) && /\b(internet|web|online|situs)\b/i.test(p)) return true;
+          // Explicit pair: (cari/carikan/cek/temukan) + (internet/web/online/situs/berita/kabar/terkini/perkembangan)
+          if (/\b(cari|carikan|cek|temukan)\b/i.test(p) && /\b(internet|web|online|situs|berita|kabar|terkini|perkembangan)\b/i.test(p)) return true;
 
           return false;
         })();
@@ -4093,6 +4102,200 @@ Requirements:
       } catch (err) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'DEGRADED', vaultFiles: 0, indexed: 0, summary: err.message }));
+      }
+      return;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // JINI AI — WordPress Publisher Routes (beritaindonesia.news)
+    // ══════════════════════════════════════════════════════════════════════════════════
+
+    // POST /api/wordpress/test — Uji koneksi ke WordPress REST API
+    if (pathname === '/api/wordpress/test' && req.method === 'POST') {
+      try {
+        const result = await wordpressPublisherToolInstance.execute({ operation: 'test' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_TEST_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // GET /api/wordpress/posts — Daftar artikel
+    if (pathname === '/api/wordpress/posts' && req.method === 'GET') {
+      try {
+        const result = await wordpressPublisherToolInstance.execute({ operation: 'list_posts' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_LIST_POSTS_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // GET /api/wordpress/categories — Daftar kategori
+    if (pathname === '/api/wordpress/categories' && req.method === 'GET') {
+      try {
+        const result = await wordpressPublisherToolInstance.execute({ operation: 'list_categories' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_LIST_CATEGORIES_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // GET /api/wordpress/tags — Daftar tag
+    if (pathname === '/api/wordpress/tags' && req.method === 'GET') {
+      try {
+        const result = await wordpressPublisherToolInstance.execute({ operation: 'list_tags' });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_LIST_TAGS_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // POST /api/wordpress/media — Unggah gambar ke Media Library
+    if (pathname === '/api/wordpress/media' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const result = await wordpressPublisherToolInstance.execute({
+          operation: 'upload_media',
+          featured_image_url: body.featured_image_url,
+          title: body.title,
+          content: body.excerpt
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_UPLOAD_MEDIA_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // POST /api/wordpress/posts — Buat artikel (draft atau publish)
+    if (pathname === '/api/wordpress/posts' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const result = await wordpressPublisherToolInstance.execute({
+          operation: 'create_post',
+          title: body.title,
+          content: body.content,
+          excerpt: body.excerpt,
+          status: body.status || 'draft',
+          categories: body.categories,
+          tags: body.tags,
+          featured_image_url: body.featured_image_url,
+          slug: body.slug
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_CREATE_POST_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // JINI AI — Chat Endpoint (untuk widget chat beritaindonesia.news)
+    // ═════════════════════════════════════════════════════════════════════════════════
+
+    // POST /api/jini/chat — Kirim pesan ke JINI, dapatkan respons AI dengan sumber
+    if (pathname === '/api/jini/chat' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const { message = '', conversationId = 'jini-widget', searchNews = true } = body;
+
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'EMPTY_MESSAGE', message: 'Pesan tidak boleh kosong.' } }));
+          return;
+        }
+
+        let sources = [];
+        let searchUsed = false;
+
+        // Jika query berita, cari via Tavily
+        const newsKeywords = ['berita', 'news', 'kabar', 'terkini', 'update', 'hari ini', 'kemarin', 'politik', 'hukum', 'ekonomi', 'nasional'];
+        const isNewsQuery = searchNews && newsKeywords.some(k => message.toLowerCase().includes(k));
+
+        if (isNewsQuery) {
+          try {
+            const searchResult = await webSearchToolInstance.execute({ query: message, maxResults: 5 });
+            if (searchResult && searchResult.sources && searchResult.sources.length > 0) {
+              sources = searchResult.sources.map((s, i) => ({
+                id: `src_${i + 1}`,
+                title: s.title || '',
+                url: s.url || '',
+                domain: s.domain || '',
+                snippet: s.snippet || '',
+                category: s.category || 'GENERAL'
+              }));
+              searchUsed = true;
+            }
+          } catch (searchErr) {
+            console.warn('[JINI Chat] Tavily search failed:', searchErr.message);
+          }
+        }
+
+        // Bangun konteks sistem untuk JINI AI
+        const systemPrompt = `Anda adalah JINI AI, asisten cerdas untuk portal berita Berita Indonesia (beritaindonesia.news).
+Informasi waktu saat ini: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} (WIB / Asia/Jakarta).
+Jika ditanya tentang tanggal, tahun, hari, atau waktu saat ini — jawab dari informasi waktu di atas. Jangan mengklaim telah mencari ke internet untuk menjawab pertanyaan waktu.
+Tugas Anda: menjawab pertanyaan pengunjung tentang berita nasional, hukum, ekonomi, dan topik lain.
+Aturan:
+- Jawab dalam bahasa Indonesia yang sopan, profesional, dan objektif.
+- Jika ada sumber pencarian, sertakan judul dan tautan sumber agar dapat diverifikasi.
+- Untuk berita hukum atau dugaan tindak pidana, bedakan dugaan, pernyataan aparat, dan fakta yang telah diputus pengadilan. Jangan terbitkan tuduhan belum terverifikasi sebagai fakta.
+- Jangan mengarang informasi. Jika tidak yakin, katakan Anda tidak yakin.
+- Jangan menyertakan kata sandi, token, atau kredensial dalam jawaban.
+${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${s.title} (${s.url})`).join('\n') : ''}`;
+
+        // Kirim ke model AI melalui ModelRoutingService (FAST_CHAT)
+        const aiResult = await modelRoutingServiceInstance.routeChat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          capability: 'FAST_CHAT',
+          stream: false,
+          temperature: 0.4
+        });
+
+        const aiContent = aiResult && aiResult.content ? aiResult.content : 'Maaf, saya tidak dapat menghasilkan respons saat ini.';
+
+        let replyText = aiContent;
+        if (sources.length > 0) {
+          replyText += '\n\n📚 Sumber referensi:\n' + sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`).join('\n');
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          conversationId,
+          message: replyText,
+          sources,
+          searchUsed,
+          provider: aiResult?.providerGateway || 'unknown',
+          model: aiResult?.model || 'auto',
+          timestamp: new Date().toISOString()
+        }, null, 2));
+      } catch (err) {
+        console.error('[JINI Chat] Error:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: { code: 'JINI_CHAT_FAILED', message: err.message || 'Gagal memproses pesan.' }
+        }, null, 2));
       }
       return;
     }

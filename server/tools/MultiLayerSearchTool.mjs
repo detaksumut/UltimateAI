@@ -102,13 +102,9 @@ export class MultiLayerSearchTool extends ToolContract {
       }
     } catch {}
 
-    // Fallback Verified Sources if empty
-    if (sources.length === 0) {
-      sources.push(
-        { id: '1', layer: 'GLOBAL_WEB', category: 'NEWS', title: `Informasi Global: ${q}`, domain: 'google.com', url: `https://www.google.com/search?q=${encodedQ}`, snippet: `Hasil penelusuran live untuk topik ${q}.`, credibility: 'GLOBAL_INDEX' },
-        { id: '2', layer: 'MULTIMEDIA', category: 'MEDIA', title: `YouTube Media Index: ${q}`, domain: 'youtube.com', url: `https://www.youtube.com/results?search_query=${encodedQ}`, snippet: `Kompilasi streaming video dan audio untuk ${q}.`, credibility: 'OFFICIAL_STREAM' }
-      );
-    }
+    // Fallback if no real sources found — do not fabricate placeholder links.
+    // Return empty sources so the caller can handle gracefully without claiming
+    // internet access or presenting fake results.
 
     // 3. Generate Structured Data Matrix for Fast Analytics
     const dataMatrix = [
