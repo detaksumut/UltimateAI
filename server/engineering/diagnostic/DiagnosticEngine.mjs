@@ -20,10 +20,12 @@ export class DiagnosticEngine {
     let confidence = 0.5;
     let riskLevel = RiskClassification.MEDIUM_RISK;
     let reproducible = true;
+    let priorValidatedPatternMatched = false;
 
     // 1. Evidence Check: Match with Learned Incident Memory
     const learned = this.memory.findMatchingPattern(ticket.category, ticket.targetComponent, ticket.errorMessage);
     if (learned) {
+      priorValidatedPatternMatched = true;
       evidence.push(`Found prior validated pattern in memory: ${learned.rootCause}`);
       rootCause = learned.rootCause;
       proposedFix = learned.validatedPatchStrategy;
@@ -55,7 +57,7 @@ export class DiagnosticEngine {
     }
 
     // 3. Evidence Gate Validation
-    const evidenceGatePassed = evidence.length >= 2 && confidence >= 0.85;
+    const evidenceGatePassed = confidence >= 0.85 && (evidence.length >= 2 || priorValidatedPatternMatched);
 
     const report = {
       incidentId: ticket.incidentId,
