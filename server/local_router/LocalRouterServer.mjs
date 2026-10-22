@@ -4028,6 +4028,26 @@ Requirements:
     // 19. ENGINEERING AGENT TELEMETRY & STATUS
     if (pathname === '/api/engineering/telemetry' && req.method === 'POST') {
       try {
+        // This route can trigger code repair. Reject browser-originated posts
+        // from arbitrary websites so a hostile page cannot manufacture an
+        // incident and cause local patch/build execution on the user's PC.
+        const origin = String(req.headers.origin || '').trim();
+        const allowedOrigins = new Set([
+          'http://localhost:5177',
+          'http://127.0.0.1:5177',
+          'http://localhost:5173',
+          'http://127.0.0.1:5173',
+          ...(process.env.JIN_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean)
+        ]);
+        if (origin && !allowedOrigins.has(origin) &&
+            !(origin === 'null' && process.env.JIN_ALLOW_FILE_ORIGIN === 'true')) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'ENGINEERING_ORIGIN_DENIED' }));
+          return;
+        }
+        // Instantiate the runtime before recording telemetry, so its queue
+        // listener is active when this incident is enqueued.
+        await import('../engineering/EngineeringRuntime.mjs');
         const payload = await readJsonBody();
         const { frontendTelemetryGatewayInstance } = await import('../engineering/observer/FrontendTelemetryGateway.mjs');
         const result = frontendTelemetryGatewayInstance.processTelemetry(payload);
