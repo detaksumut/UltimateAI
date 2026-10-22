@@ -619,17 +619,16 @@ function maskSecrets(text) {
  * @returns {string[]} [preferred, fallback]
  */
 function resolveRequestSizes(aspectRatio) {
-  // Keep a moderate first-pass canvas for SDXL Lightning: pushing the initial
-  // render too large increases latency through the public tunnel and can cause
-  // Live timeouts. A higher-resolution refinement can be added independently.
-  const ar = String(aspectRatio || '16:9').replace(/\\s+/g, '');
-  if (ar === '9:16') return ['576x1024', '432x768'];
-  if (ar === '1:1') return ['1024x1024', '768x768'];
-  if (ar === '4:3') return ['1024x768', '768x576'];
-  if (ar === '3:4') return ['768x1024', '576x768'];
-  if (ar === '3:2') return ['1024x682', '768x512'];
-  if (ar === '2:3') return ['682x1024', '512x768'];
-  return ['1024x576', '768x432'];
+  // Use conservative SDXL-friendly dimensions until the quality path is
+  // validated end-to-end. Avoid changing both semantics and resolution at once.
+  const ar = String(aspectRatio || '16:9').replace(/\s+/g, '');
+  if (ar === '9:16') return ['432x768', '360x640'];
+  if (ar === '1:1') return ['768x768'];
+  if (ar === '4:3') return ['768x576'];
+  if (ar === '3:4') return ['576x768'];
+  if (ar === '3:2') return ['768x512'];
+  if (ar === '2:3') return ['512x768'];
+  return ['768x432', '640x360'];
 }
 
 const ASPECT_TOKEN_RE = /\b(16\s*:\s*9|9\s*:\s*16|1\s*:\s*1|4\s*:\s*3|3\s*:\s*4|3\s*:\s*2|2\s*:\s*3)\b/i;
@@ -781,18 +780,12 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   }
 
   const auth = { Authorization: `Bearer ${key}` };
-  const aspectHint = aspectRatio ? ` (${aspectRatio} aspect ratio)` : '';
-  // Add a restrained quality direction instead of changing the proven model.
-  // This encourages cleaner edges, finer natural texture and balanced lighting
-  // without adding unsupported provider-specific request parameters.
-  const qualityHint = [
-    'high-quality polished image',
-    'clean fine details and smooth natural textures',
-    'crisp subject focus, clean edges, balanced realistic lighting',
-    'natural colors, coherent anatomy and geometry',
-    'low noise, no rough artifacts, no oversharpening'
-  ].join(', ');
-  const fullPrompt = `Generate a ${qualityHint} based on this description${aspectHint}: ${prompt}`;
+  const aspectHint = aspectRatio ? `. Aspect ratio ${aspectRatio}.` : '';
+  // Preserve the user's requested subject as the primary instruction. The
+  // previous generic wrapper diluted subject fidelity (e.g. "airplane" became
+  // a waterfall). Quality constraints follow the subject and forbid unsolicited
+  // poster/text composition without replacing the requested object.
+  const fullPrompt = `${String(prompt || '').trim()}${aspectHint} Create exactly the subject described by the user; keep the main subject unmistakable and centered in the composition. High-quality polished image, clean fine details, smooth natural textures, crisp focus, balanced lighting, natural colors. Do not substitute a different subject. No text, lettering, watermark, logo, or poster layout unless explicitly requested.`;
 
   // 3. Target size for this aspect ratio (from shared global config; request
   //    `size` is only a hint — the gateway maps it to an internal canvas and the
