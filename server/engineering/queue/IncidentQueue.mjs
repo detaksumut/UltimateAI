@@ -93,7 +93,8 @@ export class IncidentQueue extends EventEmitter {
     return this.queue.filter(i =>
       i.status === IncidentStatus.DETECTED ||
       i.status === IncidentStatus.DIAGNOSING ||
-      i.status === IncidentStatus.AWAITING_APPROVAL
+      i.status === IncidentStatus.AWAITING_APPROVAL ||
+      i.status === IncidentStatus.NEEDS_MANUAL_REVIEW
     );
   }
 
