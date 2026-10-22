@@ -768,7 +768,7 @@ async function compressImageDataUrl(dataUrl, maxBytes = 950 * 1024) {
     let buffer;
     let mime = 'image/png';
     if (typeof dataUrl !== 'string') return dataUrl;
-    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\\S]+)$/);
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/);
     if (match) {
       mime = match[1];
       buffer = Buffer.from(match[2], 'base64');
