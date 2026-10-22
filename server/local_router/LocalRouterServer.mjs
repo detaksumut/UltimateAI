@@ -22,6 +22,7 @@ import { IMAGE_STEPS } from '../agent/ImageOutputConfig.mjs';
 import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/env.mjs';
 import { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';
 import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
+import { speechToTextServiceInstance } from '../voice/SpeechToTextService.mjs';
 import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
@@ -950,6 +951,7 @@ Requirements:
       const body = await readJsonBody();
       try {
         const result = await neuralIndonesianTTSProviderInstance.synthesize(body.text || '', {
+          language: body.language || 'id-ID',
           speaker: body.speaker,
           rate: body.rate,
           pitch: body.pitch,
@@ -967,20 +969,19 @@ Requirements:
     if (pathname === '/api/voice/transcribe' && req.method === 'POST') {
       const body = await readJsonBody();
       try {
-        const audioBase64 = body.audioBase64 || '';
-        const mimeType = body.mimeType || 'audio/webm';
-        
-        let transcript = '';
+        const result = await speechToTextServiceInstance.transcribe({
+          audioBase64: body.audioBase64 || '',
+          mimeType: body.mimeType || 'audio/webm',
+          language: body.language || 'auto'
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          transcript,
-          language: 'id-ID',
-          confidence: transcript ? 0.98 : 0,
-          provider: 'LOCAL_BACKEND_STT'
-        }, null, 2));
+        res.end(JSON.stringify(result, null, 2));
       } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message, code: 'STT_TRANSCRIPTION_FAILED' } }));
+        const code = err?.code || String(err?.message || '').split(':')[0] || 'STT_TRANSCRIPTION_FAILED';
+        const clientInputError = /^STT_(?:AUDIO_MISSING|AUDIO_INVALID|AUDIO_TOO_SHORT|AUDIO_TOO_LARGE|UNSUPPORTED_MIME)$/.test(code);
+        const status = clientInputError ? 400 : code === 'STT_PROVIDER_NOT_CONFIGURED' ? 503 : 502;
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err?.message || 'Speech transcription failed.', code } }));
       }
       return;
     }
