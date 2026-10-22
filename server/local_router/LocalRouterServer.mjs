@@ -4234,7 +4234,9 @@ Requirements:
         const expectedToken = String(process.env.JINI_EDITORIAL_API_TOKEN || '').trim();
         const authHeader = String(req.headers.authorization || '');
         const suppliedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-        if (!expectedToken || !suppliedToken || suppliedToken.length !== expectedToken.length || !timingSafeEqual(Buffer.from(suppliedToken), Buffer.from(expectedToken))) {
+        const expectedTokenBytes = Buffer.from(expectedToken, 'utf8');
+        const suppliedTokenBytes = Buffer.from(suppliedToken, 'utf8');
+        if (!expectedToken || !suppliedToken || suppliedTokenBytes.length !== expectedTokenBytes.length || !timingSafeEqual(suppliedTokenBytes, expectedTokenBytes)) {
           res.writeHead(expectedToken ? 401 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
           res.end(JSON.stringify({ success: false, error: { code: expectedToken ? 'UNAUTHORIZED' : 'EDITORIAL_TOKEN_NOT_CONFIGURED', message: expectedToken ? 'Autentikasi JINI Editorial gagal.' : 'JINI_EDITORIAL_API_TOKEN belum dikonfigurasi.' } }));
           return;
