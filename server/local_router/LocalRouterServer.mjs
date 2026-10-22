@@ -11,6 +11,7 @@
  */
 
 import http from 'http';
+import { timingSafeEqual } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -4233,7 +4234,7 @@ Requirements:
         const expectedToken = String(process.env.JINI_EDITORIAL_API_TOKEN || '').trim();
         const authHeader = String(req.headers.authorization || '');
         const suppliedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-        if (!expectedToken || !suppliedToken || suppliedToken.length !== expectedToken.length || !require('crypto').timingSafeEqual(Buffer.from(suppliedToken), Buffer.from(expectedToken))) {
+        if (!expectedToken || !suppliedToken || suppliedToken.length !== expectedToken.length || !timingSafeEqual(Buffer.from(suppliedToken), Buffer.from(expectedToken))) {
           res.writeHead(expectedToken ? 401 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
           res.end(JSON.stringify({ success: false, error: { code: expectedToken ? 'UNAUTHORIZED' : 'EDITORIAL_TOKEN_NOT_CONFIGURED', message: expectedToken ? 'Autentikasi JINI Editorial gagal.' : 'JINI_EDITORIAL_API_TOKEN belum dikonfigurasi.' } }));
           return;
