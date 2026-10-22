@@ -781,7 +781,9 @@ async function compressImageDataUrl(dataUrl, maxBytes = 950 * 1024) {
       return dataUrl;
     }
 
-    if (buffer.length <= maxBytes && mime === 'image/jpeg') return dataUrl;
+    // Always return a JPEG data URL, even when the source was a URL.
+    // Only skip re-encoding for an already-JPEG data URL that is under budget.
+    if (buffer.length <= maxBytes && mime === 'image/jpeg' && match) return dataUrl;
     const imported = await import('jimp');
     const Jimp = imported.Jimp || imported.default;
     const image = await Jimp.read(buffer);
