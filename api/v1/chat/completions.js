@@ -255,6 +255,110 @@ export async function searchTavily(query, maxResults = WEB_SEARCH_MAX_RESULTS, s
 }
 
 /**
+ * Independent public-web fallback when Tavily is unavailable.
+ * Tries DuckDuckGo HTML, then Google News RSS; neither requires a Tavily key.
+ */
+function decodeHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+}
+
+function stripHtml(value) {
+  return decodeHtmlEntities(String(value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ').trim();
+}
+
+async function searchExternalFallback(query, maxResults = WEB_SEARCH_MAX_RESULTS) {
+  const q = sanitizeSearchText(query);
+  if (!q) return null;
+
+  // Provider 1: DuckDuckGo public HTML search.
+  try {
+    const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JINI-WebSearch/1.0)', 'Accept': 'text/html' },
+      signal: AbortSignal.timeout(7000)
+    });
+    if (response.ok) {
+      const html = await response.text();
+      const sources = [];
+      const linkRe = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+      let match;
+      while ((match = linkRe.exec(html)) && sources.length < maxResults) {
+        let href = decodeHtmlEntities(match[1]);
+        try {
+          const parsed = new URL(href, 'https://duckduckgo.com');
+          const redirected = parsed.searchParams.get('uddg');
+          if (redirected) href = redirected;
+        } catch {}
+        if (!/^https?:\/\//i.test(href)) continue;
+        const tail = html.slice(match.index, Math.min(html.length, match.index + 2500));
+        const snippetMatch = tail.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div)>/i);
+        let domain = '';
+        try { domain = new URL(href).hostname.replace(/^www\./, ''); } catch {}
+        sources.push({
+          id: 'external_' + (sources.length + 1),
+          title: stripHtml(match[2]) || q,
+          url: href,
+          domain,
+          snippet: stripHtml(snippetMatch?.[1] || ''),
+          credibility: 'EXTERNAL_WEB_SEARCH'
+        });
+      }
+      if (sources.length) return { answer: '', sources, provider: 'DUCKDUCKGO' };
+    }
+  } catch (err) {
+    console.warn('[JINI Live] DuckDuckGo fallback failed:', maskSecrets(err.message));
+  }
+
+  // Provider 2: Google News RSS, especially useful for Indonesian current affairs.
+  try {
+    const rssUrl = 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=id&gl=ID&ceid=ID:id';
+    const response = await fetch(rssUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JINI-NewsSearch/1.0)', 'Accept': 'application/rss+xml, application/xml, text/xml' },
+      signal: AbortSignal.timeout(7000)
+    });
+    if (response.ok) {
+      const xml = await response.text();
+      const sources = [];
+      const itemRe = /<item>([\s\S]*?)<\/item>/gi;
+      let item;
+      while ((item = itemRe.exec(xml)) && sources.length < maxResults) {
+        const field = (tag) => {
+          const re = new RegExp('<' + tag + '(?:\\s[^>]*)?>([\\s\\S]*?)<\\/' + tag + '>', 'i');
+          const found = item[1].match(re);
+          return found ? stripHtml(found[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')) : '';
+        };
+        const title = field('title');
+        const link = field('link');
+        const snippet = field('description');
+        if (!title || !/^https?:\/\//i.test(link)) continue;
+        let domain = '';
+        try { domain = new URL(link).hostname.replace(/^www\./, ''); } catch {}
+        sources.push({
+          id: 'external_' + (sources.length + 1),
+          title,
+          url: link,
+          domain,
+          snippet,
+          credibility: 'GOOGLE_NEWS_RSS'
+        });
+      }
+      if (sources.length) return { answer: '', sources, provider: 'GOOGLE_NEWS_RSS' };
+    }
+  } catch (err) {
+    console.warn('[JINI Live] Google News RSS fallback failed:', maskSecrets(err.message));
+  }
+
+  return null;
+}
+
+/**
  * Build the clearly-identified evidence block injected into the model context.
  * Titles + URLs are included so the model can cite them.
  * @returns {string} '' when there is nothing to report.
@@ -871,13 +975,17 @@ export default async function handler(req, res) {
     let searchUnavailableNote = '';
     if (detectWebSearchIntent(userPrompt)) {
       const searchQuery = buildSearchQuery(userPrompt);
-      const searchResult = await searchTavily(searchQuery, WEB_SEARCH_MAX_RESULTS);
+      let searchResult = await searchTavily(searchQuery, WEB_SEARCH_MAX_RESULTS);
+      if (!searchResult || !searchResult.sources?.length) {
+        console.warn('[JINI Live] Tavily unavailable; trying independent external search providers.');
+        searchResult = await searchExternalFallback(searchQuery, WEB_SEARCH_MAX_RESULTS);
+      }
       if (searchResult && searchResult.sources.length) {
         searchContext = buildSearchEvidenceBlock(searchResult, searchQuery);
         searchMeta = {
           intent: 'WEB_SEARCH',
           toolsUsed: ['web.search'],
-          provider: 'TAVILY_AI',
+          provider: searchResult.provider || 'TAVILY_AI',
           query: searchQuery,
           generationId,
           messageId,
