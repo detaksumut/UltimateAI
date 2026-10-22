@@ -801,17 +801,27 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
     return { success: false, error: '9Router tidak mengekspos model image (discovery kosong).' };
   }
 
-  // 2. Generate — POST /v1/images/generations (first discovered model, like local).
-  // Prefer response_format=url (tiny payload, safe for Vercel limits) and fall back
-  // to the request without it when the gateway rejects the parameter.
-  const model = models[0];
+  // Use the exact model confirmed by the successful localhost logs. Do NOT
+  // silently choose models[0]: discovery ordering can point Live at a different
+  // provider/model, so the request may never reach the intended Cloudflare model.
+  const PREFERRED_IMAGE_MODEL = 'cf/@cf/bytedance/stable-diffusion-xl-lightning';
+  const model = models.includes(PREFERRED_IMAGE_MODEL)
+    ? PREFERRED_IMAGE_MODEL
+    : PREFERRED_IMAGE_MODEL;
+  console.log('[NineRouterImage] discovery ok', JSON.stringify({
+    base,
+    discoveredCount: models.length,
+    preferredModelListed: models.includes(PREFERRED_IMAGE_MODEL),
+    preferredModel: PREFERRED_IMAGE_MODEL
+  }));
+
+  // Keep the exact model ID in the POST body. First try the OpenAI-compatible
+  // URL response; only retry the request shape when the gateway explicitly says
+  // response_format is unsupported. Never silently switch to another model.
   const attemptBodies = [
     { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
     { model, prompt: fullPrompt, n: 1, size: targetSize }
   ];
-  // The free trycloudflare tunnel in front of a home 9Router drops long-lived
-  // generation POSTs with a transient 502 (observed ~16s proxy cut). Chain a few
-  // fresh attempts, trying both request shapes per attempt, before giving up.
   const MAX_GEN_ATTEMPTS = 1;
   const RETRY_DELAY_MS = 2000;
   let lastTransientError = null;
@@ -834,6 +844,12 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
           console.error(`[NineRouter] stage signal already aborted before fetch: stageCtrl.signal.aborted=${signal.aborted}`);
         }
         const start = Date.now();
+        console.log('[NineRouterImage] POST generation start', JSON.stringify({
+          model: reqBody.model,
+          responseFormat: reqBody.response_format || 'default',
+          size: reqBody.size,
+          attempt: generationAttempt
+        }));
         const gr = await fetch(`${base}/v1/images/generations`, {
           method: 'POST',
           headers: { ...auth, 'Content-Type': 'application/json' },
@@ -841,6 +857,11 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
           signal: combinedSignal
         });
         clearTimeout(perAttemptTimer);
+        console.log('[NineRouterImage] POST generation response', JSON.stringify({
+          status: gr.status,
+          model: reqBody.model,
+          elapsedMs: Date.now() - start
+        }));
         if (gr.ok) {
             const gj = await gr.json().catch(() => null);
             const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
@@ -857,6 +878,11 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
             return { success: true, dataUrl, model, gateway: '9ROUTER' };
           } else {
           const t = await gr.text().catch(() => '');
+          console.warn('[NineRouterImage] generation rejected', JSON.stringify({
+            status: gr.status,
+            model: reqBody.model,
+            body: maskSecrets(t.slice(0, 240))
+          }));
           const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
           if (unknownParam) continue; // gateway rejected this param; try the other shape
           if ((gr.status === 502 || gr.status === 503 || gr.status === 504)) {
