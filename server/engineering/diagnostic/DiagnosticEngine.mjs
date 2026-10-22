@@ -47,6 +47,18 @@ export class DiagnosticEngine {
         proposedFix = 'RETRY_WITH_EXPONENTIAL_BACKOFF';
         confidence = 0.88;
         riskLevel = RiskClassification.LOW_RISK;
+      } else if (
+        ticket.category === 'CODE_REPAIR_REQUEST' &&
+        ticket.metadata?.explicitSelfRepair === true &&
+        Array.isArray(ticket.metadata?.candidateFiles) &&
+        ticket.metadata.candidateFiles.length > 0
+      ) {
+        evidence.push('User explicitly requested a supervised source-code repair.');
+        evidence.push('A concrete candidate file was identified; the repair planner must re-check the path and safety allowlist before writing.');
+        rootCause = String(ticket.metadata.rootCause || ticket.errorMessage || 'Requested code repair needs diagnosis.');
+        proposedFix = 'GENERATE_GUARDED_PATCH_WITH_REGRESSION_TEST';
+        confidence = 0.86;
+        riskLevel = RiskClassification.MEDIUM_RISK;
       } else {
         evidence.push(`Raw error message: ${ticket.errorMessage}`);
         rootCause = `Runtime exception in ${ticket.targetComponent || 'system'}: ${ticket.errorMessage}`;
