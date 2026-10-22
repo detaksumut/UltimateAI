@@ -126,6 +126,17 @@ export class JinAudioQueue {
     this.isInterrupted = false;
     this.spokenSegments = [];
     this.unspokenSegments = [];
+    // Keep only synthesis options; event callbacks must never be forwarded to TTS.
+    const sourceOptions = options || {};
+    this.synthesisOptions = {
+      language: sourceOptions.language || this.provider.language || 'id-ID',
+      speaker: sourceOptions.speaker,
+      rate: sourceOptions.rate,
+      pitch: sourceOptions.pitch,
+      audioPromptPath: sourceOptions.audioPromptPath,
+      signal: sourceOptions.signal
+    };
+    this.lastSynthesisOptions = { ...this.synthesisOptions };
 
     // 1. Render display text into conversational Indonesian segments
     const { segments, speechText } = this.renderer.renderForSpeech(fullText);
@@ -141,6 +152,7 @@ export class JinAudioQueue {
     this.queue = segments.map((text, idx) => ({
       index: idx,
       text,
+      synthesisOptions: { ...this.synthesisOptions },
       audioDataUrl: null,
       audioBlob: null,
       mimeType: null,
@@ -171,7 +183,7 @@ export class JinAudioQueue {
 
     try {
       if (!item.audioDataUrl) {
-        const synthResult = await this.provider.synthesize(item.text);
+        const synthResult = await this.provider.synthesize(item.text, item.synthesisOptions || this.synthesisOptions || {});
         if (!synthResult || !synthResult.audioDataUrl) {
           throw new Error('AUDIO_SOURCE_EMPTY: Neural TTS did not produce audioDataUrl');
         }
@@ -190,7 +202,7 @@ export class JinAudioQueue {
 
       // Pipeline pre-fetch next segment in background
       if (index + 1 < this.queue.length && !this.queue[index + 1].audioDataUrl) {
-        this.provider.synthesize(this.queue[index + 1].text).then(res => {
+        this.provider.synthesize(this.queue[index + 1].text, this.queue[index + 1].synthesisOptions || this.synthesisOptions || {}).then(res => {
           if (this.queue[index + 1] && res?.audioDataUrl) {
             this.queue[index + 1].audioDataUrl = res.audioDataUrl;
             this.queue[index + 1].audioBlob = res.audioBlob;
@@ -308,7 +320,7 @@ export class JinAudioQueue {
 
     console.log('[AUDIO_QUEUE] 🔁 Resuming playback of unspoken segments:', this.unspokenSegments);
     const resumeText = this.unspokenSegments.join(' ');
-    this.speak(resumeText, callbacks);
+    this.speak(resumeText, { ...this.lastSynthesisOptions, ...callbacks });
     return true;
   }
 
