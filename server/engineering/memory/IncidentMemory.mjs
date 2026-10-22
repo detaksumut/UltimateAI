@@ -75,6 +75,34 @@ export class IncidentMemory {
     return record;
   }
 
+  /** Store an untested learning candidate without promoting it to validated knowledge. */
+  proposePattern({
+    category,
+    targetComponent,
+    symptoms,
+    rootCause,
+    candidateStrategy,
+    validationEvidence = 'NOT_TESTED'
+  }) {
+    const record = {
+      memoryId: `MEM-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      category,
+      targetComponent,
+      symptoms,
+      rootCause,
+      validatedPatchStrategy: candidateStrategy,
+      validationEvidence,
+      status: KnowledgeStatus.PROPOSED,
+      createdAt: new Date().toISOString(),
+      usageCount: 0
+    };
+
+    this.memory.unshift(record);
+    this.save();
+    console.log(`[IncidentMemory] Stored candidate rule as PROPOSED (not yet validated): "${rootCause}"`);
+    return record;
+  }
+
   findMatchingPattern(category, targetComponent, errorMessage) {
     // Only return patterns that have been VALIDATED or STABLE
     const matches = this.memory.filter(p =>
