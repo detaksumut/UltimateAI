@@ -526,6 +526,13 @@ const CAPABILITY_INQUIRY_RE = /^(?:apakah|apakh|bisakah|bisa(?:kah)?|can you|do 
 function detectImageIntent(rawPrompt) {
   const p = String(rawPrompt || '').trim();
   if (!p) return null;
+
+  // Never route document-reading requests to image generation, even if a filename
+  // or extracted text contains words such as "image", "gambar", or "buat".
+  const hasDocumentFile = /(?:^|[\\s"'(])[^\\s"'()]+\\.(?:pdf|docx?|odt|rtf)(?:$|[\\s"'()),])/i.test(p);
+  const asksToReadDocument = /\\b(baca|bacakan|analisis|analisa|ringkas|rangkum|jelaskan|jelaskan\\s+isi|isi\\s+dokumen|apa\\s+isi|review|summari[sz]e|read|extract\\s+text|ambil\\s+teks)\\b/i.test(p);
+  if ((hasDocumentFile && asksToReadDocument) || /---\\s*\\[(?:berkas\\s+dokumen|dokumen|konteks\\s+dokumen)/i.test(p)) return null;
+
   if (CAPABILITY_INQUIRY_RE.test(p)) return null; // "apakah kamu bisa ...?" → not an action
   if (!IMAGE_VERB_RE.test(p)) return null;
 
@@ -1017,11 +1024,40 @@ export default async function handler(req, res) {
     const contents = [];
     for (const m of messages) {
       if (!m || m.role === 'system') continue;
-      const text = toPlainText(m.content);
-      if (!text) continue;
+
+      // Preserve multimodal image attachments for Gemini Vision instead of
+      // flattening them to the literal placeholder "[gambar terlampir]".
+      const parts = [];
+      const rawParts = Array.isArray(m.content) ? m.content : null;
+      if (rawParts) {
+        for (const part of rawParts) {
+          if (typeof part === 'string') {
+            if (part.trim()) parts.push({ text: part });
+            continue;
+          }
+          if (part && typeof part.text === 'string' && part.text.trim()) {
+            parts.push({ text: part.text });
+            continue;
+          }
+          const imageUrl = part?.type === 'image_url' ? (typeof part.image_url === 'string' ? part.image_url : part.image_url?.url) : '';
+          const dataMatch = typeof imageUrl === 'string' ? imageUrl.match(/^data:(image\\/[a-zA-Z0-9.+-]+);base64,([\\s\\S]+)$/) : null;
+          if (dataMatch) {
+            parts.push({ inlineData: { mimeType: dataMatch[1], data: dataMatch[2] } });
+          } else if (typeof imageUrl === 'string' && /^https?:\\/\\//i.test(imageUrl)) {
+            // Gemini inlineData requires bytes; don't silently pretend a remote
+            // image was analyzed. Preserve a clear marker for unsupported URLs.
+            parts.push({ text: '[Gambar terlampir melalui URL; diperlukan URL gambar yang dapat diakses server.]' });
+          }
+        }
+      } else {
+        const text = toPlainText(m.content);
+        if (text) parts.push({ text });
+      }
+
+      if (!parts.length) continue;
       contents.push({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text }]
+        parts
       });
     }
 
