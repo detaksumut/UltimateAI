@@ -90,7 +90,8 @@ export class SelfEvolvingAgentEngine {
       'User baru saja menyatakan bahwa permintaannya TIDAK TERPENUHI DENGAN BENAR atau mengalami kegagalan.',
       'Tugasmu:',
       '1. Analisis mengapa permintaan user gagal (Root Cause Analysis).',
-      '2. Identifikasi subsistem/script target yang bermasalah (contoh: YouTubeSongSearch.mjs, documentReader.js, DocumentPipelineAdapter, SemanticIntentEngine, UI Canvas, Player Embed).',
+      '2. Identifikasi SATU file sumber konkret dengan path relatif repository, misalnya server/agent/AgentRuntime.mjs. Jangan menebak path. Jika target tidak dapat dipastikan, targetSubsystem harus UNKNOWN.',
+      '3a. Field targetSubsystem harus hanya berisi satu path file relatif konkret, tanpa penjelasan atau nomor baris.'
       '3. Rumuskan KANDIDAT aturan koreksi yang bisa diuji, bukan klaim bahwa kode sudah diubah.',
       '4. Jelaskan validasi yang masih diperlukan. Dilarang mengklaim patch diterapkan, tes lulus, atau masalah selesai jika belum ada bukti.',
       '',
@@ -165,6 +166,38 @@ export class SelfEvolvingAgentEngine {
     };
   }
 
+  /**
+   * Resolve an LLM-proposed target to an existing repository source file.
+   * Candidate paths are only hints until checked against the local checkout.
+   */
+  validateRepairTarget(rawTarget) {
+    const target = String(rawTarget || '').trim().replace(/^["'\`]|["'\`]$/g, '');
+    if (!target || /^unknown\b/i.test(target) || target.includes('\n') || target.includes(':') || target.length > 240) return null;
+    const relative = target.replace(/\\/g, '/').replace(/^\.\//, '');
+    if (relative.startsWith('/') || relative.split('/').some(part => !part || part === '.' || part === '..')) return null;
+    if (!['src/', 'server/', 'api/'].some(prefix => relative.startsWith(prefix))) return null;
+    if (/(^|\/)(\.git|node_modules|\.env(?:\.|$)|credentials?|secrets?|tokens?|\.ssh|vault|policy)(\/|$)/i.test(relative) ||
+        /(?:^|\/)(package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|npm-shrinkwrap\.json|\.npmrc)$/i.test(relative) ||
+        relative.startsWith('.github/') || relative.startsWith('scripts/')) return null;
+
+    const root = path.resolve(process.cwd());
+    const absolute = path.resolve(root, ...relative.split('/'));
+    const rel = path.relative(root, absolute);
+    if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return null;
+    try {
+      const targetStat = fs.lstatSync(absolute);
+      if (!targetStat.isFile() || targetStat.isSymbolicLink() || targetStat.size > 32 * 1024) return null;
+      let current = root;
+      for (const segment of relative.split('/').slice(0, -1)) {
+        current = path.join(current, segment);
+        if (fs.lstatSync(current).isSymbolicLink()) return null;
+      }
+    } catch {
+      return null;
+    }
+    return relative;
+  }
+
   /** Persist an untested candidate rule; do not promote it to validated knowledge. */
   async persistToMemoryVault(analysis) {
     try {
@@ -230,32 +263,86 @@ export class SelfEvolvingAgentEngine {
 
     try {
       const context = this.extractFailureContext(userComplaint, messages);
-      console.log(`[SelfEvolvingAgentEngine] Preparing an unverified correction candidate for: "${userComplaint}"`);
+      console.log('[SelfEvolvingAgentEngine] Analysing correction and checking supervised-repair eligibility.');
 
       const analysis = await this.introspectWithNineRouter(context);
       const memoryRecord = await this.persistToMemoryVault(analysis);
 
+      // General complaints never authorize a code change. An explicit request
+      // to fix code/system is required, and the proposed repository path must
+      // exist locally and pass the path safety check before a repair is queued.
+      const complaint = String(userComplaint || '');
+      const explicitRepairIntent =
+        /\b(perbaiki|perbaikan|koreksi|fix|repair|patch)\b/i.test(complaint) &&
+        /\b(kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software|perangkat lunak|ini)\b/i.test(complaint);
+      let repairIncident = null;
+      let repairQueueError = null;
+      let validatedTarget = null;
+
+      if (explicitRepairIntent) {
+        validatedTarget = this.validateRepairTarget(analysis.targetSubsystem);
+        if (!validatedTarget) {
+          repairQueueError = 'Tidak ada file sumber konkret yang terverifikasi; permintaan disimpan sebagai kandidat saja.';
+        } else {
+          try {
+            // Importing EngineeringRuntime activates its listener before the
+            // queue emits incident_enqueued. Production is not modified here.
+            const [{ engineeringRuntimeInstance }, { incidentQueueInstance }, incidentTypes] = await Promise.all([
+              import('./EngineeringRuntime.mjs'),
+              import('./queue/IncidentQueue.mjs'),
+              import('./types/IncidentTypes.mjs')
+            ]);
+            const ticket = incidentTypes.createIncidentTicket({
+              source: 'self-evolving-agent',
+              category: 'CODE_REPAIR_REQUEST',
+              errorMessage: String(analysis.identifiedFailure || complaint || 'User-requested code repair').slice(0, 1500),
+              targetComponent: validatedTarget,
+              severity: incidentTypes.IncidentSeverity.LOW,
+              metadata: {
+                explicitSelfRepair: true,
+                candidateFiles: [validatedTarget],
+                rootCause: String(analysis.rootCause || '').slice(0, 1500),
+                evolvedRule: String(analysis.evolvedRule || '').slice(0, 1500),
+                candidateMemoryId: memoryRecord ? memoryRecord.id : null
+              }
+            });
+            void engineeringRuntimeInstance;
+            repairIncident = incidentQueueInstance.enqueue(ticket);
+            if (!repairIncident) throw new Error('Incident queue rejected the repair request.');
+          } catch (err) {
+            repairQueueError = String(err && err.message || err).slice(0, 1000);
+          }
+        }
+      }
+
+      const queued = Boolean(repairIncident);
       const responseMarkdown = [
-        '⚙️ **[JINI SELF-IMPROVEMENT // CANDIDATE PROPOSAL]**',
-        'Saya telah menyusun kandidat aturan berdasarkan laporan kegagalan dan menyimpannya untuk ditinjau.',
+        '⚙️ **[JINI SELF-IMPROVEMENT // SUPERVISED REPAIR]**',
+        'Analisis kegagalan telah dibuat dan kandidat aturan disimpan untuk ditinjau.',
         '',
-        `* **Masalah yang dilaporkan:** ${analysis.identifiedFailure}`,
-        `* **Hipotesis akar masalah:** ${analysis.rootCause}`,
-        `* **Subsistem yang perlu diperiksa:** ${analysis.targetSubsystem}`,
-        `* **Kandidat aturan:** ${analysis.evolvedRule}`,
-        `* **Status validasi:** ${analysis.validationStatus || 'NOT_TESTED'}`,
-        `* **Catatan memori:** ${memoryRecord?.id || 'Tidak tersimpan'}`,
+        '* **Masalah:** ' + String(analysis.identifiedFailure || ''),
+        '* **Hipotesis akar masalah:** ' + String(analysis.rootCause || ''),
+        '* **File target terverifikasi:** ' + String(validatedTarget || analysis.targetSubsystem || 'UNKNOWN'),
+        '* **Kandidat aturan:** ' + String(analysis.evolvedRule || ''),
+        '* **Catatan memori:** ' + String(memoryRecord && memoryRecord.id || 'Tidak tersimpan'),
+        queued ? '* **ID insiden perbaikan:** ' + repairIncident.incidentId : '',
+        queued ? '* **Status:** QUEUED — diagnosis, sandbox, tes regresi, dan build sedang dijadwalkan oleh runtime.' : '',
+        repairQueueError ? '* **Tidak dijadwalkan:** ' + repairQueueError : '',
         '',
-        '**Penting:** siklus ini tidak mengubah kode, tidak menjalankan tes, dan tidak membuktikan masalah telah diperbaiki. Kandidat harus diuji dan disetujui melalui alur perbaikan yang terkontrol sebelum dipromosikan menjadi aturan tervalidasi.',
+        '**Batas keselamatan:** kode utama tidak diubah otomatis. Patch dibuat di Git worktree terpisah. Jika tes regresi dan build lulus, siklus berhenti di AWAITING_APPROVAL. Penggabungan memerlukan persetujuan eksplisit dan identitas reviewer; deployment tetap langkah terpisah.',
         '',
-        `Saran lanjutan (belum dieksekusi): ${analysis.suggestedOutput}`
-      ].join('\n');
+        'Status validasi saat respons dibuat: ' + (queued ? 'QUEUED_NOT_YET_VERIFIED' : 'NOT_TESTED') + '.',
+        'Saran analisis: ' + String(analysis.suggestedOutput || '')
+      ].filter(Boolean).join('\n');
 
       return {
-        status: memoryRecord ? 'RULE_PROPOSED' : 'RULE_PROPOSAL_NOT_PERSISTED',
+        status: queued ? 'REPAIR_QUEUED' : (memoryRecord ? 'RULE_PROPOSED' : 'RULE_PROPOSAL_NOT_PERSISTED'),
         analysis,
         memoryRecord,
-        validationStatus: 'NOT_TESTED',
+        repairIncidentId: repairIncident ? repairIncident.incidentId : null,
+        repairQueued: queued,
+        repairQueueError,
+        validationStatus: queued ? 'QUEUED_NOT_YET_VERIFIED' : 'NOT_TESTED',
         runtimePatched: false,
         testsRun: false,
         responseMarkdown
