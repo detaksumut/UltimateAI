@@ -75,7 +75,7 @@ final class JINI_Editorial_Assistant {
         if ($hook !== 'toplevel_page_jini-editorial-assistant') return;
         wp_enqueue_script('wp-api');
         wp_enqueue_script('wp-i18n');
-        wp_register_script('jini-editorial-admin', '', ['wp-api'], '1.0.0', true);
+        wp_register_script('jini-editorial-admin', false, ['wp-api'], '1.0.0', true);
         wp_enqueue_script('jini-editorial-admin');
         wp_localize_script('jini-editorial-admin', 'JINIEditorialConfig', [
             'generateUrl' => esc_url_raw(rest_url('jini-editorial/v1/generate')),
