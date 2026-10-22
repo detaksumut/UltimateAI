@@ -179,7 +179,7 @@ export class TestOrchestrator {
         try {
           // Some repair targets are TypeScript modules. Use the repo's existing
           // tsx loader only when the generated regression test imports .ts code.
-          const usesTypeScript = /\\.tsx?['"]/i.test(testSource);
+          const usesTypeScript = /\.tsx?['"]/i.test(testSource);
           const nodeArgs = usesTypeScript ? ['--import', 'tsx', resolved.absolute] : [resolved.absolute];
           const { stdout, stderr } = await this._runNode(nodeArgs, this.timeoutMs);
           results.push({
