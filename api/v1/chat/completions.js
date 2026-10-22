@@ -788,7 +788,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   try {
     const dr = await fetch(`${base}/v1/models/image`, {
       headers: auth,
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(6000)
     });
     if (dr.ok) {
       const dj = await dr.json().catch(() => null);
@@ -823,7 +823,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
         // Per-attempt 24s: chained with the stage signal (50s in handler) so
         // the total retry chain fits inside Vercel 60s maxDuration.
         const perAttemptCtrl = new AbortController();
-        const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (40s)')), 40000);
+        const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (14s)')), 14000);
         const combinedSignal = signal
           ? AbortSignal.any([signal, perAttemptCtrl.signal])
           : perAttemptCtrl.signal;
@@ -879,6 +879,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
         }
         return { success: true, dataUrl, model, gateway: '9ROUTER' };
       } catch (err) {
+        clearTimeout(perAttemptTimer);
         if (signal?.aborted) {
           return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
         }
@@ -939,46 +940,59 @@ export default async function handler(req, res) {
       const sseId = 'chatcmpl-image-' + Date.now();
       const sseModel = model || 'gemini-image';
 
-      // IMAGE GENERATION: try the cloud image provider first so a dead or slow
-      // localhost 9Router tunnel cannot block image requests. Give Gemini a
-      // bounded first attempt, then use 9Router as a fallback while budget remains.
-      // The Vercel handler has a 60s limit; keep this stage below that limit.
+      // Prefer the provider proven by localhost logs: 9Router (Stable Diffusion XL
+      // Lightning). Gemini quota exhaustion must not delay or block this path.
+      // Discovery is bounded to 6s and generation retries are individually bounded.
       const stageCtrl = new AbortController();
       const stageTimer = setTimeout(() => stageCtrl.abort(new Error('Image stage timeout')), 52000);
       let gen = null;
+      let routerError = '';
       let geminiError = '';
       try {
-        const geminiCtrl = new AbortController();
-        const geminiTimer = setTimeout(() => geminiCtrl.abort(new Error('Gemini image attempt timeout (25s)')), 25000);
-        let g1;
-        try {
-          const geminiSignal = AbortSignal.any([stageCtrl.signal, geminiCtrl.signal]);
-          g1 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, geminiSignal);
-        } finally {
-          clearTimeout(geminiTimer);
-        }
-        if (g1?.success) {
-          gen = g1;
+        const routerResult = await generateImageWithNineRouter(
+          imageIntent.prompt,
+          imageIntent.aspectRatio,
+          stageCtrl.signal
+        );
+        if (routerResult?.success) {
+          gen = routerResult;
         } else {
-          geminiError = g1?.error || 'Gemini image generation failed';
+          routerError = routerResult?.error || (routerResult?.skip
+            ? '9Router dilewati karena konfigurasi belum tersedia'
+            : '9Router image generation failed');
         }
 
-        // Fallback to 9Router only if Gemini did not produce an image and the
-        // overall stage still has time. A failed/aborted tunnel must not prevent
-        // the handler from returning a useful, explicit error.
+        // Gemini is only a fallback when 9Router cannot produce an image.
+        // This avoids spending the stage budget on a known-exhausted Gemini quota.
         if (!gen?.success && !stageCtrl.signal.aborted) {
-          const g2 = await generateImageWithNineRouter(
-            imageIntent.prompt,
-            imageIntent.aspectRatio,
-            stageCtrl.signal
+          const geminiCtrl = new AbortController();
+          const geminiTimer = setTimeout(
+            () => geminiCtrl.abort(new Error('Gemini image attempt timeout (20s)')),
+            20000
           );
-          if (g2?.success) gen = g2;
-          else {
-            const routerError = g2?.error || '9Router image generation failed';
-            gen = { success: false, error: `Gemini: ${geminiError || 'gagal'} | 9Router: ${routerError}` };
+          let geminiResult;
+          try {
+            const geminiSignal = AbortSignal.any([stageCtrl.signal, geminiCtrl.signal]);
+            geminiResult = await generateImageWithGemini(
+              imageIntent.prompt,
+              imageIntent.aspectRatio,
+              geminiSignal
+            );
+          } finally {
+            clearTimeout(geminiTimer);
           }
-        } else if (!gen?.success) {
-          gen = { success: false, error: `Gemini: ${geminiError || 'gagal'} | Waktu pembuatan gambar habis sebelum fallback 9Router.` };
+          if (geminiResult?.success) {
+            gen = geminiResult;
+          } else {
+            geminiError = geminiResult?.error || 'Gemini image generation failed';
+          }
+        }
+
+        if (!gen?.success) {
+          gen = {
+            success: false,
+            error: `9Router: ${routerError || 'gagal'} | Gemini: ${geminiError || (stageCtrl.signal.aborted ? 'waktu tahap gambar habis' : 'gagal')}`
+          };
         }
       } catch (stageErr) {
         gen = gen || {
@@ -1003,7 +1017,7 @@ export default async function handler(req, res) {
           messageId
         };
       } else {
-        textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}\n\n(Jalur ini sama persis dengan localhost: via 9Router Tunnel1. Pastikan 9Router (:20128) hidup dan tunnel aktif.)`;
+        textContent = `Pembuatan gambar belum berhasil. Penyebab: ${gen.error}\n\nJINI Live mencoba 9Router terlebih dahulu, lalu Gemini sebagai fallback. Periksa konfigurasi NINEROUTER_URL dan NINEROUTER_KEY pada environment Live jika kedua provider gagal.`;
       }
 
       if (stream) {
