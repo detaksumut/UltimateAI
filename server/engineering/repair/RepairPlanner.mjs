@@ -225,9 +225,28 @@ export class RepairPlanner {
       return patchPlan;
     }
     const unsafeTestMatch = UNSAFE_TEST_PATTERNS.find((pattern) => pattern.test(testContent));
-    if (unsafeTestMatch) {
+    if (unsafeTestMatch || /\\bimport\\s*\\(|\\brequire\\s*\\(/i.test(testContent)) {
       patchPlan.needsManualReview = true;
       patchPlan.error = 'TEST_SAFETY_GATE: generated regression test contains a prohibited operation.';
+      return patchPlan;
+    }
+
+    const moduleSpecifiers = [...testContent.matchAll(/(?:from\\s*|import\\s*)['"]([^'"]+)['"]/g)].map((match) => match[1]);
+    if (!moduleSpecifiers.includes('node:assert/strict') || !moduleSpecifiers.includes(sourceImportPath) ||
+        moduleSpecifiers.some((specifier) => !['node:assert/strict', sourceImportPath].includes(specifier))) {
+      patchPlan.needsManualReview = true;
+      patchPlan.error = 'TEST_IMPORT_GATE: regression test may import only node:assert/strict and the target source module.';
+      return patchPlan;
+    }
+
+    const originalLines = new Set(originalContent.split(/\\r?\\n/));
+    const addedLines = sourceContent.split(/\\r?\\n/).filter((line) => !originalLines.has(line));
+    const unsafePatchAdded = addedLines.some((line) =>
+      /\\b(?:child_process|worker_threads|execSync|spawnSync|process\\.env|eval|new\\s+Function|writeFileSync|rmSync|unlinkSync)\\b|https?:\\/\\//i.test(line)
+    );
+    if (unsafePatchAdded) {
+      patchPlan.needsManualReview = true;
+      patchPlan.error = 'SOURCE_SAFETY_GATE: generated patch adds a prohibited execution, environment, write, or external-network primitive.';
       return patchPlan;
     }
     if (/<<<<<<<|=======|>>>>>>>/.test(sourceContent) || /<<<<<<<|=======|>>>>>>>/.test(testContent)) {
