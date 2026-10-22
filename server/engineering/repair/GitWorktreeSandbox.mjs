@@ -166,8 +166,11 @@ export class GitWorktreeSandbox {
     if (!exists && !isGeneratedTest) {
       throw new Error('PATCH_TARGET_NOT_FOUND: repair may modify existing source files only; only generated test files may be new.');
     }
-    if (exists && !fs.statSync(targetFile).isFile()) {
-      throw new Error('PATCH_TARGET_NOT_FILE: target must be a regular file.');
+    if (exists) {
+      const targetStat = fs.lstatSync(targetFile);
+      if (targetStat.isSymbolicLink() || !targetStat.isFile()) {
+        throw new Error('PATCH_TARGET_NOT_FILE: target must be a regular, non-symlink file.');
+      }
     }
     if (options.expectedSha256 && exists) {
       const crypto = await import('node:crypto');
