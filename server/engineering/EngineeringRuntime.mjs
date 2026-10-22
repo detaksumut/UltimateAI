@@ -389,10 +389,34 @@ export class EngineeringRuntime {
     }
 
     const testRunner = new TestOrchestrator(sandboxInfo.path);
-    const revalidation = await testRunner.runFullVerificationPipeline({
+    const baselineGate = await this.verifyBaselineRegression(ticket.sandboxId, ticket.patchPlan, testRunner);
+    if (!baselineGate.pass) {
+      const baselineFailure = {
+        pass: false,
+        failedStage: baselineGate.stage,
+        error: baselineGate.error || 'Regression test failed its baseline-red verification.',
+        results: [baselineGate]
+      };
+      this.queue.updateStatus(incidentId, IncidentStatus.REJECTED, {
+        validationStatus: 'FAILED_BASELINE_REVALIDATION',
+        testResults: baselineFailure,
+        failureReason: baselineFailure.error,
+        runtimePatched: false
+      });
+      await this.sandbox.cleanupSandbox(ticket.sandboxId, { keepBranch: true });
+      return { success: false, status: IncidentStatus.REJECTED, testResults: baselineFailure };
+    }
+
+    const verification = await testRunner.runFullVerificationPipeline({
       changedFiles: ticket.changedFiles || [],
       testFiles: ticket.patchPlan?.testFiles || []
     });
+    const revalidation = {
+      ...verification,
+      baselineRegression: baselineGate,
+      results: [baselineGate, ...(verification.results || [])],
+      baselineRegressionVerified: true
+    };
     if (!revalidation.pass) {
       this.queue.updateStatus(incidentId, IncidentStatus.REJECTED, {
         validationStatus: 'FAILED_ON_REVALIDATION',
