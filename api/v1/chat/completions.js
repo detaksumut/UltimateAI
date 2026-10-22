@@ -100,7 +100,11 @@ const CURRENT_INFO_PATTERNS = [
   /\b(?:info|informasi|kabar)\s+terkini\b/i,
   /\b(?:latest|current)\s+news\b/i,
   /\blatest\s+update\b/i,
-  /\bnews\s+about\b/i
+  /\bnews\s+about\b/i,
+  // Natural Indonesian requests for recent developments should trigger web search
+  // even when the user does not explicitly say "cari" or "cek internet".
+  /\b(?:ada\s+)?perkembangan\s+(?:baru\s+)?(?:terkait|tentang|mengenai)\b/i,
+  /\b(?:apa\s+)?perkembangan\s+(?:berita\s+)?(?:terbaru\s+)?(?:ihsg|idx|indeks\s+harga\s+saham|pasar\s+saham|saham|kebakaran\s+hutan|karhutla|hutan\s+kalimantan|ekonomi|politik)\b/i
 ];
 
 /** Date/time questions are answered from the injected clock, never from the web. */
