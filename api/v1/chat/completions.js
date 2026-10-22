@@ -530,8 +530,11 @@ function detectImageIntent(rawPrompt) {
   // Never route document-reading requests to image generation, even if a filename
   // or extracted text contains words such as "image", "gambar", or "buat".
   const hasDocumentFile = /(?:^|[\\s"'(])[^\\s"'()]+\\.(?:pdf|docx?|odt|rtf)(?:$|[\\s"'()),])/i.test(p);
-  const asksToReadDocument = /\\b(baca|bacakan|analisis|analisa|ringkas|rangkum|jelaskan|jelaskan\\s+isi|isi\\s+dokumen|apa\\s+isi|review|summari[sz]e|read|extract\\s+text|ambil\\s+teks)\\b/i.test(p);
-  if ((hasDocumentFile && asksToReadDocument) || /---\\s*\\[(?:berkas\\s+dokumen|dokumen|konteks\\s+dokumen)/i.test(p)) return null;
+  const mentionsDocumentFormat = /\\b(?:dokumen|file|berkas|lampiran|pdf|docx?|word|gambar|image|foto|scan|hasil\\s+pindai)\\b/i.test(p);
+  const asksToReadDocument = /\\b(baca|membaca|bacakan|analisis|analisa|ringkas|rangkum|jelaskan|isi\\s+dokumen|apa\\s+isi|review|summari[sz]e|read|extract\\s+text|ambil\\s+teks|pahami|periksa|cek\\s+isi)\\b/i.test(p);
+  if ((hasDocumentFile && asksToReadDocument) ||
+      (mentionsDocumentFormat && asksToReadDocument) ||
+      /---\\s*\\[(?:berkas\\s+dokumen|dokumen|konteks\\s+dokumen)/i.test(p)) return null;
 
   if (CAPABILITY_INQUIRY_RE.test(p)) return null; // "apakah kamu bisa ...?" → not an action
   if (!IMAGE_VERB_RE.test(p)) return null;
