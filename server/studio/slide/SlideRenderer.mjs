@@ -358,6 +358,62 @@ export class SlideRenderer {
     return buildPptxPackage(schema, buildSlideXml(schema));
   }
 
+  /**
+   * Produce a genuine multi-slide editable PPTX by extending the canonical
+   * OpenXML package and adding one native shape/text tree per slide.
+   */
+  async renderDeckPptx(schemas = []) {
+    if (!Array.isArray(schemas) || schemas.length === 0) {
+      throw new Error('PPTX_DECK_EMPTY: At least one slide schema is required.');
+    }
+    const deckSchemas = schemas.slice(0, 60);
+    const firstSchema = deckSchemas[0];
+    const baseBuffer = await buildPptxPackage(firstSchema, buildSlideXml(firstSchema));
+    const zip = await JSZip.loadAsync(baseBuffer);
+
+    const presentationPath = 'ppt/presentation.xml';
+    const relsPath = 'ppt/_rels/presentation.xml.rels';
+    const contentTypesPath = '[Content_Types].xml';
+    let presentationXml = await zip.file(presentationPath).async('text');
+    let presentationRels = await zip.file(relsPath).async('text');
+    let contentTypes = await zip.file(contentTypesPath).async('text');
+    let appXml = await zip.file('docProps/app.xml').async('text');
+
+    const slideIds = deckSchemas.map((schema, index) =>
+      '<p:sldId id="' + (256 + index) + '" r:id="rId' + (index + 2) + '"/>'
+    ).join('');
+    presentationXml = presentationXml.replace(/<p:sldIdLst>[\\s\\S]*?<\\/p:sldIdLst>/,
+      '<p:sldIdLst>' + slideIds + '</p:sldIdLst>');
+    presentationXml = presentationXml.replace(/<p:sldSz cx="[^"]+" cy="[^"]+" type="[^"]+"\\/>/,
+      '<p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>');
+
+    for (let index = 1; index < deckSchemas.length; index++) {
+      const slideNumber = index + 1;
+      const schema = deckSchemas[index];
+      zip.file('ppt/slides/slide' + slideNumber + '.xml', buildSlideXml(schema));
+      zip.file('ppt/slides/_rels/slide' + slideNumber + '.xml.rels',
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>' +
+        '</Relationships>');
+      contentTypes = contentTypes.replace('</Types>',
+        '<Override PartName="/ppt/slides/slide' + slideNumber + '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>');
+      presentationRels = presentationRels.replace('</Relationships>',
+        '<Relationship Id="rId' + (index + 2) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide' + slideNumber + '.xml"/></Relationships>');
+    }
+
+    appXml = appXml.replace(/<Slides>\\d+<\\/Slides>/, '<Slides>' + deckSchemas.length + '</Slides>');
+    zip.file(presentationPath, presentationXml);
+    zip.file(relsPath, presentationRels);
+    zip.file(contentTypesPath, contentTypes);
+    zip.file('docProps/app.xml', appXml);
+    return zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+  }
+
   async render(schema) {
     const svg = await this.renderSvg(schema);
     const previewBuffer = await this.renderPreview(schema);
