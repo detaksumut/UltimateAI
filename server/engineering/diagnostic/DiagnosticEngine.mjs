@@ -39,7 +39,8 @@ export class DiagnosticEngine {
         confidence = 0.92;
         riskLevel = RiskClassification.LOW_RISK;
       } else if (ticket.category === 'API_TIMEOUT_FAILURE') {
-        evidence.push('Gateway reported HTTP 504 / ECONNRESET');
+        evidence.push('Reported error matches an upstream timeout / connection-reset failure.');
+        evidence.push('Incident is classified as API_TIMEOUT_FAILURE; retry is considered only for idempotent operations.');
         rootCause = 'Downstream provider connection timeout or router buffer saturation';
         proposedFix = 'RETRY_WITH_EXPONENTIAL_BACKOFF';
         confidence = 0.88;
@@ -60,6 +61,10 @@ export class DiagnosticEngine {
       incidentId: ticket.incidentId,
       timestamp: new Date().toISOString(),
       suspectedComponent: ticket.targetComponent,
+      category: ticket.category,
+      errorMessage: ticket.errorMessage,
+      stackTrace: ticket.stackTrace || '',
+      targetFiles: Array.isArray(ticket.metadata?.candidateFiles) ? ticket.metadata.candidateFiles : [],
       rootCause,
       proposedFix,
       confidence,
