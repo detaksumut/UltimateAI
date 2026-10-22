@@ -594,7 +594,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
         // Per-attempt 24s: chained with the stage signal (50s in handler) so
         // the total retry chain fits inside Vercel 60s maxDuration.
         const perAttemptCtrl = new AbortController();
-        const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (24s)')), 24000);
+        const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (40s)')), 40000);
         const combinedSignal = signal
           ? AbortSignal.any([signal, perAttemptCtrl.signal])
           : perAttemptCtrl.signal;
@@ -720,7 +720,7 @@ export default async function handler(req, res) {
       // of letting 9Router(90s/try)+Gemini(90s/key) overrun. This also fixes the
       // latent ReferenceError (bare `signal` was never defined in handler scope).
       const stageCtrl = new AbortController();
-      const stageTimer = setTimeout(() => stageCtrl.abort(), 50000);
+      const stageTimer = setTimeout(() => stageCtrl.abort(), 55000);
       let gen;
       try {
         gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio, stageCtrl.signal);
