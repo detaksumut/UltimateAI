@@ -246,19 +246,27 @@ export class EngineeringRuntime {
         commitWarning
       });
 
-      this.memory.proposePattern({
-        category: ticket.category,
-        targetComponent: ticket.targetComponent,
-        symptoms: ticket.errorMessage,
-        rootCause: diagnosticReport.rootCause,
-        candidateStrategy: patchPlan.diffSummary,
-        validationEvidence: JSON.stringify({
-          status: 'PASSED_IN_ISOLATED_WORKTREE',
-          testResults: testResults.results,
-          branchName: sandboxInfo.branchName,
-          repairCommit: commitResult?.commit || null
-        })
-      });
+      let memoryWarning = null;
+      try {
+        this.memory.proposePattern({
+          category: ticket.category,
+          targetComponent: ticket.targetComponent,
+          symptoms: ticket.errorMessage,
+          rootCause: diagnosticReport.rootCause,
+          candidateStrategy: patchPlan.diffSummary,
+          validationEvidence: JSON.stringify({
+            status: 'PASSED_IN_ISOLATED_WORKTREE',
+            testResults: testResults.results,
+            branchName: sandboxInfo.branchName,
+            repairCommit: commitResult?.commit || null
+          })
+        });
+      } catch (err) {
+        memoryWarning = String(err?.message || err);
+        console.warn('[EngineeringRuntime] Repair validated but candidate memory write failed:', memoryWarning);
+      }
+      if (memoryWarning) this.queue.updateStatus(incidentId, IncidentStatus.AWAITING_APPROVAL, { memoryWarning });
+
       this.policy.recordAudit(incidentId, 'VERIFY_PATCH', {
         success: true,
         status: IncidentStatus.AWAITING_APPROVAL,
@@ -456,19 +464,27 @@ export class EngineeringRuntime {
       runtimePatched: true,
       deploymentStatus: 'NOT_DEPLOYED'
     });
-    this.memory.learnPattern({
-      category: ticket.category,
-      targetComponent: ticket.targetComponent,
-      symptoms: ticket.errorMessage,
-      rootCause: ticket.diagnosticReport?.rootCause || 'Approved supervised repair',
-      validatedPatchStrategy: ticket.patchPlan?.diffSummary || ticket.diagnosticReport?.proposedFix,
-      validationEvidence: JSON.stringify({
-        testResults: revalidation.results,
-        commit: commitResult.commit,
-        reviewer: String(reviewer).trim().slice(0, 120),
-        approvalAt: new Date().toISOString()
-      })
-    });
+    let memoryWarning = null;
+    try {
+      this.memory.learnPattern({
+        category: ticket.category,
+        targetComponent: ticket.targetComponent,
+        symptoms: ticket.errorMessage,
+        rootCause: ticket.diagnosticReport?.rootCause || 'Approved supervised repair',
+        validatedPatchStrategy: ticket.patchPlan?.diffSummary || ticket.diagnosticReport?.proposedFix,
+        validationEvidence: JSON.stringify({
+          testResults: revalidation.results,
+          commit: commitResult.commit,
+          reviewer: String(reviewer).trim().slice(0, 120),
+          approvalAt: new Date().toISOString()
+        })
+      });
+    } catch (err) {
+      memoryWarning = String(err?.message || err);
+      console.warn('[EngineeringRuntime] Repair merged but validated memory write failed:', memoryWarning);
+    }
+    if (memoryWarning) this.queue.updateStatus(incidentId, finalStatus, { memoryWarning });
+
     this.policy.recordAudit(incidentId, 'APPROVE_AND_MERGE', {
       success: true,
       reviewer: String(reviewer).trim().slice(0, 120),
@@ -482,6 +498,7 @@ export class EngineeringRuntime {
       status: finalStatus,
       commit: commitResult.commit,
       deploymentStatus: 'NOT_DEPLOYED',
+      memoryWarning,
       message: 'Repair was re-tested and merged locally. Production/Vercel deployment remains a separate step.'
     };
   }
