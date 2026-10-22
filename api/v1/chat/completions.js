@@ -334,7 +334,7 @@ function stripHtml(value) {
     .replace(/\s+/g, ' ').trim();
 }
 
-async function searchExternalFallback(query, maxResults = WEB_SEARCH_MAX_RESULTS) {
+async function searchExternalFallback(query, maxResults = WEB_SEARCH_MAX_RESULTS, signal = null) {
   const q = sanitizeSearchText(query);
   if (!q) return null;
 
@@ -342,7 +342,7 @@ async function searchExternalFallback(query, maxResults = WEB_SEARCH_MAX_RESULTS
   try {
     const response = await fetch('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q), {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JINI-WebSearch/1.0)', 'Accept': 'text/html' },
-      signal: AbortSignal.timeout(7000)
+      signal: signal || AbortSignal.timeout(7000)
     });
     if (response.ok) {
       const html = await response.text();
@@ -1048,6 +1048,13 @@ function writeSSE(res, { id, model, delta = {}, agent = null, finish = null }) {
 }
 
 export default async function handler(req, res) {
+  // Keep the whole text-chat path inside Vercel's 60s function budget.
+  // Search and model retries share one deadline instead of each consuming a
+  // fresh timeout and letting a simple request reach FUNCTION_INVOCATION_TIMEOUT.
+  const requestStartedAt = Date.now();
+  const REQUEST_BUDGET_MS = 50000;
+  const remainingRequestMs = () => Math.max(0, requestStartedAt + REQUEST_BUDGET_MS - Date.now());
+
   // 1. CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -1290,10 +1297,25 @@ export default async function handler(req, res) {
       const searchQuery = isConnectivityProbe
         ? 'berita utama Indonesia hari ini'
         : buildSearchQuery(userPrompt);
-      let searchResult = await searchTavily(searchQuery, WEB_SEARCH_MAX_RESULTS);
-      if (!searchResult || !searchResult.sources?.length) {
-        console.warn('[JINI Live] Tavily unavailable; trying independent external search providers.');
-        searchResult = await searchExternalFallback(searchQuery, WEB_SEARCH_MAX_RESULTS);
+      // Preserve time for answer generation. Tavily gets a bounded first pass;
+      // the slower public-web fallback runs only when the request still has
+      // enough budget. Both providers share a single fallback timeout.
+      const tavilyBudgetMs = Math.min(TAVILY_TIMEOUT_MS, Math.max(1000, remainingRequestMs() - 32000));
+      let searchResult = null;
+      if (remainingRequestMs() > 32000) {
+        searchResult = await searchTavily(
+          searchQuery,
+          WEB_SEARCH_MAX_RESULTS,
+          AbortSignal.timeout(tavilyBudgetMs)
+        );
+      }
+      if ((!searchResult || !searchResult.sources?.length) && remainingRequestMs() > 37000) {
+        console.warn('[JINI Live] Tavily unavailable; trying bounded independent external search providers.');
+        searchResult = await searchExternalFallback(
+          searchQuery,
+          WEB_SEARCH_MAX_RESULTS,
+          AbortSignal.timeout(Math.min(7000, remainingRequestMs() - 30000))
+        );
       }
       if (searchResult && searchResult.sources.length) {
         searchContext = buildSearchEvidenceBlock(searchResult, searchQuery);
@@ -1403,7 +1425,7 @@ export default async function handler(req, res) {
     // If the user needs live info but Tavily produced no evidence, retry with
     // Gemini native Google Search grounding so Live can still browse the web.
     const groundingModes = (wantsWebSearch && !searchContext) ? [true, false] : [false];
-    const generationDeadline = Date.now() + 42000;
+    const generationDeadline = Math.min(requestStartedAt + REQUEST_BUDGET_MS, Date.now() + 42000);
     let generationError = '';
 
     searchGeneration:
@@ -1411,7 +1433,7 @@ export default async function handler(req, res) {
       for (const useGrounding of groundingModes) {
         let modelUnavailable = 0;
         for (const key of textKeys) {
-          if (Date.now() > generationDeadline) {
+          if (generationDeadline - Date.now() <= 1000) {
             generationError = generationError || 'Batas waktu pembuatan jawaban habis.';
             break searchGeneration;
           }
@@ -1424,7 +1446,10 @@ export default async function handler(req, res) {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody),
-              signal: AbortSignal.timeout(useGrounding ? 28000 : 20000)
+              signal: AbortSignal.timeout(Math.max(
+                1000,
+                Math.min(useGrounding ? 28000 : 20000, generationDeadline - Date.now() - 500)
+              ))
             });
 
             if (!geminiRes.ok) {
