@@ -111,6 +111,7 @@ final class JINI_Editorial_Assistant {
             <textarea id="jini-topic" rows="4" class="large-text" placeholder="Contoh: Susun berita faktual tentang kebijakan ekonomi terbaru. Sertakan konteks, tanggal, dan sumber yang dapat diverifikasi."></textarea>
             <p><button type="button" class="button button-primary" id="jini-generate">Buat naskah dengan JINI</button> <span id="jini-status" role="status" aria-live="polite"></span></p>
             <div id="jini-result" hidden>
+              <div id="jini-editor-notes" class="notice notice-warning inline" hidden><p><strong>Catatan verifikasi untuk editor:</strong></p><ul id="jini-editor-notes-list"></ul></div>
               <label for="jini-title"><strong>Judul berita</strong></label>
               <input id="jini-title" class="large-text" type="text" maxlength="250" />
               <label for="jini-content"><strong>Isi berita (HTML)</strong></label>
@@ -156,6 +157,15 @@ final class JINI_Editorial_Assistant {
       }
       byId('jini-title').value = data.article.title || '';
       byId('jini-content').value = data.article.content || '';
+      const notesBox = byId('jini-editor-notes');
+      const notesList = byId('jini-editor-notes-list');
+      notesList.replaceChildren();
+      (Array.isArray(data.article.editor_notes) ? data.article.editor_notes : []).forEach(function (note) {
+        const item = document.createElement('li');
+        item.textContent = String(note);
+        notesList.appendChild(item);
+      });
+      notesBox.hidden = notesList.children.length === 0;
       byId('jini-result').hidden = false;
       status.textContent = 'Naskah siap ditinjau. Belum disimpan atau diterbitkan.';
     } catch (error) {
@@ -185,7 +195,7 @@ final class JINI_Editorial_Assistant {
       }
       status.textContent = 'Draf tersimpan. ID: ' + data.id + '. ';
       const link = document.createElement('a');
-      link.href = data.link || ('post.php?post=' + data.id + '&action=edit');
+      link.href = 'post.php?post=' + encodeURIComponent(data.id) + '&action=edit';
       link.textContent = 'Buka draf';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
