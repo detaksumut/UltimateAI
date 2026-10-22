@@ -619,16 +619,18 @@ function maskSecrets(text) {
  * @returns {string[]} [preferred, fallback]
  */
 function resolveRequestSizes(aspectRatio) {
-  // Use conservative SDXL-friendly dimensions until the quality path is
-  // validated end-to-end. Avoid changing both semantics and resolution at once.
+  // Small first-pass canvases keep the generated asset comfortably under 1 MB
+  // in typical cases and reduce latency through the public tunnel. The final
+  // encoded byte size is still checked below; dimensions alone cannot guarantee
+  // a file-size ceiling because image complexity and encoding vary.
   const ar = String(aspectRatio || '16:9').replace(/\s+/g, '');
-  if (ar === '9:16') return ['432x768', '360x640'];
-  if (ar === '1:1') return ['768x768'];
-  if (ar === '4:3') return ['768x576'];
-  if (ar === '3:4') return ['576x768'];
-  if (ar === '3:2') return ['768x512'];
-  if (ar === '2:3') return ['512x768'];
-  return ['768x432', '640x360'];
+  if (ar === '9:16') return ['288x512', '256x456'];
+  if (ar === '1:1') return ['384x384', '320x320'];
+  if (ar === '4:3') return ['384x288', '320x240'];
+  if (ar === '3:4') return ['288x384', '240x320'];
+  if (ar === '3:2') return ['384x256', '320x216'];
+  if (ar === '2:3') return ['256x384', '216x320'];
+  return ['512x288', '384x216'];
 }
 
 const ASPECT_TOKEN_RE = /\b(16\s*:\s*9|9\s*:\s*16|1\s*:\s*1|4\s*:\s*3|3\s*:\s*4|3\s*:\s*2|2\s*:\s*3)\b/i;
