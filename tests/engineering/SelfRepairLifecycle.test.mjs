@@ -153,7 +153,9 @@ async function run() {
     assert.equal(firstPhase.status, IncidentStatus.AWAITING_APPROVAL, 'validated patch must await explicit approval');
     assert.equal(firstPhase.validationStatus, 'PASSED');
     assert.equal(firstPhase.testResults.pass, true);
-    assert.deepEqual(firstPhase.testResults.results.map((item) => item.stage), ['SYNTAX_CHECK', 'REGRESSION_TESTS', 'BUILD_VERIFY']);
+    assert.deepEqual(firstPhase.testResults.results.map((item) => item.stage), ['BASELINE_REGRESSION', 'SYNTAX_CHECK', 'REGRESSION_TESTS', 'BUILD_VERIFY']);
+    assert.equal(firstPhase.testResults.baselineRegressionVerified, true, 'regression test must fail on original code before it can validate a fix');
+    assert.equal(firstPhase.testResults.baselineRegression.pass, true);
     assert.equal(ticket.runtimePatched, false, 'main tree must not be changed before approval');
     assert.equal(fs.readFileSync(path.join(root, 'server', 'subject.mjs'), 'utf8'), originalSource);
     assert.ok(ticket.branchName.startsWith('jin/repair/'));
