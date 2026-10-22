@@ -88,7 +88,7 @@ function shapeBase(id, name, x, y, w, h, { fill = null, line = null, text = null
     const paragraphAlign = align === 'center' ? 'ctr' : align === 'right' ? 'r' : 'l';
     return '<a:p><a:pPr algn="' + paragraphAlign + '"/><a:r><a:rPr lang="id-ID" sz="' + Math.round(fontPt * 100) +
       '"' + (bold ? ' b="1"' : '') + ' dirty="0"><a:solidFill><a:srgbClr val="' + color.replace('#', '').toUpperCase() +
-      '"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t xml:space="preserve">' + xmlEsc(line) +
+      '"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>' + xmlEsc(line) +
       '</a:t></a:r><a:endParaRPr lang="id-ID"/></a:p>';
   }).join('');
   const txBody = '<p:txBody><a:bodyPr wrap="square" anchor="' + (valign === 'top' ? 't' : 'ctr') +
