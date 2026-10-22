@@ -216,6 +216,17 @@ export class GitWorktreeSandbox {
     return { ...restored };
   }
 
+  async readFileAtBaseCommit(sandboxId, relativeFilePath) {
+    const sandbox = this.activeSandboxes.get(sandboxId);
+    if (!sandbox) throw new Error('SANDBOX_NOT_FOUND: ' + sandboxId);
+    const resolved = this._resolveAllowedPath(relativeFilePath, { allowGeneratedTest: false });
+    const { stdout } = await this.git(['show', sandbox.baseCommit + ':' + resolved.relative], {
+      cwd: sandbox.path,
+      timeout: 20000
+    });
+    return stdout;
+  }
+
   async inspectSandbox(sandboxId) {
     const sandbox = this.activeSandboxes.get(sandboxId);
     if (!sandbox) throw new Error('SANDBOX_NOT_FOUND: ' + sandboxId);
