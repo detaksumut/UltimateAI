@@ -260,7 +260,7 @@ function uniqueSlideSchema(topic, archetype, options = {}) {
       accentColor: context.accentColor || '#2DD4BF'
     },
     canvas: { width: 1920, height: 1080, aspectRatio: '16:9' },
-    header: { title: topic, subtitle: content.subtitle },
+    header: { title: topic, subtitle: plain(context.subtitle || content.subtitle) },
     columns: [
       { title: content.leftTitle, items: leftItems.map(item => asBullet(item)) },
       { title: content.rightTitle, items: content.rightItems.map(item => asBullet(item)) }
