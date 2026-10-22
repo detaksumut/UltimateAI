@@ -15,6 +15,9 @@ jobs:
     - name: Validate JINI Editorial server route syntax
       run: node --check server/local_router/LocalRouterServer.mjs
 
+    - name: Validate Local Router required voice module is present
+      run: test -f server/voice/SpeechToTextService.mjs
+
     - name: Set up PHP for WordPress plugin syntax validation
       uses: shivammathur/setup-php@v2
       with:
