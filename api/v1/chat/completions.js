@@ -107,54 +107,114 @@ const CURRENT_INFO_PATTERNS = [
   /\b(?:apa\s+)?perkembangan\s+(?:berita\s+)?(?:terbaru\s+)?(?:ihsg|idx|indeks\s+harga\s+saham|pasar\s+saham|saham|kebakaran\s+hutan|karhutla|hutan\s+kalimantan|ekonomi|politik)\b/i
 ];
 
-/** Date/time questions are answered from the injected clock, never from the web. */
+/**
+ * Clock questions are answered from the injected date context, never from the
+ * web. Strict on purpose: bare "hari ini" / "sekarang" must NOT disable the
+ * search for real topics (e.g. "harga emas sekarang", "berita hari ini").
+ */
 const DATE_TIME_QUESTION_RE =
-  /\b(tahun\s+berapa|tanggal\s+berapa|hari\s+ini|sekarang|jam\s+berapa|what\s+(?:is|are)\s+the\s+(?:date|time|year)|hari\s+apa|waktu\s+saat\s+ini)\b/i;
+  /\b(?:tanggal|tahun|jam|pukul|hari|bulan)\s+(?:berapa|apa)\b|\bsekarang\s+(?:jam|pukul|tanggal|tahun|hari|bulan)\b|\b(?:hari|tanggal|bulan|tahun)\s+ini\s+(?:tanggal|hari|jam)\b|\bwhat\s+(?:is|are)\s+the\s+(?:date|time|day|year)\b|\bwhat\s+time\s+is\s+it\b/i;
 
 /** Greetings must never trigger a network search. */
-const GREETING_RE = /\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you)\b/i;
+const GREETING_RE = /\b(apa\s+kabar|bagaimana\s+kabar|how\s+are\s+you|selamat\s+(?:pagi|siang|sore|malam))\b/i;
 
 /** Document summarisation requests are answered from the document, not the web. */
 const DOCUMENT_REQUEST_RE =
   /\b(baca\s+ini|baca\s+dokumen|rangkum|ringkas|point\s+point|poin\s+poin|summarize\s+this)\b/i;
 
 /**
- * Decide whether the user explicitly asked for internet research.
+ * Fresh-information topics. Their correct answer depends on live data (today's
+ * news, disasters, markets, policy). On Live there is no other source for
+ * "hari ini", so these MUST hit the web.
+ */
+const FRESH_INFO_PATTERNS = [
+  // Explicit temporal markers
+  /\b(terbaru|terkini|mutakhir|hari\s+ini|kemarin|minggu\s+ini|bulan\s+ini|tahun\s+ini|saat\s+ini|sekarang|baru\s+ini|baru\s+saja|latest|current|today)\b/i,
+  // News & developments
+  /\b(berita|kabar|news|headline|perkembangan|update|situasi|kondisi\s+terkini|kronologi)\b/i,
+  // Disasters / weather
+  /\b(kebakaran|karhutla|kebakaran\s+hutan|banjir|gempa|erupsi|tsunami|longsor|kekeringan|cuaca|prakiraan\s+cuaca|asap|polusi)\b/i,
+  // Markets & economy
+  /\b(ihsg|saham|emiten|kurs|rupiah|dolar|inflasi|suku\s+bunga|pasar\s+modal|obligasi|bitcoin|ethereum|crypto|kripto|harga\s+(?:emas|minyak|beras|saham|bitcoin))\b/i,
+  // Politics / policy
+  /\b(pemilu|pilpres|pilkada|presiden|menteri|dpr|dprd|kabinet|kebijakan|regulasi|uu\s+baru|omnibus)\b/i,
+  // Sports / releases
+  /\b(skor|klasemen|hasil\s+pertandingan|jadwal\s+pertandingan|rilis|peluncuran|dirilis)\b/i
+];
+
+/** Creative/technical writing requests never need a web lookup. */
+const CREATIVE_REQUEST_RE =
+  /\b(puisi|cerita|dongeng|pantun|syair|naskah\s+drama|lukisan|sketsa)\b|\b(tulis|tuliskan|karang|buatkan|buat|bikin)\b[^.]{0,40}\b(kode|script|program|function|class|komponen|component|query|sql)\b/i;
+
+/** A bare "cek/cari" command is an internet request, even with a typo. */
+const BARE_SEARCH_VERB_RE = /\b(cek|check|cari|carikan|temukan|search|browse|googling|gugling|gugel|telusuri)\b/i;
+
+/** Question forms: default-ON for world questions (Live has no other tool). */
+const QUESTION_FORM_RE = /^(?:apa|apakah|bagaimana|gimana|mengapa|kenapa|kapan|siapa|berapa|di\s*mana|dimana|adakah|apakah\s+ada)\b|\?\s*$/i;
+
+/** "Bisakah kamu ...?" is a capability question, not a request to browse. */
+const BROWSE_CAPABILITY_INQUIRY_RE =
+  /\b(apakah|bisakah|bisa(?:kah)?|mampukah|can\s+you|are\s+you\s+able)\s+(?:kamu|anda|kau|you)\b/i;
+
+/**
+ * Bare connectivity probe ("cek internet", "test koneksi", typo "cek inernet"):
+ * there is no topic to search for, so instead of searching for the word
+ * "internet" we prove the connection with today's headlines.
+ */
+const CONNECTIVITY_PROBE_RE =
+  /^(?:tolong\s+|coba\s+|mohon\s+)?(?:cek|check|test|tes|periksa|uji)\s+(?:koneksi\s+|akses\s+|jaringan\s+)?(?:internet|inernet|inet|internetnya|web|online|jaringan)\s*[?!.,]*$/i;
+
+/**
+ * Decide whether this user turn needs live internet data.
+ *
  * Mirrors the local rule set (server/local_router/LocalRouterServer.mjs ->
- * isSearchIntent) so Live and localhost behave the same way.
+ * isSearchIntent) but is deliberately broader: on Live the cloud model has no
+ * memory/tools, so failing to search means the model answers "saya tidak punya
+ * akses internet". Guards keep greetings/clock/document/creative turns offline.
+ *
  * @param {string} userPrompt
  * @returns {boolean}
  */
 export function detectWebSearchIntent(userPrompt) {
   if (!userPrompt || typeof userPrompt !== 'string') return false;
+  const p = userPrompt.trim();
+  if (!p) return false;
 
   // Guard: attached document / summarisation request -> never browse.
-  if (/---\s*\[(?:berkas\s+dokumen|dokumen|konteks\s+dokumen)/i.test(userPrompt)) return false;
-  if (DOCUMENT_REQUEST_RE.test(userPrompt)) return false;
+  if (/---\s*\[(?:berkas\s+dokumen|dokumen|konteks\s+dokumen)/i.test(p)) return false;
+  if (DOCUMENT_REQUEST_RE.test(p)) return false;
+  if (/\b(?:dokumen|berkas|file|lampiran)\s+ini\b/i.test(p)) return false;
 
-  // Guard: explicit internet command -> search.
+  // Guard: greeting / capability question -> not an action.
+  if (GREETING_RE.test(p)) return false;
+  if (BROWSE_CAPABILITY_INQUIRY_RE.test(p)) return false;
+
+  // 1. Explicit internet command -> always search.
   for (const re of EXPLICIT_WEB_SEARCH_PATTERNS) {
-    if (re.test(userPrompt)) return true;
+    if (re.test(p)) return true;
   }
 
-  // Guard: explicit "current information" intent -> search.
+  // 2. Explicit "current information" intent -> always search.
   for (const re of CURRENT_INFO_PATTERNS) {
-    if (re.test(userPrompt)) return true;
+    if (re.test(p)) return true;
   }
 
-  // Guard: date/time question -> answer from the clock, not from the web.
-  if (DATE_TIME_QUESTION_RE.test(userPrompt)) return false;
+  // 3. Clock question -> answer from the injected date context.
+  if (DATE_TIME_QUESTION_RE.test(p)) return false;
 
-  // Guard: greeting -> no search.
-  if (GREETING_RE.test(userPrompt)) return false;
-
-  // Guard: explicit verb + web/news noun pair -> search.
-  if (
-    /\b(cari|carikan|cek|temukan|search|browse)\b/i.test(userPrompt) &&
-    /\b(internet|web|online|situs|berita|kabar|terkini|perkembangan|news|latest)\b/i.test(userPrompt)
-  ) {
-    return true;
+  // 4. Fresh-information topic -> search.
+  for (const re of FRESH_INFO_PATTERNS) {
+    if (re.test(p)) return true;
   }
+
+  // 5. Creative / code-writing request -> no search.
+  if (CREATIVE_REQUEST_RE.test(p)) return false;
+
+  // 6. Bare "cek/cari ..." command -> search even without "internet"/"web".
+  if (BARE_SEARCH_VERB_RE.test(p)) return true;
+
+  // 7. Default ON for genuine questions: Live has no other way to know.
+  if (QUESTION_FORM_RE.test(p) && p.length >= 12) return true;
 
   return false;
 }
@@ -384,7 +444,51 @@ export function buildSearchEvidenceBlock(searchResult, query = '') {
   lines.push(
     'Gunakan fakta di atas sebagai sumber terverifikasi. Saat mengutip, sertakan Judul dan URL sumber yang relevan. Jangan mengarang sumber lain.'
   );
+  lines.push(
+    'Data di atas baru saja diambil dari internet live. DILARANG menolak menjawab dengan alasan "tidak punya akses real-time", "tidak bisa menjelajahi internet", atau "pengetahuan hanya sampai tanggal tertentu" - jawablah memakai data di atas.'
+  );
   return lines.join('\n');
+}
+
+/**
+ * Always-on system policy. Without this the cloud model tends to refuse with
+ * "saya tidak memiliki akses real-time" even when the backend just fetched
+ * live data. Kept short so it does not crowd out the product persona.
+ */
+export const INTERNET_ACCESS_POLICY =
+  'KEBIJAKAN AKSES INTERNET (WAJIB DIPATUHI):\n' +
+  '- Anda TERHUBUNG ke internet melalui backend JINI. Web search dijalankan otomatis di server, tanpa perlu diminta pengguna.\n' +
+  '- Bila konteks memuat blok "--- [DATA FAKTA TERVERIFIKASI INTERNET ...] ---", Anda WAJIB menjawab berdasarkan fakta tersebut dan mencantumkan Judul + URL sumber yang relevan.\n' +
+  '- DILARANG menjawab "saya tidak memiliki akses real-time", "saya tidak bisa menjelajahi internet", "saya tidak dapat mencari di web", atau "pengetahuan saya hanya sampai tanggal ...". Jawaban semacam itu tidak benar.\n' +
+  '- Bila pengguna menanyakan hal terkini dan tidak ada blok data fakta, katakan terus terang bahwa pencarian internet sedang gagal, berikan konteks umum sebaik mungkin, dan jangan mengarang sumber.';
+
+/**
+ * Map Gemini Google Search grounding metadata into the same source shape used
+ * by the Tavily path, so the UI/`_agent` contract stays identical.
+ * @param {*} metadata candidates[].groundingMetadata
+ * @returns {Array}
+ */
+export function extractGroundingSources(metadata) {
+  const chunks = metadata?.groundingChunks;
+  if (!Array.isArray(chunks)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const chunk of chunks) {
+    const uri = chunk?.web?.uri;
+    if (!uri || seen.has(uri)) continue;
+    seen.add(uri);
+    let domain = '';
+    try { domain = new URL(uri).hostname.replace(/^www\./, ''); } catch { domain = ''; }
+    out.push({
+      id: `google_${out.length + 1}`,
+      title: sanitizeSearchText(chunk?.web?.title) || domain || uri,
+      url: uri,
+      domain,
+      snippet: '',
+      credibility: 'GEMINI_GOOGLE_SEARCH'
+    });
+  }
+  return out;
 }
 
 /**
@@ -478,14 +582,21 @@ export function toPlainText(content) {
 // serverless bundle lean and avoid local-only dependencies).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Collect the Gemini key pool (primary + numbered rotation keys). */
+/** Collect the Gemini key pool (primary + numbered rotation keys). Deduplicated. */
 function collectGeminiKeys() {
   const keys = [];
-  const primary = process.env.GEMINI_API_KEY;
-  if (primary && primary.trim()) keys.push(primary.trim());
+  const seen = new Set();
+  const add = (raw) => {
+    if (typeof raw !== 'string') return;
+    const k = raw.trim();
+    if (!k) return;
+    if (seen.has(k)) return;
+    seen.add(k);
+    keys.push(k);
+  };
+  add(process.env.GEMINI_API_KEY);
   for (let i = 1; i <= 15; i++) {
-    const k = process.env[`GEMINI_API_KEY_${i}`];
-    if (k && k.trim()) keys.push(k.trim());
+    add(process.env[`GEMINI_API_KEY_${i}`]);
   }
   return keys;
 }
@@ -962,7 +1073,9 @@ export default async function handler(req, res) {
 
     // 4. GENERAL AI CONVERSATION (Gemini Cloud, system-prompt aware + key rotation)
     const textKeys = collectGeminiKeys();
-    let assistantReply = `Halo! Saya JINI, AI partner Anda. Bagaimana saya bisa membantu Anda hari ini?`;
+    // Never pretend success: a placeholder greeting here used to mask total
+    // generation failure (retired model ids, exhausted quota) as a normal reply.
+    let assistantReply = '';
 
     // ── Date/time awareness (Asia/Jakarta) ───────────────────────────────
     // Built per request (never at build time) and MERGED with the system prompt
@@ -976,15 +1089,21 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .join('\n\n');
 
-    // ── Web search (only on an explicit internet request) ────────────────
+    // ── Web search (fresh-information intent) ────────────────────────────
     // Runs server-side against Tavily (TAVILY_API_KEY); the key never reaches
     // the browser. Evidence is injected as clearly-identified context so the
-    // model can cite titles + URLs.
+    // model can cite titles + URLs. When Tavily is unavailable the handler
+    // still reaches the internet through Gemini native Google Search grounding
+    // (see the generation loop below).
     let searchContext = '';
     let searchMeta = null;
     let searchUnavailableNote = '';
-    if (detectWebSearchIntent(userPrompt)) {
-      const searchQuery = buildSearchQuery(userPrompt);
+    const wantsWebSearch = detectWebSearchIntent(userPrompt);
+    const isConnectivityProbe = CONNECTIVITY_PROBE_RE.test(userPrompt.trim());
+    if (wantsWebSearch) {
+      const searchQuery = isConnectivityProbe
+        ? 'berita utama Indonesia hari ini'
+        : buildSearchQuery(userPrompt);
       let searchResult = await searchTavily(searchQuery, WEB_SEARCH_MAX_RESULTS);
       if (!searchResult || !searchResult.sources?.length) {
         console.warn('[JINI Live] Tavily unavailable; trying independent external search providers.');
@@ -1002,25 +1121,28 @@ export default async function handler(req, res) {
           sources: searchResult.sources.map(s => ({ id: s.id, title: s.title, url: s.url, domain: s.domain }))
         };
       } else {
-        // Honest failure mode: the model is told the web is unavailable so it
-        // never claims a search happened and never invents citations.
+        // Honest failure mode: never claim a search happened or invent sources.
+        // The generation loop will retry with Gemini Google Search grounding.
         searchUnavailableNote =
           'Pencarian internet tidak tersedia (layanan web search gagal atau TAVILY_API_KEY belum dikonfigurasi). ' +
           'Jika pengguna meminta informasi terkini, jawab dari pengetahuan Anda, sebutkan keterbatasannya dengan jujur, ' +
-          'dan jangan mengklaim telah melakukan pencarian internet atau mengutip sumber internet.';
+          'dan jangan mengklaim telah melakukan pencarian internet atau mengutip sumber internet. ' +
+          'Pengecualian: bila Anda benar-benar menerima hasil Google Search grounding pada giliran ini, gunakan hasil tersebut sebagai sumber.';
       }
     }
 
-    // ── System instruction (date + existing prompt + search policy) ──────
+    // ── System instruction (date + existing prompt + internet policy) ────
     const systemParts = [];
     if (!hasDateContext(existingSystemText)) systemParts.push(dateContext);
     if (existingSystemText) systemParts.push(existingSystemText);
+    systemParts.push(INTERNET_ACCESS_POLICY);
     if (searchUnavailableNote) systemParts.push(searchUnavailableNote);
     const systemText = systemParts.join('\n\n');
 
     console.log(
       '[JINI Live] date context:', dateContext.slice(0, 72),
       '| web search:', searchMeta ? 'YES' : 'no',
+      '| search wanted:', wantsWebSearch ? 'yes' : 'no',
       '| system prompt length:', systemText.length
     );
 
@@ -1078,34 +1200,138 @@ export default async function handler(req, res) {
       }
     }
 
-    const textModel = (process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash').trim();
-    const textModelPath = textModel.startsWith('models/') ? textModel : `models/${textModel}`;
+    // Model fallback chain: Gemini retires model ids per project tier, so a
+    // hardcoded name can start returning 404 ("no longer available to new
+    // users") while other families keep working. Try the configured model
+    // first, then the current stable aliases.
+    const textModels = (() => {
+      const configured = (process.env.GEMINI_TEXT_MODEL || '').trim();
+      const list = [configured, 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash']
+        .map(m => m.replace(/^models\//, ''))
+        .filter(Boolean);
+      return [...new Set(list)];
+    })();
 
-    for (const key of textKeys) {
-      try {
-        const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
-        if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
+    // ── Generation with an automatic internet fallback ───────────────────
+    // 1st pass: plain Gemini (Tavily evidence, if any, is already in `contents`).
+    // If the user needs live info but Tavily produced no evidence, retry with
+    // Gemini native Google Search grounding so Live can still browse the web.
+    const groundingModes = (wantsWebSearch && !searchContext) ? [true, false] : [false];
+    const generationDeadline = Date.now() + 42000;
+    let generationError = '';
 
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${textModelPath}:generateContent?key=${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: AbortSignal.timeout(20000)
-        });
-
-        if (geminiRes.ok) {
-          const gData = await geminiRes.json();
-          const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            assistantReply = candidateText;
-            break; // success — stop key rotation
+    searchGeneration:
+    for (const textModel of textModels) {
+      for (const useGrounding of groundingModes) {
+        let modelUnavailable = 0;
+        for (const key of textKeys) {
+          if (Date.now() > generationDeadline) {
+            generationError = generationError || 'Batas waktu pembuatan jawaban habis.';
+            break searchGeneration;
           }
-        } else if (geminiRes.status === 429 || geminiRes.status >= 500) {
-          continue; // rotate to next key on quota/transient errors
+          try {
+            const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
+            if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
+            if (useGrounding) requestBody.tools = [{ google_search: {} }];
+
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${textModel}:generateContent?key=${encodeURIComponent(key)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+              signal: AbortSignal.timeout(useGrounding ? 28000 : 20000)
+            });
+
+            if (!geminiRes.ok) {
+              const errText = await geminiRes.text().catch(() => '');
+              generationError = `HTTP ${geminiRes.status}`;
+              // 404 = this model id is retired for this key's tier. Two in a
+              // row means the whole key pool rejects the model -> next model.
+              if (geminiRes.status === 404) {
+                if (++modelUnavailable >= 2) break;
+                continue;
+              }
+              // 400 while grounded usually means the tool is unsupported here;
+              // skip grounding for this model and use a plain call instead.
+              if (useGrounding && geminiRes.status === 400) break;
+              if (geminiRes.status === 429 || geminiRes.status >= 500) continue;
+              console.warn('[GeminiCloud] HTTP', geminiRes.status, maskSecrets(errText).slice(0, 180));
+              continue;
+            }
+
+            const gData = await geminiRes.json();
+            const candidate = gData.candidates?.[0];
+            const candidateText = candidate?.content?.parts?.[0]?.text;
+            if (!candidateText) {
+              generationError = candidate?.finishReason
+                ? `Jawaban kosong (finishReason: ${candidate.finishReason}).`
+                : 'Model tidak mengembalikan teks.';
+              continue;
+            }
+
+            assistantReply = candidateText;
+
+            if (useGrounding && !searchMeta) {
+              const groundedSources = extractGroundingSources(candidate.groundingMetadata);
+              if (groundedSources.length) {
+                searchMeta = {
+                  intent: 'WEB_SEARCH',
+                  toolsUsed: ['web.search', 'google.search'],
+                  provider: 'GEMINI_GOOGLE_SEARCH',
+                  query: userPrompt,
+                  generationId,
+                  messageId,
+                  sources: groundedSources
+                };
+              }
+            }
+
+            break searchGeneration; // success — stop key/mode/model rotation
+          } catch (geminiErr) {
+            generationError = geminiErr.name === 'TimeoutError' ? 'Timeout ke Gemini API.' : geminiErr.message;
+            console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr.message));
+          }
         }
-      } catch (geminiErr) {
-        console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr.message));
       }
+    }
+
+    console.log(
+      '[JINI Live] generation done | grounding:',
+      searchMeta?.provider === 'GEMINI_GOOGLE_SEARCH' ? 'YES' : 'no',
+      '| sources:', searchMeta?.sources?.length || 0,
+      '| ok:', assistantReply ? 'yes' : 'NO'
+    );
+
+    if (!assistantReply) {
+      const reason = generationError ? ` (${maskSecrets(generationError)})` : '';
+      assistantReply =
+        `Maaf, mesin AI JINI sedang tidak dapat menjawab saat ini${reason}. ` +
+        'Semua kunci API Gemini yang tersedia gagal atau kuotanya habis. ' +
+        'Silakan coba lagi beberapa saat lagi.';
+
+      if (stream) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+        res.write(`data: ${JSON.stringify({
+          id: 'chatcmpl-' + Date.now(),
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model: model || 'jini-live',
+          choices: [{ index: 0, delta: { content: assistantReply }, finish_reason: 'stop' }],
+          _agent: { intent: 'ERROR', toolsUsed: [], provider: 'NONE', error: true }
+        })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+      return res.status(502).json({
+        error: {
+          message: assistantReply,
+          type: 'upstream_unavailable',
+          code: generationError || 'GEMINI_UNAVAILABLE'
+        }
+      });
     }
 
     if (stream) {

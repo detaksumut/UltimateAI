@@ -20,7 +20,9 @@ import handler, {
   buildSearchEvidenceBlock,
   buildSearchQuery,
   detectWebSearchIntent,
+  extractGroundingSources,
   hasDateContext,
+  INTERNET_ACCESS_POLICY,
   searchTavily,
   toPlainText
 } from '../../api/v1/chat/completions.js';
@@ -268,6 +270,24 @@ check('intent gate: hanya permintaan internet eksplisit yang memicu search', () 
   assert.strictEqual(detectWebSearchIntent(null), false);
 });
 
+check('intent gate: pertanyaan info terkini TANPA kata "internet" tetap memicu search', () => {
+  // Regresi nyata: pertanyaan seperti ini dulu dijawab "saya tidak punya akses internet".
+  assert.strictEqual(detectWebSearchIntent('apakah ada perkembangan baru terkait kebakaran hutan di kalimantan?'), true);
+  assert.strictEqual(detectWebSearchIntent('apa perkembangan berita IHSG'), true);
+  assert.strictEqual(detectWebSearchIntent('cek inernet'), true); // typo tetap dikenali
+  assert.strictEqual(detectWebSearchIntent('berapa harga bitcoin hari ini?'), true);
+  assert.strictEqual(detectWebSearchIntent('hasil pertandingan timnas semalam'), true);
+  assert.strictEqual(detectWebSearchIntent('siapa presiden indonesia sekarang?'), true);
+  assert.strictEqual(detectWebSearchIntent('bagaimana kondisi banjir di jakarta?'), true);
+  // Guard tetap: kreatif / sapaan / jam / dokumen tidak memicu search.
+  assert.strictEqual(detectWebSearchIntent('tulis puisi tentang hujan'), false);
+  assert.strictEqual(detectWebSearchIntent('halo'), false);
+  assert.strictEqual(detectWebSearchIntent('terima kasih'), false);
+  assert.strictEqual(detectWebSearchIntent('jam berapa sekarang?'), false);
+  assert.strictEqual(detectWebSearchIntent('bisakah kamu membuat gambar?'), false);
+  assert.strictEqual(detectWebSearchIntent('cek dokumen ini'), false);
+});
+
 check('buildSearchQuery membersihkan scaffolding "cek internet"', () => {
   const q = buildSearchQuery('Tolong cek internet berita terbaru tentang AI');
   assert.ok(!/internet/i.test(q), q);
@@ -447,6 +467,143 @@ await checkAsync('handler: TAVILY_API_KEY hilang -> tidak ada panggilan ke Tavil
   restoreFetch();
   assert.strictEqual(res.statusCode, 200);
   assert.strictEqual(fetchCalls.filter(c => c.url.includes(TAVILY_URL)).length, 0, 'Tavily dipanggil tanpa API key');
+});
+
+await checkAsync('handler: system instruction SELALU memuat kebijakan akses internet', async () => {
+  process.env.GEMINI_API_KEY = 'test-gemini-key';
+  delete process.env.TAVILY_API_KEY;
+  let captured = null;
+  stubFetch([[GEMINI_URL, async (u, o) => { captured = JSON.parse(o.body); return geminiOk(); }]]);
+
+  const res = mockRes();
+  await handler({
+    method: 'POST',
+    body: { messages: [{ role: 'system', content: 'You are JIN.' }, { role: 'user', content: 'Halo' }] }
+  }, res);
+
+  restoreFetch();
+  const sys = captured.systemInstruction?.parts?.[0]?.text || '';
+  assert.ok(sys.includes(INTERNET_ACCESS_POLICY), 'kebijakan akses internet tidak disuntik');
+  assert.ok(sys.includes('DILARANG menjawab "saya tidak memiliki akses real-time"'), 'larangan menolak tidak ada');
+});
+
+await checkAsync('handler: Tavily gagal -> fallback Gemini Google Search grounding', async () => {
+  process.env.GEMINI_API_KEY = 'test-gemini-key';
+  process.env.TAVILY_API_KEY = 'tvly-test-key';
+  let geminiBody = null;
+  stubFetch([
+    [TAVILY_URL, async () => jsonResponse({ error: 'rate limit' }, 429)],
+    [GEMINI_URL, async (u, o) => {
+      geminiBody = JSON.parse(o.body);
+      return jsonResponse({
+        candidates: [{
+          content: { parts: [{ text: 'Menurut situs resmi, IHSG menguat.' }] },
+          groundingMetadata: {
+            groundingChunks: [
+              { web: { uri: 'https://www.idx.co.id/berita', title: 'IDX Berita' } },
+              { web: { uri: 'https://www.idx.co.id/berita', title: 'IDX Berita (duplikat)' } },
+              { web: { uri: 'https://www.cnbcindonesia.com/market', title: 'CNBC Market' } }
+            ]
+          }
+        }]
+      });
+    }]
+  ]);
+
+  const res = mockRes();
+  await handler({
+    method: 'POST',
+    body: { messages: [{ role: 'user', content: 'apa perkembangan berita IHSG' }] }
+  }, res);
+
+  restoreFetch();
+  delete process.env.TAVILY_API_KEY;
+
+  assert.strictEqual(res.statusCode, 200);
+  assert.deepStrictEqual(geminiBody.tools, [{ google_search: {} }], 'tools grounding tidak dikirim');
+  assert.ok(res.body._agent, '_agent grounding tidak ada');
+  assert.strictEqual(res.body._agent.provider, 'GEMINI_GOOGLE_SEARCH');
+  assert.strictEqual(res.body._agent.sources.length, 2, 'sumber grounding harus unik');
+  assert.strictEqual(res.body._agent.sources[0].url, 'https://www.idx.co.id/berita');
+  assert.strictEqual(res.body._agent.sources[1].domain, 'cnbcindonesia.com');
+});
+
+await checkAsync('handler: Tavily sukses -> TIDAK memanggil grounding (hemat kuota)', async () => {
+  process.env.GEMINI_API_KEY = 'test-gemini-key';
+  process.env.TAVILY_API_KEY = 'tvly-test-key';
+  let geminiBody = null;
+  stubFetch([
+    [TAVILY_URL, async () => jsonResponse({ answer: 'ok', results: [{ title: 'T', url: 'https://e.example/1', content: 'c' }] })],
+    [GEMINI_URL, async (u, o) => { geminiBody = JSON.parse(o.body); return geminiOk('Jawaban.'); }]
+  ]);
+
+  const res = mockRes();
+  await handler({
+    method: 'POST',
+    body: { messages: [{ role: 'user', content: 'berita terbaru hari ini' }] }
+  }, res);
+
+  restoreFetch();
+  delete process.env.TAVILY_API_KEY;
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(geminiBody.tools, undefined, 'grounding tidak boleh dipakai saat evidence Tavily ada');
+  assert.strictEqual(res.body._agent.provider, 'TAVILY_AI');
+});
+
+check('extractGroundingSources: dedup + domain + shape stabil', () => {
+  const src = extractGroundingSources({
+    groundingChunks: [
+      { web: { uri: 'https://www.example.com/a', title: 'A' } },
+      { web: { uri: 'https://www.example.com/a', title: 'A lagi' } },
+      { web: {} },
+      { web: { uri: 'https://b.example.org/x', title: '' } }
+    ]
+  });
+  assert.strictEqual(src.length, 2);
+  assert.strictEqual(src[0].id, 'google_1');
+  assert.strictEqual(src[0].domain, 'example.com');
+  assert.strictEqual(src[1].title, 'b.example.org');
+  assert.deepStrictEqual(extractGroundingSources(null), []);
+});
+
+await checkAsync('handler: model pensiun (404) -> pindah ke model cadangan', async () => {
+  process.env.GEMINI_API_KEY = 'k1';
+  process.env.GEMINI_API_KEY_1 = 'k2';
+  delete process.env.TAVILY_API_KEY;
+  const modelsTried = [];
+  stubFetch([[GEMINI_URL, async (u) => {
+    const m = u.match(/models\/([^:]+):/)?.[1];
+    modelsTried.push(m);
+    if (m === 'gemini-3.8-flash') {
+      return jsonResponse({ error: { code: 404, message: 'no longer available to new users' } }, 404);
+    }
+    return geminiOk('Jawaban dari model cadangan.');
+  }]]);
+
+  const res = mockRes();
+  await handler({ method: 'POST', body: { messages: [{ role: 'user', content: 'Halo JINI' }] } }, res);
+
+  restoreFetch();
+  assert.strictEqual(res.statusCode, 200);
+  assert.ok(res.body.choices[0].message.content.includes('model cadangan'));
+  assert.ok(modelsTried.includes('gemini-flash-latest'), 'tidak mencoba model cadangan');
+  assert.strictEqual(modelsTried.filter(m => m === 'gemini-3.8-flash').length, 2,
+    'model pensiun tidak boleh dicoba untuk SEMUA key');
+});
+
+await checkAsync('handler: semua key gagal -> error jujur (bukan sapaan palsu)', async () => {
+  process.env.GEMINI_API_KEY = 'k1';
+  delete process.env.TAVILY_API_KEY;
+  stubFetch([[GEMINI_URL, async () => jsonResponse({ error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }, 429)]]);
+
+  const res = mockRes();
+  await handler({ method: 'POST', body: { messages: [{ role: 'user', content: 'apa perkembangan berita IHSG' }] } }, res);
+
+  restoreFetch();
+  assert.strictEqual(res.statusCode, 502);
+  assert.strictEqual(res.body.error.type, 'upstream_unavailable');
+  assert.ok(!/Halo! Saya JINI/.test(res.body.error.message), 'masih mengembalikan sapaan palsu');
+  assert.ok(/tidak dapat menjawab/.test(res.body.error.message));
 });
 
 await checkAsync('handler: obrolan biasa TIDAK menjalankan web search', async () => {
