@@ -157,83 +157,15 @@ export class EngineeringRuntime {
       });
 
       const testRunner = new TestOrchestrator(sandboxInfo.path);
-      const testSyntax = await testRunner.runSyntaxValidation(patchPlan.testFiles);
-      if (!testSyntax.pass) {
+      const baselineGate = await this.verifyBaselineRegression(sandboxInfo.sandboxId, patchPlan, testRunner);
+      if (!baselineGate.pass) {
+        const reason = baselineGate.error || 'Regression test was not proven to fail on the original implementation.';
         const failed = {
           pass: false,
-          failedStage: 'REGRESSION_TEST_SYNTAX',
-          error: 'Generated regression test does not parse.',
-          results: [testSyntax]
+          failedStage: baselineGate.stage,
+          error: reason,
+          results: [baselineGate]
         };
-        await this.sandbox.cleanupSandbox(sandboxInfo.sandboxId);
-        this.queue.updateStatus(incidentId, IncidentStatus.REJECTED, {
-          testResults: failed,
-          failureReason: failed.error,
-          validationStatus: 'FAILED',
-          runtimePatched: false
-        });
-        this.policy.recordAudit(incidentId, 'VERIFY_REGRESSION_TEST', { success: false, failedStage: failed.failedStage });
-        return { success: false, incidentId, status: IncidentStatus.REJECTED, testResults: failed, reason: failed.error };
-      }
-
-      // Prove the generated regression test is not vacuous: run it against the
-      // exact committed baseline first. Only an assertion failure proves that
-      // it catches the original behavior; import/syntax/runtime failures do not.
-      const sourceChanges = patchPlan.changes.filter((change) => change.kind === 'SOURCE');
-      let baselineGate = null;
-      if (!sourceChanges.length) {
-        baselineGate = { stage: 'BASELINE_REGRESSION', pass: false, error: 'No source file was supplied for baseline comparison.' };
-      } else {
-        const baselineContents = [];
-        try {
-          for (const change of sourceChanges) {
-            baselineContents.push({
-              path: change.path,
-              content: await this.sandbox.readFileAtBaseCommit(sandboxInfo.sandboxId, change.path)
-            });
-          }
-          for (const baseline of baselineContents) {
-            await this.sandbox.applyPatchToSandbox(sandboxInfo.sandboxId, baseline.path, baseline.content);
-          }
-          const baselineResults = await testRunner.runRegressionTests(patchPlan.testFiles);
-          const assertionFailureOnly = baselineResults.results.length > 0 &&
-            baselineResults.results.every((result) => {
-              if (result.pass) return false;
-              const combined = String(result.error || '') + '\n' + String(result.output || '');
-              return /AssertionError|ERR_ASSERTION|Assertion failed/i.test(combined);
-            });
-          baselineGate = {
-            stage: 'BASELINE_REGRESSION',
-            pass: assertionFailureOnly,
-            assertionFailureObserved: assertionFailureOnly,
-            results: baselineResults.results,
-            error: assertionFailureOnly ? null : 'Regression test did not fail specifically on a baseline assertion; test may be vacuous or invalid.'
-          };
-        } catch (err) {
-          baselineGate = {
-            stage: 'BASELINE_REGRESSION',
-            pass: false,
-            error: 'Baseline preflight failed: ' + String(err.message || err)
-          };
-        } finally {
-          // Always restore the proposed candidate before proceeding or cleanup.
-          for (const change of sourceChanges) {
-            try {
-              await this.sandbox.applyPatchToSandbox(sandboxInfo.sandboxId, change.path, change.content);
-            } catch (restoreErr) {
-              baselineGate = {
-                stage: 'BASELINE_REGRESSION',
-                pass: false,
-                error: 'Could not restore proposed patch after baseline test: ' + String(restoreErr.message || restoreErr)
-              };
-            }
-          }
-        }
-      }
-
-      if (!baselineGate || !baselineGate.pass) {
-        const reason = baselineGate?.error || 'Regression test was not demonstrated to fail on the original implementation.';
-        const failed = { pass: false, failedStage: 'BASELINE_REGRESSION', error: reason, results: [testSyntax, baselineGate] };
         await this.sandbox.cleanupSandbox(sandboxInfo.sandboxId);
         this.queue.updateStatus(incidentId, IncidentStatus.REJECTED, {
           testResults: failed,
@@ -244,7 +176,7 @@ export class EngineeringRuntime {
           sandboxPath: null,
           branchName: null
         });
-        this.policy.recordAudit(incidentId, 'VERIFY_BASELINE_REGRESSION', { success: false, reason });
+        this.policy.recordAudit(incidentId, 'VERIFY_BASELINE_REGRESSION', { success: false, failedStage: baselineGate.stage, reason });
         return { success: false, incidentId, status: IncidentStatus.REJECTED, testResults: failed, reason };
       }
 
@@ -350,6 +282,76 @@ export class EngineeringRuntime {
       }
       throw err;
     }
+  }
+
+  async verifyBaselineRegression(sandboxId, patchPlan, testRunner) {
+    const syntax = await testRunner.runSyntaxValidation(patchPlan?.testFiles || []);
+    if (!syntax.pass) {
+      return {
+        stage: 'REGRESSION_TEST_SYNTAX',
+        pass: false,
+        error: 'Generated regression test does not parse.',
+        syntax
+      };
+    }
+
+    const sourceChanges = (Array.isArray(patchPlan?.changes) ? patchPlan.changes : [])
+      .filter((change) => change.kind === 'SOURCE');
+    if (!sourceChanges.length) {
+      return { stage: 'BASELINE_REGRESSION', pass: false, error: 'No source file was supplied for baseline comparison.' };
+    }
+
+    let baselineGate = null;
+    try {
+      const baselines = [];
+      for (const change of sourceChanges) {
+        baselines.push({
+          path: change.path,
+          content: await this.sandbox.readFileAtBaseCommit(sandboxId, change.path)
+        });
+      }
+      for (const baseline of baselines) {
+        await this.sandbox.applyPatchToSandbox(sandboxId, baseline.path, baseline.content);
+      }
+
+      const baselineResults = await testRunner.runRegressionTests(patchPlan.testFiles || []);
+      const assertionFailureOnly = baselineResults.results.length > 0 &&
+        baselineResults.results.every((result) => {
+          if (result.pass) return false;
+          const combined = String(result.error || '') + '\n' + String(result.output || '');
+          return /AssertionError|ERR_ASSERTION|Assertion failed/i.test(combined);
+        });
+      baselineGate = {
+        stage: 'BASELINE_REGRESSION',
+        pass: assertionFailureOnly,
+        assertionFailureObserved: assertionFailureOnly,
+        results: baselineResults.results,
+        error: assertionFailureOnly
+          ? null
+          : 'Regression test did not fail specifically on a baseline assertion; test may be vacuous or invalid.'
+      };
+    } catch (err) {
+      baselineGate = {
+        stage: 'BASELINE_REGRESSION',
+        pass: false,
+        error: 'Baseline preflight failed: ' + String(err.message || err)
+      };
+    } finally {
+      // Always restore the candidate source. This helper must not leave the
+      // worktree on the original implementation after preflight.
+      for (const change of sourceChanges) {
+        try {
+          await this.sandbox.applyPatchToSandbox(sandboxId, change.path, change.content);
+        } catch (restoreErr) {
+          baselineGate = {
+            stage: 'BASELINE_REGRESSION',
+            pass: false,
+            error: 'Could not restore candidate patch after baseline test: ' + String(restoreErr.message || restoreErr)
+          };
+        }
+      }
+    }
+    return baselineGate || { stage: 'BASELINE_REGRESSION', pass: false, error: 'Baseline regression was not evaluated.' };
   }
 
   async approveAndMergeFix(incidentId, { approved = false, reviewer = '' } = {}) {
