@@ -47,10 +47,14 @@ export class SelfEvolvingAgentEngine {
     const text = String(prompt || '').trim();
     if (text.length < 3) return false;
 
-    // Harus ada riwayat pesan sebelumnya agar bisa disebut 'koreksi atas kegagalan sebelumnya'
+    // Explicit source-repair commands may start a supervised repair even
+    // without a prior failed assistant response. Ordinary complaints still
+    // require conversational history to prevent accidental repair triggering.
+    const explicitRepair = /\\b(?:perbaiki|perbaikan|koreksi|fix|repair|patch|evolusi)\\b[^.]{0,60}\\b(?:kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software)\\b/i.test(text);
+    if (explicitRepair) return true;
+
     const hasHistory = Array.isArray(messages) && messages.length >= 2;
     const matchesSignal = CORRECTION_SIGNALS.some((pattern) => pattern.test(text));
-
     return matchesSignal && hasHistory;
   }
 
