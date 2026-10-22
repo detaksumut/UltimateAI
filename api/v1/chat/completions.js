@@ -839,8 +839,8 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   // illustration, cartoon, painting, anime, sketch, or another non-photo style.
   // Keep the user's subject first so style guidance cannot override semantics.
   const userPrompt = String(prompt || '').trim();
-  const explicitlyNonPhotorealistic = /\\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|ilustrasi|lukisan|cat air|sketsa)\\b/i.test(userPrompt);
-  const explicitlyRequestsEffects = /\\b(explosion|explosion|exploding|fireball|battle|war scene|dramatic action|fantasy|sci-fi|surreal|ledakan|meledak|perang|adegan aksi|fantasi|fiksi ilmiah|surealis)\\b/i.test(userPrompt);
+  const explicitlyNonPhotorealistic = /\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|ilustrasi|lukisan|cat air|sketsa)\b/i.test(userPrompt);
+  const explicitlyRequestsEffects = /\b(explosion|exploding|fireball|battle|war scene|dramatic action|fantasy|sci-fi|surreal|ledakan|meledak|perang|adegan aksi|fantasi|fiksi ilmiah|surealis)\b/i.test(userPrompt);
   const styleHint = explicitlyNonPhotorealistic
     ? 'Respect the explicitly requested art style.'
     : 'A real unedited professional photograph, photorealism, documentary photography, physically plausible natural lighting, true-to-life colors, realistic lens and camera depth of field, natural material texture, accurate real-world anatomy and proportions. Absolutely not an illustration, painting, concept art, CGI, 3D render, game asset, toy, sculpture, metallic fantasy creature, or stylized artwork.';
