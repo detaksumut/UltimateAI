@@ -50,7 +50,7 @@ export class SelfEvolvingAgentEngine {
     // Explicit source-repair commands may start a supervised repair even
     // without a prior failed assistant response. Ordinary complaints still
     // require conversational history to prevent accidental repair triggering.
-    const explicitRepair = /\\b(?:perbaiki|perbaikan|koreksi|fix|repair|patch|evolusi)\\b[^.]{0,60}\\b(?:kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software)\\b/i.test(text);
+    const explicitRepair = /\b(?:perbaiki|perbaikan|koreksi|fix|repair|patch|evolusi)\b[^.]{0,60}\b(?:kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software)\b/i.test(text);
     if (explicitRepair) return true;
 
     const hasHistory = Array.isArray(messages) && messages.length >= 2;
@@ -95,9 +95,9 @@ export class SelfEvolvingAgentEngine {
       'Tugasmu:',
       '1. Analisis mengapa permintaan user gagal (Root Cause Analysis).',
       '2. Identifikasi SATU file sumber konkret dengan path relatif repository, misalnya server/agent/AgentRuntime.mjs. Jangan menebak path. Jika target tidak dapat dipastikan, targetSubsystem harus UNKNOWN.',
-      '3a. Field targetSubsystem harus hanya berisi satu path file relatif konkret, tanpa penjelasan atau nomor baris.'
-      '3. Rumuskan KANDIDAT aturan koreksi yang bisa diuji, bukan klaim bahwa kode sudah diubah.',
-      '4. Jelaskan validasi yang masih diperlukan. Dilarang mengklaim patch diterapkan, tes lulus, atau masalah selesai jika belum ada bukti.',
+      '3. Field targetSubsystem harus hanya berisi satu path file relatif konkret, tanpa penjelasan atau nomor baris.',
+      '4. Rumuskan KANDIDAT aturan koreksi yang bisa diuji, bukan klaim bahwa kode sudah diubah.',
+      '5. Jelaskan validasi yang masih diperlukan. Dilarang mengklaim patch diterapkan, tes lulus, atau masalah selesai jika belum ada bukti.',
       '',
       'KEMBALIKAN OUTPUT HANYA DALAM FORMAT JSON BERSIH TANPA KATA-KATA LAIN:',
       '{',
