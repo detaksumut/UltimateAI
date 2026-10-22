@@ -835,11 +835,15 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
 
   const auth = { Authorization: `Bearer ${key}` };
   const aspectHint = aspectRatio ? `. Aspect ratio ${aspectRatio}.` : '';
-  // Preserve the user's requested subject as the primary instruction. The
-  // previous generic wrapper diluted subject fidelity (e.g. "airplane" became
-  // a waterfall). Quality constraints follow the subject and forbid unsolicited
-  // poster/text composition without replacing the requested object.
-  const fullPrompt = `${String(prompt || '').trim()}${aspectHint} Create exactly the subject described by the user; keep the main subject unmistakable and centered in the composition. High-quality polished image, clean fine details, smooth natural textures, crisp focus, balanced lighting, natural colors. Do not substitute a different subject. No text, lettering, watermark, logo, or poster layout unless explicitly requested.`;
+  // Photorealism is the default style unless the user explicitly asks for
+  // illustration, cartoon, painting, anime, sketch, or another non-photo style.
+  // Keep the user's subject first so style guidance cannot override semantics.
+  const userPrompt = String(prompt || '').trim();
+  const explicitlyNonPhotorealistic = /\\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|anime|ilustrasi|lukisan|cat air|sketsa)\\b/i.test(userPrompt);
+  const styleHint = explicitlyNonPhotorealistic
+    ? 'Respect the explicitly requested art style.'
+    : 'Photorealistic professional photograph, natural realistic materials and textures, physically plausible lighting, accurate anatomy and proportions, lifelike details, realistic camera optics, natural color grading. Avoid illustration, painting, cartoon, CGI, metallic or plastic-looking surfaces unless the subject itself is made of those materials.';
+  const fullPrompt = `${userPrompt}${aspectHint} Depict exactly the requested subject and action; do not replace it with another object. ${styleHint} Sharp natural detail, clean composition. No text, lettering, watermark, logo, or poster layout unless explicitly requested.`;
 
   // 3. Target size for this aspect ratio (from shared global config; request
   //    `size` is only a hint — the gateway maps it to an internal canvas and the
