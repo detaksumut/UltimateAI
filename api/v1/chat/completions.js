@@ -25,7 +25,7 @@ async function searchYouTubeVideo(query) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
-      signal: AbortSignal.timeout(6000)
+      signal: AbortSignal.timeout(5000)
     });
     
     if (res.ok) {
@@ -812,7 +812,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   // The free trycloudflare tunnel in front of a home 9Router drops long-lived
   // generation POSTs with a transient 502 (observed ~16s proxy cut). Chain a few
   // fresh attempts, trying both request shapes per attempt, before giving up.
-  const MAX_GEN_ATTEMPTS = 4;
+  const MAX_GEN_ATTEMPTS = 1;
   const RETRY_DELAY_MS = 2000;
   let lastTransientError = null;
 
@@ -823,7 +823,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
       try {
         // Per-attempt 14s: timer is declared outside try so catch can always clear it.
         const perAttemptCtrl = new AbortController();
-        perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (14s)')), 14000);
+        perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (16s)')), 16000);
         const combinedSignal = signal
           ? AbortSignal.any([signal, perAttemptCtrl.signal])
           : perAttemptCtrl.signal;
@@ -940,20 +940,28 @@ export default async function handler(req, res) {
       const sseId = 'chatcmpl-image-' + Date.now();
       const sseModel = model || 'gemini-image';
 
-      // Prefer the provider proven by localhost logs: 9Router (Stable Diffusion XL
-      // Lightning). Gemini quota exhaustion must not delay or block this path.
-      // Discovery is bounded to 6s and generation retries are individually bounded.
+      // Prefer 9Router (the provider proven by localhost logs), but bound its
+      // cloud-tunnel attempt so it cannot consume the entire Live image-stage budget.
+      // Gemini gets its own fallback window even if the tunnel is unresponsive.
       const stageCtrl = new AbortController();
       const stageTimer = setTimeout(() => stageCtrl.abort(new Error('Image stage timeout')), 52000);
+      const routerCtrl = new AbortController();
+      const routerTimer = setTimeout(() => routerCtrl.abort(new Error('9Router fallback window elapsed')), 22000);
       let gen = null;
       let routerError = '';
       let geminiError = '';
       try {
-        const routerResult = await generateImageWithNineRouter(
-          imageIntent.prompt,
-          imageIntent.aspectRatio,
-          stageCtrl.signal
-        );
+        let routerResult;
+        try {
+          const routerSignal = AbortSignal.any([stageCtrl.signal, routerCtrl.signal]);
+          routerResult = await generateImageWithNineRouter(
+            imageIntent.prompt,
+            imageIntent.aspectRatio,
+            routerSignal
+          );
+        } finally {
+          clearTimeout(routerTimer);
+        }
         if (routerResult?.success) {
           gen = routerResult;
         } else {
@@ -962,13 +970,12 @@ export default async function handler(req, res) {
             : '9Router image generation failed');
         }
 
-        // Gemini is only a fallback when 9Router cannot produce an image.
-        // This avoids spending the stage budget on a known-exhausted Gemini quota.
+        // Gemini is the fallback after a bounded 9Router attempt.
         if (!gen?.success && !stageCtrl.signal.aborted) {
           const geminiCtrl = new AbortController();
           const geminiTimer = setTimeout(
-            () => geminiCtrl.abort(new Error('Gemini image attempt timeout (20s)')),
-            20000
+            () => geminiCtrl.abort(new Error('Gemini image attempt timeout (25s)')),
+            25000
           );
           let geminiResult;
           try {
@@ -1000,6 +1007,7 @@ export default async function handler(req, res) {
           error: `Tahap gambar gagal: ${maskSecrets(stageErr?.message || String(stageErr))}`
         };
       } finally {
+        clearTimeout(routerTimer);
         clearTimeout(stageTimer);
       }
 
