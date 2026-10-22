@@ -15,6 +15,7 @@ final class JINI_Editorial_Assistant {
         add_action('admin_menu', [__CLASS__, 'menu']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'assets']);
         add_action('admin_init', [__CLASS__, 'register_settings']);
+        add_action('rest_api_init', [__CLASS__, 'register_rest_routes']);
     }
 
     public static function menu() {
@@ -27,6 +28,36 @@ final class JINI_Editorial_Assistant {
             'dashicons-edit-page',
             25
         );
+    }
+
+    public static function register_rest_routes() {
+        register_rest_route('jini-editorial/v1', '/generate', [
+            'methods' => 'POST',
+            'callback' => [__CLASS__, 'proxy_generate'],
+            'permission_callback' => function() { return current_user_can('edit_posts'); },
+            'args' => ['topic' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field']]
+        ]);
+    }
+
+    public static function proxy_generate(WP_REST_Request $request) {
+        $base = untrailingslashit((string) get_option(self::OPTION_API_BASE, ''));
+        $token = defined('JINI_EDITORIAL_API_TOKEN') ? (string) JINI_EDITORIAL_API_TOKEN : '';
+        $topic = trim((string) $request->get_param('topic'));
+        if (!$base || !wp_http_validate_url($base) || stripos($base, 'https://') !== 0) return new WP_Error('jini_api_not_configured', 'Atur URL HTTPS JINI di halaman JINI Editorial.', ['status' => 503]);
+        if (!$token) return new WP_Error('jini_api_token_missing', 'JINI_EDITORIAL_API_TOKEN belum dikonfigurasi pada wp-config.php.', ['status' => 503]);
+        if ($topic === '' || strlen($topic) > 8000) return new WP_Error('jini_invalid_topic', 'Topik wajib diisi dan maksimal 8000 karakter.', ['status' => 400]);
+        $response = wp_remote_post($base . '/api/jini/editorial/draft', [
+            'timeout' => 90,
+            'headers' => ['Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $token],
+            'body' => wp_json_encode(['topic' => $topic]),
+            'redirection' => 0,
+            'sslverify' => true
+        ]);
+        if (is_wp_error($response)) return new WP_Error('jini_api_unreachable', 'Tidak dapat menghubungi backend JINI.', ['status' => 502]);
+        $status = wp_remote_retrieve_response_code($response);
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if ($status < 200 || $status >= 300 || !is_array($body) || empty($body['success']) || empty($body['article'])) return new WP_Error('jini_generation_failed', is_array($body) ? ($body['error']['message'] ?? 'JINI gagal menghasilkan naskah.') : 'Respons JINI tidak valid.', ['status' => 502]);
+        return rest_ensure_response($body);
     }
 
     public static function register_settings() {
@@ -47,7 +78,7 @@ final class JINI_Editorial_Assistant {
         wp_register_script('jini-editorial-admin', '', ['wp-api'], '1.0.0', true);
         wp_enqueue_script('jini-editorial-admin');
         wp_localize_script('jini-editorial-admin', 'JINIEditorialConfig', [
-            'apiBase' => get_option(self::OPTION_API_BASE, ''),
+            'generateUrl' => esc_url_raw(rest_url('jini-editorial/v1/generate')),
             'restUrl' => esc_url_raw(rest_url('wp/v2/posts')),
             'nonce' => wp_create_nonce('wp_rest'),
             'canCreate' => current_user_can('edit_posts'),
@@ -70,7 +101,7 @@ final class JINI_Editorial_Assistant {
               <?php settings_fields('jini_editorial_settings'); ?>
               <label for="jini-editorial-api-base"><strong>JINI API Base URL (HTTPS)</strong></label>
               <input class="regular-text code" id="jini-editorial-api-base" name="<?php echo esc_attr(self::OPTION_API_BASE); ?>" type="url" value="<?php echo esc_attr(get_option(self::OPTION_API_BASE, '')); ?>" placeholder="https://alamat-api-jini-anda" required />
-              <p class="description">Gunakan URL HTTPS yang dapat dijangkau browser administrator dan mengarah ke backend UltimateAI. Jangan masukkan password atau API key di sini. Jangan gunakan 127.0.0.1 kecuali backend memang berjalan pada komputer administrator dan tersedia jalur HTTPS yang kompatibel.</p>
+              <p class="description">URL ini dipanggil server WordPress melalui HTTPS. Token akses disimpan terpisah di wp-config.php dan tidak dikirim ke browser.</p>
               <?php submit_button('Simpan koneksi'); ?>
             </form>
           </div>
@@ -107,18 +138,16 @@ final class JINI_Editorial_Assistant {
 
   button.addEventListener('click', async function () {
     const topic = byId('jini-topic').value.trim();
-    const base = (JINIEditorialConfig.apiBase || '').replace(/\/$/, '');
     const status = byId('jini-status');
-    if (!base) { status.textContent = 'Simpan JINI API Base URL terlebih dahulu.'; return; }
     if (!topic) { status.textContent = 'Masukkan topik atau instruksi berita.'; return; }
 
     button.disabled = true;
     status.textContent = 'JINI sedang menyusun naskah…';
     byId('jini-result').hidden = true;
     try {
-      const response = await fetch(base + '/api/jini/editorial/draft', {
+      const response = await fetch(JINIEditorialConfig.generateUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': JINIEditorialConfig.nonce },
         body: JSON.stringify({ topic })
       });
       const data = await response.json();
