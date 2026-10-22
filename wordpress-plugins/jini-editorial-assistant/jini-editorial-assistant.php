@@ -75,10 +75,25 @@ final class JINI_Editorial_Assistant {
             'redirection' => 0,
             'sslverify' => true
         ]);
-        if (is_wp_error($response)) return new WP_Error('jini_api_unreachable', 'Tidak dapat menghubungi backend JINI.', ['status' => 502]);
+        if (is_wp_error($response)) {
+            $detail = sanitize_text_field($response->get_error_message());
+            return new WP_Error('jini_api_unreachable', 'WordPress tidak dapat menghubungi backend JINI: ' . $detail, ['status' => 502]);
+        }
         $status = wp_remote_retrieve_response_code($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        if ($status < 200 || $status >= 300 || !is_array($body) || empty($body['success']) || empty($body['article'])) return new WP_Error('jini_generation_failed', is_array($body) ? ($body['error']['message'] ?? 'JINI gagal menghasilkan naskah.') : 'Respons JINI tidak valid.', ['status' => 502]);
+        $raw_body = wp_remote_retrieve_body($response);
+        $body = json_decode($raw_body, true);
+        if ($status < 200 || $status >= 300 || !is_array($body) || empty($body['success']) || empty($body['article'])) {
+            if (is_array($body) && !empty($body['error']['message'])) {
+                $detail = sanitize_text_field((string) $body['error']['message']);
+            } elseif ($status > 0) {
+                // Keep diagnostics useful for tunnel/proxy errors (e.g. a Cloudflare 404),
+                // but do not echo arbitrary HTML or large upstream responses into WordPress.
+                $detail = 'Backend mengembalikan HTTP ' . (int) $status . '. Periksa URL tunnel dan rute /api/jini/editorial/draft.';
+            } else {
+                $detail = 'Respons backend JINI tidak valid.';
+            }
+            return new WP_Error('jini_generation_failed', $detail, ['status' => 502]);
+        }
         return rest_ensure_response($body);
     }
 
