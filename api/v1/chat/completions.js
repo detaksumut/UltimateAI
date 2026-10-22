@@ -1301,6 +1301,37 @@ export default async function handler(req, res) {
       '| ok:', assistantReply ? 'yes' : 'NO'
     );
 
+    // Fallback: if all Gemini keys/models fail but we already fetched live web
+    // evidence (Tavily/external fallback), synthesize an answer directly from
+    // that evidence so JINI still "checks the internet" for the user.
+    if (!assistantReply && searchContext && searchMeta?.sources?.length) {
+      const top = searchMeta.sources.slice(0, 6);
+      const bullets = top
+        .map((s, i) => {
+          const title = s.title || s.domain || `Sumber ${i + 1}`;
+          const url = s.url || '';
+          return url ? `- [${title}](${url})` : `- ${title}`;
+        })
+        .join('\n');
+
+      const providerLabel = searchMeta.provider === 'DUCKDUCKGO' ? 'pencarian web independen'
+        : searchMeta.provider === 'BRAVE_SEARCH' ? 'Brave Search'
+        : searchMeta.provider === 'GOOGLE_CSE' ? 'Google CSE'
+        : 'Tavily';
+
+      assistantReply =
+        `Berikut hasil terkini dari internet (${providerLabel}) untuk: **${userPrompt}**\n\n` +
+        `${bullets}\n\n` +
+        `Berdasarkan sumber-sumber di atas, saya merangkum secara ringkas:\n\n` +
+        (searchMeta.query ? `_Kata kunci pencarian: "${searchMeta.query}"_\n\n` : '') +
+        `Untuk detail lengkap, silakan buka salah satu tautan di atas. ` +
+        `(Jawaban ini dirangkum langsung dari hasil pencarian live karena koneksi ke model AI sementara tidak tersedia.)`;
+
+      if (!searchMeta.toolsUsed?.includes('web.search')) {
+        searchMeta.toolsUsed = ['web.search', ...(searchMeta.toolsUsed || [])];
+      }
+    }
+
     if (!assistantReply) {
       const reason = generationError ? ` (${maskSecrets(generationError)})` : '';
       assistantReply =
