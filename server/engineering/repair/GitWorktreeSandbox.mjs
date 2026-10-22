@@ -121,6 +121,19 @@ export class GitWorktreeSandbox {
     const baseCommit = headRaw.trim();
     await this.git(['worktree', 'add', '-b', branchName, sandboxPath, baseCommit], { timeout: 30000 });
 
+    // Reuse the already-installed dependency tree read-only by convention.
+    // The patch path guard rejects node_modules and generated tests receive a
+    // sanitized environment, while the worktree still gets reproducible builds.
+    const sharedNodeModules = path.join(this.workspaceRoot, 'node_modules');
+    const sandboxNodeModules = path.join(sandboxPath, 'node_modules');
+    if (fs.existsSync(sharedNodeModules) && !fs.existsSync(sandboxNodeModules)) {
+      try {
+        fs.symlinkSync(sharedNodeModules, sandboxNodeModules, process.platform === 'win32' ? 'junction' : 'dir');
+      } catch (err) {
+        console.warn('[Sandbox] Could not link installed dependencies; build verification may require npm ci in the worktree:', err.message);
+      }
+    }
+
     const sandboxInfo = {
       sandboxId,
       incidentId: safeId,
@@ -175,6 +188,34 @@ export class GitWorktreeSandbox {
     return { success: true, relativePath: relative, targetFile, sizeBytes: Buffer.byteLength(patchContent, 'utf8') };
   }
 
+  async restoreSandbox(sandboxInfo) {
+    if (!sandboxInfo || typeof sandboxInfo !== 'object') throw new Error('SANDBOX_METADATA_INVALID');
+    const sandboxPath = path.resolve(String(sandboxInfo.path || ''));
+    const branchName = String(sandboxInfo.branchName || '');
+    if (!isWithin(this.sandboxBaseDir, sandboxPath) ||
+        !branchName.startsWith('jin/repair/') ||
+        !/^[A-Za-z0-9_/-]+$/.test(branchName)) {
+      throw new Error('SANDBOX_RESTORE_DENIED: persisted path or branch is not an approved repair worktree.');
+    }
+    const { stdout: rootRaw } = await this.git(['rev-parse', '--show-toplevel'], { cwd: sandboxPath });
+    if (path.resolve(rootRaw.trim()) !== sandboxPath) throw new Error('SANDBOX_RESTORE_DENIED: directory is not a Git worktree.');
+    const { stdout: branchRaw } = await this.git(['branch', '--show-current'], { cwd: sandboxPath });
+    if (branchRaw.trim() !== branchName) throw new Error('SANDBOX_RESTORE_DENIED: worktree branch mismatch.');
+    const { stdout: headRaw } = await this.git(['rev-parse', 'HEAD'], { cwd: sandboxPath });
+    const restored = {
+      ...sandboxInfo,
+      sandboxId: String(sandboxInfo.sandboxId),
+      path: sandboxPath,
+      branchName,
+      baseCommit: String(sandboxInfo.baseCommit || ''),
+      repairCommit: sandboxInfo.repairCommit || (headRaw.trim() !== sandboxInfo.baseCommit ? headRaw.trim() : null),
+      changedFiles: Array.isArray(sandboxInfo.changedFiles) ? [...sandboxInfo.changedFiles] : [],
+      status: sandboxInfo.status || 'RESTORED'
+    };
+    this.activeSandboxes.set(restored.sandboxId, restored);
+    return { ...restored };
+  }
+
   async inspectSandbox(sandboxId) {
     const sandbox = this.activeSandboxes.get(sandboxId);
     if (!sandbox) throw new Error('SANDBOX_NOT_FOUND: ' + sandboxId);
@@ -193,8 +234,15 @@ export class GitWorktreeSandbox {
     await this.git(['diff', '--cached', '--check'], { cwd: sandbox.path });
     const { stdout: staged } = await this.git(['diff', '--cached', '--name-only'], { cwd: sandbox.path });
     const stagedFiles = staged.split(/\r?\n/).filter(Boolean);
-    if (!stagedFiles.length || stagedFiles.some((file) => !sandbox.changedFiles.includes(normalizeRelative(file)))) {
+    if (stagedFiles.some((file) => !sandbox.changedFiles.includes(normalizeRelative(file)))) {
       throw new Error('STAGED_PATH_POLICY_VIOLATION: only recorded allowlisted files may be committed.');
+    }
+    if (!stagedFiles.length) {
+      const { stdout: currentHead } = await this.git(['rev-parse', 'HEAD'], { cwd: sandbox.path });
+      if (sandbox.repairCommit && sandbox.repairCommit === currentHead.trim()) {
+        return { success: true, branchName: sandbox.branchName, commit: sandbox.repairCommit, files: [...sandbox.changedFiles], alreadyCommitted: true };
+      }
+      throw new Error('NO_PATCH_CHANGES: no staged changes remain and no repair commit was recorded.');
     }
     const safeMessage = String(message || 'fix: verified JINI self-repair').replace(/[\r\n]/g, ' ').slice(0, 160);
     await this.git(['commit', '-m', safeMessage], { cwd: sandbox.path, timeout: 30000 });
