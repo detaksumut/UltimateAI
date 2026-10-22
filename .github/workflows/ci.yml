@@ -12,6 +12,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Validate JINI Editorial server route syntax
+      run: node --check server/local_router/LocalRouterServer.mjs
+
+    - name: Validate JINI Editorial WordPress plugin syntax
+      uses: php-actions/php-lint@v1
+      with:
+        path: wordpress-plugins/jini-editorial-assistant/jini-editorial-assistant.php
+
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
