@@ -819,11 +819,11 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   for (let generationAttempt = 1; generationAttempt <= MAX_GEN_ATTEMPTS; generationAttempt++) {
     let attemptFailed = false;
     for (const reqBody of attemptBodies) {
+      let perAttemptTimer = null;
       try {
-        // Per-attempt 24s: chained with the stage signal (50s in handler) so
-        // the total retry chain fits inside Vercel 60s maxDuration.
+        // Per-attempt 14s: timer is declared outside try so catch can always clear it.
         const perAttemptCtrl = new AbortController();
-        const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (14s)')), 14000);
+        perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (14s)')), 14000);
         const combinedSignal = signal
           ? AbortSignal.any([signal, perAttemptCtrl.signal])
           : perAttemptCtrl.signal;
