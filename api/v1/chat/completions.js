@@ -946,7 +946,7 @@ export default async function handler(req, res) {
       const stageCtrl = new AbortController();
       const stageTimer = setTimeout(() => stageCtrl.abort(new Error('Image stage timeout')), 52000);
       const routerCtrl = new AbortController();
-      const routerTimer = setTimeout(() => routerCtrl.abort(new Error('9Router fallback window elapsed')), 22000);
+      const routerTimer = setTimeout(() => routerCtrl.abort(new Error('9Router fallback window elapsed')), 38000);
       let gen = null;
       let routerError = '';
       let geminiError = '';
