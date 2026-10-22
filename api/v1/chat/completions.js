@@ -839,11 +839,15 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   // illustration, cartoon, painting, anime, sketch, or another non-photo style.
   // Keep the user's subject first so style guidance cannot override semantics.
   const userPrompt = String(prompt || '').trim();
-  const explicitlyNonPhotorealistic = /\\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|anime|ilustrasi|lukisan|cat air|sketsa)\\b/i.test(userPrompt);
+  const explicitlyNonPhotorealistic = /\\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|ilustrasi|lukisan|cat air|sketsa)\\b/i.test(userPrompt);
+  const explicitlyRequestsEffects = /\\b(explosion|explosion|exploding|fireball|battle|war scene|dramatic action|fantasy|sci-fi|surreal|ledakan|meledak|perang|adegan aksi|fantasi|fiksi ilmiah|surealis)\\b/i.test(userPrompt);
   const styleHint = explicitlyNonPhotorealistic
     ? 'Respect the explicitly requested art style.'
-    : 'Photorealistic professional photograph, natural realistic materials and textures, physically plausible lighting, accurate anatomy and proportions, lifelike details, realistic camera optics, natural color grading. Avoid illustration, painting, cartoon, CGI, metallic or plastic-looking surfaces unless the subject itself is made of those materials.';
-  const fullPrompt = `${userPrompt}${aspectHint} Depict exactly the requested subject and action; do not replace it with another object. ${styleHint} Sharp natural detail, clean composition. No text, lettering, watermark, logo, or poster layout unless explicitly requested.`;
+    : 'A real unedited professional photograph, photorealism, documentary photography, physically plausible natural lighting, true-to-life colors, realistic lens and camera depth of field, natural material texture, accurate real-world anatomy and proportions. Absolutely not an illustration, painting, concept art, CGI, 3D render, game asset, toy, sculpture, metallic fantasy creature, or stylized artwork.';
+  const sceneGuard = explicitlyRequestsEffects
+    ? 'Include only the special effects and action explicitly requested by the user.'
+    : 'Keep the scene ordinary and plausible; no explosion, fire, smoke, battle, damage, fantasy elements, glowing markings, dramatic action, or other unrequested events or props.';
+  const fullPrompt = `${userPrompt}${aspectHint} The requested subject and action must be the dominant and unmistakable content. ${styleHint} ${sceneGuard} Natural photographic detail, realistic colors, clean composition. No text, lettering, watermark, logo, poster layout, or decorative frame unless explicitly requested.`;
 
   // 3. Target size for this aspect ratio (from shared global config; request
   //    `size` is only a hint — the gateway maps it to an internal canvas and the
