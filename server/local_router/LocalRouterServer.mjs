@@ -4226,6 +4226,69 @@ Requirements:
       return;
     }
 
+    // JINI Editorial API — admin-only UI calls this endpoint through a configured HTTPS URL.
+    // Generates a structured draft only; it never publishes or changes WordPress settings.
+    if (pathname === '/api/jini/editorial/draft' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody();
+        const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
+        if (!topic || topic.length > 8000) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INVALID_TOPIC', message: 'Topik wajib diisi dan maksimal 8000 karakter.' } }));
+          return;
+        }
+
+        const systemPrompt = `Anda adalah JINI, asisten redaksi Berita Indonesia. Buat DRAF berita berbahasa Indonesia yang profesional, berimbang, faktual, dan mudah diverifikasi.
+Jangan mengarang kutipan, nama narasumber, angka, tanggal, atau fakta. Jika informasi belum didukung sumber, nyatakan keterbatasannya dan gunakan penanda [PERLU VERIFIKASI EDITOR] pada bagian terkait. Jangan menentukan kategori, tag, SEO, gambar, infografik, atau status publikasi.
+Kembalikan hanya JSON valid dengan bentuk {"title":"judul berita","content":"isi berita dalam HTML sederhana menggunakan p, h2, ul, li, strong dan blockquote bila diperlukan","editor_notes":["catatan verifikasi untuk editor"]}. Jangan sertakan markdown fence atau teks di luar JSON. Isi minimal 4 paragraf substantif jika topik mendukung; jangan memalsukan sumber.`;
+
+        const aiResult = await modelRoutingServiceInstance.routeChat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: topic }
+          ],
+          capability: 'FAST_CHAT',
+          stream: false,
+          temperature: 0.25
+        });
+
+        const raw = aiResult && aiResult.content ? aiResult.content : '';
+        let article;
+        try {
+          const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+          article = JSON.parse(cleaned);
+        } catch {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INVALID_MODEL_OUTPUT', message: 'JINI tidak menghasilkan JSON artikel yang valid. Coba ulangi dengan instruksi yang lebih spesifik.' } }));
+          return;
+        }
+
+        if (!article || typeof article.title !== 'string' || typeof article.content !== 'string' || !article.title.trim() || !article.content.trim()) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INCOMPLETE_ARTICLE', message: 'Hasil JINI tidak memiliki judul dan isi yang lengkap.' } }));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({
+          success: true,
+          article: {
+            title: article.title.trim().slice(0, 250),
+            content: article.content,
+            editor_notes: Array.isArray(article.editor_notes) ? article.editor_notes.slice(0, 20) : []
+          },
+          provider: aiResult?.providerGateway || 'unknown',
+          model: aiResult?.model || 'auto',
+          timestamp: new Date().toISOString()
+        }));
+      } catch (err) {
+        console.error('[JINI Editorial] Draft generation failed:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'JINI_EDITORIAL_FAILED', message: 'Gagal menyusun draf berita.' } }));
+      }
+      return;
+    }
+
     // ═════════════════════════════════════════════════════════════════════════════════
     // JINI AI — Chat Endpoint (untuk widget chat beritaindonesia.news)
     // ═════════════════════════════════════════════════════════════════════════════════
