@@ -13,9 +13,10 @@ const ARCHETYPES = [
 
 function cleanTopic(value) {
   return String(value || '')
-    .replace(/\b(?:JIN|JINI|tolong|buatkan|buat|bikin|bikinkan|draft|pptx?|powerpoint|presentasi|presentation|deck|slide|slides|halaman|sebanyak|dengan\s+tema|tema|mengenai|tentang)\b/gi, ' ')
-    .replace(/[“”"'\`]/g, ' ')
     .replace(/\b\d{1,2}\s*(?:slide|slides|halaman)\b/gi, ' ')
+    .replace(/\bsebanyak\s+\d{1,2}\b/gi, ' ')
+    .replace(/\b(?:JIN|JINI|tolong|buatkan|buat|bikin|bikinkan|draft|pptx?|powerpoint|presentasi|presentation|deck|slide|slides|halaman|sebanyak|dengan\s+tema|tema|mengenai|tentang)\b/gi, ' ')
+    .replace(/[“”"'\x60]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
