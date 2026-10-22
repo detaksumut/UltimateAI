@@ -1427,16 +1427,23 @@ export default async function handler(req, res) {
     const groundingModes = (wantsWebSearch && !searchContext) ? [true, false] : [false];
     const generationDeadline = Math.min(requestStartedAt + REQUEST_BUDGET_MS, Date.now() + 42000);
     let generationError = '';
+    let generationAttempts = 0;
+    const MAX_GENERATION_ATTEMPTS = 6;
 
     searchGeneration:
     for (const textModel of textModels) {
       for (const useGrounding of groundingModes) {
         let modelUnavailable = 0;
         for (const key of textKeys) {
-          if (generationDeadline - Date.now() <= 1000) {
+          if (generationDeadline - Date.now() <= 1500) {
             generationError = generationError || 'Batas waktu pembuatan jawaban habis.';
             break searchGeneration;
           }
+          if (generationAttempts >= MAX_GENERATION_ATTEMPTS) {
+            generationError = generationError || 'Batas percobaan Gemini tercapai.';
+            break searchGeneration;
+          }
+          generationAttempts++;
           try {
             const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
             if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
@@ -1448,7 +1455,7 @@ export default async function handler(req, res) {
               body: JSON.stringify(requestBody),
               signal: AbortSignal.timeout(Math.max(
                 1000,
-                Math.min(useGrounding ? 28000 : 20000, generationDeadline - Date.now() - 500)
+                Math.min(useGrounding ? 12000 : 10000, generationDeadline - Date.now() - 500)
               ))
             });
 
@@ -1498,8 +1505,9 @@ export default async function handler(req, res) {
 
             break searchGeneration; // success — stop key/mode/model rotation
           } catch (geminiErr) {
-            generationError = geminiErr.name === 'TimeoutError' ? 'Timeout ke Gemini API.' : geminiErr.message;
-            console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr.message));
+            const timedOut = geminiErr?.name === 'TimeoutError' || geminiErr?.name === 'AbortError';
+            generationError = timedOut ? 'Timeout ke Gemini API.' : maskSecrets(geminiErr?.message || String(geminiErr));
+            console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr?.message || String(geminiErr)));
           }
         }
       }
@@ -1511,6 +1519,80 @@ export default async function handler(req, res) {
       '| sources:', searchMeta?.sources?.length || 0,
       '| ok:', assistantReply ? 'yes' : 'NO'
     );
+
+    // ── Bounded 9Router text fallback ─────────────────────────────────────
+    // Image generation already uses this gateway in Live. Reuse its OpenAI-
+    // compatible chat endpoint when Gemini is slow/unavailable, without
+    // changing localhost routing or requiring a new secret if already set.
+    let routerFallbackError = '';
+    if (!assistantReply && remainingRequestMs() > 2500) {
+      const routerBase = String(process.env.NINEROUTER_URL || process.env.NINEROUTER_PUBLIC_URL || '')
+        .trim().replace(/\/+$/, '');
+      const routerKey = String(process.env.NINEROUTER_KEY || '').trim();
+
+      if (routerBase && routerKey) {
+        const remainingMs = remainingRequestMs();
+        const routerTimeoutMs = Math.min(12000, Math.max(1000, remainingMs - 1000));
+        try {
+          const routerMessages = [{ role: 'system', content: systemText }];
+          for (const message of messages) {
+            if (!message || !['user', 'assistant'].includes(message.role)) continue;
+            const text = toPlainText(message.content);
+            if (text) routerMessages.push({ role: message.role, content: text });
+          }
+          if (searchContext) {
+            for (let i = routerMessages.length - 1; i >= 1; i--) {
+              if (routerMessages[i].role === 'user') {
+                routerMessages[i].content += '\n\n' + searchContext;
+                break;
+              }
+            }
+          }
+
+          console.warn('[JINI Live] Gemini failed; trying bounded 9Router chat fallback.');
+          const routerResponse = await fetch(routerBase + '/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer ' + routerKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: String(process.env.NINEROUTER_CHAT_MODEL || model || 'ag/gemini-3-flash').trim(),
+              messages: routerMessages,
+              stream: false,
+              temperature: 0.7,
+              max_tokens: 1200
+            }),
+            signal: AbortSignal.timeout(routerTimeoutMs)
+          });
+
+          if (!routerResponse.ok) {
+            const routerBody = maskSecrets((await routerResponse.text().catch(() => '')).slice(0, 300));
+            routerFallbackError = '9Router HTTP ' + routerResponse.status + (routerBody ? ': ' + routerBody : '');
+            console.warn('[JINI Live] 9Router chat fallback rejected:', routerFallbackError);
+          } else {
+            const routerData = await routerResponse.json().catch(() => null);
+            const routerContent = routerData?.choices?.[0]?.message?.content;
+            const routerText = Array.isArray(routerContent)
+              ? routerContent.map(part => typeof part === 'string' ? part : part?.text || '').join('')
+              : (typeof routerContent === 'string' ? routerContent : '');
+            if (routerText.trim()) {
+              assistantReply = routerText.trim();
+              console.log('[JINI Live] Chat fallback succeeded via 9Router.');
+            } else {
+              routerFallbackError = '9Router tidak mengembalikan teks jawaban.';
+            }
+          }
+        } catch (routerErr) {
+          routerFallbackError = (routerErr?.name === 'TimeoutError' || routerErr?.name === 'AbortError')
+            ? 'Timeout ke 9Router chat.'
+            : maskSecrets(routerErr?.message || String(routerErr));
+          console.warn('[JINI Live] 9Router chat fallback error:', routerFallbackError);
+        }
+      } else {
+        routerFallbackError = 'Fallback 9Router tidak tersedia: NINEROUTER_URL dan/atau NINEROUTER_KEY belum dikonfigurasi.';
+      }
+    }
 
     // Fallback: if all Gemini keys/models fail but we already fetched live web
     // evidence (Tavily/external fallback), synthesize an answer directly from
@@ -1544,11 +1626,12 @@ export default async function handler(req, res) {
     }
 
     if (!assistantReply) {
-      const reason = generationError ? ` (${maskSecrets(generationError)})` : '';
+      const reason = generationError ? maskSecrets(generationError) : 'Gemini tidak mengembalikan jawaban.';
+      const routerReason = routerFallbackError ? ' ' + maskSecrets(routerFallbackError) : '';
       assistantReply =
-        `Maaf, mesin AI JINI sedang tidak dapat menjawab saat ini${reason}. ` +
-        'Semua kunci API Gemini yang tersedia gagal atau kuotanya habis. ' +
-        'Silakan coba lagi beberapa saat lagi.';
+        'Maaf, JINI Live belum dapat menjawab. Penyebab Gemini: ' + reason + '.' +
+        routerReason +
+        ' Periksa log provider untuk membedakan timeout, kuota (HTTP 429), izin (HTTP 403), atau model tidak tersedia (HTTP 404).';
 
       if (stream) {
         res.writeHead(200, {
