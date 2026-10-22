@@ -234,16 +234,7 @@ export class StorageCleanerTool extends ToolContract {
 
   /** Quick clean: temp files only. */
   async _cleanTemp() {
-    const tempDir = os.tmpdir();
-    const userTemp = path.join(process.env.USERPROFILE || '', 'AppData', 'Local', 'Temp');
-    const labels = CLEAN_TARGETS
-      .filter(target => ['Windows Temp', 'User Temp'].includes(target.label) &&
-        path.resolve(target.path).toLowerCase() !== path.resolve('').toLowerCase())
-      .filter(target => [tempDir, userTemp].some(dir =>
-        path.resolve(dir).toLowerCase() === path.resolve(target.path).toLowerCase()
-      ))
-      .map(target => target.label);
-    return this._clean(labels, false);
+    return this._clean(['Windows Temp', 'User Temp'], false);
   }
 
   /** Quick clean: cache files only. */
@@ -270,18 +261,19 @@ export class StorageCleanerTool extends ToolContract {
       ? Math.min(3650, Math.max(1, Number(maxAgeDays)))
       : 7;
     const maxAge = ageDays * 24 * 60 * 60 * 1000;
-    const logDirs = [...new Set([
+    const logDirs = [
       path.join(process.env.USERPROFILE || '', 'AppData', 'Local', 'Temp'),
       os.tmpdir()
-    ].map(dir => path.resolve(dir).toLowerCase()))];
+    ];
     const results = [];
     const seen = new Set();
     const now = Date.now();
 
-    for (const normalizedDir of logDirs) {
-      const dir = normalizedDir;
-      if (seen.has(dir)) continue;
-      seen.add(dir);
+    for (const candidateDir of logDirs) {
+      const dir = path.resolve(candidateDir);
+      const key = dir.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
       if (safetyLayerInstance._isProtectedPath(dir) || !fs.existsSync(dir)) continue;
 
       let freed = 0;
