@@ -31,10 +31,15 @@ export class FrontendTelemetryGateway {
     }
 
     // If payload contains an error or interaction failure, enqueue real incident
-    if (type === 'ERROR' || type === 'CLICK_DROPPED' || type === 'UNHANDLED_REJECTION') {
+    if (type === 'ERROR' || type === 'CLICK_DROPPED' || type === 'UNHANDLED_REJECTION' || type === 'API_TIMEOUT') {
+      const category = type === 'CLICK_DROPPED'
+        ? 'DOM_INTERACTION_FAILURE'
+        : (type === 'API_TIMEOUT' && metadata?.idempotent === true && typeof error === 'string' && /timeout|timed out|ECONNRESET|HTTP 50[234]/i.test(error)
+          ? 'API_TIMEOUT_FAILURE'
+          : 'FRONTEND_RUNTIME_EXCEPTION');
       const ticket = createIncidentTicket({
         source: 'frontend',
-        category: type === 'CLICK_DROPPED' ? 'DOM_INTERACTION_FAILURE' : 'FRONTEND_RUNTIME_EXCEPTION',
+        category,
         errorMessage: error || 'Unspecified frontend anomaly',
         targetComponent: component || 'UnknownComponent',
         elementSelector: selector || '',
