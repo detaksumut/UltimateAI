@@ -760,6 +760,58 @@ function detectMimeFromB64(b64) {
 }
 
 /**
+ * Normalize generated images to a compact JPEG data URL under 1 MB when possible.
+ * Uses the existing Jimp dependency; never changes the model's generation size.
+ */
+async function compressImageDataUrl(dataUrl, maxBytes = 950 * 1024) {
+  try {
+    let buffer;
+    let mime = 'image/png';
+    if (typeof dataUrl !== 'string') return dataUrl;
+    const match = dataUrl.match(/^data:(image\\/[a-zA-Z0-9.+-]+);base64,([\\s\\S]+)$/);
+    if (match) {
+      mime = match[1];
+      buffer = Buffer.from(match[2], 'base64');
+    } else if (/^https?:\\/\\//i.test(dataUrl)) {
+      const response = await fetch(dataUrl, { signal: AbortSignal.timeout(8000) });
+      if (!response.ok) return dataUrl;
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.startsWith('image/')) return dataUrl;
+      buffer = Buffer.from(await response.arrayBuffer());
+      mime = contentType.split(';')[0];
+    } else {
+      return dataUrl;
+    }
+
+    if (buffer.length <= maxBytes && mime === 'image/jpeg') return dataUrl;
+    const imported = await import('jimp');
+    const Jimp = imported.Jimp || imported.default;
+    const image = await Jimp.read(buffer);
+    let working = image;
+    let quality = 82;
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const encoded = await working.clone().quality(quality).getBufferAsync(Jimp.MIME_JPEG);
+      if (encoded.length <= maxBytes) {
+        return `data:image/jpeg;base64,${encoded.toString('base64')}`;
+      }
+      if (quality > 48) quality -= 8;
+      else {
+        const scale = Math.min(0.9, Math.sqrt(maxBytes / encoded.length) * 0.92);
+        const width = Math.max(160, Math.floor(working.bitmap.width * scale));
+        const height = Math.max(160, Math.floor(working.bitmap.height * scale));
+        working = working.clone().resize(width, height);
+        quality = 58;
+      }
+    }
+    const finalBuffer = await working.clone().quality(45).getBufferAsync(Jimp.MIME_JPEG);
+    return `data:image/jpeg;base64,${finalBuffer.toString('base64')}`;
+  } catch (err) {
+    console.warn('[NineRouterImage] output compression skipped:', maskSecrets(err?.message || String(err)));
+    return dataUrl;
+  }
+}
+
+/**
  * Generate an image via the 9Router gateway (OpenAI-compatible), mirroring the
  * local NineRouterGatewayAdapter exactly: GET /v1/models/image (discovery) then
  * POST /v1/images/generations with the discovered model. This is the SAME
@@ -884,6 +936,9 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
             if (!dataUrl) {
               return { success: false, error: '9Router tidak mengembalikan data gambar.' };
             }
+            // Compress the delivered asset separately from generation resolution.
+            // The image should remain visually coherent while staying below ~1 MB.
+            dataUrl = await compressImageDataUrl(dataUrl);
             clearTimeout(perAttemptTimer);
             return { success: true, dataUrl, model, gateway: '9ROUTER' };
           } else {
