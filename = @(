@@ -1,0 +1,41 @@
+[1mdiff --git a/server/grounding/CapabilityRegistry.mjs b/server/grounding/CapabilityRegistry.mjs[m
+[1mindex 3ace6af..6026ebc 100644[m
+[1m--- a/server/grounding/CapabilityRegistry.mjs[m
+[1m+++ b/server/grounding/CapabilityRegistry.mjs[m
+[36m@@ -25,6 +25,7 @@[m [mimport { multiLayerSearchToolInstance } from '../tools/MultiLayerSearchTool.mjs'[m
+ import { webHarvestToolInstance } from '../tools/WebHarvestTool.mjs';[m
+ import { localFilesystemToolInstance } from '../tools/LocalFilesystemTool.mjs';[m
+ import { mediaHarvesterToolInstance } from '../tools/MediaHarvesterTool.mjs';[m
+[32m+[m[32mimport { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';[m
+ [m
+ export const VERIFIED_SYSTEM_ENTITIES = new Set([[m
+   'UltimateAI',[m
+[36m@@ -223,6 +224,15 @@[m [mexport const CAPABILITY_REGISTRY = {[m
+     namespace: 'media',[m
+     checkLiveHealth: () => true[m
+   },[m
+[32m+[m
+[32m+[m[32m  // --- CMS / WORDPRESS CAPABILITIES ---[m
+[32m+[m[32m  'wordpress.publish': {[m
+[32m+[m[32m    available: true,[m
+[32m+[m[32m    label: 'WordPress Publisher (Berita Indonesia)',[m
+[32m+[m[32m    description: 'Terbitkan dan kelola artikel ke WordPress beritaindonesia.news via REST API. Membuat post, unggah gambar, dan mengelola kategori/tag.',[m
+[32m+[m[32m    namespace: 'cms',[m
+[32m+[m[32m    checkLiveHealth: () => Boolean(process.env.WORDPRESS_URL && process.env.WORDPRESS_USERNAME && process.env.WORDPRESS_APP_PASSWORD)[m
+[32m+[m[32m  },[m
+   'slide.studio': {[m
+     available: true,[m
+     label: 'Corporate Slide Studio',[m
+[36m@@ -350,6 +360,12 @@[m [mexport class CapabilityRegistry {[m
+     this._aliasMap.set('media.download', 'media.harvest');[m
+     this._aliasMap.set('tavily.harvest', 'media.harvest');[m
+ [m
+[32m+[m[32m    // WordPress Publisher Tool (Berita Indonesia CMS)[m
+[32m+[m[32m    this._registerTool('wordpress.publish', wordpressPublisherToolInstance);[m
+[32m+[m[32m    this._aliasMap.set('wordpress.publish', 'wordpress.publish');[m
+[32m+[m[32m    this._aliasMap.set('wordpress_publish', 'wordpress.publish');[m
+[32m+[m[32m    this._aliasMap.set('cms.publish', 'wordpress.publish');[m
+[32m+[m
+     // Slide Studio Tool Bridge[m
+     const slideStudioBridge = {[m
+       name: 'slide.studio',[m

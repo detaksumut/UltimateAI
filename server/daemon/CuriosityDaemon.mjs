@@ -307,7 +307,7 @@ export class CuriosityDaemon {
 
     try {
       // 1. Tavily AI Advanced Harvest with Raw Content
-      const apiKey = (process.env.TAVILY_API_KEY || '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').trim();
+      const apiKey = (process.env.TAVILY_API_KEY || '').trim();
       let harvestData = null;
 
       try {

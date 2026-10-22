@@ -1,0 +1,550 @@
+<!-- ============================================
+     JINI AI Chat Widget — Embed untuk WordPress
+     Salin seluruh blok ini ke Custom HTML widget
+     JANGAN memasukkan ke Additional CSS
+     ============================================ -->
+
+<style>
+:root {
+  --jini-primary: #dc2626;
+  --jini-primary-dark: #b91c1c;
+  --jini-bg: #ffffff;
+  --jini-text: #1f2937;
+  --jini-bubble-user: #dc2626;
+  --jini-bubble-user-text: #ffffff;
+  --jini-bubble-bot: #f3f4f6;
+  --jini-bubble-bot-text: #1f2937;
+  --jini-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+#jini-chat-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+#jini-toggle-btn {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--jini-primary);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--jini-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+#jini-toggle-btn:hover {
+  background: var(--jini-primary-dark);
+  transform: scale(1.05);
+}
+#jini-toggle-btn:active {
+  transform: scale(0.95);
+}
+#jini-toggle-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: #ffffff;
+}
+#jini-toggle-label {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  background: var(--jini-primary);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  box-shadow: var(--jini-shadow);
+}
+#jini-toggle-btn:hover + #jini-toggle-label,
+#jini-toggle-label:hover {
+  opacity: 1;
+  visibility: visible;
+}
+#jini-chat-panel {
+  position: absolute;
+  bottom: 72px;
+  right: 0;
+  width: 380px;
+  height: 520px;
+  background: var(--jini-bg);
+  border-radius: 16px;
+  box-shadow: var(--jini-shadow);
+  border: 1px solid #e5e7eb;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: jini-slide-up 0.3s ease;
+}
+@keyframes jini-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+#jini-panel-header {
+  background: var(--jini-primary);
+  color: #ffffff;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#jini-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+#jini-panel-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+#jini-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s ease;
+}
+#jini-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+#jini-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fafafa;
+}
+.jini-message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: jini-fade-in 0.3s ease;
+}
+@keyframes jini-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.jini-message.user {
+  align-self: flex-end;
+  background: var(--jini-bubble-user);
+  color: var(--jini-bubble-user-text);
+  border-bottom-right-radius: 4px;
+}
+.jini-message.bot {
+  align-self: flex-start;
+  background: var(--jini-bubble-bot);
+  color: var(--jini-bubble-bot-text);
+  border-bottom-left-radius: 4px;
+}
+.jini-message.system {
+  align-self: center;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.jini-message.bot a {
+  color: var(--jini-primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--jini-primary);
+}
+.jini-message.bot a:hover {
+  text-decoration: underline;
+}
+.jini-typing {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+.jini-typing span {
+  width: 8px;
+  height: 8px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: jini-typing 1.4s infinite ease-in-out both;
+}
+.jini-typing span:nth-child(1) { animation-delay: -0.32s; }
+.jini-typing span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes jini-typing {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+#jini-input-area {
+  padding: 16px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+}
+#jini-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 24px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+#jini-input:focus {
+  border-color: var(--jini-primary);
+}
+#jini-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--jini-primary);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s ease;
+}
+#jini-send-btn:hover {
+  background: var(--jini-primary-dark);
+}
+#jini-send-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+#jini-welcome {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+#jini-welcome svg {
+  width: 48px;
+  height: 48px;
+  color: var(--jini-primary);
+  margin-bottom: 12px;
+}
+#jini-welcome h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #1f2937;
+}
+#jini-welcome p {
+  margin: 0;
+  font-size: 14px;
+}
+#jini-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+@media (max-width: 480px) {
+  #jini-chat-widget {
+    bottom: 16px;
+    right: 16px;
+  }
+  #jini-chat-panel {
+    width: calc(100vw - 32px);
+    height: 70vh;
+    bottom: 72px;
+    right: 0;
+    left: 0;
+    margin: 0 auto;
+  }
+  #jini-toggle-label {
+    bottom: 70px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+#jini-chat-panel.hidden {
+  display: none;
+}
+</style>
+
+<div id="jini-chat-widget">
+  <button id="jini-toggle-btn" aria-label="Buka obrolan JINI AI">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a1 1 0 0 1 1 1v5.59a1 1 0 0 1 1.61.91l2.72 1.36a1 1 0 0 1 .45 1.59l-1.36 2.72a1 1 0 0 1-1.59.45l-5.59-1.19a1 1 0 0 1-1-.91V3a1 1 0 0 1 1-1z"/>
+    </svg>
+    <div id="jini-toggle-badge">✓</div>
+  </button>
+  <span id="jini-toggle-label">Tanya JINI AI</span>
+
+  <div id="jini-chat-panel" class="hidden">
+    <div id="jini-panel-header">
+      <div id="jini-panel-title">
+        <div id="jini-panel-icon">J</div>
+        <span>JINI AI</span>
+      </div>
+      <button id="jini-close-btn" aria-label="Tutup obrolan">×</button>
+    </div>
+    <div id="jini-messages"></div>
+    <div id="jini-input-area">
+      <input type="text" id="jini-input" placeholder="Ketik pertanyaan Anda..." autocomplete="off">
+      <button id="jini-send-btn" aria-label="Kirim pesan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var API_BASE = (window.JINI_API_BASE || 'http://127.0.0.1:20200').replace(/\/$/, '');
+  var CHAT_ENDPOINT = API_BASE + '/api/jini/chat';
+
+  var toggleBtn = document.getElementById('jini-toggle-btn');
+  var closeBtn = document.getElementById('jini-close-btn');
+  var panel = document.getElementById('jini-chat-panel');
+  var messagesContainer = document.getElementById('jini-messages');
+  var input = document.getElementById('jini-input');
+  var sendBtn = document.getElementById('jini-send-btn');
+  var welcome = document.getElementById('jini-welcome');
+  var emptyState = document.getElementById('jini-empty-state');
+
+  var isOpen = false;
+  var isSending = false;
+
+  function ensureWelcomeElements() {
+    if (!welcome) {
+      welcome = document.createElement('div');
+      welcome.id = 'jini-welcome';
+      welcome.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a1 1 0 0 1 1 1v5.59a1 1 0 0 1 1.61.91l2.72 1.36a1 1 0 0 1 .45 1.59l-1.36 2.72a1 1 0 0 1-1.59.45l-5.59-1.19a1 1 0 0 1-1-.91V3a1 1 0 0 1 1-1z"/><path d="M1 12h4m16 0h-4"/></svg><h3>Halo, saya JINI AI</h3><p>Tanya saya tentang berita nasional, hukum, ekonomi, dan topik lainnya.</p>';
+      messagesContainer.appendChild(welcome);
+    }
+    if (!emptyState) {
+      emptyState = document.createElement('div');
+      emptyState.id = 'jini-empty-state';
+      emptyState.style.flex = '1';
+      emptyState.style.display = 'flex';
+      emptyState.style.flexDirection = 'column';
+      emptyState.style.alignItems = 'center';
+      emptyState.style.justifyContent = 'center';
+      emptyState.style.color = '#9ca3af';
+      messagesContainer.appendChild(emptyState);
+    }
+  }
+
+  function openPanel() {
+    panel.style.display = 'flex';
+    panel.classList.remove('hidden');
+    toggleBtn.style.display = 'none';
+    isOpen = true;
+    input.focus();
+    ensureWelcomeElements();
+    if (messagesContainer.children.length === 0) {
+      welcome.style.display = 'block';
+      emptyState.style.display = 'none';
+    }
+  }
+
+  function closePanel() {
+    panel.style.display = 'none';
+    panel.classList.add('hidden');
+    toggleBtn.style.display = 'flex';
+    isOpen = false;
+  }
+
+  toggleBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (isOpen) closePanel(); else openPanel();
+  });
+
+  closeBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    closePanel();
+  });
+
+  function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  function addMessage(text, type, sources) {
+    ensureWelcomeElements();
+    welcome.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    var msg = document.createElement('div');
+    msg.style.marginBottom = '14px';
+    msg.style.opacity = '0';
+    msg.style.transition = 'opacity 0.2s ease';
+
+    var bubble = document.createElement('div');
+    bubble.style.padding = '10px 14px';
+    bubble.style.borderRadius = '16px';
+    bubble.style.maxWidth = '85%';
+    bubble.style.wordWrap = 'break-word';
+    bubble.style.fontSize = '14px';
+    bubble.style.lineHeight = '1.5';
+
+    if (type === 'user') {
+      msg.style.display = 'flex';
+      msg.style.flexDirection = 'row-reverse';
+      bubble.style.background = 'var(--jini-bubble-user)';
+      bubble.style.color = 'var(--jini-bubble-user-text)';
+      bubble.style.borderBottomRightRadius = '4px';
+      bubble.textContent = text;
+    } else {
+      msg.style.display = 'flex';
+      msg.style.flexDirection = 'row';
+      bubble.style.background = 'var(--jini-bubble-bot)';
+      bubble.style.color = 'var(--jini-bubble-bot-text)';
+      bubble.style.borderBottomLeftRadius = '4px';
+      bubble.innerHTML = text;
+    }
+
+    msg.appendChild(bubble);
+    messagesContainer.appendChild(msg);
+
+    if (sources && sources.length > 0 && type === 'bot') {
+      var srcBox = document.createElement('div');
+      srcBox.style.margin = '4px 0 0 6px';
+      srcBox.style.fontSize = '12px';
+      srcBox.style.color = '#6b7280';
+      var srcTitle = document.createElement('div');
+      srcTitle.style.fontWeight = '600';
+      srcTitle.style.marginBottom = '6px';
+      srcTitle.style.color = 'var(--jini-primary)';
+      srcTitle.textContent = '📚 Sumber referensi:';
+      srcBox.appendChild(srcTitle);
+      var srcList = document.createElement('ul');
+      srcList.style.margin = '0';
+      srcList.style.paddingLeft = '18px';
+      sources.forEach(function(s) {
+        var li = document.createElement('li');
+        li.style.marginBottom = '4px';
+        var a = document.createElement('a');
+        a.href = s.url;
+        a.textContent = s.title || s.url;
+        a.style.color = 'var(--jini-primary)';
+        a.style.textDecoration = 'none';
+        a.style.fontSize = '12.5px';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        li.appendChild(a);
+        srcList.appendChild(li);
+      });
+      srcBox.appendChild(srcList);
+      msg.appendChild(srcBox);
+    }
+
+    setTimeout(function() { msg.style.opacity = '1'; }, 10);
+    scrollToBottom();
+    return msg;
+  }
+
+  function setLoading(loading) {
+    isSending = loading;
+    sendBtn.disabled = loading;
+    input.disabled = loading;
+    if (loading) {
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6a6 6 0 1 1 0 12a6 6 0 0 1 0-12z"/></svg>';
+      sendBtn.style.background = '#9ca3af';
+    } else {
+      sendBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
+      sendBtn.style.background = 'var(--jini-primary)';
+    }
+  }
+
+  function showError(msg) {
+    addMessage('⚠️ ' + msg, 'bot');
+  }
+
+  async function sendMessage() {
+    var text = input.value.trim();
+    if (!text || isSending) return;
+
+    addMessage(text, 'user');
+    input.value = '';
+    input.focus();
+    setLoading(true);
+
+    var typingMsg = addMessage('JINI sedang mengetik...', 'bot');
+
+    try {
+      var response = await fetch(CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, conversationId: 'jini-widget', searchNews: true })
+      });
+
+      typingMsg.remove();
+
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+
+      var data = await response.json();
+
+      if (data.success && data.message) {
+        addMessage(data.message, 'bot', data.sources || []);
+      } else {
+        showError(data.error && data.error.message ? data.error.message : 'Gagal mendapatkan respons dari JINI.');
+      }
+    } catch (err) {
+      typingMsg.remove();
+      console.error('[JINI Widget] Error:', err);
+      showError('Tidak dapat terhubung ke JINI AI. Pastikan backend UltimateAI sedang berjalan.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  input.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  input.addEventListener('input', function() {
+    sendBtn.disabled = !input.value.trim() || isSending;
+  });
+
+  ensureWelcomeElements();
+})();
+</script>

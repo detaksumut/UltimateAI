@@ -25,6 +25,7 @@ import { multiLayerSearchToolInstance } from '../tools/MultiLayerSearchTool.mjs'
 import { webHarvestToolInstance } from '../tools/WebHarvestTool.mjs';
 import { localFilesystemToolInstance } from '../tools/LocalFilesystemTool.mjs';
 import { mediaHarvesterToolInstance } from '../tools/MediaHarvesterTool.mjs';
+import { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';
 
 export const VERIFIED_SYSTEM_ENTITIES = new Set([
   'UltimateAI',
@@ -223,6 +224,15 @@ export const CAPABILITY_REGISTRY = {
     namespace: 'media',
     checkLiveHealth: () => true
   },
+
+  // --- CMS / WORDPRESS CAPABILITIES ---
+  'wordpress.publish': {
+    available: true,
+    label: 'WordPress Publisher (Berita Indonesia)',
+    description: 'Terbitkan dan kelola artikel ke WordPress beritaindonesia.news via REST API. Membuat post, unggah gambar, dan mengelola kategori/tag.',
+    namespace: 'cms',
+    checkLiveHealth: () => Boolean(process.env.WORDPRESS_URL && process.env.WORDPRESS_USERNAME && process.env.WORDPRESS_APP_PASSWORD)
+  },
   'slide.studio': {
     available: true,
     label: 'Corporate Slide Studio',
@@ -349,6 +359,12 @@ export class CapabilityRegistry {
     this._aliasMap.set('media.harvest', 'media.harvest');
     this._aliasMap.set('media.download', 'media.harvest');
     this._aliasMap.set('tavily.harvest', 'media.harvest');
+
+    // WordPress Publisher Tool (Berita Indonesia CMS)
+    this._registerTool('wordpress.publish', wordpressPublisherToolInstance);
+    this._aliasMap.set('wordpress.publish', 'wordpress.publish');
+    this._aliasMap.set('wordpress_publish', 'wordpress.publish');
+    this._aliasMap.set('cms.publish', 'wordpress.publish');
 
     // Slide Studio Tool Bridge
     const slideStudioBridge = {

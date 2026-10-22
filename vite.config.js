@@ -1,11 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
 
-function tavilyDriveFPlugin() {
+function tavilyDriveFPlugin(tavilyKey) {
+  // Single source of truth: TAVILY_API_KEY from .env (never hardcoded).
+  const tavilyApiKey = (tavilyKey || '').trim();
   const primaryDocDir = 'F:\\UltimateAI_Memory\\02_Documentation';
   const fallbackDocDir = path.resolve('storage/documents');
 
@@ -68,7 +70,7 @@ function tavilyDriveFPlugin() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          api_key: (process.env.TAVILY_API_KEY || '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').trim(),
+          api_key: tavilyApiKey,
           query,
           search_depth: 'advanced',
           include_raw_content: true,
@@ -632,7 +634,7 @@ function tavilyDriveFPlugin() {
               const isAudio = resourceType === 'audio' || 
                 /\b(musik|lagu|audio|mp3|soundtrack|lofi|synthwave|pop|barat|dangdut|jazz|rock|tembang|album|singel|single|playlist)\b/i.test(topic) ||
                 /\b(musik|lagu|audio|mp3)\b/i.test(cleanFolder);
-              const apiKey = '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';
+              const apiKey = tavilyApiKey;
 
               // Live Tavily Deep Web Crawl
               let tavilyResults = [];
@@ -867,39 +869,44 @@ function tavilyDriveFPlugin() {
   };
 }
 
-export default defineConfig(({ command }) => ({
-  plugins: [
-    react(),
-    ...(command === 'serve' ? [tavilyDriveFPlugin()] : [])
-  ],
-  optimizeDeps: {
-    entries: ['index.html']
-  },
-  build: {
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('three')) return 'vendor-three';
-            if (id.includes('lucide-react')) return 'vendor-lucide';
-            if (id.includes('@supabase')) return 'vendor-supabase';
-            return 'vendor';
+export default defineConfig(({ command, mode }) => {
+  // Load .env so TAVILY_API_KEY is the single source of truth (Vite does not
+  // populate process.env from .env files).
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    plugins: [
+      react(),
+      ...(command === 'serve' ? [tavilyDriveFPlugin(env.TAVILY_API_KEY)] : [])
+    ],
+    optimizeDeps: {
+      entries: ['index.html']
+    },
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('three')) return 'vendor-three';
+              if (id.includes('lucide-react')) return 'vendor-lucide';
+              if (id.includes('@supabase')) return 'vendor-supabase';
+              return 'vendor';
+            }
           }
         }
       }
-    }
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 5177,
-    proxy: {
-      '/health': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/api': { target: 'http://127.0.0.1:20200', changeOrigin: true },
-      '/v1': { target: 'http://127.0.0.1:20200', changeOrigin: true }
     },
-    watch: {
-      ignored: ['**/storage/**', '**/server/data/**', '**/tests/**', '**/.git/**', '**/scratch/**']
+    server: {
+      host: '0.0.0.0',
+      port: 5177,
+      proxy: {
+        '/health': { target: 'http://127.0.0.1:20200', changeOrigin: true },
+        '/api': { target: 'http://127.0.0.1:20200', changeOrigin: true },
+        '/v1': { target: 'http://127.0.0.1:20200', changeOrigin: true }
+      },
+      watch: {
+        ignored: ['**/storage/**', '**/server/data/**', '**/tests/**', '**/.git/**', '**/scratch/**']
+      }
     }
-  }
-}));
+  };
+});
