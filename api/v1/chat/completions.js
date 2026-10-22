@@ -805,9 +805,7 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   // silently choose models[0]: discovery ordering can point Live at a different
   // provider/model, so the request may never reach the intended Cloudflare model.
   const PREFERRED_IMAGE_MODEL = 'cf/@cf/bytedance/stable-diffusion-xl-lightning';
-  const model = models.includes(PREFERRED_IMAGE_MODEL)
-    ? PREFERRED_IMAGE_MODEL
-    : PREFERRED_IMAGE_MODEL;
+  const model = PREFERRED_IMAGE_MODEL;
   console.log('[NineRouterImage] discovery ok', JSON.stringify({
     base,
     discoveredCount: models.length,
