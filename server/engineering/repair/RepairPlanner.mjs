@@ -15,7 +15,9 @@ const MAX_TEST_BYTES = 24 * 1024;
 const GENERATED_TEST_ROOT = 'tests/engineering/repair-generated/';
 
 const FIX_TARGETS = {
-  EXTRACT_SUBCOMPONENT_TO_TOP_LEVEL_AND_MEMOIZE: 'src/ui/simulator/components/LeftSidebarHUD.jsx',
+  // API timeout retries have a concrete existing implementation target.
+  // DOM component repairs require the telemetry to identify an actual source
+  // path; do not guess or preserve the old nonexistent LeftSidebarHUD path.
   RETRY_WITH_EXPONENTIAL_BACKOFF: 'src/production/reliability/policies/RetryPolicy.ts'
 };
 
