@@ -1,14 +1,11 @@
 /**
  * SelfEvolvingAgentEngine.mjs
- * Master Autonomous Self-Correction & Evolution Engine for JINI via 9Router.
- * 
- * Automatically activates whenever a USER request is unfulfilled, failed, or corrected.
- * Closed-Loop Workflow:
- *  1. DETECT: Identifies user complaint / unfulfilled request signals from conversation.
- *  2. INTROSPECT: 9Router conducts Root Cause Analysis (RCA) on the failure.
- *  3. LEARN: Persists the self-evolved rule/strategy into Memory Vault & Incident Memory.
- *  4. GUARDRAIL REPAIR: Generates adaptive runtime patches or script refinements with AST check.
- *  5. HEAL & RE-EXECUTE: Re-serves the user request with the perfected solution immediately.
+ * Supervised self-improvement proposal engine for JINI.
+ *
+ * This module records candidate rules from failure analysis. It DOES NOT apply
+ * source-code patches, execute scripts, run a test suite, or re-deploy runtime
+ * code. Candidate rules stay PROPOSED until a separate controlled workflow
+ * validates them with repeatable tests and explicit approval.
  */
 
 import fs from 'fs';
@@ -94,8 +91,8 @@ export class SelfEvolvingAgentEngine {
       'Tugasmu:',
       '1. Analisis mengapa permintaan user gagal (Root Cause Analysis).',
       '2. Identifikasi subsistem/script target yang bermasalah (contoh: YouTubeSongSearch.mjs, documentReader.js, DocumentPipelineAdapter, SemanticIntentEngine, UI Canvas, Player Embed).',
-      '3. Rumuskan Aturan Koreksi Mandiri (Self-Correction Rule) dan strategi tindakan agar JINI berkembang dan tidak mengulangi kesalahan serupa.',
-      '4. Rumuskan instruksi perbaikan konkret dan penjelasan ramah kepada user.',
+      '3. Rumuskan KANDIDAT aturan koreksi yang bisa diuji, bukan klaim bahwa kode sudah diubah.',
+      '4. Jelaskan validasi yang masih diperlukan. Dilarang mengklaim patch diterapkan, tes lulus, atau masalah selesai jika belum ada bukti.',
       '',
       'KEMBALIKAN OUTPUT HANYA DALAM FORMAT JSON BERSIH TANPA KATA-KATA LAIN:',
       '{',
@@ -115,7 +112,7 @@ export class SelfEvolvingAgentEngine {
       `Respons/Tindakan JINI Sebelumnya: "${lastAssistantResponse}"`,
       `Keluhan/Koreksi User Sekarang: "${userComplaint}"`,
       `==============================`,
-      `Analisis sekarang dan rumuskan evolusi perbaikan mandiri untuk JINI:`
+      `Analisis sekarang dan rumuskan kandidat aturan perbaikan yang belum diuji:`
     ].join('\n');
 
     try {
@@ -132,119 +129,135 @@ export class SelfEvolvingAgentEngine {
       // Parse JSON from 9Router response
       const jsonMatch = String(resultText).match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        const asText = (value, fallback) => typeof value === 'string' && value.trim()
+          ? value.trim().slice(0, 3000)
+          : fallback;
+        return {
+          identifiedFailure: asText(parsed.identifiedFailure, 'Failure reported by user; details need review.'),
+          rootCause: asText(parsed.rootCause, 'Root cause remains a hypothesis until verified.'),
+          targetSubsystem: asText(parsed.targetSubsystem, 'Unknown subsystem; manual review required.'),
+          evolvedRule: asText(parsed.evolvedRule, 'Create a testable candidate rule after examining logs and source.'),
+          actionCategory: ['SCRIPT_REFINEMENT', 'DYNAMIC_RULE', 'EXECUTION_RETRY'].includes(parsed.actionCategory)
+            ? parsed.actionCategory
+            : 'DYNAMIC_RULE',
+          remediationSummary: asText(parsed.remediationSummary, 'Candidate analysis only; no code patch applied and no tests run.'),
+          suggestedOutput: asText(parsed.suggestedOutput, 'A candidate correction rule was recorded for review.'),
+          validationStatus: 'NOT_TESTED',
+          analysisSource: 'NINEROUTER_CANDIDATE_ANALYSIS'
+        };
       }
     } catch (err) {
       console.warn(`[SelfEvolvingAgentEngine] 9Router introspection warning:`, err.message);
     }
 
-    // Heuristic Fallback bila 9Router sedang padat
+    // Heuristic fallback is a hypothesis only; it must never claim that a repair ran.
     return {
-      identifiedFailure: `Permintaan user tidak terpenuhi: "${userComplaint}"`,
-      rootCause: 'Inkonsistensi antara intent yang diharapkan user dengan hasil eksekusi tool/script.',
-      targetSubsystem: 'Adaptive Runtime & Tool Execution Pipeline',
-      evolvedRule: `Selalu utamakan bentuk native/langsung sesuai instruksi user dan hindari wrapper buatan yang tidak diminta.`,
+      identifiedFailure: `Permintaan user tidak terpenuhi: "${String(userComplaint || '').slice(0, 1000)}"`,
+      rootCause: 'Hipotesis awal: ketidaksesuaian antara intent yang diharapkan dan hasil eksekusi; belum diverifikasi lewat log/test.',
+      targetSubsystem: 'Unknown — needs log and source review',
+      evolvedRule: 'Capture a reproducible failing case, write a focused regression test, and validate a proposed fix before promotion.',
       actionCategory: 'DYNAMIC_RULE',
-      remediationSummary: 'Menerapkan dynamic rule override pada session saat ini dan memperbarui Memory Vault.',
-      suggestedOutput: 'Saya telah merefleksikan kegagalan ini dan menyempurnakan strategi penanganan agar langsung tepat sasaran.'
+      remediationSummary: 'Only a heuristic candidate was drafted because 9Router analysis was unavailable. No code patch applied; no tests run.',
+      suggestedOutput: 'Kandidat perbaikan dicatat untuk ditinjau. Kode runtime belum diubah dan masalah belum dinyatakan selesai.',
+      validationStatus: 'NOT_TESTED',
+      analysisSource: 'HEURISTIC_FALLBACK'
     };
   }
 
-  /**
-   * Menyimpan Aturan Pembelajaran ke Memory Vault permanen JINI
-   */
+  /** Persist an untested candidate rule; do not promote it to validated knowledge. */
   async persistToMemoryVault(analysis) {
     try {
       const record = {
         id: `EVOLVE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-        key: `EVOLUTION_RULE_${analysis.targetSubsystem || 'GLOBAL'}`.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase(),
-        content: `[9ROUTER EVOLUTION RULE] Masalah: ${analysis.identifiedFailure} | Solusi/Aturan: ${analysis.evolvedRule}`,
-        tier: 'SELF_EVOLVED_RULE',
-        confidence: 0.99,
-        provenance: 'NINEROUTER_AUTONOMOUS_CORRECTION',
+        key: `CANDIDATE_RULE_${analysis.targetSubsystem || 'GLOBAL'}`.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase(),
+        content: `[UNVERIFIED CANDIDATE RULE] Failure: ${analysis.identifiedFailure} | Candidate: ${analysis.evolvedRule}`,
+        tier: 'CANDIDATE_RULE',
+        confidence: 0.55,
+        status: 'PROPOSED',
+        validationStatus: 'NOT_TESTED',
+        provenance: analysis.analysisSource || 'NINEROUTER_CANDIDATE_ANALYSIS',
         createdAt: new Date().toISOString(),
         metadata: {
           targetSubsystem: analysis.targetSubsystem,
           rootCause: analysis.rootCause,
-          actionCategory: analysis.actionCategory
+          actionCategory: analysis.actionCategory,
+          validationStatus: 'NOT_TESTED',
+          codePatchApplied: false,
+          testsRun: false
         }
       };
 
       let vault = [];
       if (fs.existsSync(MEMORY_VAULT_PATH)) {
-        vault = JSON.parse(fs.readFileSync(MEMORY_VAULT_PATH, 'utf8'));
+        try {
+          const current = JSON.parse(fs.readFileSync(MEMORY_VAULT_PATH, 'utf8'));
+          if (Array.isArray(current)) vault = current;
+        } catch (parseError) {
+          // Preserve the corrupted vault for manual recovery; do not overwrite it.
+          console.error('[SelfEvolvingAgentEngine] Memory Vault is invalid JSON; refusing to overwrite it:', parseError.message);
+          return null;
+        }
       }
       vault.unshift(record);
-      fs.writeFileSync(MEMORY_VAULT_PATH, JSON.stringify(vault.slice(0, 1000), null, 2), 'utf8');
+      const tempPath = MEMORY_VAULT_PATH + '.tmp';
+      fs.writeFileSync(tempPath, JSON.stringify(vault.slice(0, 1000), null, 2), 'utf8');
+      fs.renameSync(tempPath, MEMORY_VAULT_PATH);
 
-      // Sync ke Incident Memory juga
-      this.memory.learnPattern({
-        category: 'AUTONOMOUS_EVOLUTION',
+      // Keep untested candidates in the PROPOSED lifecycle state.
+      this.memory.proposePattern({
+        category: 'AUTONOMOUS_EVOLUTION_CANDIDATE',
         targetComponent: analysis.targetSubsystem,
         symptoms: analysis.identifiedFailure,
         rootCause: analysis.rootCause,
-        validatedPatchStrategy: analysis.evolvedRule,
-        validationEvidence: analysis.remediationSummary
+        candidateStrategy: analysis.evolvedRule,
+        validationEvidence: 'NOT_TESTED'
       });
 
-      console.log(`✅ [SelfEvolvingAgentEngine] Evolution Rule successfully committed to Memory Vault (${record.id})`);
+      console.log(`[SelfEvolvingAgentEngine] Stored candidate rule for review (${record.id}); no source code was changed.`);
       return record;
     } catch (e) {
-      console.error(`[SelfEvolvingAgentEngine] Failed to persist memory vault:`, e.message);
+      console.error('[SelfEvolvingAgentEngine] Failed to persist candidate rule:', e.message);
       return null;
     }
   }
 
-  /**
-   * Eksekusi Lengkap Siklus Koreksi Diri (Closed-Loop Evolution)
-   */
   async evolve({ userComplaint, messages }) {
     if (this.isEvolving) {
-      return { status: 'BUSY', message: 'Evolution cycle already in progress' };
+      return { status: 'BUSY', message: 'Candidate analysis already in progress' };
     }
     this.isEvolving = true;
 
     try {
       const context = this.extractFailureContext(userComplaint, messages);
-      console.log(`\n🚀 [SelfEvolvingAgentEngine] Starting Autonomous Evolution Cycle for: "${userComplaint}"`);
+      console.log(`[SelfEvolvingAgentEngine] Preparing an unverified correction candidate for: "${userComplaint}"`);
 
-      // Step 1: Introspeksi via 9Router
       const analysis = await this.introspectWithNineRouter(context);
-
-      // Step 2: Safe Git Checkpoint Snapshot
-      let checkpointId = null;
-      try {
-        const cp = await this.checkpointMgr.createCheckpoint(
-          `EVOLVE-${Date.now()}`,
-          `Pre-evolution snapshot for ${analysis.targetSubsystem}`
-        );
-        checkpointId = cp?.checkpointId;
-      } catch (_) {}
-
-      // Step 3: Persist Rule to Memory Vault
       const memoryRecord = await this.persistToMemoryVault(analysis);
 
-      // Step 4: Construct Formatted Self-Healing Response
       const responseMarkdown = [
-        `⚙️ **[JINI AUTONOMOUS SELF-CORRECTION // 9ROUTER]**`,
-        `Saya mendeteksi bahwa permintaan Anda sebelumnya belum terpenuhi dengan benar. Melalui **9Router**, saya telah melakukan introspeksi akar masalah dan menyempurnakan logika saya secara mandiri:`,
-        ``,
-        `* 🔍 **Analisis Masalah**: ${analysis.identifiedFailure}`,
-        `* 🎯 **Akar Masalah (RCA)**: ${analysis.rootCause}`,
-        `* 🛠️ **Subsistem Diperbaiki**: \`${analysis.targetSubsystem}\``,
-        `* 📜 **Aturan Baru (Evolved Rule)**: ${analysis.evolvedRule}`,
-        `* 💾 **Memori Evolusi**: Tersimpan di Memory Vault (\`${memoryRecord?.id || 'PERSISTED'}\`) agar kesalahan ini tidak terulang di masa depan.`,
-        ``,
-        `---`,
-        ``,
-        `${analysis.suggestedOutput}`
+        '⚙️ **[JINI SELF-IMPROVEMENT // CANDIDATE PROPOSAL]**',
+        'Saya telah menyusun kandidat aturan berdasarkan laporan kegagalan dan menyimpannya untuk ditinjau.',
+        '',
+        `* **Masalah yang dilaporkan:** ${analysis.identifiedFailure}`,
+        `* **Hipotesis akar masalah:** ${analysis.rootCause}`,
+        `* **Subsistem yang perlu diperiksa:** ${analysis.targetSubsystem}`,
+        `* **Kandidat aturan:** ${analysis.evolvedRule}`,
+        `* **Status validasi:** ${analysis.validationStatus || 'NOT_TESTED'}`,
+        `* **Catatan memori:** ${memoryRecord?.id || 'Tidak tersimpan'}`,
+        '',
+        '**Penting:** siklus ini tidak mengubah kode, tidak menjalankan tes, dan tidak membuktikan masalah telah diperbaiki. Kandidat harus diuji dan disetujui melalui alur perbaikan yang terkontrol sebelum dipromosikan menjadi aturan tervalidasi.',
+        '',
+        `Saran lanjutan (belum dieksekusi): ${analysis.suggestedOutput}`
       ].join('\n');
 
       return {
-        status: 'EVOLVED',
+        status: memoryRecord ? 'RULE_PROPOSED' : 'RULE_PROPOSAL_NOT_PERSISTED',
         analysis,
         memoryRecord,
-        checkpointId,
+        validationStatus: 'NOT_TESTED',
+        runtimePatched: false,
+        testsRun: false,
         responseMarkdown
       };
     } finally {
