@@ -939,27 +939,52 @@ export default async function handler(req, res) {
       const sseId = 'chatcmpl-image-' + Date.now();
       const sseModel = model || 'gemini-image';
 
-      // LIVE IMAGE POLICY: 9Router-only — IDENTICAL mechanism to localhost.
-      // Do NOT fall back to direct Gemini here: the owner's own Gemini keys
-      // keep hitting project (403) / quota (429) walls, while 9Router serves
-      // image from its own provider account (ag/gemini-3.1-flash-image).
-      // On failure the real 9Router/tunnel error is reported honestly below.
-      // Vercel 60s budget: cap the ENTIRE image stage at 50s so the handler
-      // always returns before FUNCTION_INVOCATION_TIMEOUT. Abort early instead
-      // of letting 9Router(90s/try)+Gemini(90s/key) overrun. This also fixes the
-      // latent ReferenceError (bare `signal` was never defined in handler scope).
+      // IMAGE GENERATION: try the cloud image provider first so a dead or slow
+      // localhost 9Router tunnel cannot block image requests. Give Gemini a
+      // bounded first attempt, then use 9Router as a fallback while budget remains.
+      // The Vercel handler has a 60s limit; keep this stage below that limit.
       const stageCtrl = new AbortController();
-      const stageTimer = setTimeout(() => stageCtrl.abort(), 55000);
-      let gen;
+      const stageTimer = setTimeout(() => stageCtrl.abort(new Error('Image stage timeout')), 52000);
+      let gen = null;
+      let geminiError = '';
       try {
-        gen = await generateImageWithNineRouter(imageIntent.prompt, imageIntent.aspectRatio, stageCtrl.signal);
-        if (!gen.success && !stageCtrl.signal.aborted) {
-          const g2 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, stageCtrl.signal);
-          if (g2.success) gen = g2;
-          else gen.error = `9Router: ${gen.error} | Gemini: ${g2.error}`;
+        const geminiCtrl = new AbortController();
+        const geminiTimer = setTimeout(() => geminiCtrl.abort(new Error('Gemini image attempt timeout (25s)')), 25000);
+        let g1;
+        try {
+          const geminiSignal = AbortSignal.any([stageCtrl.signal, geminiCtrl.signal]);
+          g1 = await generateImageWithGemini(imageIntent.prompt, imageIntent.aspectRatio, geminiSignal);
+        } finally {
+          clearTimeout(geminiTimer);
+        }
+        if (g1?.success) {
+          gen = g1;
+        } else {
+          geminiError = g1?.error || 'Gemini image generation failed';
+        }
+
+        // Fallback to 9Router only if Gemini did not produce an image and the
+        // overall stage still has time. A failed/aborted tunnel must not prevent
+        // the handler from returning a useful, explicit error.
+        if (!gen?.success && !stageCtrl.signal.aborted) {
+          const g2 = await generateImageWithNineRouter(
+            imageIntent.prompt,
+            imageIntent.aspectRatio,
+            stageCtrl.signal
+          );
+          if (g2?.success) gen = g2;
+          else {
+            const routerError = g2?.error || '9Router image generation failed';
+            gen = { success: false, error: `Gemini: ${geminiError || 'gagal'} | 9Router: ${routerError}` };
+          }
+        } else if (!gen?.success) {
+          gen = { success: false, error: `Gemini: ${geminiError || 'gagal'} | Waktu pembuatan gambar habis sebelum fallback 9Router.` };
         }
       } catch (stageErr) {
-        gen = gen || { success: false, error: `Tahap gambar dibatalkan agar tidak timeout (budget 50s): ${maskSecrets(stageErr.message)}` };
+        gen = gen || {
+          success: false,
+          error: `Tahap gambar gagal: ${maskSecrets(stageErr?.message || String(stageErr))}`
+        };
       } finally {
         clearTimeout(stageTimer);
       }
