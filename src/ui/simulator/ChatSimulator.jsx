@@ -210,7 +210,7 @@ export default function ChatSimulator() {
           <img
             src="/logo-ultimateAI-transparent.png"
             alt="UltimateAI Logo"
-            className="w-full object-contain max-h-[52px] select-none transition-all duration-300 hover:brightness-110"
+            className="w-full object-contain max-h-[76px] select-none transition-all duration-300 hover:brightness-110"
             style={{ filter: 'drop-shadow(0 0 10px rgba(0,229,255,0.3))' }}
           />
         </div>
@@ -456,13 +456,13 @@ export default function ChatSimulator() {
       <img
         src="/sigma.png"
         alt="Sigma Rule"
-        className="max-w-[190px] sm:max-w-[220px] max-h-[36px] object-contain mb-2 select-none transition-all duration-300 hover:brightness-110"
+        className="max-w-[300px] sm:max-w-[380px] max-h-[72px] object-contain mb-3 select-none transition-all duration-300 hover:brightness-110"
         style={{ filter: 'drop-shadow(0 0 12px rgba(0,229,255,0.45))' }}
       />
-      <h1 style={{ fontSize: isMobile ? 32 : 42, fontWeight: 900, letterSpacing: '0.3em', color: '#00e5ff', textShadow: '0 0 20px rgba(0,229,255,0.5)', marginBottom: 4, fontFamily: 'monospace' }}>
+      <h1 style={{ fontSize: isMobile ? 46 : 64, fontWeight: 900, letterSpacing: '0.3em', color: '#00e5ff', textShadow: '0 0 20px rgba(0,229,255,0.5)', marginBottom: 6, fontFamily: 'monospace' }}>
         J I N I
       </h1>
-      <p style={{ fontSize: isMobile ? 8 : 9, letterSpacing: '0.2em', color: 'rgba(0,229,255,0.4)', marginBottom: 14, fontFamily: 'monospace', textAlign: 'center' }}>
+      <p style={{ fontSize: isMobile ? 10 : 11, letterSpacing: '0.2em', color: 'rgba(0,229,255,0.4)', marginBottom: 14, fontFamily: 'monospace', textAlign: 'center' }}>
         JOINT INTELLIGENCE NEURAL-INTERFACE
       </p>
       <JINErrorBoundary label="HOLO-CORE OFFLINE">
@@ -506,11 +506,11 @@ export default function ChatSimulator() {
           <img
             src="/logo-ultimateAI-transparent.png"
             alt="UltimateAI Logo"
-            className="h-6 object-contain select-none"
+            className="h-8 object-contain select-none"
             style={{ filter: 'drop-shadow(0 0 6px rgba(0,229,255,0.4))' }}
           />
-          <span className="font-mono text-[11px] font-bold text-cyan-400 tracking-widest">
-            JINI <span className="text-[9px] text-slate-400 font-normal">v2.0</span>
+          <span className="font-mono text-[14px] font-bold text-cyan-400 tracking-widest">
+            JINI <span className="text-[10px] text-slate-400 font-normal">v2.0</span>
           </span>
         </div>
 
