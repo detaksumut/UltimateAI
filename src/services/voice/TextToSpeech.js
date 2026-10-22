@@ -80,8 +80,15 @@ export class TextToSpeech {
       return;
     }
 
-    console.log(`[TTS] ðŸŽ™ï¸ Synthesizing Neural Indonesian Speech | Text Length: ${text.length} chars`);
-    return this.audioQueue.speak(text, options);
+    const synthesisOptions = {
+      ...options,
+      language: options.language || this.state.language || 'id-ID',
+      speaker: options.speaker || this.state.speaker || this.neuralProvider.defaultSpeaker,
+      rate: Number.isFinite(options.rate) ? options.rate : this.state.rate,
+      pitch: Number.isFinite(options.pitch) ? options.pitch : this.state.pitch
+    };
+    console.log(`[TTS] Synthesizing speech | language=${synthesisOptions.language} | textLength=${text.length}`);
+    return this.audioQueue.speak(text, synthesisOptions);
   }
 
   /**
@@ -104,6 +111,19 @@ export class TextToSpeech {
 
   hasResidualContext() {
     return this.audioQueue.hasResidualContext();
+  }
+
+  setLanguage(language = 'id-ID') {
+    const voiceStatus = this.neuralProvider.setLanguage(language);
+    this.state.language = voiceStatus.language || language;
+    this.state.speaker = voiceStatus.speaker || this.neuralProvider.defaultSpeaker;
+    this.state.status = voiceStatus.status || 'READY';
+    this._notifyListeners();
+    return voiceStatus;
+  }
+
+  getSupportedLanguages() {
+    return this.neuralProvider.getSupportedLanguages();
   }
 
   setAudioPrompt(promptPath) {
