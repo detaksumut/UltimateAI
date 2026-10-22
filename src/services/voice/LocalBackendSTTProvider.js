@@ -11,6 +11,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
   constructor(endpoint = 'http://127.0.0.1:20200/api/voice/transcribe') {
     super('LOCAL_BACKEND_STT');
     this.endpoint = endpoint;
+    this.language = 'auto';
     this.mediaRecorder = null;
     this.audioChunks = [];
     this.audioContext = null;
@@ -20,6 +21,15 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
 
   isAvailable() {
     return typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
+  }
+
+  setLanguage(language = 'auto') {
+    const locale = String(language || 'auto').trim();
+    if (locale.toLowerCase() === 'auto' || /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/i.test(locale)) {
+      this.language = locale.toLowerCase() === 'auto' ? 'auto' : locale;
+      return this.language;
+    }
+    throw new Error('INVALID_STT_LANGUAGE: Expected auto or a BCP-47 locale such as id-ID or en-US.');
   }
 
   async start({ onStart, onTranscript, onFinalTranscript, onError, onEnd } = {}) {
@@ -42,7 +52,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
         }
       });
 
-      console.log('[VOG] MIC_STARTED | Engine: LOCAL_BACKEND_STT | Lang: id-ID');
+      console.log('[VOG] MIC_STARTED | Engine: LOCAL_BACKEND_STT | Lang: ' + this.language);
       if (onStart) onStart();
 
       // Setup VAD (Voice Activity Detector)
@@ -193,7 +203,7 @@ export class LocalBackendSTTProvider extends BaseSTTProvider {
       body: JSON.stringify({
         audioBase64,
         mimeType,
-        language: 'id-ID'
+        language: this.language
       })
     });
 
