@@ -834,20 +834,46 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
   }
 
   const auth = { Authorization: `Bearer ${key}` };
-  const aspectHint = aspectRatio ? `. Aspect ratio ${aspectRatio}.` : '';
-  // Photorealism is the default style unless the user explicitly asks for
-  // illustration, cartoon, painting, anime, sketch, or another non-photo style.
-  // Keep the user's subject first so style guidance cannot override semantics.
+  const aspectHint = aspectRatio ? '. Aspect ratio ' + aspectRatio + '.' : '';
   const userPrompt = String(prompt || '').trim();
+
+  // Select the earliest concrete subject named by the user. This keeps
+  // background words (e.g. mountain) from displacing the requested object.
+  const subjectRules = [
+    { pattern: /\b(pesawat|pesawat terbang|airplane|aircraft|jet|boeing|airbus)\b/i, label: 'an airplane or aircraft', instruction: 'Show a clearly recognizable aircraft as the main subject, with the whole aircraft visible in the sky if flight is requested. Mountains, cities, clouds, and scenery must remain secondary background elements.' },
+    { pattern: /\b(helikopter|helicopter|chopper)\b/i, label: 'a helicopter', instruction: 'Show a clearly recognizable helicopter as the main subject, with its rotor and body visible. Any landscape remains secondary.' },
+    { pattern: /\b(kuda|horse|foal|stallion|mare)\b/i, label: 'a horse', instruction: 'Show a clearly recognizable real horse as the main subject, with natural equine anatomy, legs, mane, and coat. Do not turn it into a statue, machine, or fantasy creature.' },
+    { pattern: /\b(kucing|cat|kitten)\b/i, label: 'a cat', instruction: 'Show a clearly recognizable real cat as the main subject, with natural fur, eyes, ears, paws, and feline anatomy.' },
+    { pattern: /\b(anjing|dog|puppy)\b/i, label: 'a dog', instruction: 'Show a clearly recognizable real dog as the main subject, with natural fur, eyes, paws, and canine anatomy.' },
+    { pattern: /\b(mobil|car|sedan|truck|truk)\b/i, label: 'a road vehicle', instruction: 'Show the requested vehicle as the unmistakable main subject, with plausible real-world geometry.' },
+    { pattern: /\b(kota|city|skyline|gedung|building|skyscraper)\b/i, label: 'a city or building scene', instruction: 'Show the requested city or buildings as the main subject with plausible real-world architecture.' },
+    { pattern: /\b(gunung|mountain|volcano|gunung berapi)\b/i, label: 'a mountain or volcanic landscape', instruction: 'Show the mountain or landscape as the main subject unless the user names another object first.' }
+  ];
+  const matchedSubjects = subjectRules
+    .map((rule) => ({ ...rule, index: userPrompt.search(rule.pattern) }))
+    .filter((rule) => rule.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  const mainSubject = matchedSubjects[0] || null;
+  const subjectFocus = mainSubject
+    ? 'REQUIRED MAIN SUBJECT: ' + mainSubject.label + '. ' + mainSubject.instruction
+    : 'REQUIRED MAIN SUBJECT: the first concrete object explicitly named by the user. It must be plainly visible and recognizable; scenery is secondary unless requested as the subject.';
+
   const explicitlyNonPhotorealistic = /\b(cartoon|anime|manga|illustration|illustrated|painting|painted|oil painting|watercolor|sketch|drawing|line art|vector|3d render|low poly|pixel art|komik|kartun|ilustrasi|lukisan|cat air|sketsa)\b/i.test(userPrompt);
   const explicitlyRequestsEffects = /\b(explosion|exploding|fireball|battle|war scene|dramatic action|fantasy|sci-fi|surreal|ledakan|meledak|perang|adegan aksi|fantasi|fiksi ilmiah|surealis)\b/i.test(userPrompt);
   const styleHint = explicitlyNonPhotorealistic
     ? 'Respect the explicitly requested art style.'
-    : 'A real unedited professional photograph, photorealism, documentary photography, physically plausible natural lighting, true-to-life colors, realistic lens and camera depth of field, natural material texture, accurate real-world anatomy and proportions. Absolutely not an illustration, painting, concept art, CGI, 3D render, game asset, toy, sculpture, metallic fantasy creature, or stylized artwork.';
+    : 'Photorealistic real-world documentary photograph, natural camera optics and daylight, realistic surface texture, physically plausible lighting, accurate anatomy and proportions. Not concept art, painting, comic art, CGI, 3D render, toy, sculpture, metallic fantasy design, or stylized illustration.';
   const sceneGuard = explicitlyRequestsEffects
-    ? 'Include only the special effects and action explicitly requested by the user.'
-    : 'Keep the scene ordinary and plausible; no explosion, fire, smoke, battle, damage, fantasy elements, glowing markings, dramatic action, or other unrequested events or props.';
-  const fullPrompt = `${userPrompt}${aspectHint} The requested subject and action must be the dominant and unmistakable content. ${styleHint} ${sceneGuard} Natural photographic detail, realistic colors, clean composition. No text, lettering, watermark, logo, poster layout, or decorative frame unless explicitly requested.`;
+    ? 'Include only special effects and action explicitly requested by the user.'
+    : 'Do not invent explosions, fire, smoke, weapons, battle scenes, damage, fantasy details, glowing markings, or other dramatic events or props that the user did not ask for.';
+  const fullPrompt = [
+    'USER REQUEST: ' + userPrompt + aspectHint,
+    subjectFocus,
+    'The requested subject and action must be visible in the finished image. Do not replace, hide, crop out, or substitute the main subject with background scenery or unrelated objects.',
+    styleHint,
+    sceneGuard,
+    'Natural photographic detail, realistic colors, clean composition. No text, lettering, watermark, logo, poster layout, or decorative frame unless explicitly requested.'
+  ].join(' ');
 
   // 3. Target size for this aspect ratio (from shared global config; request
   //    `size` is only a hint — the gateway maps it to an internal canvas and the
@@ -873,54 +899,63 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
     return { success: false, error: '9Router tidak mengekspos model image (discovery kosong).' };
   }
 
-  // Use the exact model confirmed by the successful localhost logs. Do NOT
-  // silently choose models[0]: discovery ordering can point Live at a different
-  // provider/model, so the request may never reach the intended Cloudflare model.
+  // Choose a stronger prompt-following image model only when 9Router
+  // advertises it. Prefer FLUX.2 Dev, then FLUX.1 Schnell; retain SDXL Lightning
+  // as the known fallback. Never guess that an unlisted alternative is usable.
   const PREFERRED_IMAGE_MODEL = 'cf/@cf/bytedance/stable-diffusion-xl-lightning';
-  const model = PREFERRED_IMAGE_MODEL;
-  console.log('[NineRouterImage] discovery ok', JSON.stringify({
-    base,
+  const findAdvertised = (fragment) => models.find((id) => String(id).toLowerCase().includes(fragment));
+  const modelCandidates = [
+    findAdvertised('flux-2-dev'),
+    findAdvertised('flux-2-klein-9b'),
+    findAdvertised('flux-1-schnell'),
+    findAdvertised('stable-diffusion-xl-lightning') || PREFERRED_IMAGE_MODEL
+  ].filter((id, index, list) => Boolean(id) && list.indexOf(id) === index);
+
+  console.log('[NineRouterImage] model discovery', JSON.stringify({
     discoveredCount: models.length,
-    preferredModelListed: models.includes(PREFERRED_IMAGE_MODEL),
-    preferredModel: PREFERRED_IMAGE_MODEL
+    advertisedFlux2Dev: Boolean(findAdvertised('flux-2-dev')),
+    advertisedFlux2Klein9b: Boolean(findAdvertised('flux-2-klein-9b')),
+    advertisedFlux1Schnell: Boolean(findAdvertised('flux-1-schnell')),
+    advertisedSdxlLightning: Boolean(findAdvertised('stable-diffusion-xl-lightning')),
+    selectedModelOrder: modelCandidates
   }));
 
-  // Keep the exact model ID in the POST body. First try the OpenAI-compatible
-  // URL response; only retry the request shape when the gateway explicitly says
-  // response_format is unsupported. Never silently switch to another model.
-  const attemptBodies = [
-    { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
-    { model, prompt: fullPrompt, n: 1, size: targetSize }
-  ];
-  const MAX_GEN_ATTEMPTS = 1;
-  const RETRY_DELAY_MS = 2000;
-  let lastTransientError = null;
+  let lastGenerationError = '';
+  for (const model of modelCandidates) {
+    // FLUX.1 Schnell native inference accepts prompt and steps. Omit size on
+    // this model route to avoid a provider-specific unsupported size argument.
+    const isFluxSchnell = String(model).toLowerCase().includes('flux-1-schnell');
+    const baseBody = { model, prompt: fullPrompt, n: 1 };
+    if (!isFluxSchnell) baseBody.size = targetSize;
+    const attemptBodies = [
+      { ...baseBody, response_format: 'url' },
+      { ...baseBody },
+      ...(isFluxSchnell ? [{ model, prompt: fullPrompt, n: 1, response_format: 'url' }, { model, prompt: fullPrompt, n: 1 }] : [])
+    ];
+    let retryModel = false;
 
-  for (let generationAttempt = 1; generationAttempt <= MAX_GEN_ATTEMPTS; generationAttempt++) {
-    let attemptFailed = false;
-    for (const reqBody of attemptBodies) {
+    for (let bodyIndex = 0; bodyIndex < attemptBodies.length; bodyIndex++) {
+      const reqBody = attemptBodies[bodyIndex];
       let perAttemptTimer = null;
       try {
-        // Per-attempt 14s: timer is declared outside try so catch can always clear it.
         const perAttemptCtrl = new AbortController();
         perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(new Error('9Router attempt timeout (16s)')), 16000);
         const combinedSignal = signal
           ? AbortSignal.any([signal, perAttemptCtrl.signal])
           : perAttemptCtrl.signal;
-        // DIAGNOSTIC: record attempt, signal state, and reason for abort
-        // before the fetch. This eliminates guessing which AbortController
-        // cancelled the request (stage budget vs per-attempt timeout vs other).
         if (signal?.aborted) {
-          console.error(`[NineRouter] stage signal already aborted before fetch: stageCtrl.signal.aborted=${signal.aborted}`);
+          return { success: false, error: '9Router fallback window elapsed before generation started.' };
         }
+
         const start = Date.now();
         console.log('[NineRouterImage] POST generation start', JSON.stringify({
-          model: reqBody.model,
+          model,
           responseFormat: reqBody.response_format || 'default',
-          size: reqBody.size,
-          attempt: generationAttempt
+          size: reqBody.size || 'model-default',
+          bodyVariant: bodyIndex + 1
         }));
-        const gr = await fetch(`${base}/v1/images/generations`, {
+
+        const gr = await fetch(base + '/v1/images/generations', {
           method: 'POST',
           headers: { ...auth, 'Content-Type': 'application/json' },
           body: JSON.stringify(reqBody),
@@ -929,69 +964,74 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
         clearTimeout(perAttemptTimer);
         console.log('[NineRouterImage] POST generation response', JSON.stringify({
           status: gr.status,
-          model: reqBody.model,
+          model,
           elapsedMs: Date.now() - start
         }));
+
         if (gr.ok) {
-            const gj = await gr.json().catch(() => null);
-            const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
-            let dataUrl = null;
-            if (typeof entry?.url === 'string' && entry.url) {
-              dataUrl = entry.url;
-            } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
-              dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
-            }
-            if (!dataUrl) {
-              return { success: false, error: '9Router tidak mengembalikan data gambar.' };
-            }
-            // Compress the delivered asset separately from generation resolution.
-            // The image should remain visually coherent while staying below ~1 MB.
-            dataUrl = await compressImageDataUrl(dataUrl);
-            clearTimeout(perAttemptTimer);
-            return { success: true, dataUrl, model, gateway: '9ROUTER' };
-          } else {
-          const t = await gr.text().catch(() => '');
-          console.warn('[NineRouterImage] generation rejected', JSON.stringify({
-            status: gr.status,
-            model: reqBody.model,
-            body: maskSecrets(t.slice(0, 240))
-          }));
-          const unknownParam = gr.status === 400 && /unknown parameter/i.test(t) && /response_format/i.test(t);
-          if (unknownParam) continue; // gateway rejected this param; try the other shape
-          if ((gr.status === 502 || gr.status === 503 || gr.status === 504)) {
-            lastTransientError = `9Router HTTP ${gr.status}`;
-            attemptFailed = true;
-            continue; // try the other request shape before backing off
+          const gj = await gr.json().catch(() => null);
+          const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
+          let dataUrl = null;
+          if (typeof entry?.url === 'string' && entry.url) {
+            dataUrl = entry.url;
+          } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
+            dataUrl = 'data:' + detectMimeFromB64(entry.b64_json) + ';base64,' + entry.b64_json;
           }
-          return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
+          if (!dataUrl) {
+            lastGenerationError = model + ': 9Router did not return image bytes or a URL.';
+            retryModel = true;
+            break;
+          }
+          dataUrl = await compressImageDataUrl(dataUrl);
+          return { success: true, dataUrl, model, gateway: '9ROUTER' };
         }
-        const gj = await gr.json().catch(() => null);
-        const entry = Array.isArray(gj?.data) ? gj.data[0] : null;
-        let dataUrl = null;
-        if (typeof entry?.url === 'string' && entry.url) {
-          dataUrl = entry.url;
-        } else if (typeof entry?.b64_json === 'string' && entry.b64_json) {
-          dataUrl = `data:${detectMimeFromB64(entry.b64_json)};base64,${entry.b64_json}`;
+
+        const t = await gr.text().catch(() => '');
+        const safeText = maskSecrets(t.slice(0, 240));
+        console.warn('[NineRouterImage] generation rejected', JSON.stringify({
+          status: gr.status,
+          model,
+          body: safeText
+        }));
+        lastGenerationError = model + ': HTTP ' + gr.status + ' ' + safeText;
+
+        const responseFormatUnsupported = gr.status === 400 &&
+          /(?:unknown|unsupported|unrecognized|not allowed).{0,50}response_format|response_format.{0,50}(?:unknown|unsupported|unrecognized|not allowed)/i.test(t);
+        const sizeUnsupported = gr.status === 400 &&
+          /(?:unknown|unsupported|unrecognized|not allowed).{0,50}size|size.{0,50}(?:unknown|unsupported|unrecognized|not allowed)/i.test(t);
+        if (responseFormatUnsupported && reqBody.response_format) continue;
+        if (sizeUnsupported && reqBody.size) {
+          retryModel = true;
+          break;
         }
-        if (!dataUrl) {
-          return { success: false, error: '9Router tidak mengembalikan data gambar.' };
+        if (gr.status === 401 || gr.status === 403) {
+          return { success: false, error: lastGenerationError };
         }
-        return { success: true, dataUrl, model, gateway: '9ROUTER' };
+        retryModel = true;
+        break;
       } catch (err) {
         clearTimeout(perAttemptTimer);
         if (signal?.aborted) {
-          return { success: false, error: `9Router error: ${maskSecrets(err.message)}` };
+          return { success: false, error: '9Router error: ' + maskSecrets(err?.message || String(err)) };
         }
-        lastTransientError = `9Router error: ${maskSecrets(err.message)}`;
-        attemptFailed = true;
-        continue; // connection reset / tunnel drop; try the other request shape
+        lastGenerationError = model + ': ' + maskSecrets(err?.message || String(err));
+        retryModel = true;
+        break;
       }
     }
-    if (attemptFailed && generationAttempt < MAX_GEN_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * generationAttempt));
+    if (retryModel) {
+      console.warn('[NineRouterImage] trying next advertised/fallback model', JSON.stringify({
+        failedModel: model,
+        nextModel: modelCandidates[modelCandidates.indexOf(model) + 1] || null
+      }));
+      continue;
     }
   }
-  return { success: false, error: lastTransientError || '9Router menolak parameter response_format.' };
+
+  return {
+    success: false,
+    error: lastGenerationError || 'No candidate image model completed successfully through 9Router.'
+  };
 }
 
 /** Write an OpenAI-compatible SSE delta chunk (with optional _agent metadata). */
