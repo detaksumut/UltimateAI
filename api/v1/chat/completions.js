@@ -408,6 +408,8 @@ function resolveRequestSizes(aspectRatio) {
 
 const ASPECT_TOKEN_RE = /\b(16\s*:\s*9|9\s*:\s*16|1\s*:\s*1|4\s*:\s*3|3\s*:\s*4|3\s*:\s*2|2\s*:\s*3)\b/i;
 const IMAGE_VERB_RE = /\b(buatkan|buat|bikin|bikinkan|create|make|generate|gambar|gambarkan|image|ilustrasi|illustration|lukisan|render|desain|design|foto|photo|visual|poster|wallpaper|meme|sketsa|sketch|rancang|lukis)\b/i;
+// Document-oriented requests must never be diverted to the image-generation pipeline.
+const DOCUMENT_TASK_RE = /\b(kesimpulan|simpulkan|menyimpulkan|ringkas|rangkum|rangkuman|ringkasan|resume|summari[sz]e|summary|analisis dokumen|analisa dokumen|baca dokumen|isi dokumen|file dokumen|dokumen|lampiran|\.docx\b|\.doc\b|\.pdf\b|\.odt\b)\b/i;
 // "Capability inquiry" = asking IF the AI can do something, not requesting it.
 const CAPABILITY_INQUIRY_RE = /^(?:apakah|apakh|bisakah|bisa(?:kah)?|can you|do you|are you able|mampukah|mampu(?:kah)?)\b/i;
 
@@ -419,6 +421,7 @@ function detectImageIntent(rawPrompt) {
   const p = String(rawPrompt || '').trim();
   if (!p) return null;
   if (CAPABILITY_INQUIRY_RE.test(p)) return null; // "apakah kamu bisa ...?" → not an action
+  if (DOCUMENT_TASK_RE.test(p)) return null; // "Buat kesimpulannya" is a document task, not image generation.
   if (!IMAGE_VERB_RE.test(p)) return null;
 
   const arMatch = p.match(ASPECT_TOKEN_RE);
