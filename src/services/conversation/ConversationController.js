@@ -345,7 +345,7 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
           // teruskan status FAILED yang jujur agar JINI tidak buta.
           try {
             const { RouterConfig } = await import('../router/RouterConfig.js');
-            const parseRes = await fetch(RouterConfig.api('/api/files/parse'), {
+            const parseRes = await fetch(RouterConfig.api('/files/parse'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ fileName: f.name || 'Dokumen', dataUrl: f.dataUrl }),
