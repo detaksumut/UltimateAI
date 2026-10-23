@@ -272,7 +272,7 @@ export async function readUploadedDocument(file) {
     if (!content) {
       dataUrl = await readFileAsDataUrl(file);
       try {
-        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
@@ -287,7 +287,7 @@ export async function readUploadedDocument(file) {
     if (!content) {
       dataUrl = await readFileAsDataUrl(file);
       try {
-        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
@@ -302,7 +302,7 @@ export async function readUploadedDocument(file) {
     if (!content) {
       dataUrl = await readFileAsDataUrl(file);
       try {
-        const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
+        const parseRes = await fetchWithRetry(RouterConfig.api('/files/parse'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name, dataUrl })
