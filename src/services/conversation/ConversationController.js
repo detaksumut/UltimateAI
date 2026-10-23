@@ -285,7 +285,8 @@ PRINSIP KOGNISI & ANALISIS DOKUMEN:
       .slice(-10)   // last 5 pairs
       .map(m => {
         // Collect any images or PDF documents from past messages
-        const pastImages = (m.files || []).filter(f => (f.isImage || f.isPdf) && f.dataUrl);
+        // Never replay PDF/Base64 payloads in chat history: PDFs are handled by the document parser and their extracted text is carried in docContexts. Re-sending raw PDF data on every turn can inflate requests and trigger HTTP 413.
+        const pastImages = (m.files || []).filter(f => f.dataUrl && (f.isImage || String(f.dataUrl).startsWith('data:image/')));
         if (m.imageUrl || pastImages.length > 0) {
           const parts = [
             { type: 'text', text: m.content || 'Gambar/Dokumen terlampir' }
