@@ -11,6 +11,7 @@
  */
 
 import http from 'http';
+import { timingSafeEqual } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,6 +23,7 @@ import { IMAGE_STEPS } from '../agent/ImageOutputConfig.mjs';
 import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/env.mjs';
 import { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';
 import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
+import { speechToTextServiceInstance } from '../voice/SpeechToTextService.mjs';
 import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
@@ -950,6 +952,7 @@ Requirements:
       const body = await readJsonBody();
       try {
         const result = await neuralIndonesianTTSProviderInstance.synthesize(body.text || '', {
+          language: body.language || 'id-ID',
           speaker: body.speaker,
           rate: body.rate,
           pitch: body.pitch,
@@ -967,20 +970,19 @@ Requirements:
     if (pathname === '/api/voice/transcribe' && req.method === 'POST') {
       const body = await readJsonBody();
       try {
-        const audioBase64 = body.audioBase64 || '';
-        const mimeType = body.mimeType || 'audio/webm';
-        
-        let transcript = '';
+        const result = await speechToTextServiceInstance.transcribe({
+          audioBase64: body.audioBase64 || '',
+          mimeType: body.mimeType || 'audio/webm',
+          language: body.language || 'auto'
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          transcript,
-          language: 'id-ID',
-          confidence: transcript ? 0.98 : 0,
-          provider: 'LOCAL_BACKEND_STT'
-        }, null, 2));
+        res.end(JSON.stringify(result, null, 2));
       } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { message: err.message, code: 'STT_TRANSCRIPTION_FAILED' } }));
+        const code = err?.code || String(err?.message || '').split(':')[0] || 'STT_TRANSCRIPTION_FAILED';
+        const clientInputError = /^STT_(?:AUDIO_MISSING|AUDIO_INVALID|AUDIO_TOO_SHORT|AUDIO_TOO_LARGE|UNSUPPORTED_MIME)$/.test(code);
+        const status = clientInputError ? 400 : code === 'STT_PROVIDER_NOT_CONFIGURED' ? 503 : 502;
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: err?.message || 'Speech transcription failed.', code } }));
       }
       return;
     }
@@ -4027,6 +4029,26 @@ Requirements:
     // 19. ENGINEERING AGENT TELEMETRY & STATUS
     if (pathname === '/api/engineering/telemetry' && req.method === 'POST') {
       try {
+        // This route can trigger code repair. Reject browser-originated posts
+        // from arbitrary websites so a hostile page cannot manufacture an
+        // incident and cause local patch/build execution on the user's PC.
+        const origin = String(req.headers.origin || '').trim();
+        const allowedOrigins = new Set([
+          'http://localhost:5177',
+          'http://127.0.0.1:5177',
+          'http://localhost:5173',
+          'http://127.0.0.1:5173',
+          ...(process.env.JIN_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean)
+        ]);
+        if (origin && !allowedOrigins.has(origin) &&
+            !(origin === 'null' && process.env.JIN_ALLOW_FILE_ORIGIN === 'true')) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'ENGINEERING_ORIGIN_DENIED' }));
+          return;
+        }
+        // Instantiate the runtime before recording telemetry, so its queue
+        // listener is active when this incident is enqueued.
+        await import('../engineering/EngineeringRuntime.mjs');
         const payload = await readJsonBody();
         const { frontendTelemetryGatewayInstance } = await import('../engineering/observer/FrontendTelemetryGateway.mjs');
         const result = frontendTelemetryGatewayInstance.processTelemetry(payload);
@@ -4201,6 +4223,79 @@ Requirements:
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: { code: 'WORDPRESS_CREATE_POST_FAILED', message: err.message } }, null, 2));
+      }
+      return;
+    }
+
+    // JINI Editorial API — admin-only UI calls this endpoint through a configured HTTPS URL.
+    // Generates a structured draft only; it never publishes or changes WordPress settings.
+    if (pathname === '/api/jini/editorial/draft' && req.method === 'POST') {
+      try {
+        const expectedToken = String(process.env.JINI_EDITORIAL_API_TOKEN || '').trim();
+        const authHeader = String(req.headers.authorization || '');
+        const suppliedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+        const expectedTokenBytes = Buffer.from(expectedToken, 'utf8');
+        const suppliedTokenBytes = Buffer.from(suppliedToken, 'utf8');
+        if (!expectedToken || !suppliedToken || suppliedTokenBytes.length !== expectedTokenBytes.length || !timingSafeEqual(suppliedTokenBytes, expectedTokenBytes)) {
+          res.writeHead(expectedToken ? 401 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+          res.end(JSON.stringify({ success: false, error: { code: expectedToken ? 'UNAUTHORIZED' : 'EDITORIAL_TOKEN_NOT_CONFIGURED', message: expectedToken ? 'Autentikasi JINI Editorial gagal.' : 'JINI_EDITORIAL_API_TOKEN belum dikonfigurasi.' } }));
+          return;
+        }
+        const body = await readJsonBody();
+        const topic = typeof body.topic === 'string' ? body.topic.trim() : '';
+        if (!topic || topic.length > 8000) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INVALID_TOPIC', message: 'Topik wajib diisi dan maksimal 8000 karakter.' } }));
+          return;
+        }
+
+        const systemPrompt = `Anda adalah JINI, asisten redaksi Berita Indonesia. Buat DRAF berita berbahasa Indonesia yang profesional, berimbang, faktual, dan mudah diverifikasi.
+Jangan mengarang kutipan, nama narasumber, angka, tanggal, atau fakta. Jika informasi belum didukung sumber, nyatakan keterbatasannya dan gunakan penanda [PERLU VERIFIKASI EDITOR] pada bagian terkait. Jangan menentukan kategori, tag, SEO, gambar, infografik, atau status publikasi.
+Kembalikan hanya JSON valid dengan bentuk {"title":"judul berita","content":"isi berita dalam HTML sederhana menggunakan p, h2, ul, li, strong dan blockquote bila diperlukan","editor_notes":["catatan verifikasi untuk editor"]}. Jangan sertakan markdown fence atau teks di luar JSON. Isi minimal 4 paragraf substantif jika topik mendukung; jangan memalsukan sumber.`;
+
+        const aiResult = await modelRoutingServiceInstance.routeChat({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: topic }
+          ],
+          capability: 'FAST_CHAT',
+          stream: false,
+          temperature: 0.25
+        });
+
+        const raw = aiResult && aiResult.content ? aiResult.content : '';
+        let article;
+        try {
+          const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+          article = JSON.parse(cleaned);
+        } catch {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INVALID_MODEL_OUTPUT', message: 'JINI tidak menghasilkan JSON artikel yang valid. Coba ulangi dengan instruksi yang lebih spesifik.' } }));
+          return;
+        }
+
+        if (!article || typeof article.title !== 'string' || typeof article.content !== 'string' || !article.title.trim() || !article.content.trim()) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: { code: 'INCOMPLETE_ARTICLE', message: 'Hasil JINI tidak memiliki judul dan isi yang lengkap.' } }));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({
+          success: true,
+          article: {
+            title: article.title.trim().slice(0, 250),
+            content: article.content,
+            editor_notes: Array.isArray(article.editor_notes) ? article.editor_notes.slice(0, 20) : []
+          },
+          provider: aiResult?.providerGateway || 'unknown',
+          model: aiResult?.model || 'auto',
+          timestamp: new Date().toISOString()
+        }));
+      } catch (err) {
+        console.error('[JINI Editorial] Draft generation failed:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: { code: 'JINI_EDITORIAL_FAILED', message: 'Gagal menyusun draf berita.' } }));
       }
       return;
     }

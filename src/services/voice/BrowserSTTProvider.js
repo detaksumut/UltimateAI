@@ -7,8 +7,9 @@
 import { BaseSTTProvider } from './STTProvider.js';
 
 export class BrowserSTTProvider extends BaseSTTProvider {
-  constructor() {
+  constructor(language = 'id-ID') {
     super('BROWSER_STT');
+    this.language = language || 'id-ID';
     this.recognition = null;
     this.latestTranscript = '';
     this.hasFinalized = false;
@@ -23,12 +24,22 @@ export class BrowserSTTProvider extends BaseSTTProvider {
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
-      this.recognition.lang = 'id-ID';
+      this.recognition.lang = this.language;
     }
   }
 
   isAvailable() {
     return Boolean(this.recognition);
+  }
+
+  setLanguage(language = 'id-ID') {
+    const locale = String(language || '').trim();
+    if (!/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/i.test(locale) || locale.toLowerCase() === 'auto') {
+      throw new Error('INVALID_STT_LANGUAGE: Browser SpeechRecognition requires a BCP-47 locale (for example id-ID or en-US).');
+    }
+    this.language = locale;
+    if (this.recognition) this.recognition.lang = locale;
+    return this.language;
   }
 
   async start({ onStart, onTranscript, onFinalTranscript, onError, onEnd } = {}) {
@@ -43,7 +54,7 @@ export class BrowserSTTProvider extends BaseSTTProvider {
     // Connect all standard SpeechRecognition events
     this.recognition.onstart = () => {
       this.isListening = true;
-      console.log('[VOG] STT_STARTED | Engine: BROWSER_STT | Lang: id-ID');
+      console.log('[VOG] STT_STARTED | Engine: BROWSER_STT | Lang: ' + this.language);
       if (onStart) onStart();
     };
 

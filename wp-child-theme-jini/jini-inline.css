@@ -1,0 +1,193 @@
+#jini-chat-inline {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 24px auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  box-sizing: border-box;
+}
+#jini-chat-panel-inline {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#jini-panel-header-inline {
+  background: #dc2626;
+  color: #ffffff;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#jini-panel-title-inline {
+  display: flex;
+  align-items: center; gap: 12px;
+  font-size: 20px;
+  font-weight: 700;letter-spacing: 0.04em;
+}
+#jini-panel-icon-inline {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;font-weight: 800;
+}
+#jini-messages-inline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fafafa;
+  min-height: 300px;
+  max-height: 400px;
+}
+.jini-message-inline {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: jini-fade-in-inline 0.3s ease;
+}
+@keyframes jini-fade-in-inline {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.jini-message-inline.user {
+  align-self: flex-end;
+  background: #dc2626;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+.jini-message-inline.bot {
+  align-self: flex-start;
+  background: #f3f4f6;
+  color: #1f2937;
+  border-bottom-left-radius: 4px;
+}
+.jini-message-inline.system {
+  align-self: center;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.jini-message-inline.bot a {
+  color: #dc2626;
+  text-decoration: none;
+  border-bottom: 1px solid #dc2626;
+}
+.jini-message-inline.bot a:hover {
+  text-decoration: underline;
+}
+.jini-typing-inline {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+.jini-typing-inline span {
+  width: 8px;
+  height: 8px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: jini-typing-inline 1.4s infinite ease-in-out both;
+}
+.jini-typing-inline span:nth-child(1) { animation-delay: -0.32s; }
+.jini-typing-inline span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes jini-typing-inline {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+#jini-input-area-inline {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+}
+#jini-input-inline {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 24px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+#jini-input-inline:focus {
+  border-color: #dc2626;
+}
+#jini-send-btn-inline {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s ease;
+}
+#jini-send-btn-inline:hover {
+  background: #b91c1c;
+}
+#jini-send-btn-inline:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+#jini-welcome-inline {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+#jini-welcome-inline svg {
+  width: 48px;
+  height: 48px;
+  color: #dc2626;
+  margin-bottom: 12px;
+}
+#jini-welcome-inline h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #1f2937;
+}
+#jini-welcome-inline p {
+  margin: 0;
+  font-size: 14px;
+}
+#jini-empty-state-inline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+@media (max-width: 768px) {
+  #jini-chat-inline {
+    max-width: 100%;
+    margin: 0 auto 16px auto;
+  }
+  #jini-chat-panel-inline {
+    border-radius: 8px;
+  }
+  #jini-messages-inline {
+    padding: 16px;
+    min-height: 250px;
+    max-height: 350px;
+  }
+  #jini-input-area-inline {
+    padding: 12px 16px;
+  }
+}

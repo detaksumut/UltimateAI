@@ -9,12 +9,30 @@
  * 4. Fails closed with TTS_NEURAL_UNAVAILABLE on total failure â€” NEVER falls back to English.
  */
 
+const FRONTEND_TTS_PROFILES = {
+  'id-ID': 'id-ID-GadisNeural',
+  'en-US': 'en-US-JennyNeural',
+  'en-GB': 'en-GB-SoniaNeural',
+  'es-ES': 'es-ES-ElviraNeural',
+  'fr-FR': 'fr-FR-DeniseNeural',
+  'de-DE': 'de-DE-KatjaNeural',
+  'it-IT': 'it-IT-ElsaNeural',
+  'pt-BR': 'pt-BR-FranciscaNeural',
+  'ja-JP': 'ja-JP-NanamiNeural',
+  'ko-KR': 'ko-KR-SunHiNeural',
+  'zh-CN': 'zh-CN-XiaoxiaoNeural',
+  'hi-IN': 'hi-IN-SwaraNeural',
+  'ms-MY': 'ms-MY-YasminNeural',
+  'th-TH': 'th-TH-PremwadeeNeural',
+  'vi-VN': 'vi-VN-HoaiMyNeural'
+};
+
 export class NeuralIndonesianTTSProvider {
   constructor(config = {}) {
     this.name = 'NEURAL_INDONESIAN_TTS';
-    this.language = 'id-ID';
-    this.defaultSpeaker = config.defaultSpeaker || 'id-ID-GadisNeural';
-    this.fallbackSpeaker = config.fallbackSpeaker || 'id-ID-GadisNeural';
+    this.language = config.language || 'id-ID';
+    this.defaultSpeaker = config.defaultSpeaker || FRONTEND_TTS_PROFILES[this.language] || 'id-ID-GadisNeural';
+    this.fallbackSpeaker = config.fallbackSpeaker || this.defaultSpeaker;
     this.sampleRate = 24000;
     this.format = 'audio/mp3';
     this.rate = 1.12;
@@ -34,6 +52,21 @@ export class NeuralIndonesianTTSProvider {
     }
   }
 
+  setLanguage(language = 'id-ID') {
+    const locale = String(language || '').trim();
+    if (!Object.prototype.hasOwnProperty.call(FRONTEND_TTS_PROFILES, locale)) {
+      throw new Error('UNSUPPORTED_TTS_LANGUAGE: ' + locale + '. Supported: ' + Object.keys(FRONTEND_TTS_PROFILES).join(', '));
+    }
+    this.language = locale;
+    this.defaultSpeaker = FRONTEND_TTS_PROFILES[locale];
+    this.fallbackSpeaker = this.defaultSpeaker;
+    return this.getVoiceStatus();
+  }
+
+  getSupportedLanguages() {
+    return Object.keys(FRONTEND_TTS_PROFILES);
+  }
+
   getVoiceStatus() {
     return {
       provider: 'NEURAL_INDONESIAN_TTS',
@@ -42,14 +75,15 @@ export class NeuralIndonesianTTSProvider {
       sampleRate: this.sampleRate,
       format: this.format,
       audioPromptConfigured: Boolean(this.audioPromptPath),
-      status: this.status
+      status: this.status,
+      supportedLanguages: this.getSupportedLanguages()
     };
   }
 
   /**
    * Synthesizes speech and returns a valid browser-playable Object URL and Blob.
    * @param {string} text - Spoken Indonesian text
-   * @param {Object} options - { speaker, audioPromptPath, rate, pitch, signal }
+   * @param {Object} options - { language, speaker, audioPromptPath, rate, pitch, signal }
    */
   async synthesize(text, options = {}) {
     if (!text || !text.trim()) {
@@ -65,7 +99,10 @@ export class NeuralIndonesianTTSProvider {
     }
 
     const cleanText = text.trim();
-    const speaker = options.speaker || this.defaultSpeaker;
+    const language = options.language || this.language;
+    const profileSpeaker = FRONTEND_TTS_PROFILES[language];
+    if (!profileSpeaker) throw new Error('UNSUPPORTED_TTS_LANGUAGE: ' + language);
+    const speaker = options.speaker || (language === this.language ? this.defaultSpeaker : profileSpeaker);
     const rate = options.rate || this.rate;
     const pitch = options.pitch || this.pitch;
     const audioPromptPath = options.audioPromptPath || this.audioPromptPath;
@@ -79,7 +116,7 @@ export class NeuralIndonesianTTSProvider {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: cleanText,
-          language: this.language,
+          language,
           speaker,
           rate,
           pitch,

@@ -20,10 +20,12 @@ export class DiagnosticEngine {
     let confidence = 0.5;
     let riskLevel = RiskClassification.MEDIUM_RISK;
     let reproducible = true;
+    let priorValidatedPatternMatched = false;
 
     // 1. Evidence Check: Match with Learned Incident Memory
     const learned = this.memory.findMatchingPattern(ticket.category, ticket.targetComponent, ticket.errorMessage);
     if (learned) {
+      priorValidatedPatternMatched = true;
       evidence.push(`Found prior validated pattern in memory: ${learned.rootCause}`);
       rootCause = learned.rootCause;
       proposedFix = learned.validatedPatchStrategy;
@@ -39,11 +41,24 @@ export class DiagnosticEngine {
         confidence = 0.92;
         riskLevel = RiskClassification.LOW_RISK;
       } else if (ticket.category === 'API_TIMEOUT_FAILURE') {
-        evidence.push('Gateway reported HTTP 504 / ECONNRESET');
+        evidence.push('Reported error matches an upstream timeout / connection-reset failure.');
+        evidence.push('Incident is classified as API_TIMEOUT_FAILURE; retry is considered only for idempotent operations.');
         rootCause = 'Downstream provider connection timeout or router buffer saturation';
         proposedFix = 'RETRY_WITH_EXPONENTIAL_BACKOFF';
         confidence = 0.88;
         riskLevel = RiskClassification.LOW_RISK;
+      } else if (
+        ticket.category === 'CODE_REPAIR_REQUEST' &&
+        ticket.metadata?.explicitSelfRepair === true &&
+        Array.isArray(ticket.metadata?.candidateFiles) &&
+        ticket.metadata.candidateFiles.length > 0
+      ) {
+        evidence.push('User explicitly requested a supervised source-code repair.');
+        evidence.push('A concrete candidate file was identified; the repair planner must re-check the path and safety allowlist before writing.');
+        rootCause = String(ticket.metadata.rootCause || ticket.errorMessage || 'Requested code repair needs diagnosis.');
+        proposedFix = 'GENERATE_GUARDED_PATCH_WITH_REGRESSION_TEST';
+        confidence = 0.86;
+        riskLevel = RiskClassification.MEDIUM_RISK;
       } else {
         evidence.push(`Raw error message: ${ticket.errorMessage}`);
         rootCause = `Runtime exception in ${ticket.targetComponent || 'system'}: ${ticket.errorMessage}`;
@@ -54,12 +69,16 @@ export class DiagnosticEngine {
     }
 
     // 3. Evidence Gate Validation
-    const evidenceGatePassed = evidence.length >= 2 && confidence >= 0.85;
+    const evidenceGatePassed = confidence >= 0.85 && (evidence.length >= 2 || priorValidatedPatternMatched);
 
     const report = {
       incidentId: ticket.incidentId,
       timestamp: new Date().toISOString(),
       suspectedComponent: ticket.targetComponent,
+      category: ticket.category,
+      errorMessage: ticket.errorMessage,
+      stackTrace: ticket.stackTrace || '',
+      targetFiles: Array.isArray(ticket.metadata?.candidateFiles) ? ticket.metadata.candidateFiles : [],
       rootCause,
       proposedFix,
       confidence,

@@ -157,18 +157,22 @@ export class WebSearchTool extends ToolContract {
       rawSources = rawResult.sources || [];
     }
 
-    const sources = rawSources.map((s, i) => {
-      const safeUrl = WebSearchTool.sanitizeUrl(s.url) || s.url;
-      const safeSnippet = WebSearchTool.sanitizeText(s.snippet || s.title || '');
-      return {
-        ...s,
-        id: s.id || `src_${i + 1}`,
-        url: safeUrl,
-        snippet: safeSnippet,
-        category: s.category || WebSearchTool.categorizeDomain(s.domain, safeUrl),
-        safePayload: `<<<UNTRUSTED_EXTERNAL_DATA [Source ID: ${s.id || i + 1}]>>>\n${safeSnippet}\n<<<END_UNTRUSTED_EXTERNAL_DATA>>>`
-      };
-    });
+    const sources = rawSources
+      .map((s, i) => {
+        // Fail closed: never fall back to an unsanitized provider URL.
+        const safeUrl = WebSearchTool.sanitizeUrl(s?.url);
+        if (!safeUrl) return null;
+        const safeSnippet = WebSearchTool.sanitizeText(s?.snippet || s?.title || '');
+        return {
+          ...s,
+          id: s.id || `src_${i + 1}`,
+          url: safeUrl,
+          snippet: safeSnippet,
+          category: s.category || WebSearchTool.categorizeDomain(s.domain, safeUrl),
+          safePayload: `<<<UNTRUSTED_EXTERNAL_DATA [Source ID: ${s.id || i + 1}]>>>\n${safeSnippet}\n<<<END_UNTRUSTED_EXTERNAL_DATA>>>`
+        };
+      })
+      .filter(Boolean);
 
     return {
       query: sanitizedQuery,

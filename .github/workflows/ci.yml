@@ -12,6 +12,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Validate JINI Editorial server route syntax
+      run: node --check server/local_router/LocalRouterServer.mjs
+
+    - name: Set up PHP for WordPress plugin syntax validation
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+
+    - name: Validate JINI Editorial WordPress plugin syntax
+      run: php -l wordpress-plugins/jini-editorial-assistant/jini-editorial-assistant.php
+
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
@@ -20,7 +31,10 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+
+    - name: 0. Supervised Self-Repair Lifecycle
+      run: node tests/engineering/SelfRepairLifecycle.test.mjs
+
     - name: 1. Architecture Compliance (ESLint Boundaries)
       run: npx eslint src/production/
       
