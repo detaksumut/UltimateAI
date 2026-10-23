@@ -958,34 +958,72 @@ export default async function handler(req, res) {
 
     for (const key of textKeys) {
       try {
-        const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } };
-        if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
+        // Long responses may hit the output-token ceiling. Continue once from
+        // the exact prior model output instead of silently returning a fragment.
+        const workingContents = contents.map((item) => ({
+          ...item,
+          parts: Array.isArray(item.parts) ? item.parts.map((part) => ({ ...part })) : []
+        }));
+        let accumulatedText = '';
+        let completed = false;
 
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${textModelPath}:generateContent?key=${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: AbortSignal.timeout(20000)
-        });
+        for (let continuation = 0; continuation < 2; continuation++) {
+          const requestBody = {
+            contents: workingContents,
+            generationConfig: { temperature: 0.4, maxOutputTokens: 4096 }
+          };
+          if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
 
-        if (geminiRes.ok) {
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${textModelPath}:generateContent?key=${encodeURIComponent(key)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(20000)
+          });
+
+          if (!geminiRes.ok) {
+            if (geminiRes.status === 429 || geminiRes.status >= 500) break;
+            completed = true;
+            break;
+          }
+
           const gData = await geminiRes.json();
           const candidate = gData.candidates?.[0];
-          const candidateText = (candidate?.content?.parts || [])
+          const parts = candidate?.content?.parts || [];
+          const segment = parts
             .map((part) => typeof part?.text === 'string' ? part.text : '')
             .filter(Boolean)
             .join('\\n')
             .trim();
-          if (candidateText) {
-            assistantReply = candidateText;
-            if (candidate?.finishReason === 'MAX_TOKENS') {
-              console.warn('[JINI Live] Response reached MAX_TOKENS; output may be incomplete.');
-            }
-            break; // success — stop key rotation
+
+          if (!segment) {
+            completed = true;
+            break;
           }
-        } else if (geminiRes.status === 429 || geminiRes.status >= 500) {
-          continue; // rotate to next key on quota/transient errors
+
+          accumulatedText = accumulatedText ? accumulatedText + '\\n' + segment : segment;
+          if (candidate?.finishReason !== 'MAX_TOKENS' || continuation === 1) {
+            if (candidate?.finishReason === 'MAX_TOKENS') {
+              console.warn('[JINI Live] Continuation limit reached; response may still be incomplete.');
+            }
+            completed = true;
+            break;
+          }
+
+          // Preserve the exact generated segment as model context and ask only
+          // for the continuation; do not restart or repeat the whole summary.
+          workingContents.push({ role: 'model', parts: [{ text: segment }] });
+          workingContents.push({
+            role: 'user',
+            parts: [{ text: 'Lanjutkan jawaban sebelumnya tepat dari bagian terakhir. Jangan mengulang bagian yang sudah ditulis. Selesaikan bagian yang belum selesai dan tutup dengan kesimpulan jika relevan.' }]
+          });
         }
+
+        if (accumulatedText) {
+          assistantReply = accumulatedText;
+          break; // success — stop key rotation
+        }
+        if (completed) continue;
       } catch (geminiErr) {
         console.warn('[GeminiCloud] Error:', maskSecrets(geminiErr.message));
       }
