@@ -132,7 +132,8 @@ export async function readPdfAsText(file) {
 
     const pdf = await loadingTask.promise;
     const pages = [];
-    const maxPages = Math.min(pdf.numPages, 100);
+    // Baca seluruh halaman PDF; sebelumnya ekstraksi berhenti setelah 100 halaman.
+    const maxPages = pdf.numPages;
 
     for (let i = 1; i <= maxPages; i++) {
       const page = await pdf.getPage(i);
