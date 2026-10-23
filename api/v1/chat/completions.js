@@ -802,7 +802,7 @@ export default async function handler(req, res) {
     // Only route to YouTube when the user explicitly requests playback/search.
     // Never infer media intent from words inside an attached PDF or prior context.
     const isDocumentContext = /---\s*\[(?:BERKAS DOKUMEN TERLAMPIR|KONTEKS DOKUMEN|KONTEKS DOKUMEN \(DI EKSTRAK|STATUS DOKUMEN)/i.test(userPrompt);
-    const isYouTubeIntent = !isDocumentContext && /\\b(?:putar|mainkan|setel|dengarkan|carikan|cari)\\b.{0,50}\\b(?:youtube|lagu|musik|music|song|video)\\b|\\b(?:youtube|lagu|musik|music|song|video)\\b.{0,50}\\b(?:putar|mainkan|setel|dengarkan)\\b/i.test(userPrompt);
+    const isYouTubeIntent = !isDocumentContext && /\b(?:putar|mainkan|setel|dengarkan|carikan|cari)\b.{0,50}\b(?:youtube|lagu|musik|music|song|video)\b|\b(?:youtube|lagu|musik|music|song|video)\b.{0,50}\b(?:putar|mainkan|setel|dengarkan)\b/i.test(userPrompt);
 
     if (isYouTubeIntent) {
       const ytResult = await searchYouTubeVideo(userPrompt);
