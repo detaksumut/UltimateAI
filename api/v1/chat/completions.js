@@ -584,10 +584,11 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
     findAdvertised('flux-2-klein-9b'),
     findAdvertised('flux-1-schnell'),
     findAdvertised('stable-diffusion-xl-lightning') || PREFERRED_IMAGE_MODEL,
-    ...models
-  ].filter((id, index, list) => Boolean(id) && list.indexOf(id) === index);
-  // Keep the previously verified model as the first choice. Gemini remains the handler fallback.
-  const model = modelCandidates[0];
+    ...models.slice(0, 2)
+  ].filter((id, index, list) => Boolean(id) && list.indexOf(id) === index).slice(0, 6);
+  // Keep FLUX.2 Dev first, but switch models if a provider quota or access error occurs.
+  let modelIndex = 0;
+  let model = modelCandidates[modelIndex];
   const attemptBodies = [
     { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
     { model, prompt: fullPrompt, n: 1, size: targetSize }
@@ -646,6 +647,16 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
             lastTransientError = `9Router HTTP ${gr.status}`;
             attemptFailed = true;
             continue; // try the other request shape before backing off
+          }
+          // Quota exhaustion / inaccessible model: try the next candidate before Gemini fallback.
+          if (gr.status === 429 || gr.status === 404 || /model does not exist|no access|quota|used up.*allo/i.test(t)) {
+            lastTransientError = `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}`;
+            if (modelIndex + 1 < modelCandidates.length) {
+              model = modelCandidates[++modelIndex];
+              for (const body of attemptBodies) body.model = model;
+              console.warn('[NineRouterImage] switching image model after provider error', { status: gr.status, nextModel: model });
+              continue;
+            }
           }
           return { success: false, error: `9Router HTTP ${gr.status}: ${maskSecrets(t.slice(0, 160))}` };
         }
