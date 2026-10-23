@@ -572,10 +572,22 @@ async function generateImageWithNineRouter(prompt, aspectRatio, signal) {
     return { success: false, error: '9Router tidak mengekspos model image (discovery kosong).' };
   }
 
-  // 2. Generate — POST /v1/images/generations (first discovered model, like local).
-  // Prefer response_format=url (tiny payload, safe for Vercel limits) and fall back
-  // to the request without it when the gateway rejects the parameter.
-  const model = models[0];
+  // 2. Generate — prioritize the exact model previously confirmed working in JINI Live.
+  // Discovery can be incomplete, so keep FLUX.2 Dev first and use discovered alternatives
+  // only if the gateway reports that the preferred model is unavailable.
+  const LAST_KNOWN_GOOD_IMAGE_MODEL = 'cf/@cf/black-forest-labs/flux-2-dev';
+  const PREFERRED_IMAGE_MODEL = 'cf/@cf/bytedance/stable-diffusion-xl-lightning';
+  const findAdvertised = (fragment) => models.find((id) => String(id).toLowerCase().includes(fragment));
+  const modelCandidates = [
+    LAST_KNOWN_GOOD_IMAGE_MODEL,
+    findAdvertised('flux-2-dev'),
+    findAdvertised('flux-2-klein-9b'),
+    findAdvertised('flux-1-schnell'),
+    findAdvertised('stable-diffusion-xl-lightning') || PREFERRED_IMAGE_MODEL,
+    ...models
+  ].filter((id, index, list) => Boolean(id) && list.indexOf(id) === index);
+  // Keep the previously verified model as the first choice. Gemini remains the handler fallback.
+  const model = modelCandidates[0];
   const attemptBodies = [
     { model, prompt: fullPrompt, n: 1, size: targetSize, response_format: 'url' },
     { model, prompt: fullPrompt, n: 1, size: targetSize }
