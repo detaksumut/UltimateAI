@@ -20,7 +20,15 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+
+    - name: 0a. Self-Evolving Engine Regression
+      run: |
+        node --check server/engineering/SelfEvolvingAgentEngine.mjs
+        node tests/engineering/SelfEvolvingAgentEngine.test.mjs
+
+    - name: 0. Supervised Self-Repair Lifecycle
+      run: node tests/engineering/SelfRepairLifecycle.test.mjs
+
     - name: 1. Architecture Compliance (ESLint Boundaries)
       run: npx eslint src/production/
       

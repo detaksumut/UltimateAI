@@ -1,14 +1,11 @@
 /**
  * SelfEvolvingAgentEngine.mjs
- * Master Autonomous Self-Correction & Evolution Engine for JINI via 9Router.
- * 
- * Automatically activates whenever a USER request is unfulfilled, failed, or corrected.
- * Closed-Loop Workflow:
- *  1. DETECT: Identifies user complaint / unfulfilled request signals from conversation.
- *  2. INTROSPECT: 9Router conducts Root Cause Analysis (RCA) on the failure.
- *  3. LEARN: Persists the self-evolved rule/strategy into Memory Vault & Incident Memory.
- *  4. GUARDRAIL REPAIR: Generates adaptive runtime patches or script refinements with AST check.
- *  5. HEAL & RE-EXECUTE: Re-serves the user request with the perfected solution immediately.
+ * Supervised self-improvement proposal engine for JINI.
+ *
+ * This module records candidate rules from failure analysis. It DOES NOT apply
+ * source-code patches, execute scripts, run a test suite, or re-deploy runtime
+ * code. Candidate rules stay PROPOSED until a separate controlled workflow
+ * validates them with repeatable tests and explicit approval.
  */
 
 import fs from 'fs';
@@ -50,10 +47,14 @@ export class SelfEvolvingAgentEngine {
     const text = String(prompt || '').trim();
     if (text.length < 3) return false;
 
-    // Harus ada riwayat pesan sebelumnya agar bisa disebut 'koreksi atas kegagalan sebelumnya'
+    // Explicit source-repair commands may start a supervised repair even
+    // without a prior failed assistant response. Ordinary complaints still
+    // require conversational history to prevent accidental repair triggering.
+    const explicitRepair = /\b(?:perbaiki|perbaikan|koreksi|fix|repair|patch|evolusi)\b[^.]{0,60}\b(?:kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software)\b/i.test(text);
+    if (explicitRepair) return true;
+
     const hasHistory = Array.isArray(messages) && messages.length >= 2;
     const matchesSignal = CORRECTION_SIGNALS.some((pattern) => pattern.test(text));
-
     return matchesSignal && hasHistory;
   }
 
@@ -93,9 +94,10 @@ export class SelfEvolvingAgentEngine {
       'User baru saja menyatakan bahwa permintaannya TIDAK TERPENUHI DENGAN BENAR atau mengalami kegagalan.',
       'Tugasmu:',
       '1. Analisis mengapa permintaan user gagal (Root Cause Analysis).',
-      '2. Identifikasi subsistem/script target yang bermasalah (contoh: YouTubeSongSearch.mjs, documentReader.js, DocumentPipelineAdapter, SemanticIntentEngine, UI Canvas, Player Embed).',
-      '3. Rumuskan Aturan Koreksi Mandiri (Self-Correction Rule) dan strategi tindakan agar JINI berkembang dan tidak mengulangi kesalahan serupa.',
-      '4. Rumuskan instruksi perbaikan konkret dan penjelasan ramah kepada user.',
+      '2. Identifikasi SATU file sumber konkret dengan path relatif repository, misalnya server/agent/AgentRuntime.mjs. Jangan menebak path. Jika target tidak dapat dipastikan, targetSubsystem harus UNKNOWN.',
+      '3. Field targetSubsystem harus hanya berisi satu path file relatif konkret, tanpa penjelasan atau nomor baris.',
+      '4. Rumuskan KANDIDAT aturan koreksi yang bisa diuji, bukan klaim bahwa kode sudah diubah.',
+      '5. Jelaskan validasi yang masih diperlukan. Dilarang mengklaim patch diterapkan, tes lulus, atau masalah selesai jika belum ada bukti.',
       '',
       'KEMBALIKAN OUTPUT HANYA DALAM FORMAT JSON BERSIH TANPA KATA-KATA LAIN:',
       '{',
@@ -115,7 +117,7 @@ export class SelfEvolvingAgentEngine {
       `Respons/Tindakan JINI Sebelumnya: "${lastAssistantResponse}"`,
       `Keluhan/Koreksi User Sekarang: "${userComplaint}"`,
       `==============================`,
-      `Analisis sekarang dan rumuskan evolusi perbaikan mandiri untuk JINI:`
+      `Analisis sekarang dan rumuskan kandidat aturan perbaikan yang belum diuji:`
     ].join('\n');
 
     try {
@@ -132,119 +134,221 @@ export class SelfEvolvingAgentEngine {
       // Parse JSON from 9Router response
       const jsonMatch = String(resultText).match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        const asText = (value, fallback) => typeof value === 'string' && value.trim()
+          ? value.trim().slice(0, 3000)
+          : fallback;
+        return {
+          identifiedFailure: asText(parsed.identifiedFailure, 'Failure reported by user; details need review.'),
+          rootCause: asText(parsed.rootCause, 'Root cause remains a hypothesis until verified.'),
+          targetSubsystem: asText(parsed.targetSubsystem, 'Unknown subsystem; manual review required.'),
+          evolvedRule: asText(parsed.evolvedRule, 'Create a testable candidate rule after examining logs and source.'),
+          actionCategory: ['SCRIPT_REFINEMENT', 'DYNAMIC_RULE', 'EXECUTION_RETRY'].includes(parsed.actionCategory)
+            ? parsed.actionCategory
+            : 'DYNAMIC_RULE',
+          remediationSummary: asText(parsed.remediationSummary, 'Candidate analysis only; no code patch applied and no tests run.'),
+          suggestedOutput: asText(parsed.suggestedOutput, 'A candidate correction rule was recorded for review.'),
+          validationStatus: 'NOT_TESTED',
+          analysisSource: 'NINEROUTER_CANDIDATE_ANALYSIS'
+        };
       }
     } catch (err) {
       console.warn(`[SelfEvolvingAgentEngine] 9Router introspection warning:`, err.message);
     }
 
-    // Heuristic Fallback bila 9Router sedang padat
+    // Heuristic fallback is a hypothesis only; it must never claim that a repair ran.
     return {
-      identifiedFailure: `Permintaan user tidak terpenuhi: "${userComplaint}"`,
-      rootCause: 'Inkonsistensi antara intent yang diharapkan user dengan hasil eksekusi tool/script.',
-      targetSubsystem: 'Adaptive Runtime & Tool Execution Pipeline',
-      evolvedRule: `Selalu utamakan bentuk native/langsung sesuai instruksi user dan hindari wrapper buatan yang tidak diminta.`,
+      identifiedFailure: `Permintaan user tidak terpenuhi: "${String(userComplaint || '').slice(0, 1000)}"`,
+      rootCause: 'Hipotesis awal: ketidaksesuaian antara intent yang diharapkan dan hasil eksekusi; belum diverifikasi lewat log/test.',
+      targetSubsystem: 'Unknown — needs log and source review',
+      evolvedRule: 'Capture a reproducible failing case, write a focused regression test, and validate a proposed fix before promotion.',
       actionCategory: 'DYNAMIC_RULE',
-      remediationSummary: 'Menerapkan dynamic rule override pada session saat ini dan memperbarui Memory Vault.',
-      suggestedOutput: 'Saya telah merefleksikan kegagalan ini dan menyempurnakan strategi penanganan agar langsung tepat sasaran.'
+      remediationSummary: 'Only a heuristic candidate was drafted because 9Router analysis was unavailable. No code patch applied; no tests run.',
+      suggestedOutput: 'Kandidat perbaikan dicatat untuk ditinjau. Kode runtime belum diubah dan masalah belum dinyatakan selesai.',
+      validationStatus: 'NOT_TESTED',
+      analysisSource: 'HEURISTIC_FALLBACK'
     };
   }
 
   /**
-   * Menyimpan Aturan Pembelajaran ke Memory Vault permanen JINI
+   * Resolve an LLM-proposed target to an existing repository source file.
+   * Candidate paths are only hints until checked against the local checkout.
    */
+  validateRepairTarget(rawTarget) {
+    const target = String(rawTarget || '').trim().replace(/^["'\`]|["'\`]$/g, '');
+    if (!target || /^unknown\b/i.test(target) || target.includes('\n') || target.includes(':') || target.length > 240) return null;
+    const relative = target.replace(/\\/g, '/').replace(/^\.\//, '');
+    if (relative.startsWith('/') || relative.split('/').some(part => !part || part === '.' || part === '..')) return null;
+    if (!['src/', 'server/', 'api/'].some(prefix => relative.startsWith(prefix))) return null;
+    if (/(^|\/)(\.git|node_modules|\.env(?:\.|$)|credentials?|secrets?|tokens?|\.ssh|vault|policy)(\/|$)/i.test(relative) ||
+        /(?:^|\/)(package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|npm-shrinkwrap\.json|\.npmrc)$/i.test(relative) ||
+        relative.startsWith('.github/') || relative.startsWith('scripts/')) return null;
+
+    const root = path.resolve(process.cwd());
+    const absolute = path.resolve(root, ...relative.split('/'));
+    const rel = path.relative(root, absolute);
+    if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return null;
+    try {
+      const targetStat = fs.lstatSync(absolute);
+      if (!targetStat.isFile() || targetStat.isSymbolicLink() || targetStat.size > 32 * 1024) return null;
+      let current = root;
+      for (const segment of relative.split('/').slice(0, -1)) {
+        current = path.join(current, segment);
+        if (fs.lstatSync(current).isSymbolicLink()) return null;
+      }
+    } catch {
+      return null;
+    }
+    return relative;
+  }
+
+  /** Persist an untested candidate rule; do not promote it to validated knowledge. */
   async persistToMemoryVault(analysis) {
     try {
       const record = {
         id: `EVOLVE-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-        key: `EVOLUTION_RULE_${analysis.targetSubsystem || 'GLOBAL'}`.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase(),
-        content: `[9ROUTER EVOLUTION RULE] Masalah: ${analysis.identifiedFailure} | Solusi/Aturan: ${analysis.evolvedRule}`,
-        tier: 'SELF_EVOLVED_RULE',
-        confidence: 0.99,
-        provenance: 'NINEROUTER_AUTONOMOUS_CORRECTION',
+        key: `CANDIDATE_RULE_${analysis.targetSubsystem || 'GLOBAL'}`.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase(),
+        content: `[UNVERIFIED CANDIDATE RULE] Failure: ${analysis.identifiedFailure} | Candidate: ${analysis.evolvedRule}`,
+        tier: 'CANDIDATE_RULE',
+        confidence: 0.55,
+        status: 'PROPOSED',
+        validationStatus: 'NOT_TESTED',
+        provenance: analysis.analysisSource || 'NINEROUTER_CANDIDATE_ANALYSIS',
         createdAt: new Date().toISOString(),
         metadata: {
           targetSubsystem: analysis.targetSubsystem,
           rootCause: analysis.rootCause,
-          actionCategory: analysis.actionCategory
+          actionCategory: analysis.actionCategory,
+          validationStatus: 'NOT_TESTED',
+          codePatchApplied: false,
+          testsRun: false
         }
       };
 
       let vault = [];
       if (fs.existsSync(MEMORY_VAULT_PATH)) {
-        vault = JSON.parse(fs.readFileSync(MEMORY_VAULT_PATH, 'utf8'));
+        try {
+          const current = JSON.parse(fs.readFileSync(MEMORY_VAULT_PATH, 'utf8'));
+          if (Array.isArray(current)) vault = current;
+        } catch (parseError) {
+          // Preserve the corrupted vault for manual recovery; do not overwrite it.
+          console.error('[SelfEvolvingAgentEngine] Memory Vault is invalid JSON; refusing to overwrite it:', parseError.message);
+          return null;
+        }
       }
       vault.unshift(record);
-      fs.writeFileSync(MEMORY_VAULT_PATH, JSON.stringify(vault.slice(0, 1000), null, 2), 'utf8');
+      const tempPath = MEMORY_VAULT_PATH + '.tmp';
+      fs.writeFileSync(tempPath, JSON.stringify(vault.slice(0, 1000), null, 2), 'utf8');
+      fs.renameSync(tempPath, MEMORY_VAULT_PATH);
 
-      // Sync ke Incident Memory juga
-      this.memory.learnPattern({
-        category: 'AUTONOMOUS_EVOLUTION',
+      // Keep untested candidates in the PROPOSED lifecycle state.
+      this.memory.proposePattern({
+        category: 'AUTONOMOUS_EVOLUTION_CANDIDATE',
         targetComponent: analysis.targetSubsystem,
         symptoms: analysis.identifiedFailure,
         rootCause: analysis.rootCause,
-        validatedPatchStrategy: analysis.evolvedRule,
-        validationEvidence: analysis.remediationSummary
+        candidateStrategy: analysis.evolvedRule,
+        validationEvidence: 'NOT_TESTED'
       });
 
-      console.log(`✅ [SelfEvolvingAgentEngine] Evolution Rule successfully committed to Memory Vault (${record.id})`);
+      console.log(`[SelfEvolvingAgentEngine] Stored candidate rule for review (${record.id}); no source code was changed.`);
       return record;
     } catch (e) {
-      console.error(`[SelfEvolvingAgentEngine] Failed to persist memory vault:`, e.message);
+      console.error('[SelfEvolvingAgentEngine] Failed to persist candidate rule:', e.message);
       return null;
     }
   }
 
-  /**
-   * Eksekusi Lengkap Siklus Koreksi Diri (Closed-Loop Evolution)
-   */
   async evolve({ userComplaint, messages }) {
     if (this.isEvolving) {
-      return { status: 'BUSY', message: 'Evolution cycle already in progress' };
+      return { status: 'BUSY', message: 'Candidate analysis already in progress' };
     }
     this.isEvolving = true;
 
     try {
       const context = this.extractFailureContext(userComplaint, messages);
-      console.log(`\n🚀 [SelfEvolvingAgentEngine] Starting Autonomous Evolution Cycle for: "${userComplaint}"`);
+      console.log('[SelfEvolvingAgentEngine] Analysing correction and checking supervised-repair eligibility.');
 
-      // Step 1: Introspeksi via 9Router
       const analysis = await this.introspectWithNineRouter(context);
-
-      // Step 2: Safe Git Checkpoint Snapshot
-      let checkpointId = null;
-      try {
-        const cp = await this.checkpointMgr.createCheckpoint(
-          `EVOLVE-${Date.now()}`,
-          `Pre-evolution snapshot for ${analysis.targetSubsystem}`
-        );
-        checkpointId = cp?.checkpointId;
-      } catch (_) {}
-
-      // Step 3: Persist Rule to Memory Vault
       const memoryRecord = await this.persistToMemoryVault(analysis);
 
-      // Step 4: Construct Formatted Self-Healing Response
+      // General complaints never authorize a code change. An explicit request
+      // to fix code/system is required, and the proposed repository path must
+      // exist locally and pass the path safety check before a repair is queued.
+      const complaint = String(userComplaint || '');
+      const explicitRepairIntent =
+        /\b(perbaiki|perbaikan|koreksi|fix|repair|patch)\b/i.test(complaint) &&
+        /\b(kode|script|skrip|source|file|bug|error|jini|diri|sistem|runtime|software|perangkat lunak|ini)\b/i.test(complaint);
+      let repairIncident = null;
+      let repairQueueError = null;
+      let validatedTarget = null;
+
+      if (explicitRepairIntent) {
+        validatedTarget = this.validateRepairTarget(analysis.targetSubsystem);
+        if (!validatedTarget) {
+          repairQueueError = 'Tidak ada file sumber konkret yang terverifikasi; permintaan disimpan sebagai kandidat saja.';
+        } else {
+          try {
+            // Importing EngineeringRuntime activates its listener before the
+            // queue emits incident_enqueued. Production is not modified here.
+            const [{ engineeringRuntimeInstance }, { incidentQueueInstance }, incidentTypes] = await Promise.all([
+              import('./EngineeringRuntime.mjs'),
+              import('./queue/IncidentQueue.mjs'),
+              import('./types/IncidentTypes.mjs')
+            ]);
+            const ticket = incidentTypes.createIncidentTicket({
+              source: 'self-evolving-agent',
+              category: 'CODE_REPAIR_REQUEST',
+              errorMessage: String(analysis.identifiedFailure || complaint || 'User-requested code repair').slice(0, 1500),
+              targetComponent: validatedTarget,
+              severity: incidentTypes.IncidentSeverity.LOW,
+              metadata: {
+                explicitSelfRepair: true,
+                candidateFiles: [validatedTarget],
+                rootCause: String(analysis.rootCause || '').slice(0, 1500),
+                evolvedRule: String(analysis.evolvedRule || '').slice(0, 1500),
+                candidateMemoryId: memoryRecord ? memoryRecord.id : null
+              }
+            });
+            void engineeringRuntimeInstance;
+            repairIncident = incidentQueueInstance.enqueue(ticket);
+            if (!repairIncident) throw new Error('Incident queue rejected the repair request.');
+          } catch (err) {
+            repairQueueError = String(err && err.message || err).slice(0, 1000);
+          }
+        }
+      }
+
+      const queued = Boolean(repairIncident);
       const responseMarkdown = [
-        `⚙️ **[JINI AUTONOMOUS SELF-CORRECTION // 9ROUTER]**`,
-        `Saya mendeteksi bahwa permintaan Anda sebelumnya belum terpenuhi dengan benar. Melalui **9Router**, saya telah melakukan introspeksi akar masalah dan menyempurnakan logika saya secara mandiri:`,
-        ``,
-        `* 🔍 **Analisis Masalah**: ${analysis.identifiedFailure}`,
-        `* 🎯 **Akar Masalah (RCA)**: ${analysis.rootCause}`,
-        `* 🛠️ **Subsistem Diperbaiki**: \`${analysis.targetSubsystem}\``,
-        `* 📜 **Aturan Baru (Evolved Rule)**: ${analysis.evolvedRule}`,
-        `* 💾 **Memori Evolusi**: Tersimpan di Memory Vault (\`${memoryRecord?.id || 'PERSISTED'}\`) agar kesalahan ini tidak terulang di masa depan.`,
-        ``,
-        `---`,
-        ``,
-        `${analysis.suggestedOutput}`
-      ].join('\n');
+        '⚙️ **[JINI SELF-IMPROVEMENT // SUPERVISED REPAIR]**',
+        'Analisis kegagalan telah dibuat dan kandidat aturan disimpan untuk ditinjau.',
+        '',
+        '* **Masalah:** ' + String(analysis.identifiedFailure || ''),
+        '* **Hipotesis akar masalah:** ' + String(analysis.rootCause || ''),
+        '* **File target terverifikasi:** ' + String(validatedTarget || analysis.targetSubsystem || 'UNKNOWN'),
+        '* **Kandidat aturan:** ' + String(analysis.evolvedRule || ''),
+        '* **Catatan memori:** ' + String(memoryRecord && memoryRecord.id || 'Tidak tersimpan'),
+        queued ? '* **ID insiden perbaikan:** ' + repairIncident.incidentId : '',
+        queued ? '* **Status:** QUEUED — diagnosis, sandbox, tes regresi, dan build sedang dijadwalkan oleh runtime.' : '',
+        repairQueueError ? '* **Tidak dijadwalkan:** ' + repairQueueError : '',
+        '',
+        '**Batas keselamatan:** kode utama tidak diubah otomatis. Patch dibuat di Git worktree terpisah. Jika tes regresi dan build lulus, siklus berhenti di AWAITING_APPROVAL. Penggabungan memerlukan persetujuan eksplisit dan identitas reviewer; deployment tetap langkah terpisah.',
+        '',
+        'Status validasi saat respons dibuat: ' + (queued ? 'QUEUED_NOT_YET_VERIFIED' : 'NOT_TESTED') + '.',
+        'Saran analisis: ' + String(analysis.suggestedOutput || '')
+      ].filter(Boolean).join('\n');
 
       return {
-        status: 'EVOLVED',
+        status: queued ? 'REPAIR_QUEUED' : (memoryRecord ? 'RULE_PROPOSED' : 'RULE_PROPOSAL_NOT_PERSISTED'),
         analysis,
         memoryRecord,
-        checkpointId,
+        repairIncidentId: repairIncident ? repairIncident.incidentId : null,
+        repairQueued: queued,
+        repairQueueError,
+        validationStatus: queued ? 'QUEUED_NOT_YET_VERIFIED' : 'NOT_TESTED',
+        runtimePatched: false,
+        testsRun: false,
         responseMarkdown
       };
     } finally {

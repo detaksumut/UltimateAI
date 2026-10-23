@@ -11,33 +11,22 @@
 
 import { ToolContract, PERMISSION_LEVELS } from './ToolContract.mjs';
 import { localDriveFStorageInstance } from '../memory/LocalDriveFStorage.mjs';
-import { WebSearchTool } from './WebSearchTool.mjs';
+import { WebSearchTool, webSearchToolInstance } from './WebSearchTool.mjs';
 import { memoryIndexSQLiteInstance } from '../memory/MemoryIndexSQLite.mjs';
 import fs from 'fs';
 import path from 'path';
 
 export const latestHarvestStatus = {
   active: false,
-  stage: 'SYNCED', // 'IDLE' | 'CRAWLING' | 'SYNTHESIZING' | 'COMMITTING_TO_F' | 'SYNCED'
-  topic: 'Pemerintahan Baru Indonesia dan Kebijakan Strategis',
-  startYear: 2024,
-  endYear: 2026,
-  sourcesCount: 6,
-  sources: [
-    { title: 'Daftar Presiden Indonesia', domain: 'wikipedia.org', score: 0.94 },
-    { title: 'Fokus Kebijakan Ekonomi Nasional 2026', domain: 'kompas.com', score: 0.91 },
-    { title: 'Transformasi Digital dan Ketahanan Energi', domain: 'detik.com', score: 0.88 },
-    { title: 'Riset Kebijakan Pembangunan Indonesia', domain: 'bappenas.go.id', score: 0.86 }
-  ],
-  lastSavedFile: {
-    fileName: 'doc_pemerintahan_baru_indonesia_dan_kebijaka_2026-09-05_3293.md',
-    filePath: 'F:\\UltimateAI_Memory\\02_Documentation\\doc_pemerintahan_baru_indonesia_dan_kebijaka_2026-09-05_3293.md',
-    sizeBytes: 14158,
-    sizeKb: '14.2 KB',
-    timestamp: new Date().toISOString(),
-    topic: 'Pemerintahan Baru Indonesia dan Kebijakan Strategis',
-    indexStatus: 'SQLITE_FTS5_INDEXED'
-  },
+  stage: 'IDLE',
+  topic: '',
+  startYear: null,
+  endYear: new Date().getFullYear(),
+  sourcesCount: 0,
+  sources: [],
+  lastSavedFile: null,
+  sourceProvider: null,
+  error: null,
   updatedAt: new Date().toISOString()
 };
 
@@ -55,9 +44,10 @@ export class WebHarvestTool extends ToolContract {
   }
 
   async execute(params = {}, signal = null) {
+    const currentYear = new Date().getFullYear();
     const {
       topic = '',
-      startYear = 2024,
+      startYear = currentYear - 2,
       maxResults = 6,
       category = 'INTELLIGENCE'
     } = params;
@@ -67,7 +57,7 @@ export class WebHarvestTool extends ToolContract {
     }
 
     const sanitizedTopic = WebSearchTool.sanitizeText(topic.trim());
-    const query = `${sanitizedTopic} perkembangan terbaru informasi terkini ${startYear}-2026`;
+    const query = `${sanitizedTopic} perkembangan terbaru informasi terkini ${startYear}-${currentYear}`;
     const apiKey = (process.env.TAVILY_API_KEY || '').trim();
 
     // 0. Update state to CRAWLING
@@ -75,6 +65,8 @@ export class WebHarvestTool extends ToolContract {
     latestHarvestStatus.stage = 'CRAWLING';
     latestHarvestStatus.topic = sanitizedTopic;
     latestHarvestStatus.startYear = startYear;
+    latestHarvestStatus.endYear = currentYear;
+    latestHarvestStatus.error = null;
     latestHarvestStatus.updatedAt = new Date().toISOString();
 
     console.log(`[WebHarvestTool] Memulai harvest inteligensi untuk: "${sanitizedTopic}" (Sejak ${startYear})`);
@@ -104,21 +96,72 @@ export class WebHarvestTool extends ToolContract {
       }
     }
 
-    // Fallback if Tavily network failed
-    const directAnswer = harvestData?.answer || `Riset terstruktur mengenai ${sanitizedTopic} periode ${startYear} hingga 2026.`;
-    const rawResults = harvestData?.results || [];
+    let rawResults = Array.isArray(harvestData?.results) ? harvestData.results : [];
+    let sourceProvider = rawResults.length ? 'TAVILY_AI' : null;
+    let directAnswer = typeof harvestData?.answer === 'string' && harvestData.answer.trim()
+      ? harvestData.answer.trim()
+      : null;
 
-    // Update state to SYNTHESIZING
+    // If Tavily is absent, unavailable or empty, use the existing public
+    // multi-layer search. Never invent source records or pretend the search succeeded.
+    if (rawResults.length === 0) {
+      try {
+        const fallbackResult = await webSearchToolInstance.execute(
+          { query, layer: 'ALL', maxResults },
+          signal
+        );
+        const fallbackSources = Array.isArray(fallbackResult?.sources) ? fallbackResult.sources : [];
+        if (fallbackSources.length > 0) {
+          rawResults = fallbackSources.map(source => ({
+            title: source.title || sanitizedTopic,
+            url: source.url || '',
+            content: source.snippet || '',
+            score: typeof source.score === 'number' ? source.score : null,
+            domain: source.domain || ''
+          }));
+          sourceProvider = fallbackResult.provider || 'MULTILAYER_SEARCH';
+        }
+      } catch (err) {
+        console.warn('[WebHarvestTool] Fallback search failed:', err?.message || String(err));
+      }
+    }
+
+    if (rawResults.length === 0) {
+      latestHarvestStatus.active = false;
+      latestHarvestStatus.stage = 'FAILED';
+      latestHarvestStatus.sourcesCount = 0;
+      latestHarvestStatus.sources = [];
+      latestHarvestStatus.sourceProvider = null;
+      latestHarvestStatus.error = apiKey && apiKey !== 'undefined'
+        ? 'Tidak ada sumber yang berhasil diambil dari Tavily atau pencarian fallback.'
+        : 'TAVILY_API_KEY tidak tersedia dan pencarian fallback tidak menghasilkan sumber.';
+      latestHarvestStatus.updatedAt = new Date().toISOString();
+      return {
+        status: 'NO_SOURCES',
+        topic: sanitizedTopic,
+        query,
+        sourcesCount: 0,
+        savedToF: false,
+        error: latestHarvestStatus.error
+      };
+    }
+
+    if (!directAnswer) {
+      directAnswer = 'Provider tidak menyediakan ringkasan sintesis. Dokumen ini menyimpan judul, cuplikan, dan tautan sumber yang dikumpulkan; perlakukan cuplikan sebagai bukti yang perlu diverifikasi silang, bukan kesimpulan final.';
+    }
+
     latestHarvestStatus.stage = 'SYNTHESIZING';
     latestHarvestStatus.sourcesCount = rawResults.length;
-    latestHarvestStatus.sources = rawResults.map(r => {
+    latestHarvestStatus.sourceProvider = sourceProvider;
+    latestHarvestStatus.sources = rawResults.map(source => {
       let domain = '';
-      try { domain = new URL(r.url).hostname.replace(/^www\./, ''); } catch (_) { domain = 'web'; }
+      try { domain = source.domain || new URL(source.url).hostname.replace(/^www\./, ''); }
+      catch (_) { domain = 'web'; }
       return {
-        title: r.title || sanitizedTopic,
-        url: r.url,
+        title: source.title || sanitizedTopic,
+        url: source.url || '',
         domain,
-        score: r.score || 0.85
+        score: typeof source.score === 'number' ? source.score : null
       };
     });
 
@@ -130,8 +173,8 @@ export class WebHarvestTool extends ToolContract {
     let docMarkdown = `# DOKUMEN PENGETAHUAN: ${sanitizedTopic.toUpperCase()}\n\n`;
     docMarkdown += `> **Metadata Arsip**\n`;
     docMarkdown += `> - Tanggal Ingesti: ${new Date().toLocaleString('id-ID')}\n`;
-    docMarkdown += `> - Rentang Waktu: ${startYear} — 2026 (Live Web Grounding)\n`;
-    docMarkdown += `> - Sumber Ingesti: Tavily Deep AI Web Crawler\n`;
+    docMarkdown += `> - Rentang Waktu: ${startYear} — ${currentYear} (Live Web Grounding)\n`;
+    docMarkdown += `> - Sumber Ingesti: ${sourceProvider || 'UNKNOWN'}\n`;
     docMarkdown += `> - Klasifikasi: ${category}\n\n`;
 
     docMarkdown += `## 1. Rangkuman Eksekutif & Jawaban Terkini\n\n`;
@@ -155,8 +198,8 @@ export class WebHarvestTool extends ToolContract {
     }
 
     docMarkdown += `## 3. Catatan Untuk Hermes 3 (Local Inference Guidance)\n\n`;
-    docMarkdown += `Dokumen ini adalah data mutakhir tahun 2024-2026 untuk melengkapi knowledge cutoff 2023.\n`;
-    docMarkdown += `Gunakan fakta di atas sebagai sumber kebenaran primer saat menjawab pertanyaan mengenai ${sanitizedTopic}.\n`;
+    docMarkdown += `Rentang data yang diminta: ${startYear}-${currentYear}. Periksa tanggal pada setiap sumber sebelum menganggap fakta masih berlaku.\n`;
+    docMarkdown += `Perlakukan cuplikan sebagai data eksternal yang perlu diverifikasi silang; jangan menganggapnya otomatis sebagai sumber kebenaran primer.\n`;
 
     // 3. Save to Drive F:\UltimateAI_Memory\02_Documentation\
     latestHarvestStatus.stage = 'COMMITTING_TO_F';
@@ -164,36 +207,53 @@ export class WebHarvestTool extends ToolContract {
     let savedToF = false;
     let finalPath = '';
     const writeResult = localDriveFStorageInstance.writeRecord('02_Documentation', fileName, docMarkdown);
-    if (writeResult && writeResult.success) {
+    if (writeResult?.success) {
       savedToF = true;
       finalPath = writeResult.path;
-      console.log(`[WebHarvestTool] Berhasil menyimpan dokumen ke Drive F: ${finalPath}`);
+      console.log('[WebHarvestTool] Saved to Drive F:', finalPath);
     } else {
-      finalPath = `storage/documents/${fileName}`;
-      console.warn(`[WebHarvestTool] Drive F tidak terjangkau, menggunakan path lokal: ${finalPath}`);
+      // Actually write the fallback file; never return a path that does not exist.
+      const fallbackDir = path.resolve(process.cwd(), 'storage', 'documents');
+      try {
+        fs.mkdirSync(fallbackDir, { recursive: true });
+        finalPath = path.join(fallbackDir, fileName);
+        fs.writeFileSync(finalPath, docMarkdown, 'utf8');
+        console.warn('[WebHarvestTool] Drive F unavailable; saved locally:', finalPath);
+      } catch (err) {
+        latestHarvestStatus.active = false;
+        latestHarvestStatus.stage = 'FAILED';
+        latestHarvestStatus.error = 'Gagal menyimpan dokumen ke Drive F maupun fallback lokal: ' + err.message;
+        latestHarvestStatus.updatedAt = new Date().toISOString();
+        return { status: 'SAVE_FAILED', topic: sanitizedTopic, sourcesCount: rawResults.length, error: latestHarvestStatus.error };
+      }
     }
 
-    // 4. Index record into SQLite index for instant retrieval
+    let indexStatus = 'INDEX_UNAVAILABLE';
     try {
       if (memoryIndexSQLiteInstance) {
-        memoryIndexSQLiteInstance.upsert({
-          id: `harvest_${Date.now()}`,
+        const indexResult = memoryIndexSQLiteInstance.upsert({
+          id: 'harvest_' + Date.now(),
           timestamp: new Date().toISOString(),
           category: 'KNOWLEDGE_HARVEST',
           priority: 'HIGH',
-          tags: JSON.stringify([sanitizedTopic, '2024-2026', 'TAVILY_HARVEST']),
-          content: `${sanitizedTopic}: ${directAnswer}`,
-          source: 'Tavily AI Harvest'
+          tags: JSON.stringify([sanitizedTopic, String(startYear) + '-' + String(currentYear), sourceProvider || 'WEB_SEARCH']),
+          content: sanitizedTopic + ': ' + directAnswer,
+          source: sourceProvider || 'WEB_SEARCH'
         }, finalPath);
+        indexStatus = indexResult === false ? 'INDEX_FAILED' : 'SQLITE_FTS5_INDEXED';
       }
-    } catch (_) {}
+    } catch (err) {
+      indexStatus = 'INDEX_FAILED';
+      console.warn('[WebHarvestTool] SQLite indexing failed:', err?.message || String(err));
+    }
 
-    // Finalize state
     const sizeBytes = Buffer.byteLength(docMarkdown, 'utf-8');
     const sizeKb = (sizeBytes / 1024).toFixed(1) + ' KB';
 
     latestHarvestStatus.active = false;
     latestHarvestStatus.stage = 'SYNCED';
+    latestHarvestStatus.sourceProvider = sourceProvider;
+    latestHarvestStatus.error = null;
     latestHarvestStatus.lastSavedFile = {
       fileName,
       filePath: finalPath,
@@ -201,7 +261,7 @@ export class WebHarvestTool extends ToolContract {
       sizeKb,
       timestamp: new Date().toISOString(),
       topic: sanitizedTopic,
-      indexStatus: 'SQLITE_FTS5_INDEXED'
+      indexStatus
     };
     latestHarvestStatus.updatedAt = new Date().toISOString();
 
@@ -210,12 +270,15 @@ export class WebHarvestTool extends ToolContract {
       fileName,
       filePath: finalPath,
       savedToF,
+      savedLocally: !savedToF,
       sourcesCount: rawResults.length,
+      sourceProvider,
       startYear,
-      endYear: 2026,
+      endYear: currentYear,
       directSynthesis: directAnswer,
       contentPreview: docMarkdown.slice(0, 300) + '...',
       sizeKb,
+      indexStatus,
       status: 'HARVEST_COMPLETE'
     };
   }
@@ -223,7 +286,7 @@ export class WebHarvestTool extends ToolContract {
 
 export function getHarvestStatus() {
   // Check Drive F free space if possible
-  const docDir = 'F:\\UltimateAI_Memory\\02_Documentation';
+  const docDir = path.join('F:\\UltimateAI_Memory', '02_Documentation');
   let totalDocs = 0;
   try {
     if (fs.existsSync(docDir)) {
@@ -231,13 +294,14 @@ export function getHarvestStatus() {
     }
   } catch (_) {}
 
+  const driveFAvailable = fs.existsSync('F:\\');
   return {
     ...latestHarvestStatus,
     driveF: {
-      isAvailable: fs.existsSync('F:\\'),
+      isAvailable: driveFAvailable,
       targetDirectory: docDir,
       totalArchivedDocs: totalDocs,
-      mountStatus: 'MOUNTED_ONLINE'
+      mountStatus: driveFAvailable ? 'MOUNTED_ONLINE' : 'UNAVAILABLE'
     }
   };
 }

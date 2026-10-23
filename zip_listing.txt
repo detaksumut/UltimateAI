@@ -1,0 +1,14 @@
+﻿=== d:\Users\ultimateai\jini-inline-child-theme.zip ===
+functions.php | 2281 bytes
+header.php | 2930 bytes
+jini-chat-inline.js | 7064 bytes
+jini-embed.php | 1448 bytes
+jini-inline.css | 4091 bytes
+style.css | 398 bytes
+=== d:\Users\ultimateai\jini-inline-child-theme-updated.zip ===
+functions.php | 2281 bytes
+header.php | 2055 bytes
+jini-chat-inline.js | 7064 bytes
+jini-embed.php | 1448 bytes
+jini-inline.css | 4091 bytes
+style.css | 398 bytes

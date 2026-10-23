@@ -18,7 +18,8 @@ export class MediaHarvesterTool {
   }
 
   getApiKey() {
-    return (process.env.TAVILY_API_KEY || config?.keys?.tavily || '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').trim();
+    // Single source of truth: .env (loaded via server/config/env.mjs dotenv).
+    return (process.env.TAVILY_API_KEY || config?.keys?.tavily || '').trim();
   }
 
   /**

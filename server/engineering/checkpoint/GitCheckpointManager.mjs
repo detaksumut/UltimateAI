@@ -1,14 +1,16 @@
-﻿/**
+/**
  * GitCheckpointManager.mjs
- * Git-backed checkpoint snapshot and rollback engine for safe autonomous repair.
+ * Safe Git-backed checkpoints for supervised self-repair.
+ *
+ * A repair runs in a separate worktree; rollback therefore discards that
+ * worktree. This manager must never checkout old files over an operator's
+ * active working tree.
  */
 
-import { exec } from 'child_process';
-import util from 'util';
-import path from 'path';
-import fs from 'fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
-const execAsync = util.promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export class GitCheckpointManager {
   constructor(workspaceRoot = process.cwd()) {
@@ -16,61 +18,82 @@ export class GitCheckpointManager {
     this.checkpoints = new Map();
   }
 
+  async git(args) {
+    return execFileAsync('git', args, {
+      cwd: this.workspaceRoot,
+      timeout: 20000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true
+    });
+  }
+
   async getCurrentCommit() {
     try {
-      const { stdout } = await execAsync('git rev-parse HEAD', { cwd: this.workspaceRoot });
+      const { stdout } = await this.git(['rev-parse', 'HEAD']);
       return stdout.trim();
-    } catch (e) {
-      console.warn('[GitCheckpointManager] Unable to get current git commit:', e.message);
+    } catch (err) {
+      console.warn('[GitCheckpointManager] Unable to get current git commit:', err.message);
       return null;
     }
   }
 
   async createCheckpoint(incidentId, description = 'Pre-Repair Checkpoint') {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const checkpointId = `CHK-${incidentId || 'SYS'}-${timestamp}`;
+    const { stdout: statusRaw } = await this.git(['status', '--porcelain', '--untracked-files=no']);
+    if (statusRaw.trim()) {
+      throw new Error('WORKSPACE_DIRTY: checkpoint refused because tracked working-tree changes exist. Commit or stash them first.');
+    }
     const baseCommit = await this.getCurrentCommit();
+    if (!baseCommit) throw new Error('CHECKPOINT_FAILED: workspace is not a valid Git repository.');
+    const { stdout: branchRaw } = await this.git(['branch', '--show-current']);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const checkpointId = 'CHK-' + String(incidentId || 'SYS').replace(/[^A-Za-z0-9_-]/g, '-') + '-' + timestamp;
 
-    // Create a local backup of target files if git is clean
     const checkpointData = {
       checkpointId,
       incidentId,
       baseCommit,
+      branchName: branchRaw.trim(),
       createdAt: new Date().toISOString(),
       description,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      workspaceWasClean: true,
+      rollbackStrategy: 'DISCARD_ISOLATED_WORKTREE'
     };
-
     this.checkpoints.set(checkpointId, checkpointData);
-    console.log(`ðŸ’¾ [CheckpointManager] Created Checkpoint ${checkpointId} (Base: ${baseCommit})`);
-    return checkpointData;
+    console.log('[CheckpointManager] Created checkpoint', JSON.stringify({ checkpointId, baseCommit, branchName: checkpointData.branchName }));
+    return { ...checkpointData };
   }
 
   async rollback(checkpointId) {
     const checkpoint = this.checkpoints.get(checkpointId);
-    if (!checkpoint) {
-      throw new Error(`Checkpoint ${checkpointId} not found`);
+    if (!checkpoint) throw new Error('CHECKPOINT_NOT_FOUND: ' + checkpointId);
+
+    const currentCommit = await this.getCurrentCommit();
+    const { stdout: statusRaw } = await this.git(['status', '--porcelain', '--untracked-files=no']);
+    if (currentCommit !== checkpoint.baseCommit || statusRaw.trim()) {
+      return {
+        success: false,
+        checkpointId,
+        status: 'MANUAL_ROLLBACK_REQUIRED',
+        error: 'Active workspace has changed since checkpoint. Refusing to overwrite files; inspect the repair branch or use an explicit Git revert.'
+      };
     }
 
-    console.log(`âª [CheckpointManager] Initiating ROLLBACK to ${checkpointId}...`);
-    try {
-      if (checkpoint.baseCommit) {
-        // Discard working directory changes back to base commit
-        await execAsync(`git checkout ${checkpoint.baseCommit} -- .`, { cwd: this.workspaceRoot });
-        checkpoint.status = 'ROLLED_BACK';
-        console.log(`âœ… [CheckpointManager] Rollback to commit ${checkpoint.baseCommit} complete.`);
-        return { success: true, checkpointId, status: 'ROLLED_BACK' };
-      } else {
-        throw new Error('No base git commit recorded for rollback.');
-      }
-    } catch (err) {
-      console.error(`âŒ [CheckpointManager] Rollback failed:`, err.message);
-      return { success: false, error: err.message };
-    }
+    // Nothing was applied to the active tree: failed automatic changes live in
+    // a separate worktree and are discarded by GitWorktreeSandbox.cleanupSandbox.
+    checkpoint.status = 'ROLLED_BACK';
+    return {
+      success: true,
+      checkpointId,
+      status: 'ROLLED_BACK',
+      strategy: 'ACTIVE_WORKTREE_UNCHANGED',
+      baseCommit: checkpoint.baseCommit
+    };
   }
 
   getCheckpoint(checkpointId) {
-    return this.checkpoints.get(checkpointId);
+    const checkpoint = this.checkpoints.get(checkpointId);
+    return checkpoint ? { ...checkpoint } : null;
   }
 }
 

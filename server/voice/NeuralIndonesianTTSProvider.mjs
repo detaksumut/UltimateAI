@@ -17,6 +17,24 @@ import http from 'http';
 import crypto from 'crypto';
 import { BaseVoiceProvider } from './BaseVoiceProvider.mjs';
 
+const TTS_LANGUAGE_PROFILES = {
+  'id-ID': { googleLang: 'id', speaker: 'id-ID-GadisNeural' },
+  'en-US': { googleLang: 'en', speaker: 'en-US-JennyNeural' },
+  'en-GB': { googleLang: 'en', speaker: 'en-GB-SoniaNeural' },
+  'es-ES': { googleLang: 'es', speaker: 'es-ES-ElviraNeural' },
+  'fr-FR': { googleLang: 'fr', speaker: 'fr-FR-DeniseNeural' },
+  'de-DE': { googleLang: 'de', speaker: 'de-DE-KatjaNeural' },
+  'it-IT': { googleLang: 'it', speaker: 'it-IT-ElsaNeural' },
+  'pt-BR': { googleLang: 'pt', speaker: 'pt-BR-FranciscaNeural' },
+  'ja-JP': { googleLang: 'ja', speaker: 'ja-JP-NanamiNeural' },
+  'ko-KR': { googleLang: 'ko', speaker: 'ko-KR-SunHiNeural' },
+  'zh-CN': { googleLang: 'zh-CN', speaker: 'zh-CN-XiaoxiaoNeural' },
+  'hi-IN': { googleLang: 'hi', speaker: 'hi-IN-SwaraNeural' },
+  'ms-MY': { googleLang: 'ms', speaker: 'ms-MY-YasminNeural' },
+  'th-TH': { googleLang: 'th', speaker: 'th-TH-PremwadeeNeural' },
+  'vi-VN': { googleLang: 'vi', speaker: 'vi-VN-HoaiMyNeural' }
+};
+
 const DEFAULT_CONFIG = {
   language: 'id-ID',
   defaultSpeaker: 'id-ID-GadisNeural',
@@ -43,6 +61,20 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
     if (promptPath && typeof promptPath === 'string') {
       this.config.audioPromptPath = promptPath.trim();
     }
+  }
+
+  setLanguage(language) {
+    if (!Object.prototype.hasOwnProperty.call(TTS_LANGUAGE_PROFILES, language)) {
+      throw new Error('UNSUPPORTED_TTS_LANGUAGE: ' + language);
+    }
+    this.config.language = language;
+    this.config.defaultSpeaker = TTS_LANGUAGE_PROFILES[language].speaker;
+    this.config.fallbackSpeaker = TTS_LANGUAGE_PROFILES[language].speaker;
+    return this.getVoiceStatus();
+  }
+
+  getSupportedLanguages() {
+    return Object.keys(TTS_LANGUAGE_PROFILES);
   }
 
   getVoiceStatus() {
@@ -76,97 +108,92 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
    * Returns valid, browser-playable audio buffer and base64 string.
    */
   async synthesize(text, options = {}) {
-    if (!text || !text.trim()) {
+    if (!text || !String(text).trim()) {
       return {
         audioBuffer: Buffer.alloc(0),
         base64Audio: '',
         sampleRate: this.config.sampleRate,
         duration: 0,
-        provider: 'NEURAL_INDONESIAN_TTS',
+        provider: 'NEURAL_TTS',
         voiceReferenceUsed: false,
         format: this.config.format,
         mimeType: 'audio/mpeg'
       };
     }
 
-    const cleanText = text.trim()
+    const cleanText = String(text).trim()
       .replace(/[-–—_]{2,}/g, ' ')
       .replace(/[#*_~`|{}[\]()<>\\^]/g, ' ')
       .replace(/(^|\s)[-–—]+(\s|$)/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    if (!cleanText) return this.synthesize('', options);
 
-    if (!cleanText) {
-      return {
-        audioBuffer: Buffer.alloc(0),
-        base64Audio: '',
-        sampleRate: this.config.sampleRate,
-        duration: 0,
-        provider: 'NEURAL_INDONESIAN_TTS',
-        voiceReferenceUsed: false,
-        format: this.config.format,
-        mimeType: 'audio/mpeg'
-      };
+    const language = options.language || this.config.language || 'id-ID';
+    const profile = TTS_LANGUAGE_PROFILES[language];
+    if (!profile) {
+      throw new Error('UNSUPPORTED_TTS_LANGUAGE: ' + language + '. Supported languages: ' + this.getSupportedLanguages().join(', '));
     }
 
-    const speaker = options.speaker || this.config.defaultSpeaker;
-    const rate = options.rate || this.config.rate;
-    const pitch = options.pitch || this.config.pitch;
-    const audioPromptPath = options.audioPromptPath || this.config.audioPromptPath;
-    const voiceReferenceUsed = this.hasValidAudioPrompt() || Boolean(options.audioPromptPath);
+    const speaker = options.speaker || (language === this.config.language
+      ? this.config.defaultSpeaker
+      : profile.speaker);
+    const rate = Number.isFinite(options.rate) ? options.rate : this.config.rate;
+    const pitch = Number.isFinite(options.pitch) ? options.pitch : this.config.pitch;
+    this.status = 'GENERATING';
 
+    let synthesis;
+    let primaryError = null;
     try {
-      // 1. Primary: Synthesize authentic spoken Indonesian MP3 audio stream (Female Neural Indonesian Voice)
-      const { buffer, mimeType, format } = await this._synthesizeIndonesianAudioStream(cleanText, rate);
-      const base64Audio = buffer.toString('base64');
-      const estimatedDuration = Math.max(0.6, (cleanText.length / 15) * (1.0 / rate));
-
-      console.log(`[TTS_ENGINE] ✅ Synthesis Success (Female Voice: ${speaker}) | Bytes: ${buffer.length} | Format: ${format} | MIME: ${mimeType}`);
-
-      return {
-        audioBuffer: buffer,
-        base64Audio,
-        audioDataUrl: `data:${mimeType};base64,${base64Audio}`,
-        sampleRate: this.config.sampleRate,
-        duration: parseFloat(estimatedDuration.toFixed(2)),
-        provider: 'NEURAL_INDONESIAN_TTS',
-        speaker,
-        voiceReferenceUsed,
-        language: this.config.language,
-        format,
-        mimeType,
-        timestamp: new Date().toISOString()
-      };
+      // Use the neural voice stream first, passing through the actual language.
+      synthesis = await this._synthesizeEdgeTTSStream(cleanText, speaker, rate, pitch, language);
     } catch (err) {
-      console.warn('[NEURAL_TTS] Primary online synthesis failed, generating valid offline WAV:', err.message);
-      
-      // 2. Offline Resilience: Generate guaranteed valid RIFF/WAV audio container
-      const wavBuffer = this._generateValidWav(cleanText, this.config.sampleRate);
-      const base64Audio = wavBuffer.toString('base64');
-      const duration = Math.max(0.5, cleanText.length / 16);
-
-      return {
-        audioBuffer: wavBuffer,
-        base64Audio,
-        audioDataUrl: `data:audio/wav;base64,${base64Audio}`,
-        sampleRate: this.config.sampleRate,
-        duration: parseFloat(duration.toFixed(2)),
-        provider: 'NEURAL_INDONESIAN_TTS',
-        speaker,
-        voiceReferenceUsed,
-        language: this.config.language,
-        format: 'audio/wav',
-        mimeType: 'audio/wav',
-        timestamp: new Date().toISOString()
-      };
+      primaryError = err;
+      console.warn('[NEURAL_TTS] Edge TTS unavailable; trying language-aware web TTS fallback:', err?.message || String(err));
+      try {
+        synthesis = await this._synthesizeIndonesianAudioStream(cleanText, rate, profile.googleLang);
+      } catch (fallbackErr) {
+        this.status = 'ERROR';
+        throw new Error(
+          'TTS_NEURAL_UNAVAILABLE: Both neural and language-aware fallback synthesis failed. ' +
+          String(fallbackErr?.message || primaryError?.message || 'Unknown audio provider error')
+        );
+      }
     }
+
+    const buffer = synthesis?.buffer;
+    if (!Buffer.isBuffer(buffer) || buffer.length < 100) {
+      this.status = 'ERROR';
+      throw new Error('TTS_NEURAL_UNAVAILABLE: Provider did not return valid speech audio.');
+    }
+
+    const base64Audio = buffer.toString('base64');
+    const duration = Math.max(0.6, (cleanText.length / 15) * (1.0 / Math.max(0.5, rate)));
+    this.status = 'READY';
+
+    console.log(`[TTS_ENGINE] Synthesis success | language=${language} | speaker=${speaker} | bytes=${buffer.length} | format=${synthesis.format}`);
+
+    return {
+      audioBuffer: buffer,
+      base64Audio,
+      audioDataUrl: `data:${synthesis.mimeType};base64,${base64Audio}`,
+      sampleRate: this.config.sampleRate,
+      duration: Number(duration.toFixed(2)),
+      provider: 'NEURAL_TTS',
+      speaker,
+      voiceReferenceUsed: this.hasValidAudioPrompt(),
+      language,
+      format: synthesis.format,
+      mimeType: synthesis.mimeType,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
    * Synthesizes authentic Indonesian female speech using Microsoft Edge Neural TTS (id-ID-GadisNeural).
    * Generates high-fidelity 24kHz 48kbps MP3 audio with natural female intonation.
    */
-  async _synthesizeEdgeTTSStream(text, speaker = 'id-ID-GadisNeural', rate = 1.08, pitch = 1.00) {
+  async _synthesizeEdgeTTSStream(text, speaker = 'id-ID-GadisNeural', rate = 1.08, pitch = 1.00, language = 'id-ID') {
     return new Promise((resolve, reject) => {
       const TRUSTED_TOKEN = '6A5AA1D4EA65407A8A3A4315354F9D70';
       const connectionId = crypto.randomUUID().replace(/-/g, '');
@@ -190,7 +217,7 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0',
           'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
           'Accept-Encoding': 'gzip, deflate, br',
-          'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7'
+          'Accept-Language': language + ',' + language.split('-')[0] + ';q=0.9,en-US;q=0.8,en;q=0.7'
         },
         timeout: 9000
       };
@@ -241,7 +268,7 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&apos;');
-        const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='id-ID'><voice name='${speaker}'><prosody pitch='${pitchStr}' rate='${rateStr}'>${escapedText}</prosody></voice></speak>`;
+        const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${language}'><voice name='${speaker}'><prosody pitch='${pitchStr}' rate='${rateStr}'>${escapedText}</prosody></voice></speak>`;
         const ssmlPayload = `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n${ssml}`;
         sendTextFrame(ssmlPayload);
 
@@ -370,9 +397,9 @@ export class NeuralIndonesianTTSProvider extends BaseVoiceProvider {
   /**
    * Synthesize real spoken Indonesian MP3 audio stream (Fallback)
    */
-  async _synthesizeIndonesianAudioStream(text, rate = 1.10) {
+  async _synthesizeIndonesianAudioStream(text, rate = 1.10, languageCode = 'id') {
     return new Promise((resolve, reject) => {
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=id&client=tw-ob`;
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${encodeURIComponent(languageCode)}&client=tw-ob`;
       
       const req = https.get(url, {
         headers: {

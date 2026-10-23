@@ -23,6 +23,7 @@ export class SpeechToText {
   constructor() {
     this.browserProvider = new BrowserSTTProvider();
     this.localProvider = new LocalBackendSTTProvider();
+    this.language = 'auto';
     // Default to LOCAL_BACKEND_STT as primary because Web Speech API in Chrome on localhost silently drops hypotheses
     this.activeProviderName = 'LOCAL_BACKEND_STT';
     this.isListening = false;
@@ -48,6 +49,31 @@ export class SpeechToText {
       this.activeProviderName = providerName;
       console.log(`[VOG] STT Provider explicitly set to: ${providerName}`);
     }
+  }
+
+  /**
+   * Configure microphone transcription language.
+   * The local audio recognizer can auto-detect; browser Web Speech requires a
+   * concrete BCP-47 locale and uses Indonesian when language is set to auto.
+   */
+  setLanguage(language = 'auto') {
+    const locale = String(language || 'auto').trim();
+    if (locale.toLowerCase() !== 'auto' && !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/i.test(locale)) {
+      throw new Error('INVALID_STT_LANGUAGE: Expected auto or a BCP-47 locale such as id-ID or en-US.');
+    }
+    this.language = locale.toLowerCase() === 'auto' ? 'auto' : locale;
+    this.localProvider.setLanguage(this.language);
+    this.browserProvider.setLanguage(this.language === 'auto' ? 'id-ID' : this.language);
+    console.log(`[VOG] STT language configured: ${this.language}`);
+    return {
+      language: this.language,
+      localProvider: this.language === 'auto' ? 'AUTO_DETECT' : this.language,
+      browserFallback: this.language === 'auto' ? 'id-ID' : this.language
+    };
+  }
+
+  getLanguage() {
+    return this.language;
   }
 
   getProviderName() {
@@ -79,7 +105,7 @@ export class SpeechToText {
     await this.verifyMicrophonePermission();
 
     const currentProvider = this.getActiveProvider();
-    console.log(`[VOG] STT_STARTED | Engine: ${currentProvider.getProviderName()} | Lang: id-ID`);
+    console.log(`[VOG] STT_STARTED | Engine: ${currentProvider.getProviderName()} | Lang: ${this.language}`);
 
     const providerCallbacks = {
       onStart: () => {
