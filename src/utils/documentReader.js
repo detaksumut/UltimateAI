@@ -266,9 +266,11 @@ export async function readUploadedDocument(file) {
     dataUrl = await readFileAsDataUrl(compressed);
     effectiveSize = compressed.size;
   } else if (isPdf && file.size < 35 * 1024 * 1024) {
-    dataUrl = await readFileAsDataUrl(file);
+    // Ekstrak teks di browser terlebih dahulu. Jangan sertakan PDF Base64
+    // jika teks sudah tersedia karena payload chat dapat melampaui batas serverless.
     content = await readPdfAsText(file);
     if (!content) {
+      dataUrl = await readFileAsDataUrl(file);
       try {
         const parseRes = await fetchWithRetry(RouterConfig.api('/api/files/parse'), {
           method: 'POST',
