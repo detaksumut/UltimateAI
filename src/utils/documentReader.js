@@ -71,11 +71,11 @@ export const readFileAsDataUrl = (file) =>
 
 let _pdfjsPromise = null;
 
-// Worker pdf.js 100% LOKAL (public/pdf.worker.min.mjs, seri 5.4.x =
-// identik dengan pdfjs-dist npm). CDN hanya cadangan terakhir agar
-// Edge InPrivate (Tracking Prevention memblokir cdnjs) tak pernah
-// mematikan fitur ekstraksi PDF.
-const LOCAL_PDF_WORKER = '/pdf.worker.min.mjs';
+// PDF.js library dan worker harus memakai versi yang sama. Worker lokal
+// public/pdf.worker.min.mjs adalah seri 5.4.x, sedangkan fallback library
+// di bawah adalah 3.11.174; mencampur keduanya dapat membuat ekstraksi gagal.
+// Gunakan worker 3.11.174 yang cocok dengan library UMD yang dimuat di bawah.
+const LOCAL_PDF_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 function loadPdfJs() {
   if (typeof window === 'undefined') return Promise.resolve(null);
