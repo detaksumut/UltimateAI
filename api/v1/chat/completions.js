@@ -958,7 +958,7 @@ export default async function handler(req, res) {
 
     for (const key of textKeys) {
       try {
-        const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
+        const requestBody = { contents, generationConfig: { temperature: 0.7, maxOutputTokens: 4096 } };
         if (systemText) requestBody.systemInstruction = { parts: [{ text: systemText }] };
 
         const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${textModelPath}:generateContent?key=${encodeURIComponent(key)}`, {
@@ -970,9 +970,17 @@ export default async function handler(req, res) {
 
         if (geminiRes.ok) {
           const gData = await geminiRes.json();
-          const candidateText = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+          const candidate = gData.candidates?.[0];
+          const candidateText = (candidate?.content?.parts || [])
+            .map((part) => typeof part?.text === 'string' ? part.text : '')
+            .filter(Boolean)
+            .join('\\n')
+            .trim();
           if (candidateText) {
             assistantReply = candidateText;
+            if (candidate?.finishReason === 'MAX_TOKENS') {
+              console.warn('[JINI Live] Response reached MAX_TOKENS; output may be incomplete.');
+            }
             break; // success — stop key rotation
           }
         } else if (geminiRes.status === 429 || geminiRes.status >= 500) {
