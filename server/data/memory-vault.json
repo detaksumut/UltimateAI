@@ -1291,5 +1291,49 @@
     "createdAt": "2026-10-18T07:14:27.841Z",
     "lastAccessedAt": "2026-10-18T07:14:27.841Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1792666043581-1H00",
+    "key": "buatkan gambar kucing",
+    "content": "Visual untuk kucing telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-22T10:47:23.581Z",
+    "lastAccessedAt": "2026-10-22T10:47:23.581Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792666196268-KGNY",
+    "key": "buatkang gambar pesawat terbang melintas",
+    "content": "Visual untuk pesawat terbang yang melintas di atas pegunungan telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-22T10:49:56.268Z",
+    "lastAccessedAt": "2026-10-22T10:49:56.268Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792666250110-66PS",
+    "key": "buatkan gambar pesawat terbang rasio 16:",
+    "content": "Visual untuk pesawat terbang rasio 16:9 telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-22T10:50:50.110Z",
+    "lastAccessedAt": "2026-10-22T10:50:50.110Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1792709879782-68T4",
+    "key": "test",
+    "content": "Sistem aktif dan merespons dengan baik.\n\nSaya **JIN**, siap membantu Anda. Apakah ada dokumen, diskusi, atau tugas yang ingin Anda kerjakan?",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-22T22:57:59.782Z",
+    "lastAccessedAt": "2026-10-22T22:57:59.782Z",
+    "accessCount": 1
   }
 ]
