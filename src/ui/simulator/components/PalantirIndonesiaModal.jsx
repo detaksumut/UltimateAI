@@ -38,6 +38,8 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
   const [activeStyle, setActiveStyle] = useState('DARK_INTELLIGENCE');
   const [searchQuery, setSearchQuery] = useState('');
   const [cursorCoords, setCursorCoords] = useState({ lon: 118.0149, lat: -2.5489 });
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [currentPitch, setCurrentPitch] = useState(0);
 
   // Territorial states
   const [selectedProvince, setSelectedProvince] = useState(null);
@@ -65,6 +67,7 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
     nodes: true,
     alki: true,
     cctv: true,
+    buildings: true,
   });
 
   // Subscribe to CCTV registry updates
@@ -135,8 +138,10 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
       style: styleDefinition,
       center: INDONESIA_CENTER,
       zoom: DEFAULT_ZOOM,
-      minZoom: 3.5,
-      maxZoom: 16,
+      minZoom: 3.0,
+      maxZoom: 20.0,
+      maxPitch: 65,
+      pitchWithRotate: true,
       attributionControl: false,
     });
 
@@ -150,6 +155,14 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
         lon: Number(e.lngLat.lng.toFixed(4)),
         lat: Number(e.lngLat.lat.toFixed(4)),
       });
+    });
+
+    map.on('zoom', () => {
+      setCurrentZoom(Number(map.getZoom().toFixed(1)));
+    });
+
+    map.on('pitch', () => {
+      setCurrentPitch(Math.round(map.getPitch()));
     });
 
     map.on('load', async () => {
@@ -357,6 +370,52 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
           map.on('mouseleave', 'cctv-unclustered-point', () => (map.getCanvas().style.cursor = ''));
         }
 
+        // 4. Authentic 3D Building Extrusions (from OpenMapTiles / OpenFreeMap planet source)
+        if (!map.getSource('openmaptiles-buildings')) {
+          map.addSource('openmaptiles-buildings', {
+            type: 'vector',
+            url: 'https://tiles.openfreemap.org/planet',
+          });
+
+          map.addLayer({
+            id: '3d-buildings',
+            source: 'openmaptiles-buildings',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 14.0,
+            layout: {
+              visibility: layers.buildings ? 'visible' : 'none',
+            },
+            paint: {
+              'fill-extrusion-color': [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['get', 'render_height'], 15],
+                0, '#0a101d',
+                20, '#1e293b',
+                60, '#334155',
+                120, '#0284c7',
+                250, '#00e5ff'
+              ],
+              'fill-extrusion-height': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                14.0, 0,
+                15.0, ['coalesce', ['get', 'render_height'], 12]
+              ],
+              'fill-extrusion-base': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                14.0, 0,
+                15.0, ['coalesce', ['get', 'render_min_height'], 0]
+              ],
+              'fill-extrusion-opacity': 0.8,
+            },
+          });
+        }
+
         // Province hover & click
         let hoveredFeatureId = null;
 
@@ -467,6 +526,9 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
     if (map.getLayer('cctv-unclustered-point')) {
       map.setLayoutProperty('cctv-unclustered-point', 'visibility', layers.cctv ? 'visible' : 'none');
     }
+    if (map.getLayer('3d-buildings')) {
+      map.setLayoutProperty('3d-buildings', 'visibility', layers.buildings ? 'visible' : 'none');
+    }
 
     if (layers.nodes) {
       updatePinsOnMap(map);
@@ -551,10 +613,29 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [cam.longitude, cam.latitude],
-        zoom: 13,
+        zoom: 16.5,
+        pitch: 45,
         duration: 1200,
         essential: true,
       });
+    }
+  };
+
+  const handleZoomPreset = (preset) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (preset === 'NATIONAL') {
+      map.flyTo({ center: INDONESIA_CENTER, zoom: 4.8, pitch: 0, bearing: 0, duration: 1000 });
+    } else if (preset === 'PROVINCE') {
+      const center = selectedProvince ? selectedProvince.coordinates : [106.8456, -6.2088];
+      map.flyTo({ center, zoom: 8.5, pitch: 0, bearing: 0, duration: 1000 });
+    } else if (preset === 'CITY') {
+      const center = selectedCamera ? [selectedCamera.longitude, selectedCamera.latitude] : [106.8231, -6.1951];
+      map.flyTo({ center, zoom: 13.5, pitch: 20, bearing: 0, duration: 1000 });
+    } else if (preset === 'BUILDINGS_3D') {
+      const center = selectedCamera ? [selectedCamera.longitude, selectedCamera.latitude] : [106.8231, -6.1951];
+      map.flyTo({ center, zoom: 17.5, pitch: 55, bearing: -25, duration: 1200 });
+      setLayers((s) => ({ ...s, buildings: true }));
     }
   };
 
@@ -781,7 +862,7 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
               }}
               className="hidden sm:block"
             >
-              LAT: {cursorCoords.lat}° | LON: {cursorCoords.lon}° | WGS 84
+              LAT: {cursorCoords.lat}° | LON: {cursorCoords.lon}° | ZOOM: {currentZoom}x | PITCH: {currentPitch}°
             </div>
 
             <button
@@ -980,6 +1061,55 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                 }}
               >
                 CCTV
+              </button>
+              <button
+                onClick={() => setLayers((s) => ({ ...s, buildings: !s.buildings }))}
+                style={{
+                  fontSize: 8.5,
+                  fontFamily: 'monospace',
+                  padding: '4px 6px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  border: `1px solid ${layers.buildings ? '#38bdf8' : '#475569'}`,
+                  background: layers.buildings ? 'rgba(56,189,248,0.2)' : 'transparent',
+                  color: layers.buildings ? '#38bdf8' : '#64748b',
+                }}
+                title="Tampilkan Bentuk Gedung 3D (Zoom >= 14)"
+              >
+                3D GEDUNG
+              </button>
+            </div>
+
+            {/* Quick Tactical Zoom Presets */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: 4, border: '1px solid rgba(0,229,255,0.2)' }}>
+              <span style={{ fontSize: 7.5, fontFamily: 'monospace', color: '#94a3b8', padding: '0 4px' }}>ZOOM:</span>
+              <button
+                onClick={() => handleZoomPreset('NATIONAL')}
+                style={{ fontSize: 7.5, fontFamily: 'monospace', padding: '2px 5px', borderRadius: 2, border: 'none', background: currentZoom < 7 ? 'rgba(0,229,255,0.25)' : 'transparent', color: currentZoom < 7 ? '#00e5ff' : '#94a3b8', cursor: 'pointer' }}
+                title="Zoom Nasional (1:50M)"
+              >
+                NASIONAL
+              </button>
+              <button
+                onClick={() => handleZoomPreset('PROVINCE')}
+                style={{ fontSize: 7.5, fontFamily: 'monospace', padding: '2px 5px', borderRadius: 2, border: 'none', background: currentZoom >= 7 && currentZoom < 11 ? 'rgba(0,229,255,0.25)' : 'transparent', color: currentZoom >= 7 && currentZoom < 11 ? '#00e5ff' : '#94a3b8', cursor: 'pointer' }}
+                title="Zoom Provinsi (1:5M)"
+              >
+                PROVINSI
+              </button>
+              <button
+                onClick={() => handleZoomPreset('CITY')}
+                style={{ fontSize: 7.5, fontFamily: 'monospace', padding: '2px 5px', borderRadius: 2, border: 'none', background: currentZoom >= 11 && currentZoom < 16 ? 'rgba(0,229,255,0.25)' : 'transparent', color: currentZoom >= 11 && currentZoom < 16 ? '#00e5ff' : '#94a3b8', cursor: 'pointer' }}
+                title="Zoom Perkotaan (1:50k)"
+              >
+                KOTA
+              </button>
+              <button
+                onClick={() => handleZoomPreset('BUILDINGS_3D')}
+                style={{ fontSize: 7.5, fontFamily: 'monospace', padding: '2px 5px', borderRadius: 2, border: 'none', background: currentZoom >= 16 ? 'rgba(56,189,248,0.3)' : 'transparent', color: currentZoom >= 16 ? '#38bdf8' : '#94a3b8', cursor: 'pointer', fontWeight: 800 }}
+                title="Zoom Kawasan Gedung 3D (1:5k Oblique Tilt)"
+              >
+                3D BLOK
               </button>
             </div>
           </div>
@@ -1765,7 +1895,9 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
               CCTV: {cctvStats.verified_playable || 0} LIVE // {cctvStats.unverified_feeds || 0} UNVERIFIED // {cctvStats.requires_access || cctvStats.requiresAccess} GATED // {cctvStats.total_registered || cctvStats.total} REG ({cctvStats.provinces_covered || cctvStats.provincesCovered} PROV)
             </span>
             <span>|</span>
-            <span>PROJECTION: MERCATOR WGS 84</span>
+            <span>ATRIBUSI: ESRI CANVAS // OPENSTREETMAP // OPENMAPTILES 3D</span>
+            <span>|</span>
+            <span>PROJECTION: MERCATOR WGS 84 (MAX ZOOM: 20x)</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

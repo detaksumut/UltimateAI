@@ -34,7 +34,17 @@ export const MAP_STYLES = {
           'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         ],
         tileSize: 256,
-        attribution: '© Esri, HERE, Garmin, © OpenStreetMap contributors',
+        attribution: '© Esri, HERE, Garmin, OpenStreetMap contributors',
+        maxzoom: 20,
+      },
+      'esri-dark-reference': {
+        type: 'raster',
+        tiles: [
+          'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        attribution: '© Esri, OpenStreetMap contributors',
+        maxzoom: 20,
       },
     },
     layers: [
@@ -43,23 +53,43 @@ export const MAP_STYLES = {
         type: 'raster',
         source: 'esri-dark',
         minzoom: 0,
-        maxzoom: 19,
+        maxzoom: 20,
+      },
+      {
+        id: 'esri-dark-labels',
+        type: 'raster',
+        source: 'esri-dark-reference',
+        minzoom: 7,
+        maxzoom: 20,
+        paint: {
+          'raster-opacity': 0.9,
+        },
       },
     ],
   },
   SATELLITE: {
     id: 'SATELLITE',
-    name: 'SATELLITE ORBITAL',
+    name: 'SATELLITE ORBITAL (ESRI)',
     version: 8,
     sources: {
       'esri-sat': {
         type: 'raster',
         tiles: [
-          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         ],
         tileSize: 256,
-        attribution: '© Esri, Earthstar Geographics'
-      }
+        attribution: '© Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+        maxzoom: 20,
+      },
+      'esri-sat-reference': {
+        type: 'raster',
+        tiles: [
+          'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        attribution: '© Esri, OpenStreetMap contributors',
+        maxzoom: 20,
+      },
     },
     layers: [
       {
@@ -67,10 +97,20 @@ export const MAP_STYLES = {
         type: 'raster',
         source: 'esri-sat',
         minzoom: 0,
-        maxzoom: 19
-      }
-    ]
-  }
+        maxzoom: 20,
+      },
+      {
+        id: 'esri-sat-labels',
+        type: 'raster',
+        source: 'esri-sat-reference',
+        minzoom: 9,
+        maxzoom: 20,
+        paint: {
+          'raster-opacity': 0.85,
+        },
+      },
+    ],
+  },
 };
 
 export const PROVINCES_DATA = {
