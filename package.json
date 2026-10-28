@@ -37,6 +37,7 @@
     "electron": "^42.5.0",
     "electron-builder": "^26.15.3",
     "express": "^5.2.1",
+    "hls.js": "^1.7.3",
     "jimp": "^0.22.10",
     "jszip": "^3.10.1",
     "lucide-react": "^1.21.0",
