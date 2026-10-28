@@ -25,44 +25,53 @@ export const REGIONS = [
 export const MAP_STYLES = {
   DARK_INTELLIGENCE: {
     id: 'DARK_INTELLIGENCE',
-    name: 'DARK TACTICAL (ESRI)',
+    name: 'DARK TACTICAL (CARTO)',
     version: 8,
     sources: {
-      'esri-dark': {
+      // CARTO DarkMatter — verified working at all zoom levels, no API key required
+      // URL format: {z}/{x}/{y}.png  (NOT {z}/{y}/{x} like Esri)
+      'carto-dark': {
         type: 'raster',
         tiles: [
-          'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+          'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+          'https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
         ],
         tileSize: 256,
-        attribution: '© Esri, HERE, Garmin, OpenStreetMap contributors',
-        maxzoom: 20,
+        attribution: '© <a href="https://carto.com/attributions">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxzoom: 19,
       },
-      'esri-dark-reference': {
+      // CARTO label overlay for roads, city names, borders at higher zoom
+      'carto-dark-labels': {
         type: 'raster',
         tiles: [
-          'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+          'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+          'https://d.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
         ],
         tileSize: 256,
-        attribution: '© Esri, OpenStreetMap contributors',
-        maxzoom: 20,
+        attribution: '© CARTO © OpenStreetMap contributors',
+        maxzoom: 19,
       },
     },
     layers: [
       {
-        id: 'esri-dark-bg',
+        id: 'carto-dark-bg',
         type: 'raster',
-        source: 'esri-dark',
+        source: 'carto-dark',
         minzoom: 0,
         maxzoom: 20,
       },
       {
-        id: 'esri-dark-labels',
+        id: 'carto-dark-labels-overlay',
         type: 'raster',
-        source: 'esri-dark-reference',
-        minzoom: 7,
+        source: 'carto-dark-labels',
+        minzoom: 6,
         maxzoom: 20,
         paint: {
-          'raster-opacity': 0.9,
+          'raster-opacity': 0.95,
         },
       },
     ],
@@ -72,6 +81,7 @@ export const MAP_STYLES = {
     name: 'SATELLITE ORBITAL (ESRI)',
     version: 8,
     sources: {
+      // Esri World Imagery — verified working at z=8 (3298 bytes), global satellite coverage
       'esri-sat': {
         type: 'raster',
         tiles: [
@@ -79,16 +89,19 @@ export const MAP_STYLES = {
         ],
         tileSize: 256,
         attribution: '© Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
-        maxzoom: 20,
+        maxzoom: 19,
       },
-      'esri-sat-reference': {
+      // CARTO dark labels as satellite overlay (roads + names on satellite)
+      'carto-sat-labels': {
         type: 'raster',
         tiles: [
-          'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+          'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
         ],
         tileSize: 256,
-        attribution: '© Esri, OpenStreetMap contributors',
-        maxzoom: 20,
+        attribution: '© CARTO © OpenStreetMap contributors',
+        maxzoom: 19,
       },
     },
     layers: [
@@ -100,13 +113,13 @@ export const MAP_STYLES = {
         maxzoom: 20,
       },
       {
-        id: 'esri-sat-labels',
+        id: 'carto-sat-labels-overlay',
         type: 'raster',
-        source: 'esri-sat-reference',
-        minzoom: 9,
+        source: 'carto-sat-labels',
+        minzoom: 8,
         maxzoom: 20,
         paint: {
-          'raster-opacity': 0.85,
+          'raster-opacity': 0.80,
         },
       },
     ],
