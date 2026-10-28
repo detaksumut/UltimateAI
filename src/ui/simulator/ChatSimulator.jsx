@@ -3,6 +3,7 @@ import './simulator.css';
 import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx';
 import MarketIntelligenceView from './components/MarketIntelligenceView.jsx';
 import MarketIntelligenceModal from './components/MarketIntelligenceModal.jsx';
+import PalantirIndonesiaModal from './components/PalantirIndonesiaModal.jsx';
 import LiveHologramAvatar from './components/LiveHologramAvatar.jsx';
 import LiveTickerPanel from './components/LiveTickerPanel.jsx';
 import JINTickerConversation from './components/JINTickerConversation.jsx';
@@ -53,6 +54,8 @@ export default function ChatSimulator() {
   const [leftTab, setLeftTab] = useState('JIN');
   // MIE popup modal: dibuka lewat tombol panel kiri ATAU voice "Mama Jin, analisis IHSG"
   const [mieModal, setMieModal] = useState({ open: false, symbol: 'IHSG' });
+  // PalantirIndonesia Geospatial Intelligence modal
+  const [palantirModalOpen, setPalantirModalOpen] = useState(false);
 // MY APPLICATIONS modal state
 const [visibleApp, setVisibleApp] = useState(null);
 const [appLoading, setAppLoading] = useState(false);
@@ -133,8 +136,13 @@ const closeAppModal = () => {
       return true;
     };
     window.__jinMarketOpen = (sym) => setMieModal({ open: true, symbol: toBasketKey(sym || 'IHSG') });
+    window.__jinPalantirOpen = () => setPalantirModalOpen(true);
     return () => {
-      try { delete window.__jinMarketAnalyze; delete window.__jinMarketOpen; } catch { /* noop */ }
+      try {
+        delete window.__jinMarketAnalyze;
+        delete window.__jinMarketOpen;
+        delete window.__jinPalantirOpen;
+      } catch { /* noop */ }
     };
   }, []);
 
@@ -333,6 +341,40 @@ const closeAppModal = () => {
                   border: `1px solid ${c}44`, background: `${c}11`, color: c, letterSpacing: '0.02em' }}>{l}</button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ═══ PALANTIR INDONESIA INTELLIGENCE ═══ */}
+      <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
+        <div className="hud-label">Palantir Indonesia</div>
+        <div style={{ padding: '6px 10px' }}>
+          <button
+            onClick={() => setPalantirModalOpen(true)}
+            style={{
+              width: '100%',
+              fontSize: 10,
+              fontWeight: 800,
+              padding: '7px 8px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              border: '1px solid rgba(0,229,255,0.4)',
+              background: 'linear-gradient(90deg, rgba(0,229,255,0.15) 0%, rgba(16,185,129,0.12) 100%)',
+              color: '#00e5ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              letterSpacing: '0.04em',
+              boxShadow: '0 0 14px rgba(0,229,255,0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13 }}>🇮🇩</span>
+              <span>INDONESIA INTELLIGENCE</span>
+            </div>
+            <span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.2)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.3)' }}>
+              GEO-MAP
+            </span>
+          </button>
         </div>
       </div>
 
@@ -674,6 +716,12 @@ const closeAppModal = () => {
         open={mieModal.open}
         initialSymbol={mieModal.symbol}
         onClose={() => setMieModal((s) => ({ ...s, open: false }))}
+      />
+
+      {/* ═══ JINI — PALANTIR INDONESIA GEOSPATIAL INTELLIGENCE MODAL ═══ */}
+      <PalantirIndonesiaModal
+        open={palantirModalOpen}
+        onClose={() => setPalantirModalOpen(false)}
       />
 
       {/* ═══ MY APPLICATIONS MODAL ═══ */}

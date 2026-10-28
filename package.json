@@ -40,6 +40,7 @@
     "jimp": "^0.22.10",
     "jszip": "^3.10.1",
     "lucide-react": "^1.21.0",
+    "maplibre-gl": "^6.16.0",
     "node-fetch": "^3.3.2",
     "pdf-parse": "^2.4.5",
     "react": "^19.0.0",
