@@ -98,7 +98,7 @@
   
   /* 2. Deep Cavity Inputs & Textareas */
   input, textarea, .bg-indigo-950\/20, .bg-\[\#0a0a0f\] {
-    background: #020204 !important; /* Extremely dark */
+    background: #020204 !important;
     box-shadow: 
       inset 0 4px 10px rgba(0,0,0,0.9), 
       inset 0 1px 3px rgba(0,0,0,0.9),
@@ -233,14 +233,14 @@
   
   /* Titanium Simulator Overrides (Any rounded-3rem or border-[10px]) */
   .border-\[10px\] {
-    border: 10px solid #1c1508 !important; /* Uniform dark bronze to avoid diagonal corner glitches */
+    border: 10px solid #1c1508 !important;
     box-shadow: 
-      inset 0 0 30px rgba(0,0,0,0.95), /* Deep dark screen interior */
-      inset 0 0 0 2px #000, /* Black inner rim */
-      0 0 0 2px #C9A84C, /* Sharp Gold outer metallic highlight */
-      0 0 60px rgba(201, 168, 76, 0.35), /* Solid yellow/gold backlight */
-      0 0 120px rgba(201, 168, 76, 0.15), /* Extended ambient glow */
-      0 20px 50px rgba(0,0,0,0.9) !important; /* Heavy drop shadow */
+      inset 0 0 30px rgba(0,0,0,0.95),
+      inset 0 0 0 2px #000,
+      0 0 0 2px #C9A84C,
+      0 0 60px rgba(201, 168, 76, 0.35),
+      0 0 120px rgba(201, 168, 76, 0.15),
+      0 20px 50px rgba(0,0,0,0.9) !important;
     background: linear-gradient(135deg, rgba(201,168,76,0.05) 0%, transparent 40%, rgba(0,0,0,0.8) 100%) !important;
   }
 

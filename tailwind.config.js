@@ -20,7 +20,7 @@ export default {
           900: '#644b24',
           950: '#3a2a12',
         },
-        // Overriding default blue with APASIFIC Muted & Dark Palette
+        // Overriding default blue with Muted & Dark Palette
         blue: {
           50: '#fbfbfc',
           100: '#f5f5f7',
@@ -32,7 +32,7 @@ export default {
           700: '#535368',
           800: '#2A2A35', // Card borders / input backgrounds
           900: '#151520',
-          950: '#060610', // APASIFIC Main Dark Background
+          950: '#060610', // Main Dark Background
         }
       }
     },

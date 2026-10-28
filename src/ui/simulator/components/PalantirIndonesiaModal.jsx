@@ -753,8 +753,17 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
               }}
             >
               <span>📹 CCTV OPTICAL RECON</span>
-              <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 99, background: '#10b981', color: '#020617', fontWeight: 900 }}>
-                {cctvStats.online}/{cctvStats.total} LIVE
+              <span
+                style={{
+                  fontSize: 8,
+                  padding: '1px 5px',
+                  borderRadius: 99,
+                  background: (cctvStats.verified_playable || 0) > 0 ? '#10b981' : 'rgba(100, 116, 139, 0.4)',
+                  color: (cctvStats.verified_playable || 0) > 0 ? '#020617' : '#94a3b8',
+                  fontWeight: 900,
+                }}
+              >
+                {cctvStats.verified_playable || 0} VERIFIED LIVE // {cctvStats.total_registered || cctvStats.total} REG
               </span>
             </button>
           </div>
@@ -1133,12 +1142,32 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                                 fontSize: 7.5,
                                 padding: '1px 4px',
                                 borderRadius: 2,
-                                background: isLive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-                                color: isLive ? '#34d399' : '#f87171',
-                                border: `1px solid ${isLive ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
+                                background:
+                                  cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                                    ? 'rgba(16,185,129,0.2)'
+                                    : cam.access_status === 'REQUIRES_ACCESS'
+                                    ? 'rgba(245,158,11,0.2)'
+                                    : 'rgba(100,116,139,0.25)',
+                                color:
+                                  cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                                    ? '#34d399'
+                                    : cam.access_status === 'REQUIRES_ACCESS'
+                                    ? '#fbbf24'
+                                    : '#94a3b8',
+                                border: `1px solid ${
+                                  cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                                    ? 'rgba(16,185,129,0.4)'
+                                    : cam.access_status === 'REQUIRES_ACCESS'
+                                    ? 'rgba(245,158,11,0.4)'
+                                    : 'rgba(100,116,139,0.4)'
+                                }`,
                               }}
                             >
-                              {cam.stream_status}
+                              {cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                                ? 'VERIFIED LIVE'
+                                : cam.access_status === 'REQUIRES_ACCESS'
+                                ? 'REQUIRES ACCESS'
+                                : 'UNVERIFIED'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 8, color: '#64748b' }}>
@@ -1358,10 +1387,10 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                 {/* Video Stream Player */}
                 <CCTVPlayer camera={selectedCamera} />
 
-                {/* Camera Technical Metadata */}
+                {/* Camera Technical Metadata & Separated Integrity Status */}
                 <div style={{ background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ fontSize: 8.5, color: '#38bdf8', fontWeight: 800, fontFamily: 'monospace' }}>
-                    DATA REGISTRASI NASIONAL
+                    AUDIT INTEGRITAS & METADATA NASIONAL
                   </div>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>OPERATOR:</span>
@@ -1369,22 +1398,41 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                   </div>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>WILAYAH:</span>
-                    <span>{selectedCamera.district_code || ''}, {selectedCamera.province_code}</span>
+                    <span>{selectedCamera.regency_city_code || selectedCamera.district_code || ''}, {selectedCamera.province_code}</span>
                   </div>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>KOORDINAT:</span>
                     <span style={{ color: '#34d399' }}>{selectedCamera.latitude}, {selectedCamera.longitude}</span>
                   </div>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>SUMBER AKSES:</span>
-                    <span style={{ color: selectedCamera.access_status === 'PUBLIC_OPEN' ? '#34d399' : '#f87171' }}>
-                      {selectedCamera.access_status}
+                    <span style={{ color: '#94a3b8' }}>REACHABILITY:</span>
+                    <span style={{ color: selectedCamera.source_reachability === 'REACHABLE' ? '#34d399' : '#94a3b8' }}>
+                      {selectedCamera.source_reachability || 'UNKNOWN'}
                     </span>
                   </div>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>VERIFIKASI:</span>
-                    <span>{selectedCamera.verification_status}</span>
+                    <span style={{ color: '#94a3b8' }}>PLAYABILITY:</span>
+                    <span style={{ color: selectedCamera.stream_playability === 'PLAYABLE' ? '#34d399' : '#94a3b8' }}>
+                      {selectedCamera.stream_playability || 'UNTESTED'}
+                    </span>
                   </div>
+                  <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>LOCATION:</span>
+                    <span style={{ color: selectedCamera.location_verification === 'VERIFIED_LOCATION' ? '#34d399' : '#fbbf24' }}>
+                      {selectedCamera.location_verification || 'UNVERIFIED_LOCATION'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>ACCESS STATUS:</span>
+                    <span style={{ color: selectedCamera.access_status === 'PUBLIC_OPEN' ? '#34d399' : '#f59e0b' }}>
+                      {selectedCamera.access_status}
+                    </span>
+                  </div>
+                  {selectedCamera.failure_reason && (
+                    <div style={{ fontSize: 8, color: '#f87171', background: 'rgba(239,68,68,0.1)', padding: '4px 6px', borderRadius: 4, borderLeft: '2px solid #ef4444', marginTop: 2 }}>
+                      CATATAN AUDIT: {selectedCamera.failure_reason}
+                    </div>
+                  )}
                   <div style={{ fontSize: 8.5, color: '#94a3b8', marginTop: 4, lineHeight: 1.4 }}>
                     {selectedCamera.description}
                   </div>
@@ -1587,34 +1635,46 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                   </div>
                 </div>
 
-                {/* CCTV Statistics Summary */}
+                {/* CCTV Statistics Summary — 6 Separated Verification Metrics */}
                 <div style={{ background: 'rgba(15,23,42,0.7)', padding: '10px', borderRadius: 6, border: '1px solid rgba(0,229,255,0.2)' }}>
                   <div style={{ fontSize: 9, fontFamily: 'monospace', color: '#ec4899', fontWeight: 800, marginBottom: 6 }}>
-                    STATUS JARINGAN CCTV NASIONAL
+                    STATUS AUDIT CCTV NASIONAL (HASIL AKTUAL)
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                     <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>TERDAFTAR</div>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#38bdf8', fontFamily: 'monospace' }}>
-                        {cctvStats.total}
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>1. TERDAFTAR</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#38bdf8', fontFamily: 'monospace' }}>
+                        {cctvStats.total_registered || cctvStats.total}
                       </div>
                     </div>
                     <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>LIVE PLAYABLE</div>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
-                        {cctvStats.online}
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>2. TERJANGKAU</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
+                        {cctvStats.reachable_sources || 0}
                       </div>
                     </div>
                     <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>REQUIRES ACCESS</div>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#fbbf24', fontFamily: 'monospace' }}>
-                        {cctvStats.requiresAccess}
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>3. DIPUTAR</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
+                        {cctvStats.verified_playable || 0}
                       </div>
                     </div>
                     <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>PROVINSI TERCANGKUP</div>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#a78bfa', fontFamily: 'monospace' }}>
-                        {cctvStats.provincesCovered} / 34
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>4. LOKASI VALID</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
+                        {cctvStats.verified_locations || 0}
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>5. UNVERIFIED</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#fbbf24', fontFamily: 'monospace' }}>
+                        {cctvStats.unverified_feeds || 0}
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(5,10,20,0.7)', padding: '6px', borderRadius: 4 }}>
+                      <div style={{ fontSize: 7, color: '#94a3b8' }}>6. BUTUH AKSES</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#a78bfa', fontFamily: 'monospace' }}>
+                        {cctvStats.requires_access || cctvStats.requiresAccess}
                       </div>
                     </div>
                   </div>
@@ -1656,7 +1716,23 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
                         }}
                       >
                         <span>📹 {cam.camera_name}</span>
-                        <span style={{ fontSize: 7.5, color: '#34d399' }}>LIVE</span>
+                        <span
+                          style={{
+                            fontSize: 7.5,
+                            color:
+                              cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                                ? '#34d399'
+                                : cam.access_status === 'REQUIRES_ACCESS'
+                                ? '#fbbf24'
+                                : '#94a3b8',
+                          }}
+                        >
+                          {cam.location_verification === 'VERIFIED_LOCATION' && cam.stream_playability === 'PLAYABLE'
+                            ? 'LIVE'
+                            : cam.access_status === 'REQUIRES_ACCESS'
+                            ? 'GATED'
+                            : 'UNVERIFIED'}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1686,7 +1762,7 @@ Bagaimana analisis kerawanan pergerakan logistik/lalu lintas dan rekomendasi pen
             </span>
             <span>|</span>
             <span style={{ color: '#00e5ff' }}>
-              CCTV: {cctvStats.online} LIVE / {cctvStats.total} REGISTERED ({cctvStats.provincesCovered} PROVINSI)
+              CCTV: {cctvStats.verified_playable || 0} LIVE // {cctvStats.unverified_feeds || 0} UNVERIFIED // {cctvStats.requires_access || cctvStats.requiresAccess} GATED // {cctvStats.total_registered || cctvStats.total} REG ({cctvStats.provinces_covered || cctvStats.provincesCovered} PROV)
             </span>
             <span>|</span>
             <span>PROJECTION: MERCATOR WGS 84</span>

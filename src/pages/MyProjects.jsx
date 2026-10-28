@@ -5,8 +5,110 @@ import { useNavigate } from 'react-router-dom';
 import {
   Monitor, FileText, Settings, LayoutTemplate, MessageSquare,
   Rocket, AlertCircle, Loader2, Moon, Sun, FolderOpen,
-  ArrowRight, Calendar, Tag
+  ArrowRight, Calendar, Tag, X
 } from 'lucide-react';
+
+// Application Modal Component for Iframe-based applications
+function ApplicationModal({
+  isOpen,
+  onClose,
+  appName,
+  appUrl,
+  isLoading,
+  error,
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div
+        className="relative w-full max-w-2xl max-h-[85vh] bg-[#111827] rounded-xl overflow-hidden shadow-2xl shadow-slate-800/30 transform transition-all duration-500"
+        style={{ width: '96vw', maxWidth: '96vw', height: 'calc(85vh - 120px)' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b border-white/5"
+        >
+          <h2 className="text-xl font-bold text-white">
+            {appName}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-slate-800/50 transition-colors"
+            aria-label="Tutup modal"
+          >
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        <div className="flex flex-col h-full w-full">
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex-1 flex items-center justify-center pt-8 text-slate-400">
+              <Loader2 className="w-6 h-6 mr-3" /> Memuat...
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !isLoading && (
+            <div className="flex-1 flex items-center justify-center pt-8 text-red-400">
+              <AlertCircle className="w-6 h-6 mr-3" /> {error}
+            </div>
+          )}
+
+          {/* Iframe */}
+          <iframe
+            src={appUrl}
+            className="w-full h-full border-none"
+            allow="autoplay; fullscreen; clipboard-write"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            style={{ width: '100%', height: '100%' }}
+            onLoad={() => {
+              setAppLoading(false);
+            }}
+            onError={() => {
+              setAppLoading(false);
+              setAppError('Aplikasi ini tidak memungkinkan penyematan dalam iframe. Kebijakan keamanan browser mencegah menampilkan konten ini.');
+            }}
+          />
+        </div>
+
+        {/* Fullscreen button */}
+        <button
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-800/50 transition-colors z-10"
+          title="Layar penuh"
+        >
+          <svg
+            className="w-4 h-4 text-slate-400"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M10 4L9 4l12 12-4 4-1-6-6-1L10 4z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Application definitions with URLs
+const APPS = {
+  AKP: {
+    name: 'AKP',
+    url: 'https://akp.beritaindonesia.news/',
+    description: 'Berita Indonesia - AKP',
+  },
+  AJ: {
+    name: 'AJ',
+    url: 'https://aj.beritaindonesia.news/',
+    description: 'Audit Justice - AJ',
+  },
+  'MASTER ADVOCAT': {
+    name: 'MASTER ADVOCAT',
+    url: 'https://master-advocat.vercel.app/',
+    description: 'Master Advocat Legal Platform',
+  },
+}
 
 function MyProjects() {
   const [projects, setProjects] = useState([]);
@@ -14,6 +116,28 @@ function MyProjects() {
   const [error, setError] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const navigate = useNavigate();
+// Modal state for application iframes
+const [visibleApp, setVisibleApp] = useState(null);
+const [appLoading, setAppLoading] = useState(false);
+const [appError, setAppError] = useState(null);
+
+  const openAppModal = (appKey) => {
+    const app = APPS[appKey];
+    if (app) {
+      setVisibleApp(appKey);
+      setAppLoading(true);
+      setAppError(null);
+      setTimeout(() => {
+        setAppLoading(false);
+      }, 3000);
+    }
+  };
+
+  const closeAppModal = () => {
+    setVisibleApp(null);
+    setAppLoading(false);
+    setAppError(null);
+  };
 
   useEffect(() => {
     document.documentElement.classList.add('dark');
@@ -88,6 +212,78 @@ function MyProjects() {
 
       {/* MAIN */}
       <main className="max-w-[1200px] mx-auto px-6 py-8 space-y-6 pb-32">
+        {/* Quick Access - Applications */}
+        <div className="grid gap-6 md:grid-cols-3 mb-8">
+          <div
+            key="AKP"
+            className="bg-[#182133] border border-white/5 rounded-2xl p-6 hover:border-indigo-500/30 transition-all cursor-pointer relative"
+            onClick={() => openAppModal('AKP')}
+            role="button"
+            tabindex="0"
+            onKeyDown={(e) => e.key === 'Enter' && openAppModal('AKP')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <svg
+                className="w-6 h-6 text-indigo-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.21L7 14.14 2 9.27l6.91-1.02L12 2z" />
+              </svg>
+              <span className="text-lg font-bold text-white">AKP</span>
+            </div>
+            <p className="text-sm text-slate-500 line-clamp-2">
+              Berita terbaru dari Indonesia
+            </p>
+          </div>
+
+          <div
+            key="AJ"
+            className="bg-[#182133] border border-white/5 rounded-2xl p-6 hover:border-indigo-500/30 transition-all cursor-pointer relative"
+            onClick={() => openAppModal('AJ')}
+            role="button"
+            tabindex="0"
+            onKeyDown={(e) => e.key === 'Enter' && openAppModal('AJ')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <svg
+                className="w-6 h-6 text-indigo-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14-4-4 1.41-1.42L10 14.17l6.73-6.73L6 8l2.03 1.89L10 14.17z" />
+              </svg>
+              <span className="text-lg font-bold text-white">AJ</span>
+            </div>
+            <p className="text-sm text-slate-500 line-clamp-2">
+              Audit Justice Platform
+            </p>
+          </div>
+
+          <div
+            key="MASTER ADVOCAT"
+            className="bg-[#182133] border border-white/5 rounded-2xl p-6 hover:border-indigo-500/30 transition-all cursor-pointer relative"
+            onClick={() => openAppModal('MASTER ADVOCAT')}
+            role="button"
+            tabindex="0"
+            onKeyDown={(e) => e.key === 'Enter' && openAppModal('MASTER ADVOCAT')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <svg
+                className="w-6 h-6 text-indigo-400"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14-4-4 1.41-1.42L10 14.17l6.73-6.73L6 8l2.03 1.89L10 14.17z" />
+              </svg>
+              <span className="text-lg font-bold text-white">MASTER ADVOCAT</span>
+            </div>
+            <p className="text-sm text-slate-500 line-clamp-2">
+              Master Advocat Legal Platform
+            </p>
+          </div>
+        </div>
+
         {/* Page Title */}
         <div className="flex items-center justify-between">
           <div>
@@ -176,6 +372,14 @@ function MyProjects() {
           </div>
         )}
       </main>
+      <ApplicationModal
+        isOpen={visibleApp !== null}
+        onClose={closeAppModal}
+        appName={visibleApp ? APPS[visibleApp].name : ''}
+        appUrl={visibleApp ? APPS[visibleApp].url : ''}
+        isLoading={appLoading}
+        error={appError}
+      />
     </div>
   );
 }

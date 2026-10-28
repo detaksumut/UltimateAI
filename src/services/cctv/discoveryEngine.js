@@ -30,13 +30,9 @@ export function isSafeUrl(rawUrl) {
     if (hostname === '169.254.169.254') return false;
 
     // Block private RFC1918 ranges
-    // 10.0.0.0/8
     if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
-    // 172.16.0.0/12
     if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
-    // 192.168.0.0/16
     if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
-    // 169.254.0.0/16 (link local)
     if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
 
     return true;
@@ -64,6 +60,7 @@ class BaseDiscoveryConnector {
 
 /**
  * Connector 1: BPJT & Jasa Marga Tollroad CCTV Connector
+ * Discovers toll metadata from official public catalog (no fake video or stock photo)
  */
 export class BPJTTollDiscoveryConnector extends BaseDiscoveryConnector {
   constructor() {
@@ -88,16 +85,18 @@ export class BPJTTollDiscoveryConnector extends BaseDiscoveryConnector {
         district_code: 'Cimanggis',
         category: 'TOLL_ROAD',
         operator: 'PT Jasa Marga (Persero) Tbk',
-        source_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        source_type: 'HLS_STREAM',
-        stream_protocol: 'HLS',
-        access_status: 'PUBLIC_OPEN',
-        stream_status: 'ONLINE',
+        source_url: 'https://bpjt.pu.go.id/cctv',
+        source_type: 'PORTAL_CATALOG',
+        stream_protocol: 'EMBED_PORTAL',
+        access_status: 'PORTAL_RESTRICTED',
+        stream_status: 'UNVERIFIED',
+        source_reachability: 'REACHABLE',
+        stream_playability: 'UNTESTED',
+        location_verification: 'UNVERIFIED_LOCATION',
+        failure_reason: 'Menunggu integrasi stream HLS langsung dari Travoy',
         source_attribution: this.attribution,
-        verification_status: 'VERIFIED_STREAMING',
-        snapshot_url: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=500&auto=format&fit=crop&q=60',
-        fps: 25,
-        resolution: '720p',
+        verification_status: 'SOURCE_PENDING_VERIFICATION',
+        snapshot_url: null,
       },
       {
         camera_id: 'TOL-SMG-002',
@@ -109,16 +108,18 @@ export class BPJTTollDiscoveryConnector extends BaseDiscoveryConnector {
         district_code: 'Ungaran',
         category: 'TOLL_ROAD',
         operator: 'PT Trans Marga Jateng',
-        source_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        source_type: 'VIDEO_DIRECT',
-        stream_protocol: 'MP4_STREAM',
-        access_status: 'PUBLIC_OPEN',
-        stream_status: 'ONLINE',
+        source_url: 'https://bpjt.pu.go.id/cctv',
+        source_type: 'PORTAL_CATALOG',
+        stream_protocol: 'EMBED_PORTAL',
+        access_status: 'PORTAL_RESTRICTED',
+        stream_status: 'UNVERIFIED',
+        source_reachability: 'REACHABLE',
+        stream_playability: 'UNTESTED',
+        location_verification: 'UNVERIFIED_LOCATION',
+        failure_reason: 'Endpoint publik stream video belum diverifikasi',
         source_attribution: this.attribution,
-        verification_status: 'VERIFIED_STREAMING',
-        snapshot_url: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?w=500&auto=format&fit=crop&q=60',
-        fps: 30,
-        resolution: '720p',
+        verification_status: 'SOURCE_PENDING_VERIFICATION',
+        snapshot_url: null,
       },
     ];
 
@@ -128,7 +129,7 @@ export class BPJTTollDiscoveryConnector extends BaseDiscoveryConnector {
       checked_at: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
       discovered_count: discovered.length,
-      active_count: discovered.filter((c) => c.stream_status === 'ONLINE').length,
+      active_count: discovered.filter((c) => c.stream_playability === 'PLAYABLE').length,
       access_method: 'PUBLIC_CATALOG_SCAN',
       errors: [],
     };
@@ -139,6 +140,7 @@ export class BPJTTollDiscoveryConnector extends BaseDiscoveryConnector {
 
 /**
  * Connector 2: Pemda Dishub ATCS Discovery Connector
+ * Discovers municipal traffic camera metadata (no fake video or stock photo)
  */
 export class PemdaDishubATCSConnector extends BaseDiscoveryConnector {
   constructor() {
@@ -163,16 +165,18 @@ export class PemdaDishubATCSConnector extends BaseDiscoveryConnector {
         district_code: 'Coblong',
         category: 'TRAFFIC_ATCS',
         operator: 'Dishub Kota Bandung // ATCS',
-        source_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        source_type: 'HLS_STREAM',
+        source_url: null,
+        source_type: 'PENDING_INTEGRATION',
         stream_protocol: 'HLS',
         access_status: 'PUBLIC_OPEN',
-        stream_status: 'ONLINE',
+        stream_status: 'UNVERIFIED',
+        source_reachability: 'UNKNOWN',
+        stream_playability: 'UNTESTED',
+        location_verification: 'UNVERIFIED_LOCATION',
+        failure_reason: 'Stream resmi Dishub Bandung belum diintegrasikan',
         source_attribution: this.attribution,
-        verification_status: 'VERIFIED_STREAMING',
-        snapshot_url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=500&auto=format&fit=crop&q=60',
-        fps: 25,
-        resolution: '720p',
+        verification_status: 'SOURCE_PENDING_VERIFICATION',
+        snapshot_url: null,
       },
       {
         camera_id: 'SBY-ATCS-003',
@@ -184,16 +188,18 @@ export class PemdaDishubATCSConnector extends BaseDiscoveryConnector {
         district_code: 'Tegalsari',
         category: 'TRAFFIC_ATCS',
         operator: 'Dishub Kota Surabaya // SITS',
-        source_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        source_type: 'HLS_STREAM',
+        source_url: null,
+        source_type: 'PENDING_INTEGRATION',
         stream_protocol: 'HLS',
         access_status: 'PUBLIC_OPEN',
-        stream_status: 'ONLINE',
+        stream_status: 'UNVERIFIED',
+        source_reachability: 'UNKNOWN',
+        stream_playability: 'UNTESTED',
+        location_verification: 'UNVERIFIED_LOCATION',
+        failure_reason: 'Stream resmi SITS Surabaya belum diintegrasikan',
         source_attribution: this.attribution,
-        verification_status: 'VERIFIED_STREAMING',
-        snapshot_url: 'https://images.unsplash.com/photo-1555899434-94d1368aa7af?w=500&auto=format&fit=crop&q=60',
-        fps: 25,
-        resolution: '720p',
+        verification_status: 'SOURCE_PENDING_VERIFICATION',
+        snapshot_url: null,
       },
     ];
 
@@ -203,7 +209,7 @@ export class PemdaDishubATCSConnector extends BaseDiscoveryConnector {
       checked_at: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
       discovered_count: discovered.length,
-      active_count: discovered.filter((c) => c.stream_status === 'ONLINE').length,
+      active_count: discovered.filter((c) => c.stream_playability === 'PLAYABLE').length,
       access_method: 'REST_CATALOG_SCAN',
       errors: [],
     };
@@ -214,6 +220,7 @@ export class PemdaDishubATCSConnector extends BaseDiscoveryConnector {
 
 /**
  * Connector 3: Pelindo & Maritime Hub Discovery Connector
+ * Discovers port camera records (no fake Big Buck Bunny video)
  */
 export class PelindoMaritimeConnector extends BaseDiscoveryConnector {
   constructor() {
@@ -238,16 +245,18 @@ export class PelindoMaritimeConnector extends BaseDiscoveryConnector {
         district_code: 'Medan Belawan',
         category: 'PORT_MARITIME',
         operator: 'Pelindo Regional 1 Belawan',
-        source_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        source_type: 'VIDEO_DIRECT',
+        source_url: null,
+        source_type: 'PENDING_INTEGRATION',
         stream_protocol: 'MP4_STREAM',
-        access_status: 'PUBLIC_OPEN',
-        stream_status: 'ONLINE',
+        access_status: 'REQUIRES_ACCESS',
+        stream_status: 'UNVERIFIED',
+        source_reachability: 'UNKNOWN',
+        stream_playability: 'UNTESTED',
+        location_verification: 'UNVERIFIED_LOCATION',
+        failure_reason: 'Akses alur pelabuhan memerlukan otorisasi internal Pelindo',
         source_attribution: this.attribution,
-        verification_status: 'VERIFIED_STREAMING',
-        snapshot_url: 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=500&auto=format&fit=crop&q=60',
-        fps: 30,
-        resolution: '720p',
+        verification_status: 'SOURCE_PENDING_VERIFICATION',
+        snapshot_url: null,
       },
     ];
 
@@ -257,7 +266,7 @@ export class PelindoMaritimeConnector extends BaseDiscoveryConnector {
       checked_at: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
       discovered_count: discovered.length,
-      active_count: discovered.filter((c) => c.stream_status === 'ONLINE').length,
+      active_count: discovered.filter((c) => c.stream_playability === 'PLAYABLE').length,
       access_method: 'MARITIME_VTS_CATALOG',
       errors: [],
     };
@@ -301,8 +310,8 @@ class CCTVDiscoveryEngine {
         try {
           const items = await connector.runDiscovery();
           items.forEach((item) => {
-            // Apply SSRF validation
-            if (isSafeUrl(item.source_url)) {
+            // Apply SSRF validation if url exists
+            if (!item.source_url || isSafeUrl(item.source_url)) {
               cctvRegistryInstance.addOrUpdate(item);
               totalAdded++;
             }
@@ -325,7 +334,6 @@ class CCTVDiscoveryEngine {
         logs: sessionLogs,
       });
 
-      // Keep last 10 run logs
       if (this.history.length > 10) this.history.pop();
 
       return {
