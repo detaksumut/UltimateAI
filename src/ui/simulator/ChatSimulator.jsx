@@ -53,6 +53,11 @@ export default function ChatSimulator() {
   const [leftTab, setLeftTab] = useState('JIN');
   // MIE popup modal: dibuka lewat tombol panel kiri ATAU voice "Mama Jin, analisis IHSG"
   const [mieModal, setMieModal] = useState({ open: false, symbol: 'IHSG' });
+// MY APPLICATIONS modal state
+const [visibleApp, setVisibleApp] = useState(null);
+const [appLoading, setAppLoading] = useState(false);
+const [appError, setAppError] = useState(null);
+const [appFullscreen, setAppFullscreen] = useState(false);
   const [messageCount, setMessageCount] = useState(() => conversationControllerInstance.getSnapshot().messages.length);
   // Honest defaults: these are "unknown" until the live probes answer. The old
   // values ('QWEN3:8B' / 'OLLAMA') described a runtime that is not installed.
@@ -72,6 +77,35 @@ export default function ChatSimulator() {
 
   const { state: avatarState } = useJinAvatar();
   const audioMetrics = useAudioAnalyzer(avatarState);
+
+// MY APPLICATIONS modal functions
+const APPS = {
+  AKP: { name: 'AKP', url: 'https://akp.beritaindonesia.news/', description: 'Berita Indonesia - AKP' },
+  AJ: { name: 'AJ', url: 'https://aj.beritaindonesia.news/', description: 'Audit Justice - AJ' },
+  'MASTER ADVOCAT': { name: 'MASTER ADVOCAT', url: 'https://master-advocat.vercel.app/', description: 'Master Advocat Legal Platform' },
+};
+
+const openAppModal = (appKey) => {
+  const app = APPS[appKey];
+  if (app) {
+    setVisibleApp(appKey);
+    setAppLoading(true);
+    setAppError(null);
+    setAppFullscreen(false);
+    // Auto-hide loading after 8 detik (bukan bukti berhasil, hanya agar tidak stuck)
+    const timeoutId = setTimeout(() => {
+      setAppLoading(false);
+    }, 8000);
+    return () => clearTimeout(timeoutId);
+  }
+};
+
+const closeAppModal = () => {
+  setVisibleApp(null);
+  setAppLoading(false);
+  setAppError(null);
+  setAppFullscreen(false);
+};
 
   useEffect(() => {
     frontendErrorObserver.start();
@@ -299,6 +333,37 @@ export default function ChatSimulator() {
                   border: `1px solid ${c}44`, background: `${c}11`, color: c, letterSpacing: '0.02em' }}>{l}</button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ═══ MY APPLICATIONS ═══ */}
+      <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
+        <div className="hud-label">MY APPLICATIONS</div>
+        <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {Object.keys(APPS).map((key) => (
+            <button
+              key={key}
+              onClick={() => openAppModal(key)}
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '6px 8px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                border: '1px solid rgba(0,229,255,0.25)',
+                background: 'rgba(0,229,255,0.05)',
+                color: '#00e5ff',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                letterSpacing: '0.03em',
+              }}
+            >
+              <span style={{ fontSize: 12 }}>🔗</span>
+              {key}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -610,6 +675,200 @@ export default function ChatSimulator() {
         initialSymbol={mieModal.symbol}
         onClose={() => setMieModal((s) => ({ ...s, open: false }))}
       />
+
+      {/* ═══ MY APPLICATIONS MODAL ═══ */}
+      {visibleApp !== null && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) closeAppModal(); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex', flexDirection: 'column',
+              background: 'linear-gradient(135deg, #070d1a 0%, #0a1628 60%, #030912 100%)',
+              border: '1px solid rgba(0,229,255,0.25)',
+              borderRadius: appFullscreen ? 0 : 16,
+              boxShadow: '0 0 60px rgba(0,229,255,0.15), 0 24px 80px rgba(0,0,0,0.9)',
+              overflow: 'hidden',
+              transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+              width: appFullscreen ? '100vw' : '96vw',
+              maxWidth: appFullscreen ? '100vw' : '1400px',
+              height: appFullscreen ? '100vh' : '90vh',
+            }}
+          >
+            {/* ── Header Bar ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 16px',
+              background: 'linear-gradient(90deg, rgba(0,229,255,0.06) 0%, rgba(0,0,0,0) 100%)',
+              borderBottom: '1px solid rgba(0,229,255,0.12)',
+              flexShrink: 0,
+            }}>
+              {/* App name + URL */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 14, color: 'rgba(0,229,255,0.5)' }}>🔗</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#00e5ff', letterSpacing: '0.12em', fontFamily: 'monospace' }}>
+                    {APPS[visibleApp].name}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'rgba(148,163,184,0.5)', fontFamily: 'monospace', marginTop: 1 }}>
+                    {APPS[visibleApp].url}
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* Fullscreen toggle (in-app) */}
+                <button
+                  onClick={() => setAppFullscreen((f) => !f)}
+                  title={appFullscreen ? 'Kecilkan modal' : 'Perbesar modal (layar penuh di dalam JINI)'}
+                  style={{
+                    background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)',
+                    borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#00e5ff',
+                    display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, fontWeight: 700,
+                    fontFamily: 'monospace', letterSpacing: '0.05em',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    {appFullscreen
+                      ? <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                      : <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                    }
+                  </svg>
+                  {appFullscreen ? 'KECIL' : 'LAYAR PENUH'}
+                </button>
+
+                {/* Open in external browser — secondary option */}
+                <button
+                  onClick={() => window.open(APPS[visibleApp].url, '_blank')}
+                  title="Buka di browser eksternal (tab baru)"
+                  style={{
+                    background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.25)',
+                    borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: 'rgba(148,163,184,0.7)',
+                    display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, fontWeight: 700,
+                    fontFamily: 'monospace', letterSpacing: '0.05em',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                  EKSTERNAL
+                </button>
+
+                {/* Close */}
+                <button
+                  onClick={closeAppModal}
+                  aria-label="Tutup modal"
+                  style={{
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                    borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#f87171',
+                    display: 'flex', alignItems: 'center', transition: 'all 0.15s',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* ── iframe area ── */}
+            <div style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              {/* Loading overlay */}
+              {appLoading && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(7,13,26,0.92)', color: 'rgba(0,229,255,0.7)',
+                  fontFamily: 'monospace', fontSize: 12, gap: 12,
+                }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="animate-spin">
+                    <circle cx="12" cy="12" r="10" stroke="rgba(0,229,255,0.2)" strokeWidth="3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#00e5ff" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  <span style={{ letterSpacing: '0.15em' }}>MEMUAT {APPS[visibleApp].name}...</span>
+                  <span style={{ fontSize: 9, color: 'rgba(148,163,184,0.4)' }}>{APPS[visibleApp].url}</span>
+                </div>
+              )}
+
+              {/* Error overlay */}
+              {appError && !appLoading && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(7,13,26,0.95)', color: '#f87171',
+                  fontFamily: 'monospace', gap: 16, padding: 32,
+                }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" />
+                  </svg>
+                  <div style={{ textAlign: 'center', maxWidth: 480 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>KONEKSI TERHAMBAT</div>
+                    <div style={{ fontSize: 11, color: 'rgba(248,113,113,0.7)', lineHeight: 1.6 }}>{appError}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => {
+                        setAppError(null);
+                        setAppLoading(true);
+                        const iframe = document.querySelector('iframe[data-app-modal]');
+                        if (iframe) { const u = iframe.src; iframe.src = ''; iframe.src = u; }
+                        setTimeout(() => setAppLoading(false), 8000);
+                      }}
+                      style={{
+                        padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
+                        fontWeight: 700, letterSpacing: '0.08em', fontFamily: 'monospace',
+                        background: 'rgba(0,229,255,0.1)', border: '1px solid rgba(0,229,255,0.3)', color: '#00e5ff',
+                      }}
+                    >
+                      COBA LAGI
+                    </button>
+                    <button
+                      onClick={() => window.open(APPS[visibleApp].url, '_blank')}
+                      style={{
+                        padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 10,
+                        fontWeight: 700, letterSpacing: '0.08em', fontFamily: 'monospace',
+                        background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', color: 'rgba(148,163,184,0.8)',
+                      }}
+                    >
+                      BUKA DI BROWSER
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* iframe */}
+              <iframe
+                key={visibleApp}
+                data-app-modal
+                src={APPS[visibleApp].url}
+                title={APPS[visibleApp].name}
+                allow="autoplay; fullscreen; clipboard-write; camera; microphone"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                onLoad={() => setAppLoading(false)}
+                onError={() => {
+                  setAppLoading(false);
+                  setAppError('Aplikasi tidak dapat dimuat dalam iframe. Kemungkinan penyebab: kebijakan X-Frame-Options atau Content-Security-Policy situs melarang penyematan.');
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
