@@ -271,42 +271,44 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
           </div>;
         })}
       </div>
-      <div style={{marginTop:8,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
-        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>LEVEL PENTING</div>
-        {(() => {
-          const m5 = visualResults['M5'];
-          const valid = m5?.dataStatus === 'VISUAL_READY' && m5.symbol_match === true && m5.timeframe_match === true;
-          const fmtLevel = value => Number.isFinite(value) ? value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : 'BELUM TERVERIFIKASI';
-          const rows = [
-            {label:'R3',value:m5?.r3,color:'#fb7185'},
-            {label:'R2',value:m5?.r2,color:'#fb7185'},
-            {label:'R1',value:valid&&Number.isFinite(m5?.resistance)?m5.resistance:null,color:'#fb7185'},
-            {label:'CURRENT',value:valid&&Number.isFinite(m5?.last_price)?m5.last_price:null,color:'#cbd5e1'},
-            {label:'S1',value:valid&&Number.isFinite(m5?.support)?m5.support:null,color:'#38bdf8'},
-            {label:'S2',value:m5?.s2,color:'#38bdf8'},
-            {label:'S3',value:m5?.s3,color:'#38bdf8'},
-          ];
-          return rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'7px 7px',marginTop:4,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
-            <strong style={{fontSize:9,color:row.color}}>{row.label}</strong>
-            <strong style={{fontSize:10,color:Number.isFinite(row.value)?row.color:'#fbbf24'}}>{valid?fmtLevel(row.value):'BELUM TERVERIFIKASI'}</strong>
-          </div>);
-        })()}
-        <div style={{fontSize:8,color:'#64748b',marginTop:6}}>Level ditampilkan hanya jika tersedia dari data valid; level yang tidak tersedia tidak diperkirakan.</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:7,marginTop:8}}>
+        <div style={{minWidth:0,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
+          <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>RS · SUPPORT / RESISTANCE</div>
+          {(() => {
+            const m5=visualResults['M5'];
+            const valid=m5?.dataStatus==='VISUAL_READY'&&m5.symbol_match===true&&m5.timeframe_match===true;
+            const fmtLevel=value=>Number.isFinite(value)?value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+            const rows=[
+              {label:'R3',value:m5?.r3,color:'#fb7185'},
+              {label:'R2',value:m5?.r2,color:'#fb7185'},
+              {label:'R1',value:valid?m5?.resistance:null,color:'#fb7185'},
+              {label:'CURRENT',value:valid?m5?.last_price:null,color:'#cbd5e1'},
+              {label:'S1',value:valid?m5?.support:null,color:'#38bdf8'},
+              {label:'S2',value:m5?.s2,color:'#38bdf8'},
+              {label:'S3',value:m5?.s3,color:'#38bdf8'},
+            ];
+            return <>{rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:5,padding:'6px 5px',marginTop:4,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
+              <strong style={{fontSize:9,color:row.color}}>{row.label}</strong>
+              <strong style={{fontSize:9,color:valid&&Number.isFinite(row.value)?row.color:'#fbbf24',textAlign:'right'}}>{valid?fmtLevel(row.value):'BELUM VALID'}</strong>
+            </div>)}<div style={{fontSize:8,color:'#64748b',marginTop:5}}>Level yang tidak tersedia ditampilkan sebagai —.</div></>;
+          })()}
+        </div>
+        <div style={{minWidth:0,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
+          <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>SD · SUPPLY / DEMAND M5</div>
+          {(() => {
+            const m5=visualResults['M5'];
+            const valid=m5?.dataStatus==='VISUAL_READY'&&m5.symbol_match===true&&m5.timeframe_match===true&&Number.isFinite(m5.support)&&Number.isFinite(m5.resistance)&&m5.support<m5.resistance;
+            const rows=[
+              {label:'SUPPLY',value:valid?m5.resistance:null,color:'#fb7185'},
+              {label:'DEMAND',value:valid?m5.support:null,color:'#38bdf8'},
+            ];
+            return <>{rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:5,padding:'8px 5px',marginTop:5,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
+              <strong style={{fontSize:9,color:row.color}}>{row.label}</strong>
+              <strong style={{fontSize:9,color:row.value===null?'#fbbf24':row.color,textAlign:'right'}}>{row.value===null?'BELUM VALID':row.value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+            </div>)}<div style={{fontSize:8,color:'#64748b',marginTop:5}}>Zona memakai data visual M5 yang lolos validasi.</div></>;
+          })()}
+        </div>
       </div>
-      <div style={{marginTop:8,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
-        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>SUPPLY &amp; DEMAND · M5</div>
-        {(() => {
-          const m5 = visualResults['M5'];
-          const valid = m5?.dataStatus === 'VISUAL_READY' && m5.symbol_match === true && m5.timeframe_match === true && Number.isFinite(m5.support) && Number.isFinite(m5.resistance) && m5.support < m5.resistance;
-          const rows = [
-            {label:'SUPPLY',value:valid?m5.resistance:null,color:'#fb7185'},
-            {label:'DEMAND',value:valid?m5.support:null,color:'#38bdf8'},
-          ];
-          return <>{rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'8px 7px',marginTop:5,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
-            <strong style={{fontSize:10,color:row.color}}>{row.label}</strong>
-            <strong style={{fontSize:11,color:row.value===null?'#fbbf24':row.color}}>{row.value===null?'BELUM TERVERIFIKASI':row.value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
-          </div>)}<div style={{fontSize:8,color:'#64748b',marginTop:6}}>Sumber: pembacaan visual M5{m5?.capturedAt?' · '+new Date(m5.capturedAt).toLocaleTimeString('id-ID'):''}</div></>;
-        })()}
       </div>
     </section></>;
   }
