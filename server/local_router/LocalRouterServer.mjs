@@ -4300,6 +4300,62 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
+
+    // JIN XAUUSD Fundamental Reader: fetch only allowlisted public sources.
+    if (pathname === '/api/trading/fundamental-read' && req.method === 'POST') {
+      try {
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 20000) throw new Error('Request body too large');
+        }
+        const payload = JSON.parse(body || '{}');
+        const allowedSources = {
+          fed: { label: 'Federal Reserve', url: 'https://www.federalreserve.gov/newsevents/pressreleases.htm', host: 'www.federalreserve.gov' },
+          bls: { label: 'BLS Releases', url: 'https://www.bls.gov/schedule/news_release/', host: 'www.bls.gov' },
+          bea: { label: 'BEA Releases', url: 'https://www.bea.gov/news/schedule', host: 'www.bea.gov' },
+          treasury: { label: 'US Treasury Yields', url: 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates', host: 'home.treasury.gov' },
+          cftc: { label: 'CFTC COT Reports', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', host: 'www.cftc.gov' }
+        };
+        const requested = Array.isArray(payload.sources) ? payload.sources : Object.keys(allowedSources);
+        const selected = [...new Set(requested)].filter(key => allowedSources[key]).slice(0, 5);
+        const results = await Promise.all(selected.map(async key => {
+          const source = allowedSources[key];
+          try {
+            const response = await fetch(source.url, {
+              headers: { 'User-Agent': 'UltimateAI-JIN-FundamentalReader/1.0', 'Accept': 'text/html,application/xhtml+xml' },
+              signal: AbortSignal.timeout(12000),
+              redirect: 'error'
+            });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const finalUrl = new URL(response.url);
+            if (finalUrl.hostname !== source.host || !['https:'].includes(finalUrl.protocol)) throw new Error('Unexpected source host');
+            const html = (await response.text()).slice(0, 1500000);
+            const textContent = html
+              .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')
+              .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')
+              .replace(/<(br|\\/p|\\/div|\\/li|\\/tr|\\/h[1-6])\\b[^>]*>/gi, '\\n')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/&nbsp;|&#160;/gi, ' ')
+              .replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+              .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+              .replace(/[ \\t]+/g, ' ').replace(/\\n\\s*\\n+/g, '\\n').trim()
+              .slice(0, 18000);
+            if (textContent.length < 100) throw new Error('Page content too short or blocked');
+            return { key, label: source.label, url: source.url, status: 'READ', httpStatus: response.status, fetchedAt: new Date().toISOString(), content: textContent };
+          } catch (error) {
+            return { key, label: source.label, url: source.url, status: 'SOURCE_UNAVAILABLE', fetchedAt: new Date().toISOString(), error: error.message };
+          }
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: true, fetchedAt: new Date().toISOString(), sources: results }));
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: error.message || 'Fundamental source read failed' }));
+      }
+      return;
+    }
+
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));
