@@ -326,7 +326,6 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       </header>
       <nav aria-label="Tab analisis pasar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
         <button type="button" onClick={() => setActiveTab('advanced')} style={tabStyle('advanced')}>ANALISIS LANJUTAN</button>
-        <button type="button" onClick={() => setActiveTab('fundamental')} style={tabStyle('fundamental')}>ANALISIS FUNDAMENTAL</button>
       </nav>
       {activeTab === 'advanced' && <>
         <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 8 }}>ADVANCED PRICE & INDICATOR ANALYSIS</div>
@@ -350,28 +349,6 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
             <p style={{ color: '#fbbf24', margin: '6px 0 0' }}>Konfirmasi ini bersifat teknikal; tetap periksa kualitas dan kesegaran data serta risiko berita berdampak tinggi.</p>
           </div>
         </>}
-      </>}
-      {activeTab === 'fundamental' && <>
-        <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 6 }}>JIN GOLD FUNDAMENTAL INTELLIGENCE</div>
-        <div style={{ padding: 9, border: '1px solid #92400e', borderRadius: 5, background: '#211608', color: '#fbbf24', marginBottom: 10 }}>
-          STATUS FEED: BELUM TERHUBUNG. Panel ini tidak mengarang data aktual, konsensus, countdown, atau bias berita. Buka sumber resmi di bawah untuk memverifikasi rilis terbaru.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
-          {metric('FED / SUKU BUNGA', 'Perlu verifikasi rilis terbaru', 'FOMC, minutes, pidato pejabat Fed')}
-          {metric('DATA INFLASI & TENAGA KERJA', 'Perlu verifikasi rilis terbaru', 'CPI, PCE, NFP, pengangguran')}
-          {metric('USD & TREASURY YIELDS', 'Feed pasar belum terhubung', 'DXY, yield 2Y/10Y, real yield')}
-          {metric('DAMPAK TERHADAP EMAS', 'BELUM DINILAI', 'Bias bullish/bearish ditahan sampai data diverifikasi')}
-        </div>
-        <div style={{ color: '#94a3b8', margin: '12px 0 7px', fontWeight: 800 }}>SUMBER DATA RESMI</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
-          {sourceLink('Federal Reserve', 'https://www.federalreserve.gov/monetarypolicy.htm', 'Keputusan FOMC, jadwal rapat, minutes dan kebijakan moneter.')}
-          {sourceLink('BLS — CPI & Employment', 'https://www.bls.gov/schedule/news_release/', 'Jadwal rilis resmi inflasi dan data tenaga kerja AS.')}
-          {sourceLink('BEA — PCE & GDP', 'https://www.bea.gov/news/schedule', 'Jadwal PCE, GDP, dan rilis ekonomi resmi.')}
-          {sourceLink('US Treasury — Yields', 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates', 'Data suku bunga Treasury AS.')}
-          {sourceLink('CFTC — COT Reports', 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', 'Posisi futures terlapor; bukan sinyal real-time.')}
-          {sourceLink('FRED — Economic Data', 'https://fred.stlouisfed.org/', 'Deret waktu makroekonomi; perhatikan tanggal pembaruan.')}
-        </div>
-        <div style={{ color: '#94a3b8', marginTop: 10, lineHeight: 1.6 }}>Interpretasi yang harus diuji: ekspektasi suku bunga riil yang naik dan USD menguat sering menekan emas; ekspektasi pelonggaran atau USD melemah dapat mendukung emas. Ini hanya kerangka umum, bukan pembacaan kondisi saat ini. Geopolitik, positioning, dan respons harga dapat mengubah dampak.</div>
       </>}
       <footer style={{ marginTop: 10, color: '#64748b', fontSize: 9 }}>
         Bukan nasihat keuangan. Sinyal ditahan jika data tidak cukup atau tidak segar.
