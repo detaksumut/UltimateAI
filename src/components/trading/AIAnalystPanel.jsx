@@ -271,15 +271,19 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
           </div>;
         })}
       </div>
-      <div style={{marginTop:9,padding:9,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
-        <div style={{color:'#67e8f9',fontWeight:900,marginBottom:8}}>SUPPLY &amp; DEMAND · M5</div>
+      <div style={{marginTop:9,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
+        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:7}}>SUPPLY &amp; DEMAND · M5</div>
         {(() => {
           const m5 = visualResults['M5'];
           const valid = m5?.dataStatus === 'VISUAL_READY' && m5.symbol_match === true && m5.timeframe_match === true && Number.isFinite(m5.support) && Number.isFinite(m5.resistance) && m5.support < m5.resistance;
-          return valid ? <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:7}}>
-            <div style={{padding:8,border:'1px solid #7f1d1d',borderRadius:5}}><div style={{color:'#fb7185',fontSize:9,fontWeight:900}}>SUPPLY ZONE / RESISTANCE</div><div style={{fontSize:13,fontWeight:900,marginTop:5}}>{m5.resistance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div style={{color:'#94a3b8',fontSize:9,marginTop:4}}>Sumber: pembacaan visual M5 · {m5.capturedAt ? new Date(m5.capturedAt).toLocaleTimeString('id-ID') : 'waktu tidak tersedia'}</div></div>
-            <div style={{padding:8,border:'1px solid #075985',borderRadius:5}}><div style={{color:'#38bdf8',fontSize:9,fontWeight:900}}>DEMAND ZONE / SUPPORT</div><div style={{fontSize:13,fontWeight:900,marginTop:5}}>{m5.support.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div style={{color:'#94a3b8',fontSize:9,marginTop:4}}>Sumber: pembacaan visual M5 · {m5.capturedAt ? new Date(m5.capturedAt).toLocaleTimeString('id-ID') : 'waktu tidak tersedia'}</div></div>
-          </div> : <div style={{color:'#fbbf24',fontSize:10,lineHeight:1.6}}>DATA SUPPLY &amp; DEMAND BELUM TERVERIFIKASI. Rekam M5 yang cocok dan valid untuk menampilkan zona; level tidak ditebak.</div>;
+          const rows = [
+            {label:'SUPPLY',value:valid?m5.resistance:null,color:'#fb7185'},
+            {label:'DEMAND',value:valid?m5.support:null,color:'#38bdf8'},
+          ];
+          return <>{rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'8px 7px',marginTop:5,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
+            <strong style={{fontSize:10,color:row.color}}>{row.label}</strong>
+            <strong style={{fontSize:11,color:row.value===null?'#fbbf24':row.color}}>{row.value===null?'BELUM TERVERIFIKASI':row.value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+          </div>)}<div style={{fontSize:8,color:'#64748b',marginTop:6}}>Sumber: pembacaan visual M5{m5?.capturedAt?' · '+new Date(m5.capturedAt).toLocaleTimeString('id-ID'):''}</div></>;
         })()}
       </div>
     </section></>;
