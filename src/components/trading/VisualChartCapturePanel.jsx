@@ -55,13 +55,24 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       data.confidence = Number.isFinite(Number(data.confidence)) ? Math.max(0, Math.min(100, Number(data.confidence))) : 0;
       data.visible_candles = Number.isFinite(Number(data.visible_candles)) ? Math.max(0, Number(data.visible_candles)) : 0;
       const observedInstrument = String(data.instrument || '').trim().toUpperCase();
-      const observedTimeframe = String(data.timeframe || '').trim().toUpperCase();
-      const normalizeTf = value => ({ '1':'M1','1M':'M1','5':'M5','5M':'M5','15':'M15','15M':'M15','30':'M30','30M':'M30','60':'H1','1H':'H1','H1':'H1','240':'H4','4H':'H4','H4':'H4','D':'D1','1D':'D1','D1':'D1' })[value] || value;
+      const observedTimeframe = String(data.timeframe || '').trim().toUpperCase().replace(/\\s+/g, ' ');
+      const normalizeTf = value => {
+        const v = String(value || '').trim().toUpperCase().replace(/\\s+/g, '');
+        return ({ '1':'M1','1M':'M1','1MIN':'M1','1MINUTE':'M1','5':'M5','5M':'M5','5MIN':'M5','5MINUTE':'M5','5MINUTES':'M5','15':'M15','15M':'M15','15MIN':'M15','15MINUTE':'M15','15MINUTES':'M15','30':'M30','30M':'M30','30MIN':'M30','60':'H1','1H':'H1','1HR':'H1','1HOUR':'H1','H1':'H1','240':'H4','4H':'H4','4HR':'H4','4HOUR':'H4','H4':'H4','D':'D1','1D':'D1','D1':'D1' })[v] || v;
+      };
+      const normalizeSymbol = value => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const requestedSymbol = normalizeSymbol(instrument);
+      const observedSymbol = normalizeSymbol(observedInstrument);
+      // TradingView may show the human-readable instrument title rather than the ticker.
+      // Accept only explicit, known aliases for XAUUSD; do not treat any arbitrary gold text as proof.
+      const xauAliases = ['XAUUSD','GOLDSPOTUSD','GOLDSPOTUSDOANDA','GOLDSPOTUS DOLLAR'.replace(/\\s/g,'')];
+      const isXauRequest = requestedSymbol === 'XAUUSD';
+      const xauObserved = isXauRequest && (observedSymbol.includes('XAUUSD') || observedSymbol.includes('GOLDSPOTUSD') || observedSymbol.includes('GOLDSPOTUSDOLLAR') || observedSymbol.includes('GOLDSPOTUSDOANDA'));
       data.observedInstrument = observedInstrument || null;
       data.observedTimeframe = observedTimeframe || null;
       data.requestedInstrument = instrument;
       data.requestedTimeframe = targetTimeframe;
-      data.symbol_match = Boolean(observedInstrument && (observedInstrument === instrument.toUpperCase() || observedInstrument.includes(instrument.toUpperCase())));
+      data.symbol_match = Boolean(observedInstrument && (observedSymbol === requestedSymbol || observedSymbol.includes(requestedSymbol) || xauObserved));
       data.timeframe_match = Boolean(observedTimeframe && normalizeTf(observedTimeframe) === normalizeTf(targetTimeframe));
       // Keep requested context separate from what vision actually read; never overwrite evidence.
       data.instrument = observedInstrument || instrument;
