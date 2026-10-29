@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
+import JINLiveSignalChart from './JINLiveSignalChart.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -23,56 +24,8 @@ export default function TradingStudioModal({ onClose }) {
   const [symbol, setSymbol] = useState('OANDA:XAUUSD');
   const [interval, setInterval] = useState('60');
   const [chartMode, setChartMode] = useState('normal');
-  const chartContainerRef = useRef(null);
   const instrument = symbol.split(':').pop();
   const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
-  useEffect(() => {
-    const container = chartContainerRef.current;
-    if (!container) return undefined;
-
-    // Use TradingView's supported Advanced Chart embed instead of the generic
-    // widgetembed page, which was injecting an unrelated US Exchanges sidebar.
-    container.innerHTML = '';
-    const widgetRoot = document.createElement('div');
-    widgetRoot.className = 'tradingview-widget-container__widget';
-    widgetRoot.style.width = '100%';
-    widgetRoot.style.height = '100%';
-    container.appendChild(widgetRoot);
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol,
-      interval,
-      timezone: 'Asia/Jakarta',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      enable_publishing: false,
-      hide_top_toolbar: false,
-      hide_side_toolbar: false,
-      hide_legend: false,
-      save_image: false,
-      withdateranges: true,
-      allow_symbol_change: false,
-      details: false,
-      hotlist: false,
-      calendar: false,
-      hide_volume: false,
-      backgroundColor: '#030812',
-      gridColor: 'rgba(148,163,184,0.10)',
-      support_host: 'https://www.tradingview.com'
-    });
-    container.appendChild(script);
-
-    return () => {
-      container.innerHTML = '';
-    };
-  }, [symbol, interval]);
-
   const isFullChart = chartMode === 'full';
   const gridColumns = isFullChart ? 'minmax(0, 1fr)' : chartMode === 'compact' ? 'minmax(280px, 0.85fr) minmax(360px, 1.4fr)' : 'minmax(0, 1.65fr) minmax(300px, 1fr)';
 
@@ -101,13 +54,8 @@ export default function TradingStudioModal({ onClose }) {
       </header>
 
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
-        <section aria-label="TradingView live chart" style={{ minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
-          <div
-            ref={chartContainerRef}
-            className="tradingview-widget-container"
-            aria-label={'TradingView live chart ' + instrument + ' ' + timeframe}
-            style={{ position: 'relative', width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560 }}
-          />
+        <section aria-label="JIN live candlestick chart" style={{ minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
+          <JINLiveSignalChart symbol={instrument} interval={interval} />
         </section>
         {!isFullChart && <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
           <h2 style={{ color: '#22d3ee', fontSize: 12, letterSpacing: 1, fontWeight: 800, margin: '0 0 12px' }}>AI TECHNICAL ANALYST</h2>
