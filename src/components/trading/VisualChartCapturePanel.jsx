@@ -99,7 +99,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
         setStatus('BERPINDAH KE ' + item.label + '…');
         onTimeframeChange(item.interval);
         // Give React/TradingView time to rebuild the widget and render the requested timeframe.
-        await sleep(6500);
+        await sleep(10000);
         setStatus('MEMBACA ' + item.label + '…');
         const result = await captureAndAnalyze(item.label, false);
         if (result) batch.push(result);
