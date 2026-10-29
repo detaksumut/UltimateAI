@@ -73,6 +73,44 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     };
   }, [instrument, timeframe]);
 
+  // Poll the local MT5 bridge for independent H4/H1/M15/M5/D1 OHLC series.
+  // TradingView's embedded chart is cross-origin and is not used as a numeric feed.
+  useEffect(() => {
+    let cancelled = false;
+    const timeframes = ['H4','H1','M15','M5','D1'];
+    const poll = async () => {
+      const results = await Promise.all(timeframes.map(async tf => {
+        try {
+          const response = await fetch(`http://127.0.0.1:20200/api/trading/ohlc?symbol=${encodeURIComponent(instrument)}&timeframe=${tf}&limit=300`, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`MT5 bridge HTTP ${response.status}`);
+          return await response.json();
+        } catch (error) {
+          return { ok: false, timeframe: tf, error: error?.message || 'MT5 bridge unavailable' };
+        }
+      }));
+      if (cancelled) return;
+      let total = 0;
+      let latestTimestamp = null;
+      for (const result of results) {
+        if (!result?.ok || !Array.isArray(result.candles)) continue;
+        total += result.candles.length;
+        if (result.lastUpdate && (!latestTimestamp || Date.parse(result.lastUpdate) > Date.parse(latestTimestamp))) latestTimestamp = result.lastUpdate;
+        marketDataServiceInstance.addBatchCandles(result.candles.map(c => ({
+          ...c, symbol: instrument, timeframe: result.timeframe, source: 'MT5_LOCAL_BRIDGE', isSimulated: false,
+        })));
+        if (result.tick && Number.isFinite(result.tick.bid) && Number.isFinite(result.tick.ask)) {
+          marketDataServiceInstance.setTick(instrument, result.tick);
+        }
+      }
+      if (total > 0) {
+        marketDataServiceInstance.setStatus('CONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [instrument]);
+
   useEffect(() => {
     let active = true;
 
