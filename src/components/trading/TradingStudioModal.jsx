@@ -1,57 +1,92 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
-import { marketDataServiceInstance, TIMEFRAMES } from '../../services/trading/MarketDataService.js';
 
 const instruments = [
-  { value: 'XAUUSD', label: 'Gold (XAUUSD)' },
-  { value: 'BTCUSDT', label: 'Bitcoin (BTCUSDT)' },
-  { value: 'ETHUSDT', label: 'Ethereum (ETHUSDT)' },
+  { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
+  { value: 'BINANCE:BTCUSDT', label: 'BTCUSDT' },
+  { value: 'BINANCE:ETHUSDT', label: 'ETHUSDT' },
+  { value: 'OANDA:EURUSD', label: 'EURUSD' },
+  { value: 'OANDA:GBPUSD', label: 'GBPUSD' },
+  { value: 'CAPITALCOM:US30', label: 'US30' },
+];
+const intervals = [
+  { value: '5', label: 'M5' },
+  { value: '15', label: 'M15' },
+  { value: '30', label: 'M30' },
+  { value: '60', label: 'H1' },
+  { value: '240', label: 'H4' },
+  { value: 'D', label: 'D1' },
 ];
 
 export default function TradingStudioModal({ onClose }) {
-  const [instrument, setInstrument] = useState('XAUUSD');
-  const [timeframe, setTimeframe] = useState(TIMEFRAMES?.M15 || 'M15');
-  const [tick, setTick] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    const refresh = () => {
-      if (alive) setTick(marketDataServiceInstance.getTick(instrument) || null);
-    };
-    refresh();
-    const unsubscribe = marketDataServiceInstance.subscribe(refresh);
-    const timer = window.setInterval(refresh, 5000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      unsubscribe?.();
-    };
-  }, [instrument]);
-
-  const price = Number.isFinite(tick?.bid) ? tick.bid : Number.isFinite(tick?.price) ? tick.price : null;
-  const fmt = (n) => Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 }) : 'Menunggu feed';
+  const [symbol, setSymbol] = useState('OANDA:XAUUSD');
+  const [interval, setInterval] = useState('60');
+  const instrument = symbol.split(':').pop();
+  const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
+  const chartUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      symbol,
+      interval,
+      timezone: 'Asia/Jakarta',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      enable_publishing: 'false',
+      hide_top_toolbar: 'false',
+      hide_legend: 'false',
+      save_image: 'false',
+      backgroundColor: '%23030812',
+      gridColor: 'rgba(148,163,184,0.10)',
+      withdateranges: 'true',
+      hide_side_toolbar: 'false',
+      allow_symbol_change: 'false',
+      details: 'false',
+      hotlist: 'false',
+      calendar: 'false',
+    });
+    return 'https://www.tradingview.com/widgetembed/?' + params.toString();
+  }, [symbol, interval]);
 
   return (
-    <main style={{ minHeight: '100vh', background: '#07111f', color: '#e2e8f0', padding: 20, fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
-        <div><div style={{ color: '#22d3ee', fontSize: 11, letterSpacing: 2 }}>ULTIMATEAI • MARKET INTELLIGENCE</div><h1 style={{ fontSize: 26, margin: '6px 0' }}>Trading Studio</h1><div style={{ color: '#94a3b8', fontSize: 12 }}>Analisis teknikal berbasis data; bukan jaminan hasil transaksi.</div></div>
-        {onClose && <button onClick={onClose} style={buttonStyle}>Tutup</button>}
+    <main style={{ minHeight: 'calc(100vh - 24px)', background: '#030812', color: '#e2e8f0', padding: 10, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ color: '#22d3ee', fontSize: 11, letterSpacing: 1.6, fontWeight: 800 }}>JIN TRADING INTELLIGENCE STUDIO</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label style={labelStyle}>Instrumen
+            <select value={symbol} onChange={e => setSymbol(e.target.value)} style={selectStyle}>
+              {instruments.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+            </select>
+          </label>
+          <label style={labelStyle}>Timeframe
+            <select value={interval} onChange={e => setInterval(e.target.value)} style={selectStyle}>
+              {intervals.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+            </select>
+          </label>
+          {onClose && <button type="button" onClick={onClose} style={closeStyle} aria-label="Tutup Trading Studio">✕</button>}
+        </div>
       </header>
-      <section style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', padding: 14, border: '1px solid #1e3a52', borderRadius: 10, background: '#0b1b2c', marginBottom: 16 }}>
-        <label>Instrumen <select value={instrument} onChange={e => setInstrument(e.target.value)} style={selectStyle}>{instruments.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
-        <label>Timeframe <select value={timeframe} onChange={e => setTimeframe(e.target.value)} style={selectStyle}>{['M5','M15','M30','H1','H4','D1'].map(x => <option key={x}>{x}</option>)}</select></label>
-        <div style={{ marginLeft: 'auto' }}><div style={{ color: '#94a3b8', fontSize: 11 }}>Harga feed terakhir</div><strong style={{ fontSize: 20 }}>{fmt(price)}</strong></div>
-      </section>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 16 }}>
-        <section style={panelStyle}><h2 style={headingStyle}>AI Technical Analyst</h2><AIAnalystPanel instrument={instrument} timeframe={timeframe} /></section>
-        <section style={panelStyle}><h2 style={headingStyle}>Status Feed & Aturan</h2><p style={mutedStyle}>Instrumen: <b>{instrument}</b></p><p style={mutedStyle}>Timeframe analisis: <b>{timeframe}</b></p><p style={mutedStyle}>Feed: <b style={{ color: price == null ? '#fbbf24' : '#34d399' }}>{price == null ? 'Belum ada tick' : 'Tick tersedia'}</b></p><p style={mutedStyle}>Sinyal ditahan jika data historis kurang dari 20 candle atau feed sudah usang.</p><p style={mutedStyle}>Verifikasi sumber harga, spread, dan waktu candle sebelum keputusan transaksi.</p></section>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.65fr) minmax(300px, 1fr)', gap: 10, minHeight: 'calc(100vh - 95px)' }}>
+        <section aria-label="TradingView live chart" style={{ minWidth: 0, minHeight: 560, border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
+          <iframe
+            key={symbol + ':' + interval}
+            title={'TradingView live chart ' + instrument + ' ' + timeframe}
+            src={chartUrl}
+            style={{ display: 'block', width: '100%', height: '100%', minHeight: 560, border: 0 }}
+            allowFullScreen
+            loading="eager"
+          />
+        </section>
+        <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
+          <h2 style={{ color: '#22d3ee', fontSize: 12, letterSpacing: 1, fontWeight: 800, margin: '0 0 12px' }}>AI TECHNICAL ANALYST</h2>
+          <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
+        </section>
       </div>
+      <style>{'@media(max-width:850px){.jin-trading-grid{grid-template-columns:1fr!important}}'}</style>
     </main>
   );
 }
 
-const buttonStyle = { padding: '9px 14px', border: '1px solid #334155', borderRadius: 8, background: '#13263a', color: '#e2e8f0', cursor: 'pointer' };
-const selectStyle = { display: 'block', marginTop: 5, padding: '8px 10px', background: '#102338', color: '#e2e8f0', border: '1px solid #34506b', borderRadius: 6 };
-const panelStyle = { minWidth: 0, padding: 14, borderRadius: 10, border: '1px solid #1e3a52', background: '#0b1726' };
-const headingStyle = { fontSize: 14, color: '#22d3ee', margin: '0 0 12px' };
-const mutedStyle = { color: '#cbd5e1', fontSize: 13, lineHeight: 1.6 };
+const labelStyle = { display: 'flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontSize: 10, fontWeight: 700 };
+const selectStyle = { padding: '6px 8px', background: '#071827', color: '#dbeafe', border: '1px solid #155e75', borderRadius: 4, fontSize: 11 };
+const closeStyle = { width: 28, height: 28, border: '1px solid #ef4444', borderRadius: 4, background: '#220b12', color: '#f87171', fontWeight: 900, cursor: 'pointer' };
