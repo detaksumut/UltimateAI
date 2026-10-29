@@ -27,5 +27,7 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Trading functional smoke tests
+        run: node tests/trading-smoke-test.mjs
       - name: Build application
         run: npm run build
