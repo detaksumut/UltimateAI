@@ -197,7 +197,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       ['Support visual', visualFmt(visualData.support)], ['Resistance visual', visualFmt(visualData.resistance)],
       ['Volatilitas', visualData.volatility || 'UNKNOWN'], ['Confidence', `${visualData.confidence ?? 0}%`],
     ];
-    return <>{openAdvancedButton}<AdvancedAnalysisModal open={showAdvancedModal} onClose={() => setShowAdvancedModal(false)} instrument={instrument} timeframe={timeframe} analysis={analysis} advancedData={advancedData} visualData={visualData} /><section style={{ color: '#cbd5e1', background: 'rgba(8,15,30,0.92)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 10 }}>
+    return <>{openAdvancedButton}<AdvancedAnalysisModal open={showAdvancedModal} onClose={() => setShowAdvancedModal(false)} instrument={instrument} timeframe={timeframe} analysis={analysis} advancedData={advancedData} visualData={visualData} visualResults={visualResults} /><section style={{ color: '#cbd5e1', background: 'rgba(8,15,30,0.92)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 10 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
         <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>AI TECHNICAL ANALYST · VISUAL DATA</strong>
         <span style={{ color: qualityColor, fontWeight: 700 }}>{visualData.dataStatus}</span>
