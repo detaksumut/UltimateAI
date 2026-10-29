@@ -152,6 +152,20 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
   return trimmed;
 }
 
+// In-memory live trading candles received from the user's local MetaTrader 5 bridge.
+// Data is intentionally volatile: a server restart requires the MT5 bridge to publish again.
+const JIN_TRADING_CANDLES = new Map();
+const JIN_TRADING_TICKS = new Map();
+const JIN_TRADING_TF_MS = { M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
+function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
+function jinTradingValidCandle(c) {
+  if (!c || typeof c !== 'object' || !['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(String(c.symbol || '').toUpperCase())) return false;
+  if (!Object.hasOwn(JIN_TRADING_TF_MS, String(c.timeframe || '').toUpperCase())) return false;
+  const nums = [c.open,c.high,c.low,c.close,c.volume];
+  const time = typeof c.timestamp === 'string' ? Date.parse(c.timestamp) : Number(c.timestamp);
+  return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) &&
+    c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high);
+}
 export function createLocalRouterServer() {
   const server = http.createServer(async (req, res) => {
     // CORS Headers
@@ -872,6 +886,79 @@ Requirements:
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message, range: '1D' }));
       }
+      return;
+    }
+
+    // JIN Trading OHLC bridge: local MT5 Expert Advisor publishes broker candles here.
+    if (pathname === '/api/trading/ohlc/ingest' && req.method === 'POST') {
+      try {
+        const remote = req.socket.remoteAddress || '';
+        if (!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(remote)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Only local MT5 bridge connections are accepted.' }));
+          return;
+        }
+        const payload = await readJsonBody();
+        const incoming = Array.isArray(payload.candles) ? payload.candles.slice(0, 2500) : [];
+        let accepted = 0, rejected = 0;
+        const now = Date.now();
+        for (const raw of incoming) {
+          const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
+            timestamp: typeof raw.timestamp === 'number' ? new Date(raw.timestamp * (raw.timestamp < 1e12 ? 1000 : 1)).toISOString() : raw.timestamp,
+            source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
+          if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
+          const key = jinTradingKey(candle.symbol, candle.timeframe);
+          const rows = JIN_TRADING_CANDLES.get(key) || new Map();
+          rows.set(candle.timestamp, candle);
+          const sorted = [...rows.entries()].sort((a,b)=>Date.parse(a[0])-Date.parse(b[0])).slice(-500);
+          JIN_TRADING_CANDLES.set(key, new Map(sorted));
+          accepted++;
+        }
+        const ticks = Array.isArray(payload.ticks) ? payload.ticks.slice(0, 20) : [];
+        for (const t of ticks) {
+          const symbol = String(t.symbol || '').toUpperCase();
+          if (['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(symbol) &&
+              Number.isFinite(t.bid) && Number.isFinite(t.ask) && t.ask >= t.bid) {
+            JIN_TRADING_TICKS.set(symbol, { symbol, bid: t.bid, ask: t.ask, spread: t.ask-t.bid,
+              timestamp: new Date().toISOString(), source: 'MT5_LOCAL_BRIDGE' });
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, accepted, rejected, candleSets: [...JIN_TRADING_CANDLES.keys()], timestamp: new Date().toISOString() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message || 'Invalid MT5 OHLC payload' }));
+      }
+      return;
+    }
+    if (pathname === '/api/trading/ohlc' && req.method === 'GET') {
+      const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
+      const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
+      const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit') || 300)));
+      const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])]
+        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-limit);
+      const latest = rows.at(-1) || null;
+      const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
+      const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*2 ? 'FRESH' : 'STALE';
+      const tick = JIN_TRADING_TICKS.get(symbol) || null;
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', count: rows.length, freshness,
+        lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows }));
+      return;
+    }
+    if (pathname === '/api/trading/ohlc/status' && req.method === 'GET') {
+      const sets = {};
+      for (const tf of Object.keys(JIN_TRADING_TF_MS)) {
+        const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
+        const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,tf))?.values() || [])];
+        const latest = rows.at(-1) || null;
+        const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
+        sets[tf] = { count: rows.length, lastUpdate: latest?.timestamp || null,
+          freshness: !latest ? 'NO_DATA' : ageMs < JIN_TRADING_TF_MS[tf]*2 ? 'FRESH' : 'STALE' };
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, symbol: String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase(),
+        source: 'MT5_LOCAL_BRIDGE', timeframes: sets, tick: JIN_TRADING_TICKS.get(String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase()) || null }));
       return;
     }
 
