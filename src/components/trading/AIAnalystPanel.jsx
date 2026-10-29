@@ -26,6 +26,8 @@ const fmt = (value, digits = 2) => Number.isFinite(value)
 export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIMEFRAMES.M15 }) {
   const [analysis, setAnalysis] = useState({ ...initialState, instrument, timeframe });
   const [visualData, setVisualData] = useState(null);
+  const [activeTab, setActiveTab] = useState('technical');
+  const [advancedData, setAdvancedData] = useState(null);
 
   useEffect(() => {
     const onVisualData = (event) => {
@@ -77,6 +79,17 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       const support = Math.min(...recent.map(c => c.low));
       const resistance = Math.max(...recent.map(c => c.high));
       const { 9: ema9, 20: ema20, 50: ema50 } = indicators.ema;
+      const prior = candles.slice(-21, -1);
+      const priorSupport = prior.length ? Math.min(...prior.map(c => c.low)) : null;
+      const priorResistance = prior.length ? Math.max(...prior.map(c => c.high)) : null;
+      const lastCandle = candles[candles.length - 1];
+      const candleRange = lastCandle.high - lastCandle.low;
+      const candleBody = Math.abs(lastCandle.close - lastCandle.open);
+      const candleShape = candleRange > 0 ? (candleBody / candleRange) : null;
+      const priceVsEma20Pct = Number.isFinite(ema20) && ema20 !== 0 ? ((price - ema20) / ema20) * 100 : null;
+      const recentCloses = candles.slice(-5).map(c => c.close);
+      const shortMomentumPct = recentCloses.length > 1 && recentCloses[0] !== 0 ? ((recentCloses.at(-1) - recentCloses[0]) / recentCloses[0]) * 100 : null;
+      setAdvancedData({ ema9, ema20, ema50, rsi, atr, priorSupport, priorResistance, candleShape, priceVsEma20Pct, shortMomentumPct, lastCandle, candleRange });
       const rsi = indicators.rsi;
       const atr = indicators.atr;
       const bullish = price > ema20 && ema9 > ema20 && ema20 > ema50;
@@ -173,25 +186,81 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   }
 
   const statusColor = analysis.dataStatus === 'CONNECTED' ? '#10b981' : '#f59e0b';
+  const tabStyle = key => ({ padding: '8px 10px', border: '1px solid ' + (activeTab === key ? '#0891b2' : '#1e293b'), borderRadius: 5, background: activeTab === key ? 'rgba(8,145,178,.18)' : '#07111f', color: activeTab === key ? '#67e8f9' : '#94a3b8', cursor: 'pointer', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' });
+  const metric = (label, value, note = '') => <div key={label} style={{ minWidth: 0, padding: 8, background: '#071321', border: '1px solid #142d40', borderRadius: 5 }}><div style={{ color: '#64748b', fontSize: 9, marginBottom: 4 }}>{label}</div><div style={{ color: '#e2e8f0', fontSize: 11, overflowWrap: 'anywhere' }}>{value ?? '—'}</div>{note && <div style={{ color: '#64748b', fontSize: 9, marginTop: 4 }}>{note}</div>}</div>;
+  const fmtPct = v => Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(3)}%` : '—';
+  const sourceLink = (label, url, description) => <a key={label} href={url} target="_blank" rel="noreferrer" style={{ display: 'block', padding: 9, border: '1px solid #164e63', borderRadius: 5, color: '#67e8f9', textDecoration: 'none', background: '#071321' }}><strong style={{ fontSize: 10 }}>{label} ↗</strong><div style={{ color: '#94a3b8', fontSize: 9, marginTop: 4 }}>{description}</div></a>;
   return (
     <section style={{ color: '#cbd5e1', background: 'rgba(8,15,30,0.92)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: 12, fontFamily: 'monospace', fontSize: 11 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>AI TECHNICAL ANALYST</strong>
+        <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>JIN MARKET ANALYSIS</strong>
         <span style={{ color: statusColor, fontWeight: 700 }}>{analysis.dataStatus}</span>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '7px 14px' }}>
-        {rows.map(([label, value]) => <div key={label} style={{ minWidth: 0 }}>
-          <div style={{ color: '#64748b', fontSize: 9, marginBottom: 2 }}>{label}</div>
-          <div style={{ color: label === 'Tren' && analysis.trend === 'BULLISH' ? '#10b981' : label === 'Tren' && analysis.trend === 'BEARISH' ? '#f87171' : '#e2e8f0', overflowWrap: 'anywhere' }}>{value}</div>
-        </div>)}
-      </div>
-      <div style={{ marginTop: 10, padding: 9, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
-        <div style={{ color: '#00e5ff', fontWeight: 700, marginBottom: 5 }}>SKENARIO: {analysis.scenario}</div>
-        <div style={{ marginBottom: 7 }}>{analysis.entryCondition}</div>
-        <div style={{ color: '#94a3b8', marginBottom: 5 }}>{analysis.reasoning}</div>
-        <div style={{ color: '#fbbf24' }}>Invalidasi: {analysis.invalidation}</div>
-      </div>
-      <footer style={{ marginTop: 7, color: '#64748b', fontSize: 9 }}>
+      <nav aria-label="Tab analisis pasar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+        <button type="button" onClick={() => setActiveTab('technical')} style={tabStyle('technical')}>ANALISIS TEKNIKAL</button>
+        <button type="button" onClick={() => setActiveTab('advanced')} style={tabStyle('advanced')}>ANALISIS LANJUTAN</button>
+        <button type="button" onClick={() => setActiveTab('fundamental')} style={tabStyle('fundamental')}>ANALISIS FUNDAMENTAL</button>
+      </nav>
+      {activeTab === 'technical' && <>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '7px 10px' }}>
+          {rows.map(([label, value]) => <div key={label} style={{ minWidth: 0 }}>
+            <div style={{ color: '#64748b', fontSize: 9, marginBottom: 2 }}>{label}</div>
+            <div style={{ color: label === 'Tren' && analysis.trend === 'BULLISH' ? '#10b981' : label === 'Tren' && analysis.trend === 'BEARISH' ? '#f87171' : '#e2e8f0', overflowWrap: 'anywhere' }}>{value}</div>
+          </div>)}
+        </div>
+        <div style={{ marginTop: 10, padding: 9, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
+          <div style={{ color: '#00e5ff', fontWeight: 700, marginBottom: 5 }}>SKENARIO: {analysis.scenario}</div>
+          <div style={{ marginBottom: 7 }}>{analysis.entryCondition}</div>
+          <div style={{ color: '#94a3b8', marginBottom: 5 }}>{analysis.reasoning}</div>
+          <div style={{ color: '#fbbf24' }}>Invalidasi: {analysis.invalidation}</div>
+        </div>
+      </>}
+      {activeTab === 'advanced' && <>
+        <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 8 }}>ADVANCED PRICE & INDICATOR ANALYSIS</div>
+        {analysis.candleCount < 50 || !advancedData ? <div style={{ padding: 10, border: '1px solid #92400e', borderRadius: 5, color: '#fbbf24', background: '#211608' }}>Analisis lanjutan belum dapat dihitung. Data valid tersedia: {analysis.candleCount}/50 candle minimum. Pastikan feed candle terhubung dan data tidak kedaluwarsa.</div> : <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
+            {metric('EMA 9', fmt(advancedData.ema9, 2))}
+            {metric('EMA 20', fmt(advancedData.ema20, 2))}
+            {metric('EMA 50', fmt(advancedData.ema50, 2))}
+            {metric('RSI (14)', fmt(advancedData.rsi, 1), Number.isFinite(advancedData.rsi) ? advancedData.rsi >= 70 ? 'Zona overbought' : advancedData.rsi <= 30 ? 'Zona oversold' : 'Belum ekstrem' : '')}
+            {metric('ATR (14)', fmt(advancedData.atr, 2), 'Ukuran volatilitas, bukan arah')}
+            {metric('Harga vs EMA20', fmtPct(advancedData.priceVsEma20Pct))}
+            {metric('Momentum 5 candle', fmtPct(advancedData.shortMomentumPct))}
+            {metric('Rasio body/range candle terakhir', Number.isFinite(advancedData.candleShape) ? fmtPct(advancedData.candleShape * 100) : '—')}
+            {metric('Support 20 candle sebelumnya', fmt(advancedData.priorSupport, 2))}
+            {metric('Resistance 20 candle sebelumnya', fmt(advancedData.priorResistance, 2))}
+          </div>
+          <div style={{ marginTop: 9, padding: 9, border: '1px solid #164e63', borderRadius: 5, background: '#071321' }}>
+            <strong style={{ color: '#67e8f9' }}>KONDISI KONFIRMASI</strong>
+            <p style={{ color: '#cbd5e1', margin: '6px 0' }}>Bullish: harga di atas EMA20, EMA9 &gt; EMA20 &gt; EMA50, dan RSI mendukung.</p>
+            <p style={{ color: '#cbd5e1', margin: '6px 0' }}>Bearish: harga di bawah EMA20, EMA9 &lt; EMA20 &lt; EMA50, dan RSI mendukung.</p>
+            <p style={{ color: '#fbbf24', margin: '6px 0 0' }}>Konfirmasi ini bersifat teknikal; tetap periksa kualitas dan kesegaran data serta risiko berita berdampak tinggi.</p>
+          </div>
+        </>}
+      </>}
+      {activeTab === 'fundamental' && <>
+        <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 6 }}>JIN GOLD FUNDAMENTAL INTELLIGENCE</div>
+        <div style={{ padding: 9, border: '1px solid #92400e', borderRadius: 5, background: '#211608', color: '#fbbf24', marginBottom: 10 }}>
+          STATUS FEED: BELUM TERHUBUNG. Panel ini tidak mengarang data aktual, konsensus, countdown, atau bias berita. Buka sumber resmi di bawah untuk memverifikasi rilis terbaru.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
+          {metric('FED / SUKU BUNGA', 'Perlu verifikasi rilis terbaru', 'FOMC, minutes, pidato pejabat Fed')}
+          {metric('DATA INFLASI & TENAGA KERJA', 'Perlu verifikasi rilis terbaru', 'CPI, PCE, NFP, pengangguran')}
+          {metric('USD & TREASURY YIELDS', 'Feed pasar belum terhubung', 'DXY, yield 2Y/10Y, real yield')}
+          {metric('DAMPAK TERHADAP EMAS', 'BELUM DINILAI', 'Bias bullish/bearish ditahan sampai data diverifikasi')}
+        </div>
+        <div style={{ color: '#94a3b8', margin: '12px 0 7px', fontWeight: 800 }}>SUMBER DATA RESMI</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
+          {sourceLink('Federal Reserve', 'https://www.federalreserve.gov/monetarypolicy.htm', 'Keputusan FOMC, jadwal rapat, minutes dan kebijakan moneter.')}
+          {sourceLink('BLS — CPI & Employment', 'https://www.bls.gov/schedule/news_release/', 'Jadwal rilis resmi inflasi dan data tenaga kerja AS.')}
+          {sourceLink('BEA — PCE & GDP', 'https://www.bea.gov/news/schedule', 'Jadwal PCE, GDP, dan rilis ekonomi resmi.')}
+          {sourceLink('US Treasury — Yields', 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates', 'Data suku bunga Treasury AS.')}
+          {sourceLink('CFTC — COT Reports', 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', 'Posisi futures terlapor; bukan sinyal real-time.')}
+          {sourceLink('FRED — Economic Data', 'https://fred.stlouisfed.org/', 'Deret waktu makroekonomi; perhatikan tanggal pembaruan.')}
+        </div>
+        <div style={{ color: '#94a3b8', marginTop: 10, lineHeight: 1.6 }}>Interpretasi yang harus diuji: ekspektasi suku bunga riil yang naik dan USD menguat sering menekan emas; ekspektasi pelonggaran atau USD melemah dapat mendukung emas. Ini hanya kerangka umum, bukan pembacaan kondisi saat ini. Geopolitik, positioning, dan respons harga dapat mengubah dampak.</div>
+      </>}
+      <footer style={{ marginTop: 10, color: '#64748b', fontSize: 9 }}>
         Bukan nasihat keuangan. Sinyal ditahan jika data tidak cukup atau tidak segar.
         {analysis.lastAnalysis ? ` • Analisis: ${new Date(analysis.lastAnalysis).toLocaleTimeString('id-ID')}` : ''}
       </footer>
