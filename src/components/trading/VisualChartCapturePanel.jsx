@@ -65,7 +65,6 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       const observedSymbol = normalizeSymbol(observedInstrument);
       // TradingView may show the human-readable instrument title rather than the ticker.
       // Accept only explicit, known aliases for XAUUSD; do not treat any arbitrary gold text as proof.
-      const xauAliases = ['XAUUSD','GOLDSPOTUSD','GOLDSPOTUSDOANDA','GOLDSPOTUS DOLLAR'.replace(/\\s/g,'')];
       const isXauRequest = requestedSymbol === 'XAUUSD';
       const xauObserved = isXauRequest && (observedSymbol.includes('XAUUSD') || observedSymbol.includes('GOLDSPOTUSD') || observedSymbol.includes('GOLDSPOTUSDOLLAR') || observedSymbol.includes('GOLDSPOTUSDOANDA'));
       data.observedInstrument = observedInstrument || null;
