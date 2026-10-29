@@ -4388,6 +4388,19 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
     }
 
 
+    // JIN XAUUSD session-news scheduler status and history.
+    if (pathname === '/api/trading/fundamental-status' && req.method === 'GET') {
+      try {
+        const { getGoldNewsSchedulerStatus } = await import('./GoldNewsSessionScheduler.mjs');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: true, ...getGoldNewsSchedulerStatus() }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: error.message }));
+      }
+      return;
+    }
+
     // JIN XAUUSD Fundamental Reader: fetch only allowlisted public sources.
     if (pathname === '/api/trading/fundamental-read' && req.method === 'POST') {
       try {
@@ -4468,6 +4481,9 @@ if (isDirectExecution) {
     console.log(`  - Chat API:    http://127.0.0.1:${PORT}/v1/chat/completions`);
     console.log(`  - Daemon:      http://127.0.0.1:${PORT}/api/daemon/status`);
     console.log(`=======================================================`);
+    import('./GoldNewsSessionScheduler.mjs')
+      .then(m => m.startGoldNewsSessionScheduler())
+      .catch(e => console.warn('[LocalRouter] Failed to start GoldNewsSessionScheduler:', e.message));
     import('../daemon/CuriosityDaemon.mjs')
       .then(m => m.curiosityDaemonInstance.start())
       .catch(e => console.warn('[LocalRouter] Failed to start CuriosityDaemon:', e.message));
