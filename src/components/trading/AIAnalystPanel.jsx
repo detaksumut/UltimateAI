@@ -224,6 +224,39 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     const digits = instrument === 'XAUUSD' ? 2 : 5;
     const visualFmt = value => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
     const qualityColor = visualData.dataStatus === 'VISUAL_READY' ? '#10b981' : '#f59e0b';
+    const visualRows = [
+      ['Sumber', 'SCREEN VISION'], ['Status', visualData.dataStatus],
+      ['Instrumen', visualData.instrument || instrument], ['Timeframe', visualData.timeframe || timeframe],
+      ['Candle terlihat', String(visualData.visible_candles ?? 0)],
+      ['OHLC numerik', visualData.ohlc_readable ? 'TERBACA' : 'TIDAK TERBACA'],
+      ['Harga terakhir', visualFmt(visualData.last_price)], ['Open', visualFmt(visualData.open)],
+      ['High', visualFmt(visualData.high)], ['Low', visualFmt(visualData.low)], ['Close', visualFmt(visualData.close)],
+      ['Tren visual', visualData.trend || 'UNKNOWN'], ['Momentum', visualData.momentum || 'UNKNOWN'],
+      ['Support visual', visualFmt(visualData.support)], ['Resistance visual', visualFmt(visualData.resistance)],
+      ['Volatilitas', visualData.volatility || 'UNKNOWN'], ['Confidence', `${visualData.confidence ?? 0}%`],
+    ];
+    return <>{openAdvancedButton}<AdvancedAnalysisModal open={showAdvancedModal} onClose={() => setShowAdvancedModal(false)} instrument={instrument} timeframe={timeframe} analysis={analysis} advancedData={advancedData} visualData={visualData} visualResults={visualResults} /><section style={{ color: '#cbd5e1', background: 'rgba(8,15,30,0.92)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 10 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
+        <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>AI TECHNICAL ANALYST · VISUAL DATA</strong>
+        <span style={{ color: qualityColor, fontWeight: 700 }}>{visualData.dataStatus}</span>
+      </header>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 6, marginBottom: 10 }}>
+        {['H4','H1','M15','M5'].map(tf => {
+          const item = visualResults[tf];
+          const ok = item?.dataStatus === 'VISUAL_READY' && item.symbol_match !== false && item.timeframe_match !== false;
+          return <div key={tf} style={{ minWidth: 0, padding: 7, borderRadius: 5, border: '1px solid ' + (ok ? '#166534' : '#854d0e'), background: '#071321' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 5, marginBottom: 6 }}>
+              <strong style={{ color: '#67e8f9', fontSize: 11 }}>TF {tf}</strong>
+              <span style={{ color: ok ? '#34d399' : '#fbbf24', fontSize: 8 }}>{item?.dataStatus || 'BELUM DIREKAM'}</span>
+            </div>
+            <div style={{ color: '#64748b', fontSize: 8 }}>Harga terakhir</div>
+            <div style={{ color: '#e2e8f0', fontSize: 11, marginBottom: 5 }}>{item && Number.isFinite(item.last_price) ? item.last_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</div>
+            <div style={{ color: item?.trend === 'BEARISH' ? '#f87171' : item?.trend === 'BULLISH' ? '#34d399' : '#e2e8f0', fontSize: 9 }}>Tren: {item?.trend || '—'} · Momentum: {item?.momentum || '—'}</div>
+            <div style={{ color: '#94a3b8', fontSize: 8, marginTop: 4 }}>S: {item && Number.isFinite(item.support) ? item.support.toFixed(2) : '—'} · R: {item && Number.isFinite(item.resistance) ? item.resistance.toFixed(2) : '—'}</div>
+            <div style={{ color: '#64748b', fontSize: 8, marginTop: 4 }}>{item?.capturedAt ? new Date(item.capturedAt).toLocaleTimeString() : 'Menunggu capture'}</div>
+          </div>;
+        })}
+      </div>
       <div style={{ marginTop: 9, padding: 8, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
         <div style={{ color: '#00e5ff', fontWeight: 700 }}>SCENARIO / SKENARIO: {visualData.dataStatus === 'VISUAL_READY' ? (visualData.scenario || 'WAIT') : 'WAIT'}</div>
         <div style={{ color: '#e2e8f0', marginTop: 6, fontWeight: 700 }}>EN — Visual reading</div>
