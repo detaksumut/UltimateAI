@@ -43,7 +43,10 @@ export default function JINAdvancedAnalysisModal({open,onClose,instrument,timefr
   const frames=useMemo(()=>Object.fromEntries(FRAMES.map(tf=>[tf,getFrame(instrument,tf)])),[instrument,refresh,open]);
   if(!open)return null;
   const f=frames[timeframe]||getFrame(instrument,timeframe),candles=f.candles||[],fresh=f.freshness==='FRESH';
-  const ready=candles.length>=50&&fresh&&Number.isFinite(f.price)&&Number.isFinite(f.ema20)&&Number.isFinite(f.rsi);\n  const visualAgeMs = visualData?.capturedAt ? Date.now() - new Date(visualData.capturedAt).getTime() : Infinity;\n  const visualReady = visualData?.dataStatus === 'VISUAL_READY' && visualData.symbol_match !== false && visualData.timeframe_match !== false && visualAgeMs >= 0 && visualAgeMs <= 5 * 60 * 1000;\n  const visualPrice = visualReady && Number.isFinite(visualData.last_price) ? visualData.last_price : null;
+  const ready=candles.length>=50&&fresh&&Number.isFinite(f.price)&&Number.isFinite(f.ema20)&&Number.isFinite(f.rsi);
+  const visualAgeMs = visualData?.capturedAt ? Date.now() - new Date(visualData.capturedAt).getTime() : Infinity;
+  const visualReady = visualData?.dataStatus === 'VISUAL_READY' && visualData.symbol_match !== false && visualData.timeframe_match !== false && visualAgeMs >= 0 && visualAgeMs <= 5 * 60 * 1000;
+  const visualPrice = visualReady && Number.isFinite(visualData.last_price) ? visualData.last_price : null;
   const price=visualPrice??f.price,support=visualReady&&Number.isFinite(visualData.support)?visualData.support:ready?f.support:null,resistance=visualReady&&Number.isFinite(visualData.resistance)?visualData.resistance:ready?f.resistance:null,atr=f.atr;
   const bull=ready&&f.trend==='BULLISH'&&f.rsi>=50,bear=ready&&f.trend==='BEARISH'&&f.rsi<=50,bias=bull?'BUY BIAS':bear?'SELL BIAS':'WAIT';
   const tabs=[['summary','RINGKASAN'],['advanced','ANALISIS LANJUTAN'],['fundamental','ANALISIS FUNDAMENTAL'],['levels','LEVEL & ZONA'],['scenarios','SKENARIO TRADING'],['risk','RISIKO & MANAJEMEN'],['insight','AI INSIGHT'],['notes','NOTES']];
