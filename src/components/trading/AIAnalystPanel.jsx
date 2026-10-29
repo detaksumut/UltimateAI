@@ -30,6 +30,10 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   const [advancedData, setAdvancedData] = useState(null);
 
   useEffect(() => {
+    setActiveTab('technical');
+  }, [instrument, timeframe]);
+
+  useEffect(() => {
     const onVisualData = (event) => {
       const data = event.detail || {};
       if (data.instrument !== instrument || data.timeframe !== timeframe) return;
