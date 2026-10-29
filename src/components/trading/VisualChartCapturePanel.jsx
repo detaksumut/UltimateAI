@@ -34,7 +34,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  const captureAndAnalyze = async (targetTimeframe = timeframe) => {
+  const captureAndAnalyze = async (targetTimeframe = timeframe, manageBusy = true) => {
     setBusy(true); setError(''); setStatus('MEMBACA GRAFIK…');
     try {
       const frame = visualChartCapture.capture({ maxWidth: 2200, quality: 0.95 });
@@ -73,7 +73,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
     } catch (e) {
       setStatus('ANALISIS GAGAL'); setError(e?.message || 'Gagal membaca chart.');
       throw e;
-    } finally { if (targetTimeframe === timeframe) setBusy(false); }
+    } finally { if (manageBusy) setBusy(false); }
   };
 
   const captureAllTimeframes = async () => {
@@ -101,7 +101,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
         // Give React/TradingView time to rebuild the widget and render the requested timeframe.
         await sleep(6500);
         setStatus('MEMBACA ' + item.label + '…');
-        const result = await captureAndAnalyze(item.label);
+        const result = await captureAndAnalyze(item.label, false);
         if (result) batch.push(result);
       }
       window.dispatchEvent(new CustomEvent('jin:visual-analysis-batch-ready', {
