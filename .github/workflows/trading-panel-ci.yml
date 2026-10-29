@@ -1,0 +1,31 @@
+name: Trading Panel CI
+
+on:
+  push:
+    branches:
+      - fix/trading-ai-analyst-panel
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/components/trading/**"
+      - "src/services/trading/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/trading-panel-ci.yml"
+
+jobs:
+  trading-panel-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build application
+        run: npm run build
