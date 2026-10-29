@@ -28,12 +28,12 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   const [analysis, setAnalysis] = useState({ ...initialState, instrument, timeframe });
   const [visualData, setVisualData] = useState(null);
   const [visualResults, setVisualResults] = useState({});
-  const [activeTab, setActiveTab] = useState('technical');
+  const [activeTab, setActiveTab] = useState('advanced');
   const [advancedData, setAdvancedData] = useState(null);
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
 
   useEffect(() => {
-    setActiveTab('technical');
+    setActiveTab('advanced');
   }, [instrument, timeframe]);
 
   useEffect(() => {
@@ -287,24 +287,9 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         <span style={{ color: statusColor, fontWeight: 700 }}>{analysis.dataStatus}</span>
       </header>
       <nav aria-label="Tab analisis pasar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
-        <button type="button" onClick={() => setActiveTab('technical')} style={tabStyle('technical')}>ANALISIS TEKNIKAL</button>
         <button type="button" onClick={() => setActiveTab('advanced')} style={tabStyle('advanced')}>ANALISIS LANJUTAN</button>
         <button type="button" onClick={() => setActiveTab('fundamental')} style={tabStyle('fundamental')}>ANALISIS FUNDAMENTAL</button>
       </nav>
-      {activeTab === 'technical' && <>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '7px 10px' }}>
-          {rows.map(([label, value]) => <div key={label} style={{ minWidth: 0 }}>
-            <div style={{ color: '#64748b', fontSize: 9, marginBottom: 2 }}>{label}</div>
-            <div style={{ color: label === 'Tren' && analysis.trend === 'BULLISH' ? '#10b981' : label === 'Tren' && analysis.trend === 'BEARISH' ? '#f87171' : '#e2e8f0', overflowWrap: 'anywhere' }}>{value}</div>
-          </div>)}
-        </div>
-        <div style={{ marginTop: 10, padding: 9, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
-          <div style={{ color: '#00e5ff', fontWeight: 700, marginBottom: 5 }}>SKENARIO: {analysis.scenario}</div>
-          <div style={{ marginBottom: 7 }}>{analysis.entryCondition}</div>
-          <div style={{ color: '#94a3b8', marginBottom: 5 }}>{analysis.reasoning}</div>
-          <div style={{ color: '#fbbf24' }}>Invalidasi: {analysis.invalidation}</div>
-        </div>
-      </>}
       {activeTab === 'advanced' && <>
         <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 8 }}>ADVANCED PRICE & INDICATOR ANALYSIS</div>
         {analysis.candleCount < 50 || !advancedData ? <div style={{ padding: 10, border: '1px solid #92400e', borderRadius: 5, color: '#fbbf24', background: '#211608' }}>Analisis lanjutan belum dapat dihitung. Data valid tersedia: {analysis.candleCount}/50 candle minimum. Pastikan feed candle terhubung dan data tidak kedaluwarsa.</div> : <>
