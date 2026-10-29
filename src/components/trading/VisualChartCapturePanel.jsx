@@ -35,6 +35,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   const captureAndAnalyze = async (targetTimeframe = timeframe, manageBusy = true) => {
+    window.dispatchEvent(new CustomEvent('jin:signal-clear'));
     setBusy(true); setError(''); setStatus('MEMBACA GRAFIK…');
     try {
       const frame = visualChartCapture.capture({ maxWidth: 2200, quality: 0.95 });
@@ -77,6 +78,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
   };
 
   const captureAllTimeframes = async () => {
+    window.dispatchEvent(new CustomEvent('jin:signal-clear'));
     if (!active) {
       setError('Klik IZINKAN CAPTURE terlebih dahulu dan pilih jendela/tab chart yang akan dibaca.');
       return;
