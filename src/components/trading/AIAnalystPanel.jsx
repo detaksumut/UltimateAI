@@ -72,8 +72,9 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       const bearish = price < ema20 && ema9 < ema20 && ema20 < ema50;
       const trend = bullish ? 'BULLISH' : bearish ? 'BEARISH' : 'SIDEWAYS';
       const momentum = !Number.isFinite(rsi) ? 'UNKNOWN' : rsi >= 55 ? 'BULLISH' : rsi <= 45 ? 'BEARISH' : 'NEUTRAL';
-      const stale = ['STALE', 'SIMULATED', 'UNKNOWN', 'ERROR', 'NO_DATA'].includes(result.freshness);
-      const scenario = stale ? 'WAIT' : bullish && rsi < 70 ? 'BUY BIAS' : bearish && rsi > 30 ? 'SELL BIAS' : 'WAIT';
+      const stale = ['STALE', 'RECENT', 'SIMULATED', 'UNKNOWN', 'ERROR', 'NO_DATA'].includes(result.freshness);
+      const scenario = stale || !Number.isFinite(rsi) || !Number.isFinite(atr) || ![ema9, ema20, ema50].every(Number.isFinite)
+        ? 'WAIT' : bullish && rsi < 70 ? 'BUY BIAS' : bearish && rsi > 30 ? 'SELL BIAS' : 'WAIT';
       const stopLoss = Number.isFinite(atr) && scenario === 'BUY BIAS' ? price - atr * 1.5
         : Number.isFinite(atr) && scenario === 'SELL BIAS' ? price + atr * 1.5 : null;
       const takeProfit = Number.isFinite(atr) && scenario === 'BUY BIAS' ? price + atr * 3
@@ -90,7 +91,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       ].join(' ');
 
       if (active) setAnalysis({
-        ...base, dataStatus: stale ? 'STALE' : 'CONNECTED',
+        ...base, dataStatus: stale ? (result.freshness === 'RECENT' ? 'DATA_AGING' : 'STALE') : 'CONNECTED',
         marketStructure: trend, trend, momentum,
         volatility: Number.isFinite(atr) && price ? (atr / price > 0.01 ? 'HIGH' : 'NORMAL') : 'UNKNOWN',
         support, resistance, scenario, confidence, confidenceScore: confidence,
