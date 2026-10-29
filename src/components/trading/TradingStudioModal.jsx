@@ -104,8 +104,9 @@ export default function TradingStudioModal({ onClose }) {
         <section aria-label="TradingView live chart" style={{ minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
           <div
             ref={chartContainerRef}
+            className="tradingview-widget-container"
             aria-label={'TradingView live chart ' + instrument + ' ' + timeframe}
-            style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560 }}
+            style={{ position: 'relative', width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560 }}
           />
         </section>
         {!isFullChart && <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
