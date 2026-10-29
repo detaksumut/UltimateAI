@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 
@@ -23,30 +23,54 @@ export default function TradingStudioModal({ onClose }) {
   const [symbol, setSymbol] = useState('OANDA:XAUUSD');
   const [interval, setInterval] = useState('60');
   const [chartMode, setChartMode] = useState('normal');
+  const chartContainerRef = useRef(null);
   const instrument = symbol.split(':').pop();
   const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
-  const chartUrl = useMemo(() => {
-    const params = new URLSearchParams({
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return undefined;
+
+    // Use TradingView's supported Advanced Chart embed instead of the generic
+    // widgetembed page, which was injecting an unrelated US Exchanges sidebar.
+    container.innerHTML = '';
+    const widgetRoot = document.createElement('div');
+    widgetRoot.className = 'tradingview-widget-container__widget';
+    widgetRoot.style.width = '100%';
+    widgetRoot.style.height = '100%';
+    container.appendChild(widgetRoot);
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
       symbol,
       interval,
       timezone: 'Asia/Jakarta',
       theme: 'dark',
       style: '1',
       locale: 'en',
-      enable_publishing: 'false',
-      hide_top_toolbar: 'false',
-      hide_legend: 'false',
-      save_image: 'false',
-      backgroundColor: '%23030812',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_side_toolbar: false,
+      hide_legend: false,
+      save_image: false,
+      withdateranges: true,
+      allow_symbol_change: false,
+      details: false,
+      hotlist: false,
+      calendar: false,
+      hide_volume: false,
+      backgroundColor: '#030812',
       gridColor: 'rgba(148,163,184,0.10)',
-      withdateranges: 'true',
-      hide_side_toolbar: 'false',
-      allow_symbol_change: 'false',
-      details: 'false',
-      hotlist: 'false',
-      calendar: 'false',
+      support_host: 'https://www.tradingview.com'
     });
-    return 'https://www.tradingview.com/widgetembed/?' + params.toString();
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
   }, [symbol, interval]);
 
   const isFullChart = chartMode === 'full';
@@ -78,13 +102,10 @@ export default function TradingStudioModal({ onClose }) {
 
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
         <section aria-label="TradingView live chart" style={{ minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
-          <iframe
-            key={symbol + ':' + interval}
-            title={'TradingView live chart ' + instrument + ' ' + timeframe}
-            src={chartUrl}
-            style={{ display: 'block', width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, border: 0 }}
-            allowFullScreen
-            loading="eager"
+          <div
+            ref={chartContainerRef}
+            aria-label={'TradingView live chart ' + instrument + ' ' + timeframe}
+            style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560 }}
           />
         </section>
         {!isFullChart && <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
@@ -93,7 +114,7 @@ export default function TradingStudioModal({ onClose }) {
           <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
         </section>}
       </div>
-      <style>{'@media(max-width:850px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}.jin-trading-grid iframe{min-height:60vh!important}}'}</style>
+      <style>{'@media(max-width:850px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
 }
