@@ -51,10 +51,22 @@ export default function VisualChartCapturePanel({ instrument, timeframe }) {
       ['last_price','open','high','low','close','support','resistance'].forEach(k => { if (!Number.isFinite(data[k])) data[k] = null; });
       data.confidence = Number.isFinite(Number(data.confidence)) ? Math.max(0, Math.min(100, Number(data.confidence))) : 0;
       data.visible_candles = Number.isFinite(Number(data.visible_candles)) ? Math.max(0, Number(data.visible_candles)) : 0;
-      data.instrument = instrument; data.timeframe = timeframe; data.capturedAt = frame.capturedAt;
-      data.dataStatus = data.data_quality === 'POOR' ? 'VISUAL_POOR' : data.visible_candles < 50 ? 'VISUAL_INSUFFICIENT' : 'VISUAL_READY';
+      const observedInstrument = String(data.instrument || '').trim().toUpperCase();
+      const observedTimeframe = String(data.timeframe || '').trim().toUpperCase();
+      const normalizeTf = value => ({ '1':'M1','1M':'M1','5':'M5','5M':'M5','15':'M15','15M':'M15','30':'M30','30M':'M30','60':'H1','1H':'H1','H1':'H1','240':'H4','4H':'H4','H4':'H4','D':'D1','1D':'D1','D1':'D1' })[value] || value;
+      data.observedInstrument = observedInstrument || null;
+      data.observedTimeframe = observedTimeframe || null;
+      data.requestedInstrument = instrument;
+      data.requestedTimeframe = timeframe;
+      data.symbol_match = Boolean(observedInstrument && (observedInstrument === instrument.toUpperCase() || observedInstrument.includes(instrument.toUpperCase())));
+      data.timeframe_match = Boolean(observedTimeframe && normalizeTf(observedTimeframe) === normalizeTf(timeframe));
+      // Keep requested context separate from what vision actually read; never overwrite evidence.
+      data.instrument = observedInstrument || instrument;
+      data.timeframe = observedTimeframe || timeframe;
+      data.capturedAt = frame.capturedAt;
+      data.dataStatus = data.data_quality === 'POOR' ? 'VISUAL_POOR' : !data.symbol_match || !data.timeframe_match ? 'VISUAL_MISMATCH' : data.visible_candles < 50 ? 'VISUAL_INSUFFICIENT' : 'VISUAL_READY';
       window.dispatchEvent(new CustomEvent('jin:visual-analysis-ready', { detail: data }));
-      setStatus(data.dataStatus === 'VISUAL_READY' ? 'DATA MASUK KE AI ANALYST' : data.dataStatus === 'VISUAL_POOR' ? 'GAMBAR TIDAK JELAS' : 'CANDLE VISUAL < 50');
+      setStatus(data.dataStatus === 'VISUAL_READY' ? 'DATA MASUK KE AI ANALYST' : data.dataStatus === 'VISUAL_POOR' ? 'GAMBAR TIDAK JELAS' : data.dataStatus === 'VISUAL_MISMATCH' ? 'INSTRUMEN/TIMEFRAME TIDAK COCOK' : 'CANDLE VISUAL < 50');
     } catch (e) {
       setStatus('ANALISIS GAGAL'); setError(e?.message || 'Gagal membaca chart.');
     } finally { setBusy(false); }
