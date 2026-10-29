@@ -48,7 +48,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         requestedTimeframe: timeframe,
       };
       setVisualData(normalized);
-      const key = String(normalized.timeframe || timeframe).toUpperCase();
+      const key = String(normalized.requestedTimeframe || normalized.timeframe || timeframe).toUpperCase();
       setVisualResults(previous => ({ ...previous, [key]: normalized }));
     };
     const onVisualBatch = event => {
@@ -57,7 +57,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       setVisualResults(previous => {
         const next = { ...previous };
         for (const result of results) {
-          const key = String(result.timeframe || result.requestedTimeframe || '').toUpperCase();
+          const key = String(result.requestedTimeframe || result.timeframe || '').toUpperCase();
           if (key) next[key] = { ...result, requestedInstrument: instrument };
         }
         return next;
