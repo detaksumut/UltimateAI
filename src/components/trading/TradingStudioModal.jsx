@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
-import React, { useEffect, useState } from 'react';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
