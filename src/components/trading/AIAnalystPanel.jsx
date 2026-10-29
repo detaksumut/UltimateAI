@@ -32,6 +32,12 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   const [advancedData, setAdvancedData] = useState(null);
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   const [jinSignal, setJinSignal] = useState(null);
+  const [signalClock, setSignalClock] = useState(Date.now());
+  // Re-evaluate time-based expiry even when no new React event arrives.
+  useEffect(() => {
+    const timer = window.setInterval(() => setSignalClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     const onSignal = event => setJinSignal(event.detail || null);
     const onClear = () => setJinSignal(null);
@@ -267,29 +273,48 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       </div>
       {(() => {
         const tfs = ['H4','H1','M15','M5'].map(tf => visualResults[tf]);
-        const ready = tfs.every(item => item?.dataStatus === 'VISUAL_READY' && item.symbol_match !== false && item.timeframe_match !== false && Number.isFinite(item.last_price));
+        const now = signalClock;
+        const maxVisualAgeMs = 5 * 60 * 1000;
+        const visualAgeMs = item => {
+          const stamp = item?.capturedAt ? Date.parse(item.capturedAt) : NaN;
+          return Number.isFinite(stamp) ? Math.max(0, now - stamp) : Infinity;
+        };
+        const hasFreshPrice = item => Number.isFinite(item?.last_price) &&
+          Number.isFinite(item?.high) && Number.isFinite(item?.low) &&
+          item.high >= item.low && visualAgeMs(item) < maxVisualAgeMs;
+        const ready = tfs.every(item =>
+          item?.dataStatus === 'VISUAL_READY' &&
+          item.symbol_match === true && item.timeframe_match === true &&
+          hasFreshPrice(item) &&
+          ['BULLISH','BEARISH','SIDEWAYS'].includes(item.trend) &&
+          ['BULLISH','BEARISH','NEUTRAL'].includes(item.momentum)
+        );
         const [h4,h1,m15,m5] = tfs;
         const buyTrend = ready && [h4,h1,m15].every(x => x.trend === 'BULLISH');
         const sellTrend = ready && [h4,h1,m15].every(x => x.trend === 'BEARISH');
         const buyTrigger = buyTrend && m5.trend === 'BULLISH' && m5.momentum === 'BULLISH';
         const sellTrigger = sellTrend && m5.trend === 'BEARISH' && m5.momentum === 'BEARISH';
-        const signalAge = jinSignal?.createdAt ? Math.max(0, (Date.now() - new Date(jinSignal.createdAt).getTime()) / 60000) : null;
-        const expiredTime = signalAge != null && signalAge >= 5;
+        const signalStamp = jinSignal?.createdAt ? Date.parse(jinSignal.createdAt) : NaN;
+        const signalAge = Number.isFinite(signalStamp) ? Math.max(0, (now - signalStamp) / 60000) : null;
+        const hasDirectionalSignal = ['BUY','SELL'].includes(jinSignal?.side);
+        const expiredTime = !hasDirectionalSignal || signalAge == null || signalAge >= 5;
         const price = m5 && Number.isFinite(m5.last_price) ? m5.last_price : null;
         const entry = Number.isFinite(jinSignal?.entry) ? jinSignal.entry : null;
-        const range = m5 && Number.isFinite(m5.high) && Number.isFinite(m5.low) ? Math.abs(m5.high - m5.low) : null;
-        const expiredDistance = entry != null && price != null && range > 0 && Math.abs(price - entry) > range * 0.5;
-        const signalExpired = expiredTime || expiredDistance || jinSignal?.side === 'WAIT';
+        const range = m5 && Number.isFinite(m5.high) && Number.isFinite(m5.low) && m5.high >= m5.low ? Math.abs(m5.high - m5.low) : null;
+        const distanceLimit = range != null && range > 0 ? range * 0.5 : null;
+        const distance = entry != null && price != null ? Math.abs(price - entry) : null;
+        const expiredDistance = distanceLimit == null || distance == null || distance > distanceLimit;
+        const signalExpired = !ready || expiredTime || expiredDistance || jinSignal?.side === 'WAIT';
         const line = (ok, label, detail) => <div style={{ display:'flex', gap:6, alignItems:'flex-start', marginTop:5, color:ok?'#86efac':'#fbbf24' }}><span>{ok?'✓':'•'}</span><span><strong>{label}</strong> — {detail}</span></div>;
         return <div style={{ marginTop:9, padding:8, borderRadius:5, background:'rgba(245,158,11,.045)', border:'1px solid rgba(245,158,11,.25)' }}>
           <div style={{ color:'#fbbf24', fontWeight:800, marginBottom:6 }}>KONDISI SINYAL JIN · BUY / SELL / EXPIRED</div>
           {line(ready, 'DATA VALID', ready ? 'H4, H1, M15, M5 tersedia dan cocok.' : 'Harus membaca ulang 4 TF; data belum lengkap/cocok.')}
           {line(buyTrigger, 'BUY JIKA', 'H4, H1, M15 bullish dan tren serta momentum M5 bullish.')}
           {line(sellTrigger, 'SELL JIKA', 'H4, H1, M15 bearish dan tren serta momentum M5 bearish.')}
-          {line(!expiredTime, 'EXPIRED WAKTU', jinSignal?.createdAt ? `Umur sinyal ${signalAge.toFixed(1)} menit; batas awal 5 menit untuk entry M5.` : 'Sinyal belum memiliki waktu terbit; jangan anggap aktif.')}
-          {line(!expiredDistance, 'EXPIRED JARAK', entry != null && price != null ? `Harga M5 ${price.toFixed(2)}; entry ${entry.toFixed(2)}; bandingkan dengan 0,5 × rentang candle M5.` : 'Perlu entry dan harga M5 terbaru untuk menghitung jarak.')}
-          <div style={{ color:signalExpired?'#fbbf24':'#94a3b8', marginTop:7, fontWeight:700 }}>STATUS: {signalExpired ? 'WAIT / SINYAL TIDAK AKTIF' : jinSignal?.side ? `SINYAL ${jinSignal.side} · perlu lolos seluruh validasi` : 'BELUM ADA SINYAL AKTIF'}</div>
-          <div style={{ color:'#64748b', marginTop:4 }}>Catatan: kondisi ini membantu validasi; perubahan harga hanya dapat dinilai saat JIN menerima pembacaan terbaru. Jika harga/data tidak diperbarui, status tidak dianggap terpantau live.</div>
+          {line(hasDirectionalSignal && !expiredTime, 'EXPIRED WAKTU', hasDirectionalSignal && signalAge != null ? `Umur sinyal ${signalAge.toFixed(1)} menit; batas 5 menit. Status diperbarui tiap detik.` : 'Belum ada sinyal BUY/SELL bertimestamp; tidak dianggap aktif.')}
+          {line(hasDirectionalSignal && !expiredDistance, 'EXPIRED JARAK', entry != null && price != null && distanceLimit != null ? `Jarak ${distance.toFixed(2)}; batas ${distanceLimit.toFixed(2)} (0,5 × rentang candle M5).` : 'Belum dapat divalidasi: entry, harga, atau rentang candle M5 tidak tersedia.')}
+          <div style={{ color:signalExpired?'#fbbf24':'#34d399', marginTop:7, fontWeight:700 }}>STATUS: {signalExpired ? (!ready ? 'WAIT / DATA TIDAK VALID ATAU KEDALUWARSA' : expiredTime ? 'WAIT / SINYAL KEDALUWARSA' : expiredDistance ? 'WAIT / BATAS JARAK TERLEWATI' : 'WAIT / SINYAL TIDAK AKTIF') : `SINyal ${jinSignal.side} · lolos pemeriksaan dasar; konfirmasi broker tetap diperlukan`.toUpperCase()}</div>
+          <div style={{ color:'#64748b', marginTop:4 }}>Pemeriksaan umur diperbarui tiap detik. Data visual hanya dianggap segar selama kurang dari 5 menit; ini bukan tick feed live. Untuk validasi harga real-time, hubungkan dan verifikasi feed broker/MT5.</div>
         </div>;
       })()}
       <div style={{ marginTop: 9, padding: 8, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
