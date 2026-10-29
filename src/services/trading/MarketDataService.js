@@ -49,7 +49,10 @@ export class MarketDataService {
   addCandle(candle) {
     if (!isValidCandle(candle)) { console.warn('[MarketData] Candle tidak valid ditolak:', candle); return false; }
     const key = `${candle.symbol}|${candle.timeframe}|${candle.timestamp}`;
-    if (this.candles.has(key)) return false;
+    const previous = this.candles.get(key);
+    // Broker updates the still-forming candle on each poll; upsert it instead of
+    // ignoring the timestamp after its first observation.
+    if (previous && ['open','high','low','close','volume'].every(k => previous[k] === candle[k])) return false;
     this.candles.set(key, candle); this.lastUpdate = candle.timestamp; this.notify(); return true;
   }
   addBatchCandles(candles = []) { let added = 0; candles.forEach(c => { if (this.addCandle(c)) added++; }); return added; }
