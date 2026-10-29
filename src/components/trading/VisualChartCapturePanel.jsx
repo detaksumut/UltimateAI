@@ -4,7 +4,7 @@ import { localRouterClient } from '../../services/router/LocalRouterClient.js';
 
 const btn = { border: '1px solid #155e75', borderRadius: 4, padding: '5px 7px', background: '#071827', color: '#a5f3fc', fontSize: 9, fontWeight: 700, cursor: 'pointer' };
 
-export default function VisualChartCapturePanel({ instrument, timeframe }) {
+export default function VisualChartCapturePanel({ instrument, timeframe, onTimeframeChange }) {
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('CAPTURE NONAKTIF');
@@ -32,14 +32,16 @@ export default function VisualChartCapturePanel({ instrument, timeframe }) {
     } finally { setBusy(false); }
   };
 
-  const captureAndAnalyze = async () => {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  const captureAndAnalyze = async (targetTimeframe = timeframe) => {
     setBusy(true); setError(''); setStatus('MEMBACA GRAFIK…');
     try {
       const frame = visualChartCapture.capture({ maxWidth: 2200, quality: 0.95 });
       const messages = [
         { role: 'system', content: 'You are a chart-vision data extractor. Return ONLY valid JSON, no markdown. Never invent unreadable numeric values. Output schema: {"instrument":"string","timeframe":"string","symbol_match":true,"timeframe_match":true,"visible_candles":0,"ohlc_readable":false,"last_price":null,"open":null,"high":null,"low":null,"close":null,"trend":"BULLISH|BEARISH|SIDEWAYS|UNKNOWN","momentum":"BULLISH|BEARISH|NEUTRAL|UNKNOWN","support":null,"resistance":null,"volatility":"LOW|NORMAL|HIGH|UNKNOWN","scenario":"BUY_BIAS|SELL_BIAS|WAIT","confidence":0,"data_quality":"GOOD|PARTIAL|POOR","note":"short reason"}. Numeric prices must be numbers or null. If screenshot shows a recursive screen-share dialog, mark data_quality POOR and scenario WAIT.' },
         { role: 'user', content: [
-          { type: 'text', text: `Extract chart data from screenshot. UI instrument=${instrument}, timeframe=${timeframe}. Count visible candles conservatively. Return only specified JSON. Do not invent OHLC from pixels if price axis does not support exact values.` },
+          { type: 'text', text: `Extract chart data from screenshot. UI instrument=${instrument}, requested timeframe=${targetTimeframe}. The visible chart must itself confirm this timeframe; do not assume it. Count visible candles conservatively. Return only specified JSON. Do not invent OHLC from pixels if price axis does not support exact values.` },
           { type: 'image_url', image_url: { url: frame.dataUrl, detail: 'high' } }
         ]}
       ];
@@ -57,18 +59,58 @@ export default function VisualChartCapturePanel({ instrument, timeframe }) {
       data.observedInstrument = observedInstrument || null;
       data.observedTimeframe = observedTimeframe || null;
       data.requestedInstrument = instrument;
-      data.requestedTimeframe = timeframe;
+      data.requestedTimeframe = targetTimeframe;
       data.symbol_match = Boolean(observedInstrument && (observedInstrument === instrument.toUpperCase() || observedInstrument.includes(instrument.toUpperCase())));
-      data.timeframe_match = Boolean(observedTimeframe && normalizeTf(observedTimeframe) === normalizeTf(timeframe));
+      data.timeframe_match = Boolean(observedTimeframe && normalizeTf(observedTimeframe) === normalizeTf(targetTimeframe));
       // Keep requested context separate from what vision actually read; never overwrite evidence.
       data.instrument = observedInstrument || instrument;
-      data.timeframe = observedTimeframe || timeframe;
+      data.timeframe = observedTimeframe || targetTimeframe;
       data.capturedAt = frame.capturedAt;
       data.dataStatus = data.data_quality === 'POOR' ? 'VISUAL_POOR' : !data.symbol_match || !data.timeframe_match ? 'VISUAL_MISMATCH' : data.visible_candles < 50 ? 'VISUAL_INSUFFICIENT' : 'VISUAL_READY';
       window.dispatchEvent(new CustomEvent('jin:visual-analysis-ready', { detail: data }));
       setStatus(data.dataStatus === 'VISUAL_READY' ? 'DATA MASUK KE AI ANALYST' : data.dataStatus === 'VISUAL_POOR' ? 'GAMBAR TIDAK JELAS' : data.dataStatus === 'VISUAL_MISMATCH' ? 'INSTRUMEN/TIMEFRAME TIDAK COCOK' : 'CANDLE VISUAL < 50');
+      return data;
     } catch (e) {
       setStatus('ANALISIS GAGAL'); setError(e?.message || 'Gagal membaca chart.');
+      throw e;
+    } finally { if (targetTimeframe === timeframe) setBusy(false); }
+  };
+
+  const captureAllTimeframes = async () => {
+    if (!active) {
+      setError('Klik IZINKAN CAPTURE terlebih dahulu dan pilih jendela/tab chart yang akan dibaca.');
+      return;
+    }
+    if (typeof onTimeframeChange !== 'function') {
+      setError('Kontrol pergantian timeframe belum tersedia.');
+      return;
+    }
+    const plan = [
+      { label: 'H4', interval: '240' },
+      { label: 'H1', interval: '60' },
+      { label: 'M15', interval: '15' },
+      { label: 'M5', interval: '5' },
+    ];
+    setBusy(true);
+    setError('');
+    const batch = [];
+    try {
+      for (const item of plan) {
+        setStatus('BERPINDAH KE ' + item.label + '…');
+        onTimeframeChange(item.interval);
+        // Give React/TradingView time to rebuild the widget and render the requested timeframe.
+        await sleep(6500);
+        setStatus('MEMBACA ' + item.label + '…');
+        const result = await captureAndAnalyze(item.label);
+        if (result) batch.push(result);
+      }
+      window.dispatchEvent(new CustomEvent('jin:visual-analysis-batch-ready', {
+        detail: { instrument, requestedAt: new Date().toISOString(), results: batch }
+      }));
+      setStatus('SELESAI ' + batch.length + '/4 TIMEFRAME');
+    } catch (e) {
+      setError(e?.message || 'Perekaman multi-timeframe gagal.');
+      setStatus('BATCH TERHENTI');
     } finally { setBusy(false); }
   };
 
@@ -80,6 +122,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe }) {
     <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
       {!active ? <button style={btn} onClick={start} disabled={busy}>{busy ? 'MEMULAI…' : 'IZINKAN CAPTURE'}</button> : <>
         <button style={btn} onClick={captureAndAnalyze} disabled={busy}>{busy ? 'MEMBACA…' : 'AMBIL DATA & ANALISIS'}</button>
+        <button style={btn} onClick={captureAllTimeframes} disabled={busy}>{busy ? 'REKAM 4 TF…' : 'REKAM 4 TF (H4→H1→M15→M5)'}</button>
         <button style={btn} onClick={() => { visualChartCapture.stop(); setActive(false); setStatus('CAPTURE DIHENTIKAN'); if (timer.current) clearInterval(timer.current); }} disabled={busy}>STOP</button>
       </>}
     </div>
