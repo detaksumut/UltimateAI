@@ -25,6 +25,17 @@ const fmt = (value, digits = 2) => Number.isFinite(value)
 
 export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIMEFRAMES.M15 }) {
   const [analysis, setAnalysis] = useState({ ...initialState, instrument, timeframe });
+  const [visualData, setVisualData] = useState(null);
+
+  useEffect(() => {
+    const onVisualData = (event) => {
+      const data = event.detail || {};
+      if (data.instrument !== instrument || data.timeframe !== timeframe) return;
+      setVisualData(data);
+    };
+    window.addEventListener('jin:visual-analysis-ready', onVisualData);
+    return () => window.removeEventListener('jin:visual-analysis-ready', onVisualData);
+  }, [instrument, timeframe]);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +133,40 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     ['Risk/Reward', analysis.riskReward == null ? '—' : `1:${fmt(analysis.riskReward, 2)}`],
     ['Confidence heuristik', `${analysis.confidence}%`],
   ];
+
+  if (visualData) {
+    const digits = instrument === 'XAUUSD' ? 2 : 5;
+    const visualFmt = value => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—';
+    const qualityColor = visualData.dataStatus === 'VISUAL_READY' ? '#10b981' : '#f59e0b';
+    const visualRows = [
+      ['Sumber', 'SCREEN VISION'], ['Status', visualData.dataStatus],
+      ['Instrumen', visualData.instrument || instrument], ['Timeframe', visualData.timeframe || timeframe],
+      ['Candle terlihat', String(visualData.visible_candles ?? 0)],
+      ['OHLC numerik', visualData.ohlc_readable ? 'TERBACA' : 'TIDAK TERBACA'],
+      ['Harga terakhir', visualFmt(visualData.last_price)], ['Open', visualFmt(visualData.open)],
+      ['High', visualFmt(visualData.high)], ['Low', visualFmt(visualData.low)], ['Close', visualFmt(visualData.close)],
+      ['Tren visual', visualData.trend || 'UNKNOWN'], ['Momentum', visualData.momentum || 'UNKNOWN'],
+      ['Support visual', visualFmt(visualData.support)], ['Resistance visual', visualFmt(visualData.resistance)],
+      ['Volatilitas', visualData.volatility || 'UNKNOWN'], ['Confidence', `${visualData.confidence ?? 0}%`],
+    ];
+    return <section style={{ color: '#cbd5e1', background: 'rgba(8,15,30,0.92)', border: '1px solid rgba(0,229,255,0.18)', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 10 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
+        <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>AI TECHNICAL ANALYST · VISUAL DATA</strong>
+        <span style={{ color: qualityColor, fontWeight: 700 }}>{visualData.dataStatus}</span>
+      </header>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '7px 12px' }}>
+        {visualRows.map(([label, value]) => <div key={label} style={{ minWidth: 0 }}>
+          <div style={{ color: '#64748b', fontSize: 9, marginBottom: 2 }}>{label}</div>
+          <div style={{ color: label === 'Tren visual' && visualData.trend === 'BULLISH' ? '#10b981' : label === 'Tren visual' && visualData.trend === 'BEARISH' ? '#f87171' : '#e2e8f0', overflowWrap: 'anywhere' }}>{value}</div>
+        </div>)}
+      </div>
+      <div style={{ marginTop: 9, padding: 8, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
+        <div style={{ color: '#00e5ff', fontWeight: 700 }}>SKENARIO: {visualData.dataStatus === 'VISUAL_READY' ? (visualData.scenario || 'WAIT') : 'WAIT'}</div>
+        <div style={{ color: '#94a3b8', marginTop: 5 }}>{visualData.note || 'Hasil berasal dari pembacaan visual screenshot.'}</div>
+        <div style={{ color: '#fbbf24', marginTop: 5 }}>Angka yang tidak terbaca ditampilkan sebagai —, bukan ditebak. Screenshot: {visualData.capturedAt ? new Date(visualData.capturedAt).toLocaleTimeString() : '—'}.</div>
+      </div>
+    </section>;
+  }
 
   const statusColor = analysis.dataStatus === 'CONNECTED' ? '#10b981' : '#f59e0b';
   return (
