@@ -111,7 +111,7 @@ export default function TradingStudioModal({ onClose }) {
         </section>
         {!isFullChart && <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
           <h2 style={{ color: '#22d3ee', fontSize: 12, letterSpacing: 1, fontWeight: 800, margin: '0 0 12px' }}>AI TECHNICAL ANALYST</h2>
-          <VisualChartCapturePanel instrument={instrument} timeframe={timeframe} />
+          <VisualChartCapturePanel instrument={instrument} timeframe={timeframe} onTimeframeChange={setInterval} />
           <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
         </section>}
       </div>
