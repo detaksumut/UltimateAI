@@ -271,8 +271,30 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
           </div>;
         })}
       </div>
-      <div style={{marginTop:9,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
-        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:7}}>SUPPLY &amp; DEMAND · M5</div>
+      <div style={{marginTop:8,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
+        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>LEVEL PENTING</div>
+        {(() => {
+          const m5 = visualResults['M5'];
+          const valid = m5?.dataStatus === 'VISUAL_READY' && m5.symbol_match === true && m5.timeframe_match === true;
+          const fmtLevel = value => Number.isFinite(value) ? value.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : 'BELUM TERVERIFIKASI';
+          const rows = [
+            {label:'R3',value:m5?.r3,color:'#fb7185'},
+            {label:'R2',value:m5?.r2,color:'#fb7185'},
+            {label:'R1',value:valid&&Number.isFinite(m5?.resistance)?m5.resistance:null,color:'#fb7185'},
+            {label:'CURRENT',value:valid&&Number.isFinite(m5?.last_price)?m5.last_price:null,color:'#cbd5e1'},
+            {label:'S1',value:valid&&Number.isFinite(m5?.support)?m5.support:null,color:'#38bdf8'},
+            {label:'S2',value:m5?.s2,color:'#38bdf8'},
+            {label:'S3',value:m5?.s3,color:'#38bdf8'},
+          ];
+          return rows.map(row=><div key={row.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'7px 7px',marginTop:4,border:'1px solid #193247',borderRadius:4,background:'#06111e'}}>
+            <strong style={{fontSize:9,color:row.color}}>{row.label}</strong>
+            <strong style={{fontSize:10,color:Number.isFinite(row.value)?row.color:'#fbbf24'}}>{valid?fmtLevel(row.value):'BELUM TERVERIFIKASI'}</strong>
+          </div>);
+        })()}
+        <div style={{fontSize:8,color:'#64748b',marginTop:6}}>Level ditampilkan hanya jika tersedia dari data valid; level yang tidak tersedia tidak diperkirakan.</div>
+      </div>
+      <div style={{marginTop:8,padding:8,borderRadius:5,background:'#071321',border:'1px solid #164e63'}}>
+        <div style={{color:'#67e8f9',fontWeight:900,fontSize:10,marginBottom:6}}>SUPPLY &amp; DEMAND · M5</div>
         {(() => {
           const m5 = visualResults['M5'];
           const valid = m5?.dataStatus === 'VISUAL_READY' && m5.symbol_match === true && m5.timeframe_match === true && Number.isFinite(m5.support) && Number.isFinite(m5.resistance) && m5.support < m5.resistance;
