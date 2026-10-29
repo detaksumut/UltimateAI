@@ -161,9 +161,13 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         </div>)}
       </div>
       <div style={{ marginTop: 9, padding: 8, borderRadius: 5, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.1)' }}>
-        <div style={{ color: '#00e5ff', fontWeight: 700 }}>SKENARIO: {visualData.dataStatus === 'VISUAL_READY' ? (visualData.scenario || 'WAIT') : 'WAIT'}</div>
-        <div style={{ color: '#94a3b8', marginTop: 5 }}>{visualData.note || 'Hasil berasal dari pembacaan visual screenshot.'}</div>
-        <div style={{ color: '#fbbf24', marginTop: 5 }}>Angka yang tidak terbaca ditampilkan sebagai —, bukan ditebak. Screenshot: {visualData.capturedAt ? new Date(visualData.capturedAt).toLocaleTimeString() : '—'}.</div>
+        <div style={{ color: '#00e5ff', fontWeight: 700 }}>SCENARIO / SKENARIO: {visualData.dataStatus === 'VISUAL_READY' ? (visualData.scenario || 'WAIT') : 'WAIT'}</div>
+        <div style={{ color: '#e2e8f0', marginTop: 6, fontWeight: 700 }}>EN — Visual reading</div>
+        <div style={{ color: '#94a3b8', marginTop: 3 }}>{visualData.note || 'The chart was read from the captured screen. Unreadable values are not estimated.'}</div>
+        <div style={{ color: '#e2e8f0', marginTop: 8, fontWeight: 700 }}>ID — Pembacaan visual</div>
+        <div style={{ color: '#94a3b8', marginTop: 3 }}>{visualData.note_id || visualData.note || 'Grafik dibaca dari tangkapan layar. Angka yang tidak terbaca tidak ditebak.'}</div>
+        <div style={{ color: '#fbbf24', marginTop: 7 }}>EN: Values marked — are unreadable, not guessed. / ID: Tanda — berarti angka tidak terbaca, bukan hasil tebakan.</div>
+        <div style={{ color: '#64748b', marginTop: 5 }}>Captured / Ditangkap: {visualData.capturedAt ? new Date(visualData.capturedAt).toLocaleTimeString() : '—'}</div>
       </div>
     </section>;
   }
