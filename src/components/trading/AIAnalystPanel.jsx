@@ -89,9 +89,9 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
       const priceVsEma20Pct = Number.isFinite(ema20) && ema20 !== 0 ? ((price - ema20) / ema20) * 100 : null;
       const recentCloses = candles.slice(-5).map(c => c.close);
       const shortMomentumPct = recentCloses.length > 1 && recentCloses[0] !== 0 ? ((recentCloses.at(-1) - recentCloses[0]) / recentCloses[0]) * 100 : null;
-      setAdvancedData({ ema9, ema20, ema50, rsi, atr, priorSupport, priorResistance, candleShape, priceVsEma20Pct, shortMomentumPct, lastCandle, candleRange });
       const rsi = indicators.rsi;
       const atr = indicators.atr;
+      setAdvancedData({ ema9, ema20, ema50, rsi, atr, priorSupport, priorResistance, candleShape, priceVsEma20Pct, shortMomentumPct, lastCandle, candleRange });
       const bullish = price > ema20 && ema9 > ema20 && ema20 > ema50;
       const bearish = price < ema20 && ema9 < ema20 && ema20 < ema50;
       const trend = bullish ? 'BULLISH' : bearish ? 'BEARISH' : 'SIDEWAYS';
