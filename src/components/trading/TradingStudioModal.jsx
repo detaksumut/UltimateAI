@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
+import GoldNewsModal from './GoldNewsModal.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -24,6 +25,7 @@ export default function TradingStudioModal({ onClose }) {
   const [interval, setInterval] = useState('60');
   const [chartMode, setChartMode] = useState('normal');
   const [signal, setSignal] = useState(null);
+  const [showGoldNews, setShowGoldNews] = useState(false);
   useEffect(() => {
     const onSignal = event => setSignal(event.detail || null);
     const onClear = () => setSignal(null);
@@ -60,6 +62,8 @@ export default function TradingStudioModal({ onClose }) {
         </div>
       </header>
 
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button></div>
+      <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
           <iframe
