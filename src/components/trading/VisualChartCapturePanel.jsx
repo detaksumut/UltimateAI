@@ -107,7 +107,41 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       window.dispatchEvent(new CustomEvent('jin:visual-analysis-batch-ready', {
         detail: { instrument, requestedAt: new Date().toISOString(), results: batch }
       }));
-      setStatus('SELESAI ' + batch.length + '/4 TIMEFRAME');
+      const required = ['H4', 'H1', 'M15', 'M5'];
+      const byTf = Object.fromEntries(batch.map(item => [String(item.requestedTimeframe || item.timeframe || '').toUpperCase(), item]));
+      const complete = required.every(tf => {
+        const item = byTf[tf];
+        return item && item.dataStatus === 'VISUAL_READY' && item.symbol_match !== false &&
+          item.timeframe_match !== false && Number.isFinite(item.last_price) &&
+          ['BULLISH','BEARISH','SIDEWAYS'].includes(item.trend);
+      });
+      let signal = { side: 'WAIT', entry: null, stopLoss: null, takeProfit: null,
+        reason: 'Empat TF belum lengkap, tidak cocok, atau kualitas datanya belum memadai.' };
+      if (complete) {
+        const h4 = byTf.H4, h1 = byTf.H1, m15 = byTf.M15, m5 = byTf.M5;
+        const alignedBull = [h4,h1,m15].every(x => x.trend === 'BULLISH');
+        const alignedBear = [h4,h1,m15].every(x => x.trend === 'BEARISH');
+        const entry = Number.isFinite(m5.close) ? m5.close : m5.last_price;
+        const range = Number.isFinite(m5.high) && Number.isFinite(m5.low) ? Math.abs(m5.high - m5.low) : null;
+        const risk = Number.isFinite(range) && range > 0 ? range : null;
+        const bullTrigger = m5.trend === 'BULLISH' && m5.momentum === 'BULLISH' && Number.isFinite(entry);
+        const bearTrigger = m5.trend === 'BEARISH' && m5.momentum === 'BEARISH' && Number.isFinite(entry);
+        if (alignedBull && bullTrigger && risk) {
+          signal = { side: 'BUY', entry, stopLoss: entry - risk * 1.5, takeProfit: entry + risk * 3,
+            reason: 'H4, H1, M15 bullish; tren dan momentum M5 mengonfirmasi.' };
+        } else if (alignedBear && bearTrigger && risk) {
+          signal = { side: 'SELL', entry, stopLoss: entry + risk * 1.5, takeProfit: entry - risk * 3,
+            reason: 'H4, H1, M15 bearish; tren dan momentum M5 mengonfirmasi.' };
+        } else {
+          signal.reason = 'Pembacaan 4 TF selesai, tetapi konfirmasi arah/entry belum sejalan. Tidak ada entry aktif.';
+        }
+      }
+      signal.instrument = instrument;
+      signal.source = 'SCREEN_VISION_4TF';
+      signal.createdAt = new Date().toISOString();
+      signal.timeframes = byTf;
+      window.dispatchEvent(new CustomEvent('jin:signal-ready', { detail: signal }));
+      setStatus('SELESAI ' + batch.length + '/4 TIMEFRAME · SINYAL ' + signal.side);
     } catch (e) {
       setError(e?.message || 'Perekaman multi-timeframe gagal.');
       setStatus('BATCH TERHENTI');
