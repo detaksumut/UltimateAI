@@ -294,6 +294,18 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         const sellTrend = ready && [h4,h1,m15].every(x => x.trend === 'BEARISH');
         const buyTrigger = buyTrend && m5.trend === 'BULLISH' && m5.momentum === 'BULLISH';
         const sellTrigger = sellTrend && m5.trend === 'BEARISH' && m5.momentum === 'BEARISH';
+        const marketBias = !ready ? 'DATA BELUM LAYAK' : buyTrend ? 'BIAS BUY — tunggu konfirmasi M5' : sellTrend ? 'BIAS SELL — tunggu konfirmasi M5' : 'MIXED — tunggu keselarasan H4/H1/M15';
+        const triggerReason = !ready
+          ? 'Rekam ulang keempat timeframe; cek instrumen, timeframe, OHLC, dan waktu capture.'
+          : buyTrigger
+            ? 'Syarat visual BUY terpenuhi; tetap verifikasi harga live dan risiko sebelum entry.'
+            : sellTrigger
+              ? 'Syarat visual SELL terpenuhi; tetap verifikasi harga live dan risiko sebelum entry.'
+              : buyTrend
+                ? 'Bias timeframe besar bullish, tetapi M5 belum mengonfirmasi tren dan momentum bullish bersamaan.'
+                : sellTrend
+                  ? 'Bias timeframe besar bearish, tetapi M5 belum mengonfirmasi tren dan momentum bearish bersamaan.'
+                  : 'H4, H1, dan M15 belum searah; jangan memaksakan entry.';
         const signalStamp = jinSignal?.createdAt ? Date.parse(jinSignal.createdAt) : NaN;
         const signalAge = Number.isFinite(signalStamp) ? Math.max(0, (now - signalStamp) / 60000) : null;
         const hasDirectionalSignal = ['BUY','SELL'].includes(jinSignal?.side);
@@ -304,13 +316,18 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         const distanceLimit = range != null && range > 0 ? range * 0.5 : null;
         const distance = entry != null && price != null ? Math.abs(price - entry) : null;
         const expiredDistance = distanceLimit == null || distance == null || distance > distanceLimit;
-        const signalExpired = !ready || expiredTime || expiredDistance || jinSignal?.side === 'WAIT';
+        const signalExpired = !ready || expiredTime || expiredDistance || jinSignal?.side === 'WAIT' || !(buyTrigger || sellTrigger);
         const line = (ok, label, detail) => <div style={{ display:'flex', gap:6, alignItems:'flex-start', marginTop:5, color:ok?'#86efac':'#fbbf24' }}><span>{ok?'✓':'•'}</span><span><strong>{label}</strong> — {detail}</span></div>;
         return <div style={{ marginTop:9, padding:8, borderRadius:5, background:'rgba(245,158,11,.045)', border:'1px solid rgba(245,158,11,.25)' }}>
           <div style={{ color:'#fbbf24', fontWeight:800, marginBottom:6 }}>KONDISI SINYAL JIN · BUY / SELL / EXPIRED</div>
           {line(ready, 'DATA VALID', ready ? 'H4, H1, M15, M5 tersedia dan cocok.' : 'Harus membaca ulang 4 TF; data belum lengkap/cocok.')}
           {line(buyTrigger, 'BUY JIKA', 'H4, H1, M15 bullish dan tren serta momentum M5 bullish.')}
           {line(sellTrigger, 'SELL JIKA', 'H4, H1, M15 bearish dan tren serta momentum M5 bearish.')}
+          <div style={{ marginTop:7, padding:'6px 7px', borderRadius:4, background:'#071321', border:'1px solid #164e63' }}>
+            <div style={{ color:'#67e8f9', fontWeight:800 }}>BIAS & ALASAN KEPUTUSAN</div>
+            <div style={{ color: buyTrigger ? '#34d399' : sellTrigger ? '#fb7185' : '#fbbf24', marginTop:4, fontWeight:700 }}>{buyTrigger ? 'KONDISI BUY TERPENUHI' : sellTrigger ? 'KONDISI SELL TERPENUHI' : marketBias}</div>
+            <div style={{ color:'#94a3b8', marginTop:4 }}>{triggerReason}</div>
+          </div>
           {line(hasDirectionalSignal && !expiredTime, 'EXPIRED WAKTU', hasDirectionalSignal && signalAge != null ? `Umur sinyal ${signalAge.toFixed(1)} menit; batas 5 menit. Status diperbarui tiap detik.` : 'Belum ada sinyal BUY/SELL bertimestamp; tidak dianggap aktif.')}
           {line(hasDirectionalSignal && !expiredDistance, 'EXPIRED JARAK', entry != null && price != null && distanceLimit != null ? `Jarak ${distance.toFixed(2)}; batas ${distanceLimit.toFixed(2)} (0,5 × rentang candle M5).` : 'Belum dapat divalidasi: entry, harga, atau rentang candle M5 tidak tersedia.')}
           <div style={{ color:signalExpired?'#fbbf24':'#34d399', marginTop:7, fontWeight:700 }}>STATUS: {signalExpired ? (!ready ? 'WAIT / DATA TIDAK VALID ATAU KEDALUWARSA' : expiredTime ? 'WAIT / SINYAL KEDALUWARSA' : expiredDistance ? 'WAIT / BATAS JARAK TERLEWATI' : 'WAIT / SINYAL TIDAK AKTIF') : `SINyal ${jinSignal.side} · lolos pemeriksaan dasar; konfirmasi broker tetap diperlukan`.toUpperCase()}</div>
