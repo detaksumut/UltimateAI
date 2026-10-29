@@ -31,7 +31,8 @@ export default function FundamentalResearchPanel({ instrument = 'XAUUSD' }) {
     setBusy(true); setError(''); setReport(null); setStatus('MEMBACA WEBSITE RESMI…');
     try {
       const endpoint = String(RouterConfig.getEndpoint()).replace(/\/+$/, '');
-      const response = await fetch(endpoint + '/api/trading/fundamental-read', {
+      const route = endpoint.endsWith('/api') ? '/trading/fundamental-read' : '/api/trading/fundamental-read';
+      const response = await fetch(endpoint + route, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sources: selected }),
