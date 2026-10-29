@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
-import JINLiveSignalChart from './JINLiveSignalChart.jsx';
+import React, { useEffect, useState } from 'react';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -24,6 +24,14 @@ export default function TradingStudioModal({ onClose }) {
   const [symbol, setSymbol] = useState('OANDA:XAUUSD');
   const [interval, setInterval] = useState('60');
   const [chartMode, setChartMode] = useState('normal');
+  const [signal, setSignal] = useState(null);
+  useEffect(() => {
+    const onSignal = event => setSignal(event.detail || null);
+    const onClear = () => setSignal(null);
+    window.addEventListener('jin:signal-ready', onSignal);
+    window.addEventListener('jin:signal-clear', onClear);
+    return () => { window.removeEventListener('jin:signal-ready', onSignal); window.removeEventListener('jin:signal-clear', onClear); };
+  }, []);
   const instrument = symbol.split(':').pop();
   const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
   const isFullChart = chartMode === 'full';
@@ -54,8 +62,20 @@ export default function TradingStudioModal({ onClose }) {
       </header>
 
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
-        <section aria-label="JIN live candlestick chart" style={{ minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
-          <JINLiveSignalChart symbol={instrument} interval={interval} />
+        <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
+          <iframe
+            title={`TradingView ${instrument} ${timeframe}`}
+            src={`https://www.tradingview.com/widgetembed/?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=030812&studies=[]&theme=dark&style=1&timezone=Asia%2FJakarta&withdateranges=1&hideideas=1`}
+            style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, border: 0, display: 'block' }}
+            allowFullScreen
+          />
+          {signal && <div role="status" style={{ position: 'absolute', zIndex: 5, top: 58, right: 18, width: 220, padding: 10, borderRadius: 6, border: '1px solid ' + (signal.side === 'BUY' ? '#10b981' : signal.side === 'SELL' ? '#f43f5e' : '#f59e0b'), background: 'rgba(3,8,18,.94)', boxShadow: '0 4px 18px #0008', pointerEvents: 'none' }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: signal.side === 'BUY' ? '#34d399' : signal.side === 'SELL' ? '#fb7185' : '#fbbf24' }}>JIN SIGNAL · {signal.side}</div>
+            <div style={{ fontSize: 10, color: '#e2e8f0', marginTop: 5 }}>Entry: {Number.isFinite(signal.entry) ? signal.entry.toFixed(2) : '—'}</div>
+            <div style={{ fontSize: 10, color: '#e2e8f0' }}>SL: {Number.isFinite(signal.stopLoss) ? signal.stopLoss.toFixed(2) : '—'} · TP: {Number.isFinite(signal.takeProfit) ? signal.takeProfit.toFixed(2) : '—'}</div>
+            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 5 }}>{signal.reason}</div>
+            <div style={{ fontSize: 8, color: '#64748b', marginTop: 5 }}>Dari pembacaan 4 TF · {signal.createdAt ? new Date(signal.createdAt).toLocaleTimeString() : ''}</div>
+          </div>}
         </section>
         {!isFullChart && <section aria-label="AI Technical Analyst" style={{ minWidth: 0, border: '1px solid #164e63', borderRadius: 7, background: '#06101d', padding: 12, overflowY: 'auto' }}>
           <h2 style={{ color: '#22d3ee', fontSize: 12, letterSpacing: 1, fontWeight: 800, margin: '0 0 12px' }}>AI TECHNICAL ANALYST</h2>
