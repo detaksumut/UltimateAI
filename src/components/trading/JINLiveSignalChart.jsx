@@ -80,7 +80,9 @@ export default function JINLiveSignalChart({symbol='XAUUSD',interval='60'}) {
   const x=i=>left+(i+0.5)*(W-left-right)/Math.max(chartCandles.length,1);
   const y=v=>top+(hi-v)*(H-top-bottom)/(hi-lo || 1);
   const bodyW=Math.max(2,Math.min(9,(W-left-right)/Math.max(chartCandles.length,1)*0.58));
-  const canShowSignal=signal.side!=='WAIT' && latest && signal.timestamp===latest.timestamp && latest.isSimulated!==true;
+  const signalTime = signal.timestamp ? Date.parse(signal.timestamp) : NaN;
+  const latestTime = latest?.timestamp ? Date.parse(latest.timestamp) : NaN;
+  const canShowSignal=signal.side!=='WAIT' && latest && Number.isFinite(signalTime) && Number.isFinite(latestTime) && signalTime >= latestTime && signalTime < latestTime + (TF_MS[tf] || 3600000) && latest.isSimulated!==true;
   return <section style={{height:'100%',minHeight:560,display:'flex',flexDirection:'column',background:'#030812',color:'#cbd5e1',fontFamily:'Inter,system-ui,sans-serif'}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'9px 12px',borderBottom:'1px solid #142d40',flexWrap:'wrap'}}>
       <strong style={{fontSize:11,color:'#22d3ee',letterSpacing:'.05em'}}>JIN LIVE SIGNAL CHART · {symbol} · {tf}</strong>
