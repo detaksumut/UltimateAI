@@ -38,8 +38,14 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   useEffect(() => {
     const onVisualData = (event) => {
       const data = event.detail || {};
-      if (data.instrument !== instrument || data.timeframe !== timeframe) return;
-      setVisualData(data);
+      // Keep visual evidence visible even when the chart symbol/timeframe does not match
+      // the selected analysis context; the dashboard must show the mismatch, not hide it.
+      setVisualData({ ...data,
+        symbol_match: data.symbol_match ?? (data.instrument === instrument),
+        timeframe_match: data.timeframe_match ?? (data.timeframe === timeframe),
+        requestedInstrument: instrument,
+        requestedTimeframe: timeframe,
+      });
     };
     window.addEventListener('jin:visual-analysis-ready', onVisualData);
     return () => window.removeEventListener('jin:visual-analysis-ready', onVisualData);
