@@ -77,13 +77,33 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   };
   const evidenceByUrl=new Map(evidence.map(s=>[normalizeSourceUrl(s.url),s]).filter(([url])=>!!url));
   const candidateFacts=Array.isArray(parsed.facts)?parsed.facts:[];
+  const nowMs=Date.now();
+  const MAX_NEWS_AGE_MS=72*60*60*1000;
+  let rejectedStaleOrUndated=0;
   const verifiedFacts=candidateFacts.map(f=>({fact:f,source:evidenceByUrl.get(normalizeSourceUrl(f?.sourceUrl))})).filter(x=>x.source);
-  parsed.facts=verifiedFacts.map(({fact:f,source})=>{
+  parsed.facts=verifiedFacts.flatMap(({fact:f,source})=>{
    const dateText=String(source?.content||'');
-   const hasPublicationDate=!!f.publishedAt&&dateText.includes(String(f.publishedAt).slice(0,10));
-   return {...f,sourceUrl:source.url,publishedAt:hasPublicationDate?f.publishedAt:'',sourceLabel:source?.source||f.sourceLabel||'Sumber terverifikasi'};
+   const kind=String(f?.factOrInterpretation||'').toUpperCase();
+   const publishedAt=String(f?.publishedAt||'').trim();
+   const publishedMs=publishedAt?Date.parse(publishedAt):NaN;
+   const dateIsInSource=!!publishedAt&&dateText.includes(publishedAt.slice(0,10));
+   // Do not present an undated, future-dated, or >72-hour-old item as current news.
+   // Future scheduled events must be explicitly typed SCHEDULE and are kept separate from news.
+   if(kind==='SCHEDULE'){
+    const eventMs=Date.parse(String(f?.eventTimeWIB||''));
+    if(!Number.isFinite(eventMs)||eventMs<nowMs-MAX_NEWS_AGE_MS){rejectedStaleOrUndated++;return [];}
+    return [{...f,sourceUrl:source.url,publishedAt:'',sourceLabel:f.sourceLabel||source.label||source.source||'Sumber terverifikasi'}];
+   }
+   if(!dateIsInSource||!Number.isFinite(publishedMs)||publishedMs>nowMs+5*60*1000||nowMs-publishedMs>MAX_NEWS_AGE_MS){
+    rejectedStaleOrUndated++;
+    return [];
+   }
+   return [{...f,sourceUrl:source.url,publishedAt,sourceLabel:f.sourceLabel||source.label||source.source||'Sumber terverifikasi'}];
   });
-  if(!parsed.facts.length)parsed.summary='Belum ada klaim berita yang dapat dihubungkan secara tepat ke URL sumber yang dibaca. Tidak ada kesimpulan arah XAUUSD yang dibuat.';
+  if(rejectedStaleOrUndated>0){
+   parsed.missing.push(rejectedStaleOrUndated+' klaim berita dibuang karena tanggal publikasi tidak terverifikasi, tanggal di masa depan, atau lebih lama dari 72 jam.');
+  }
+  if(!parsed.facts.length)parsed.summary='Belum ada berita terbaru yang memenuhi verifikasi sumber dan tanggal publikasi (maksimal 72 jam). Berita lama atau tanpa tanggal tidak ditampilkan sebagai berita baru; tidak ada kesimpulan arah XAUUSD yang dibuat.';
   if(!Array.isArray(parsed.risks))parsed.risks=[];
   if(!Array.isArray(parsed.missing))parsed.missing=[];
   const item={...parsed,checkedAt:new Date().toISOString(),sourceCount:readable.length,reason,sourceFetchMode:usedScheduled?'scheduled pre-session':usedTavily?'manual Tavily search ('+(payload.searchProvider||'provider unknown')+')':'manual live read',scheduledSession:payload.scheduledSession||null,scheduledAtWIB:payload.scheduledAtWIB||null};setReport(item);setStatus(readable.length+' SUMBER DIBACA');setHistory(old=>{const next=[item,...old].slice(0,100);try{localStorage.setItem('jin-gold-news-history-v1',JSON.stringify(next))}catch{}return next});
