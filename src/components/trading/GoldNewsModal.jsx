@@ -58,14 +58,19 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   const evidence=readable.map(s=>({source:s.label,url:s.url,fetchedAt:s.fetchedAt,content:String(s.content).slice(0,10000)}));
   const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
   const systemPrompt='Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output SATU objek JSON valid tanpa markdown atau teks pembuka/penutup. Wajib memakai double quotes untuk key dan string.';
-  let raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:prompt}],temperature:0.0});
+  let raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:prompt}],temperature:0.0,signal:AbortSignal.timeout(18000)});
   let parsed;
   try { parsed=parseJson(raw); }
   catch(firstError) {
    // One focused retry for models that prepend prose or return malformed JSON.
    const repairPrompt='Ubah respons berikut menjadi SATU objek JSON valid sesuai schema. Pertahankan hanya informasi yang benar-benar ada; jangan menambah fakta. Jika tidak ada fakta yang dapat dipastikan, gunakan summary yang menjelaskan keterbatasan, facts: [], risks: [], missing: []. Keluarkan JSON saja. Schema: {"summary":"string","facts":[],"risks":[],"missing":[],"asOf":"ISO timestamp"}\\n\\nRespons yang harus diperbaiki:\\n'+String(raw??'').slice(0,12000);
-   raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:repairPrompt}],temperature:0.0});
-   parsed=parseJson(raw);
+   try {
+    raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:repairPrompt}],temperature:0.0,signal:AbortSignal.timeout(8000)});
+    parsed=parseJson(raw);
+   } catch(repairError) {
+    // Never turn malformed model output into invented news or an unhandled UI error.
+    parsed={summary:'Analisis AI gagal menghasilkan JSON valid. Sumber telah dibaca, tetapi tidak ada klaim berita yang dipublikasikan karena hasil analisis tidak lolos validasi.',facts:[],risks:[],missing:['Respons model tidak valid setelah satu kali percobaan perbaikan. Coba Refresh atau periksa LocalRouterClient.'],asOf:new Date().toISOString(),analysisValid:false};
+   }
   }
   if(typeof parsed.summary!=='string') parsed.summary='';
   if(!Array.isArray(parsed.facts)) parsed.facts=[];
@@ -76,14 +81,36 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
     try{const u=new URL(String(value));u.hash='';u.search='';u.hostname=u.hostname.toLowerCase();if(u.hostname.startsWith('www.'))u.hostname=u.hostname.slice(4);while(u.pathname.length>1&&u.pathname.endsWith('/'))u.pathname=u.pathname.slice(0,-1);return u.toString().replace(/\/$/,'');}catch{return '';}
   };
   const evidenceByUrl=new Map(evidence.map(s=>[normalizeSourceUrl(s.url),s]).filter(([url])=>!!url));
+  // Normalize model-controlled arrays before any push/filter operations.
+  if(!Array.isArray(parsed.missing)) parsed.missing=[];
   const candidateFacts=Array.isArray(parsed.facts)?parsed.facts:[];
+  const nowMs=Date.now();
+  const MAX_NEWS_AGE_MS=72*60*60*1000;
+  let rejectedStaleOrUndated=0;
   const verifiedFacts=candidateFacts.map(f=>({fact:f,source:evidenceByUrl.get(normalizeSourceUrl(f?.sourceUrl))})).filter(x=>x.source);
-  parsed.facts=verifiedFacts.map(({fact:f,source})=>{
+  parsed.facts=verifiedFacts.flatMap(({fact:f,source})=>{
    const dateText=String(source?.content||'');
-   const hasPublicationDate=!!f.publishedAt&&dateText.includes(String(f.publishedAt).slice(0,10));
-   return {...f,sourceUrl:source.url,publishedAt:hasPublicationDate?f.publishedAt:'',sourceLabel:source?.source||f.sourceLabel||'Sumber terverifikasi'};
+   const kind=String(f?.factOrInterpretation||'').toUpperCase();
+   const publishedAt=String(f?.publishedAt||'').trim();
+   const publishedMs=publishedAt?Date.parse(publishedAt):NaN;
+   const dateIsInSource=!!publishedAt&&dateText.includes(publishedAt.slice(0,10));
+   // Do not present an undated, future-dated, or >72-hour-old item as current news.
+   // Future scheduled events must be explicitly typed SCHEDULE and are kept separate from news.
+   if(kind==='SCHEDULE'){
+    const eventMs=Date.parse(String(f?.eventTimeWIB||''));
+    if(!Number.isFinite(eventMs)||eventMs<nowMs-MAX_NEWS_AGE_MS){rejectedStaleOrUndated++;return [];}
+    return [{...f,sourceUrl:source.url,publishedAt:'',sourceLabel:f.sourceLabel||source.label||source.source||'Sumber terverifikasi'}];
+   }
+   if(!dateIsInSource||!Number.isFinite(publishedMs)||publishedMs>nowMs+5*60*1000||nowMs-publishedMs>MAX_NEWS_AGE_MS){
+    rejectedStaleOrUndated++;
+    return [];
+   }
+   return [{...f,sourceUrl:source.url,publishedAt,sourceLabel:f.sourceLabel||source.label||source.source||'Sumber terverifikasi'}];
   });
-  if(!parsed.facts.length)parsed.summary='Belum ada klaim berita yang dapat dihubungkan secara tepat ke URL sumber yang dibaca. Tidak ada kesimpulan arah XAUUSD yang dibuat.';
+  if(rejectedStaleOrUndated>0){
+   parsed.missing.push(rejectedStaleOrUndated+' klaim berita dibuang karena tanggal publikasi tidak terverifikasi, tanggal di masa depan, atau lebih lama dari 72 jam.');
+  }
+  if(!parsed.facts.length)parsed.summary='Belum ada berita terbaru yang memenuhi verifikasi sumber dan tanggal publikasi (maksimal 72 jam). Berita lama atau tanpa tanggal tidak ditampilkan sebagai berita baru; tidak ada kesimpulan arah XAUUSD yang dibuat.';
   if(!Array.isArray(parsed.risks))parsed.risks=[];
   if(!Array.isArray(parsed.missing))parsed.missing=[];
   const item={...parsed,checkedAt:new Date().toISOString(),sourceCount:readable.length,reason,sourceFetchMode:usedScheduled?'scheduled pre-session':usedTavily?'manual Tavily search ('+(payload.searchProvider||'provider unknown')+')':'manual live read',scheduledSession:payload.scheduledSession||null,scheduledAtWIB:payload.scheduledAtWIB||null};setReport(item);setStatus(readable.length+' SUMBER DIBACA');setHistory(old=>{const next=[item,...old].slice(0,100);try{localStorage.setItem('jin-gold-news-history-v1',JSON.stringify(next))}catch{}return next});
