@@ -58,6 +58,19 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   const evidence=readable.map(s=>({source:s.label,url:s.url,fetchedAt:s.fetchedAt,content:String(s.content).slice(0,10000)}));
   const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
   const raw=await localRouterClient.streamChat({messages:[{role:'system',content:'Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output JSON tanpa markdown.'},{role:'user',content:prompt}],temperature:0.1});const parsed=parseJson(raw);
+  // Keep only claims that point to a source actually supplied to the model.
+  const evidenceByUrl=new Map(evidence.map(s=>[s.url,s]));
+  const candidateFacts=Array.isArray(parsed.facts)?parsed.facts:[];
+  const verifiedFacts=candidateFacts.filter(f=>typeof f?.sourceUrl==='string'&&evidenceByUrl.has(f.sourceUrl));
+  parsed.facts=verifiedFacts.map(f=>{
+   const source=evidenceByUrl.get(f.sourceUrl);
+   const dateText=String(source?.content||'');
+   const hasPublicationDate=!!f.publishedAt&&dateText.includes(String(f.publishedAt).slice(0,10));
+   return {...f,publishedAt:hasPublicationDate?f.publishedAt:'',sourceLabel:source?.source||f.sourceLabel||'Sumber tidak diketahui'};
+  });
+  if(!parsed.facts.length)parsed.summary='Belum ada klaim berita yang dapat dihubungkan secara tepat ke URL sumber yang dibaca. Tidak ada kesimpulan arah XAUUSD yang dibuat.';
+  if(!Array.isArray(parsed.risks))parsed.risks=[];
+  if(!Array.isArray(parsed.missing))parsed.missing=[];
   const item={...parsed,checkedAt:new Date().toISOString(),sourceCount:readable.length,reason,sourceFetchMode:usedScheduled?'scheduled pre-session':usedTavily?'manual Tavily search ('+(payload.searchProvider||'provider unknown')+')':'manual live read',scheduledSession:payload.scheduledSession||null,scheduledAtWIB:payload.scheduledAtWIB||null};setReport(item);setStatus(readable.length+' SUMBER DIBACA');setHistory(old=>{const next=[item,...old].slice(0,100);try{localStorage.setItem('jin-gold-news-history-v1',JSON.stringify(next))}catch{}return next});
  }catch(e){setError(errorText(e)||'Pencarian berita gagal.');setStatus('GAGAL / BELUM TERVERIFIKASI')}finally{setBusy(false)}},[busy,instrument]);
  useEffect(()=>{if(open){setTab(sessionNow());if(!report)readNews('modal dibuka')}},[open]);
