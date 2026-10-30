@@ -15,7 +15,7 @@ function normalizeTimestamp(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return new Date(value < 1e12 ? value * 1000 : value).toISOString();
   }
-  if (typeof value === 'string' && /^\\d{10,13}$/.test(value.trim())) {
+  if (typeof value === 'string' && /^\d{10,13}$/.test(value.trim())) {
     const numeric = Number(value.trim());
     return new Date(numeric < 1e12 ? numeric * 1000 : numeric).toISOString();
   }
