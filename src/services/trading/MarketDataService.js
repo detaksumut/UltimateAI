@@ -11,14 +11,26 @@ export const CANDLE_SCHEMA = {
 
 const TIMEFRAMES = { M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
 
+function normalizeTimestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return new Date(value < 1e12 ? value * 1000 : value).toISOString();
+  }
+  if (typeof value === 'string' && /^\\d{10,13}$/.test(value.trim())) {
+    const numeric = Number(value.trim());
+    return new Date(numeric < 1e12 ? numeric * 1000 : numeric).toISOString();
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
 function isValidCandle(c) {
   if (!c || typeof c !== 'object') return false;
   const { symbol, timeframe, open, high, low, close, volume, timestamp } = c;
-  const timestampMs = typeof timestamp === 'number' ? timestamp : Date.parse(timestamp);
+  const normalizedTimestamp = normalizeTimestamp(timestamp);
   if (!symbol || !timeframe ||
       ![open, high, low, close].every(v => typeof v === 'number' && Number.isFinite(v)) ||
       (volume != null && (typeof volume !== 'number' || !Number.isFinite(volume))) ||
-      !Number.isFinite(timestampMs)) return false;
+      !normalizedTimestamp) return false;
   return high >= Math.max(open, close, low) && low <= Math.min(open, close, high);
 }
 
@@ -52,7 +64,7 @@ export class MarketDataService {
     if (!isValidCandle(candle)) { console.warn('[MarketData] Candle tidak valid ditolak:', candle); return false; }
     const normalized = {
       ...candle,
-      timestamp: typeof candle.timestamp === 'number' ? new Date(candle.timestamp).toISOString() : new Date(candle.timestamp).toISOString(),
+      timestamp: normalizeTimestamp(candle.timestamp),
       volume: candle.volume == null ? null : candle.volume,
     };
     const key = `${normalized.symbol}|${normalized.timeframe}|${normalized.timestamp}`;
