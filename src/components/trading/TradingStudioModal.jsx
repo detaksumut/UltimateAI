@@ -111,7 +111,7 @@ export default function TradingStudioModal({ onClose }) {
       <section id="jin-gold-news-panel" aria-label="Gold Fundamental News Intelligence" style={{marginTop:12}}>
         <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} inline />
       </section>
-{'@media(max-width:1150px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
+      <style>{'@media(max-width:1150px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
 }
