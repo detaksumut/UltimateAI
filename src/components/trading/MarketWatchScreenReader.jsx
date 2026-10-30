@@ -6,7 +6,7 @@ const button = { border: '1px solid #0891b2', borderRadius: 5, padding: '7px 9px
 const numberText = value => value == null || value === '' ? '—' : String(value);
 const EXPECTED_PRIMEXBT_COUNT = 10;
 const REQUIRED_FIELDS = ['symbol', 'bid', 'ask', 'spread', 'change', 'change_percent'];
-const NUMERIC_PATTERN = /^[+-]?(?:(?:\\d{1,3}(?:[., ]\\d{3})+|\\d+)(?:[.,]\\d+)?)(?:%|)$/;
+const NUMERIC_PATTERN = /^[+-]?(?:(?:\\d{1,3}(?:[. ]\\d{3})+(?:,\\d+)?|\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?))(?:%|)$/;
 function validateNumeric(value, field) {
   if (value == null || String(value).trim() === '') return field + ' kosong';
   const raw = String(value).trim();
@@ -27,7 +27,7 @@ function validateRows(rows) {
     });
     const percentIssue = row.change_percent == null || String(row.change_percent).trim() === ''
       ? 'change_percent wajib tetapi kosong'
-      : (!/^[+-]?(?:(?:\\d{1,3}(?:[., ]\\d{3})+|\\d+)(?:[.,]\\d+)?)%$/.test(String(row.change_percent).trim()) ? 'change_percent format persen perlu diperiksa' : null);
+      : (!/^[+-]?(?:(?:\\d{1,3}(?:[. ]\\d{3})+(?:,\\d+)?|\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?)%)$/.test(String(row.change_percent).trim()) ? 'change_percent format persen perlu diperiksa' : null);
     if (percentIssue) issues.push(percentIssue);
     if ((counts.get(String(row.symbol || '').toUpperCase()) || 0) > 1) issues.push('simbol duplikat');
     if (!row.instrument) issues.push('nama instrumen tidak terbaca');
