@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { visualChartCapture } from '../../services/trading/VisualChartCapture.js';
-import { localRouterClient } from '../../services/router/LocalRouterClient.js';
+import { RouterConfig } from '../../services/router/RouterConfig.js';
 
 const btn = { border: '1px solid #155e75', borderRadius: 4, padding: '5px 7px', background: '#071827', color: '#a5f3fc', fontSize: 9, fontWeight: 700, cursor: 'pointer' };
 
@@ -46,11 +46,31 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
           { type: 'image_url', image_url: { url: frame.dataUrl, detail: 'high' } }
         ]}
       ];
-      const raw = await localRouterClient.streamChat({ messages, temperature: 0.0 }, { onError: e => setError(e?.message || 'Vision request failed.') });
-      const match = String(raw || '').match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Model tidak mengembalikan JSON data visual. Router/model harus mendukung input gambar.');
-      let data;
-      try { data = JSON.parse(match[0]); } catch { throw new Error('Respons vision bukan JSON valid.'); }
+      // Send image evidence to the dedicated cloud vision endpoint. The default
+      // conversational model may be text-only and cannot reliably parse image_url.
+      const endpoint = RouterConfig.api('/trading/visual-chart-analysis');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instrument,
+          timeframe: targetTimeframe,
+          image: frame.dataUrl,
+          schema: 'chart-ohlc-v1'
+        }),
+        signal: AbortSignal.timeout(60000),
+        cache: 'no-store'
+      });
+      const contentType = response.headers.get('content-type') || '';
+      const responseText = await response.text();
+      let payload;
+      try { payload = JSON.parse(responseText); } catch {
+        throw new Error(`Vision API returned non-JSON (HTTP ${response.status}, ${contentType || 'unknown content type'}). Confirm the LIVE deployment includes /api/trading/visual-chart-analysis.`);
+      }
+      if (!response.ok || payload?.success !== true || !payload?.data) {
+        throw new Error(payload?.error || `Vision API failed with HTTP ${response.status}.`);
+      }
+      const data = payload.data;
       ['last_price','open','high','low','close','support','resistance'].forEach(k => { if (!Number.isFinite(data[k])) data[k] = null; });
       data.confidence = Number.isFinite(Number(data.confidence)) ? Math.max(0, Math.min(100, Number(data.confidence))) : 0;
       data.visible_candles = Number.isFinite(Number(data.visible_candles)) ? Math.max(0, Number(data.visible_candles)) : 0;
