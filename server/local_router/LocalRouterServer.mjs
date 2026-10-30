@@ -935,16 +935,33 @@ Requirements:
     if (pathname === '/api/trading/ohlc' && req.method === 'GET') {
       const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
       const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
-      const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit') || 300)));
-      const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])]
-        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-limit);
+      const minimumRequired = 50;
+      if (!Object.hasOwn(JIN_TRADING_TF_MS, timeframe)) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, symbol, timeframe, error: 'Unsupported timeframe', supportedTimeframes: Object.keys(JIN_TRADING_TF_MS), minimumRequired, validCount: 0, ready: false, candles: [] }));
+        return;
+      }
+      // Always request at least 50 bars for technical analysis, even if a caller asks for fewer.
+      const requestedLimit = Number(url.searchParams.get('limit') || 300);
+      const limit = Math.min(500, Math.max(minimumRequired, Number.isFinite(requestedLimit) ? requestedLimit : 300));
+      const allRows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])]
+        .filter(c => jinTradingValidCandle(c) && String(c.symbol).toUpperCase() === symbol && String(c.timeframe).toUpperCase() === timeframe)
+        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
+      const rows = allRows.slice(-limit);
+      const validCount = rows.length;
       const latest = rows.at(-1) || null;
       const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
       const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*2 ? 'FRESH' : 'STALE';
       const tick = JIN_TRADING_TICKS.get(symbol) || null;
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', count: rows.length, freshness,
-        lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows }));
+      res.end(JSON.stringify({
+        ok: true, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE',
+        count: validCount, validCount, minimumRequired, ready: validCount >= minimumRequired,
+        freshness, lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows,
+        message: validCount >= minimumRequired
+          ? 'Sufficient valid OHLC candles for technical analysis.'
+          : 'Insufficient valid OHLC candles. The MT5 bridge must publish more candles for the selected symbol and timeframe.'
+      }));
       return;
     }
     if (pathname === '/api/trading/ohlc/status' && req.method === 'GET') {
