@@ -197,19 +197,18 @@ export class ModelRoutingService {
       };
     }
 
-    // 2. Multimodal messages (images/documents) MUST route to Gemini Vision
-    if (hasMedia && hasGemini) {
+    // 2. Multimodal messages MUST use Gemini Vision; never send images to a text-only local model.
+    if (hasMedia) {
       return {
-        candidates: [
-          { provider: 'gemini', model: geminiModel, fallback: false }
-        ],
+        candidates: hasGemini ? [{ provider: 'gemini', model: geminiModel, fallback: false }] : [],
         hasMedia,
         heavy,
         capability: normalizedCapability,
-        strategy: 'cloud_multimodal',
+        strategy: hasGemini ? 'cloud_multimodal' : 'cloud_multimodal_unavailable',
         forcedProvider: 'gemini',
         provider: 'gemini',
-        label: 'CLOUD_GEMINI_MULTIMODAL'
+        strictCapability: true,
+        label: hasGemini ? 'CLOUD_GEMINI_MULTIMODAL' : 'CLOUD_GEMINI_MULTIMODAL_UNAVAILABLE'
       };
     }
 
@@ -271,6 +270,11 @@ export class ModelRoutingService {
     maxTokens = null
   }, onChunk = null) {
     const route = this.determineRoute({ messages, capability, model });
+    if (route.hasMedia && !geminiProviderInstance.isConfigured()) {
+      const err = new Error('VISION_PROVIDER_NOT_CONFIGURED: Screenshot terdeteksi, tetapi Gemini Vision belum dikonfigurasi. Gambar tidak dikirim ke model teks lokal dan tidak ada analisis yang dibuat.');
+      err.code = 'VISION_PROVIDER_NOT_CONFIGURED';
+      throw err;
+    }
     let emitted = false;
 
     const safeOnChunk = typeof onChunk === 'function' ? (chunk) => {
