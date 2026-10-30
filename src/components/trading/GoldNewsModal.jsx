@@ -57,7 +57,20 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   const read=Array.isArray(payload.sources)?payload.sources:[];setSources(read);const readable=read.filter(s=>s.status==='READ'&&s.content);if(!readable.length)throw Error('Tidak ada isi sumber yang berhasil dibaca. Berita tidak dapat diverifikasi.');
   const evidence=readable.map(s=>({source:s.label,url:s.url,fetchedAt:s.fetchedAt,content:String(s.content).slice(0,10000)}));
   const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
-  const raw=await localRouterClient.streamChat({messages:[{role:'system',content:'Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output JSON tanpa markdown.'},{role:'user',content:prompt}],temperature:0.1});const parsed=parseJson(raw);
+  const systemPrompt='Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output SATU objek JSON valid tanpa markdown atau teks pembuka/penutup. Wajib memakai double quotes untuk key dan string.';
+  let raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:prompt}],temperature:0.0});
+  let parsed;
+  try { parsed=parseJson(raw); }
+  catch(firstError) {
+   // One focused retry for models that prepend prose or return malformed JSON.
+   const repairPrompt='Ubah respons berikut menjadi SATU objek JSON valid sesuai schema. Pertahankan hanya informasi yang benar-benar ada; jangan menambah fakta. Jika tidak ada fakta yang dapat dipastikan, gunakan summary yang menjelaskan keterbatasan, facts: [], risks: [], missing: []. Keluarkan JSON saja. Schema: {"summary":"string","facts":[],"risks":[],"missing":[],"asOf":"ISO timestamp"}\\n\\nRespons yang harus diperbaiki:\\n'+String(raw??'').slice(0,12000);
+   raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:repairPrompt}],temperature:0.0});
+   parsed=parseJson(raw);
+  }
+  if(typeof parsed.summary!=='string') parsed.summary='';
+  if(!Array.isArray(parsed.facts)) parsed.facts=[];
+  if(!Array.isArray(parsed.risks)) parsed.risks=[];
+  if(!Array.isArray(parsed.missing)) parsed.missing=[];
   // Keep only claims that point to a source actually supplied to the model.
   const normalizeSourceUrl=value=>{
     try{const u=new URL(String(value));u.hash='';u.search='';u.hostname=u.hostname.toLowerCase();if(u.hostname.startsWith('www.'))u.hostname=u.hostname.slice(4);while(u.pathname.length>1&&u.pathname.endsWith('/'))u.pathname=u.pathname.slice(0,-1);return u.toString().replace(/\/$/,'');}catch{return '';}
