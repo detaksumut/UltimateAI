@@ -4401,6 +4401,52 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
+    // JIN XAUUSD Gold News Search: manual refresh uses the existing Tavily-backed WebSearchTool.
+    if (pathname === '/api/trading/gold-news-search' && req.method === 'POST') {
+      try {
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 12000) throw new Error('Request body too large');
+        }
+        const payload = JSON.parse(body || '{}');
+        const instrument = String(payload.instrument || 'XAUUSD').slice(0, 20);
+        const session = ['asia', 'london', 'newyork'].includes(payload.session) ? payload.session : 'all';
+        const query = [
+          'Latest verified financial news and official economic announcements affecting gold XAUUSD',
+          'Federal Reserve interest rates and monetary policy, US CPI inflation PCE, NFP employment, US Treasury yields, US dollar',
+          'published news and upcoming economic releases relevant to gold',
+          session === 'all' ? '' : 'current trading session ' + session
+        ].filter(Boolean).join('; ');
+        const { webSearchToolInstance } = await import('../tools/WebSearchTool.mjs');
+        const result = await webSearchToolInstance.execute({ query, maxResults: 8, layer: 'ALL' }, AbortSignal.timeout(12000));
+        const sources = (Array.isArray(result.sources) ? result.sources : []).map(s => ({
+          title: String(s.title || '').slice(0, 300),
+          url: s.url,
+          domain: s.domain || '',
+          snippet: String(s.snippet || '').slice(0, 4000),
+          score: Number.isFinite(s.score) ? s.score : null,
+          category: s.category || 'GENERAL'
+        })).filter(s => /^https?:$/.test((() => { try { return new URL(s.url).protocol; } catch { return ''; } })()));
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({
+          success: sources.length > 0,
+          query: result.query || query,
+          provider: result.provider || 'UNKNOWN',
+          directAnswer: result.directAnswer || null,
+          fetchedAt: new Date().toISOString(),
+          instrument,
+          session,
+          sources,
+          error: sources.length ? null : 'Pencarian tidak menghasilkan sumber yang dapat digunakan.'
+        }));
+      } catch (error) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: false, error: error.message || 'Gold news search failed' }));
+      }
+      return;
+    }
+
     // JIN XAUUSD Fundamental Reader: fetch only allowlisted public sources.
     if (pathname === '/api/trading/fundamental-read' && req.method === 'POST') {
       try {
