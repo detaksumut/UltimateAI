@@ -41,6 +41,12 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
    quotes=Array.isArray(data.quotes)?data.quotes:null;fetchedAt=data.fetchedAt||null;
    if(!quotes)throw Error('Format data kuotasi tidak valid.');
   }catch(e){primaryError=errorText(e);}
+  // The server endpoint may respond successfully while every provider quote is null.
+  // Treat an all-empty payload as a source failure so the fallback is actually attempted.
+  if(quotes && !quotes.some(q=>Number.isFinite(Number(q?.price)))){
+   primaryError=primaryError||'Endpoint utama merespons tetapi tidak mengembalikan harga yang valid';
+   quotes=null;
+  }
   if(!quotes){
    const symbols=MARKET_SYMBOLS;
    const results=await Promise.allSettled(symbols.map(async([symbol,label,ticker])=>{
