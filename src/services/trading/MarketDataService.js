@@ -14,9 +14,11 @@ const TIMEFRAMES = { M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
 function isValidCandle(c) {
   if (!c || typeof c !== 'object') return false;
   const { symbol, timeframe, open, high, low, close, volume, timestamp } = c;
+  const timestampMs = typeof timestamp === 'number' ? timestamp : Date.parse(timestamp);
   if (!symbol || !timeframe ||
-      ![open, high, low, close, volume].every(v => typeof v === 'number' && Number.isFinite(v)) ||
-      typeof timestamp !== 'string' || !Number.isFinite(new Date(timestamp).getTime())) return false;
+      ![open, high, low, close].every(v => typeof v === 'number' && Number.isFinite(v)) ||
+      (volume != null && (typeof volume !== 'number' || !Number.isFinite(volume))) ||
+      !Number.isFinite(timestampMs)) return false;
   return high >= Math.max(open, close, low) && low <= Math.min(open, close, high);
 }
 
@@ -48,12 +50,17 @@ export class MarketDataService {
   getTick(symbol) { return this.ticks.get(symbol) || null; }
   addCandle(candle) {
     if (!isValidCandle(candle)) { console.warn('[MarketData] Candle tidak valid ditolak:', candle); return false; }
-    const key = `${candle.symbol}|${candle.timeframe}|${candle.timestamp}`;
+    const normalized = {
+      ...candle,
+      timestamp: typeof candle.timestamp === 'number' ? new Date(candle.timestamp).toISOString() : new Date(candle.timestamp).toISOString(),
+      volume: candle.volume == null ? null : candle.volume,
+    };
+    const key = `${normalized.symbol}|${normalized.timeframe}|${normalized.timestamp}`;
     const previous = this.candles.get(key);
     // Broker updates the still-forming candle on each poll; upsert it instead of
     // ignoring the timestamp after its first observation.
-    if (previous && ['open','high','low','close','volume'].every(k => previous[k] === candle[k])) return false;
-    this.candles.set(key, candle); this.lastUpdate = candle.timestamp; this.notify(); return true;
+    if (previous && ['open','high','low','close','volume'].every(k => previous[k] === normalized[k])) return false;
+    this.candles.set(key, normalized); this.lastUpdate = normalized.timestamp; this.notify(); return true;
   }
   addBatchCandles(candles = []) { let added = 0; candles.forEach(c => { if (this.addCandle(c)) added++; }); return added; }
   setTick(symbol, { bid, ask, timestamp = new Date().toISOString(), source = 'unknown' } = {}) {
