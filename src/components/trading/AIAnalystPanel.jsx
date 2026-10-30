@@ -26,7 +26,6 @@ const fmt = (value, digits = 2) => Number.isFinite(value)
 
 export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIMEFRAMES.M15 }) {
   const [analysis, setAnalysis] = useState({ ...initialState, instrument, timeframe });
-  const [candleFeedStatus, setCandleFeedStatus] = useState({ symbol: instrument, timeframe, count: 0, minimumRequired: 50, ready: false, freshness: 'UNKNOWN', lastUpdate: null, source: 'MT5_LOCAL_BRIDGE', error: null });
   const [visualData, setVisualData] = useState(null);
   const [visualResults, setVisualResults] = useState({});
   const [activeTab, setActiveTab] = useState('advanced');
@@ -88,51 +87,6 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     };
   }, [instrument, timeframe]);
 
-  // Poll the local MT5 bridge for independent H4/H1/M15/M5/D1 OHLC series.
-  // TradingView's embedded chart is cross-origin and is not used as a numeric feed.
-  useEffect(() => {
-    let cancelled = false;
-    const timeframes = ['H4','H1','M30','M15','M5','D1'];
-    const bridgeSymbol = String(instrument).split(':').pop().toUpperCase();
-    const poll = async () => {
-      const results = await Promise.all(timeframes.map(async tf => {
-        try {
-          const response = await fetch(`http://127.0.0.1:20200/api/trading/ohlc?symbol=${encodeURIComponent(bridgeSymbol)}&timeframe=${tf}&limit=300`, { cache: 'no-store' });
-          if (!response.ok) throw new Error(`MT5 bridge HTTP ${response.status}`);
-          return await response.json();
-        } catch (error) {
-          return { ok: false, timeframe: tf, error: error?.message || 'MT5 bridge unavailable' };
-        }
-      }));
-      if (cancelled) return;
-      const selectedFeed = results.find(result => String(result?.timeframe || '').toUpperCase() === String(timeframe).toUpperCase());
-      if (selectedFeed) {
-        const count = Number(selectedFeed.validCount ?? selectedFeed.count ?? selectedFeed.candles?.length ?? 0);
-        setCandleFeedStatus({ symbol: bridgeSymbol, timeframe, count, minimumRequired: Number(selectedFeed.minimumRequired || 50), ready: selectedFeed.ready === true || count >= 50, freshness: selectedFeed.freshness || 'UNKNOWN', lastUpdate: selectedFeed.lastUpdate || null, source: selectedFeed.source || 'MT5_LOCAL_BRIDGE', error: selectedFeed.error || null });
-      } else {
-        setCandleFeedStatus(previous => ({ ...previous, symbol: bridgeSymbol, timeframe, error: `Feed timeframe ${timeframe} tidak tersedia pada endpoint.` }));
-      }
-      let total = 0;
-      let latestTimestamp = null;
-      for (const result of results) {
-        if (!result?.ok || !Array.isArray(result.candles)) continue;
-        total += result.candles.length;
-        if (result.lastUpdate && (!latestTimestamp || Date.parse(result.lastUpdate) > Date.parse(latestTimestamp))) latestTimestamp = result.lastUpdate;
-        marketDataServiceInstance.addBatchCandles(result.candles.map(c => ({
-          ...c, symbol: instrument, timeframe: result.timeframe, source: 'MT5_LOCAL_BRIDGE', isSimulated: false,
-        })));
-        if (result.tick && Number.isFinite(result.tick.bid) && Number.isFinite(result.tick.ask)) {
-          marketDataServiceInstance.setTick(instrument, result.tick);
-        }
-      }
-      if (total > 0) {
-        marketDataServiceInstance.setStatus('CONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
-      }
-    };
-    poll();
-    const timer = window.setInterval(poll, 5000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [instrument, timeframe]);
 
   useEffect(() => {
     let active = true;
@@ -332,13 +286,12 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>JIN MARKET ANALYSIS</strong>
         <span style={{ color: statusColor, fontWeight: 700 }}>{analysis.dataStatus}</span>
       </header>
-      <div role="status" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, padding: '7px 9px', border: '1px solid ' + (candleFeedStatus.count >= 50 ? '#166534' : '#92400e'), borderRadius: 5, background: candleFeedStatus.count >= 50 ? '#052e1a' : '#211608', color: candleFeedStatus.count >= 50 ? '#86efac' : '#fbbf24', fontSize: 10 }}><strong>FEED OHLC {candleFeedStatus.symbol} · {candleFeedStatus.timeframe}</strong><span>{candleFeedStatus.count}/{candleFeedStatus.minimumRequired} candle valid{candleFeedStatus.count >= 50 ? ' · SIAP' : ' · BELUM CUKUP'}</span></div>
       <nav aria-label="Tab analisis pasar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
         <button type="button" onClick={() => setActiveTab('advanced')} style={tabStyle('advanced')}>ANALISIS LANJUTAN</button>
       </nav>
       {activeTab === 'advanced' && <>
         <div style={{ color: '#67e8f9', fontWeight: 800, marginBottom: 8 }}>ADVANCED PRICE & INDICATOR ANALYSIS</div>
-        {analysis.candleCount < 50 || !advancedData ? <div style={{ padding: 10, border: '1px solid #92400e', borderRadius: 5, color: '#fbbf24', background: '#211608' }}>Analisis lanjutan belum dapat dihitung. Data valid tersedia: {analysis.candleCount}/50 candle minimum. Pastikan feed candle terhubung dan data tidak kedaluwarsa.</div> : <>
+        {analysis.candleCount < 50 || !advancedData ? <div style={{ padding: 10, border: '1px solid #92400e', borderRadius: 5, color: '#fbbf24', background: '#211608' }}>Analisis numerik belum tersedia karena data candle terstruktur belum tersedia. Gunakan pembacaan screenshot TradingView untuk analisis visual.</div> : <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7 }}>
             {metric('EMA 9', fmt(advancedData.ema9, 2))}
             {metric('EMA 20', fmt(advancedData.ema20, 2))}
