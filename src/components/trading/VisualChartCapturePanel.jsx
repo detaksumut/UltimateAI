@@ -84,7 +84,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       ];
       let raw = '';
       try {
-        raw = await localRouterClient.streamChat({ messages, temperature: 0.0 }, {
+        raw = await localRouterClient.streamChat({ messages, temperature: 0.0, capability: 'CHART_VISION' }, {
           onError: e => setError(e?.message || 'Vision request failed.')
         });
       } catch (error) {
