@@ -47,7 +47,7 @@ export class LocalRouterClient {
    * @param {Object} callbacks - { onDelta, onComplete, onError }
    * @returns {Promise<string>} Final accumulated text
    */
-  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, signal = null, generationId = null, messageId = null } = {}, { onDelta, onComplete, onError, onDocStage } = {}) {
+  async streamChat({ messages = [], model = RouterConfig.DEFAULT_MODEL, temperature = 0.7, capability = 'FAST_CHAT', signal = null, generationId = null, messageId = null } = {}, { onDelta, onComplete, onError, onDocStage } = {}) {
     let errorNotified = false;
     const baseEndpoint = this.endpoint.replace(/\/+$/, '');
     const url = baseEndpoint.endsWith('/v1')
@@ -58,6 +58,7 @@ export class LocalRouterClient {
       model: model || 'qwen3:8b',
       messages,
       temperature,
+      capability,
       stream: true,
       generationId,
       messageId
