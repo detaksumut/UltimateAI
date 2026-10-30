@@ -915,7 +915,7 @@ Requirements:
           const timeframe = timeframeAliases[rawTimeframe] || rawTimeframe;
           const rawTimestamp = raw.timestamp ?? raw.time ?? raw.time_msc ?? raw.datetime;
           let timestamp = rawTimestamp;
-          if (typeof rawTimestamp === 'number' || (typeof rawTimestamp === 'string' && /^\\d+(?:\\.\\d+)?$/.test(rawTimestamp))) {
+          if (typeof rawTimestamp === 'number' || (typeof rawTimestamp === 'string' && /^\d+(?:\.\d+)?$/.test(rawTimestamp))) {
             const numericTime = Number(rawTimestamp);
             timestamp = new Date(numericTime * (numericTime < 1e12 ? 1000 : 1)).toISOString();
           }
