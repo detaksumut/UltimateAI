@@ -904,9 +904,30 @@ Requirements:
         let accepted = 0, rejected = 0;
         const now = Date.now();
         for (const raw of incoming) {
-          const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
-            timestamp: typeof raw.timestamp === 'number' ? new Date(raw.timestamp * (raw.timestamp < 1e12 ? 1000 : 1)).toISOString() : raw.timestamp,
-            source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
+          // Accept common MT5 EA field names as well as the canonical bridge schema.
+          const rawSymbol = String(raw.symbol || raw.symbol_name || '').trim().toUpperCase();
+          const rawTimeframe = String(raw.timeframe || raw.period || '').trim().toUpperCase();
+          const timeframeAliases = {
+            PERIOD_M5: 'M5', PERIOD_M15: 'M15', PERIOD_M30: 'M30',
+            PERIOD_H1: 'H1', PERIOD_H4: 'H4', PERIOD_D1: 'D1',
+            '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', '1440': 'D1',
+          };
+          const timeframe = timeframeAliases[rawTimeframe] || rawTimeframe;
+          const rawTimestamp = raw.timestamp ?? raw.time ?? raw.time_msc ?? raw.datetime;
+          let timestamp = rawTimestamp;
+          if (typeof rawTimestamp === 'number' || (typeof rawTimestamp === 'string' && /^\\d+(?:\\.\\d+)?$/.test(rawTimestamp))) {
+            const numericTime = Number(rawTimestamp);
+            timestamp = new Date(numericTime * (numericTime < 1e12 ? 1000 : 1)).toISOString();
+          }
+          const candle = {
+            ...raw,
+            symbol: rawSymbol,
+            timeframe,
+            timestamp,
+            volume: Number(raw.volume ?? raw.tick_volume ?? raw.volume_real ?? 0),
+            open: Number(raw.open), high: Number(raw.high), low: Number(raw.low), close: Number(raw.close),
+            source: 'MT5_LOCAL_BRIDGE', isSimulated: false
+          };
           if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
           const key = jinTradingKey(candle.symbol, candle.timeframe);
           const rows = JIN_TRADING_CANDLES.get(key) || new Map();
