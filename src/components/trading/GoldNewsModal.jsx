@@ -5,7 +5,26 @@ const SOURCES=[{key:'fed',label:'Federal Reserve',url:'https://www.federalreserv
 const TABS=[['summary','RINGKASAN'],['asia','ASIA'],['london','LONDON'],['newyork','NEW YORK'],['history','RIWAYAT']];
 const box={background:'#071321',border:'1px solid #164e63',borderRadius:7,padding:11};const muted={color:'#94a3b8',fontSize:11,lineHeight:1.6};
 const sessionNow=()=>{const h=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',hour:'2-digit',hourCycle:'h23'}).format(new Date()));return h>=6&&h<14?'asia':h>=14&&h<19?'london':'newyork'};
-const parseJson=t=>{const m=String(t||'').match(/\{[\s\S]*\}/);if(!m)throw Error('Analisis tidak menghasilkan JSON yang valid.');return JSON.parse(m[0])};
+const parseJson=t=>{
+ const text=String(t??'').trim().replace(/^\x60{3}(?:json)?\s*/i,'').replace(/\s*\x60{3}$/,'');
+ try { const value=JSON.parse(text); if(value&&typeof value==='object'&&!Array.isArray(value))return value; } catch {}
+ let start=-1,depth=0,inString=false,escaped=false;
+ for(let i=0;i<text.length;i++){
+  const ch=text[i];
+  if(start<0){if(ch==='{'){start=i;depth=1;}continue;}
+  if(inString){if(escaped){escaped=false;continue;}if(ch==='\\'){escaped=true;continue;}if(ch==='"')inString=false;continue;}
+  if(ch==='"'){inString=true;continue;}
+  if(ch==='{')depth++;
+  else if(ch==='}'){
+   depth--;
+   if(depth===0){
+    try {const value=JSON.parse(text.slice(start,i+1));if(value&&typeof value==='object'&&!Array.isArray(value))return value;}catch{}
+    start=-1;
+   }
+  }
+ }
+ throw Error('Respons analis tidak berisi objek JSON valid. Coba Refresh; jika berulang, periksa output model di LocalRouterClient.');
+};
 const errorText=e=>{const v=e?.message??e?.error??e; if(typeof v==='string')return v;try{return JSON.stringify(v)}catch{return String(v)}};
 export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
  const [tab,setTab]=useState('summary'),[busy,setBusy]=useState(false),[status,setStatus]=useState('BELUM DICARI'),[error,setError]=useState(''),[sources,setSources]=useState([]),[report,setReport]=useState(null),[history,setHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem('jin-gold-news-history-v1')||'[]')}catch{return[]}});
