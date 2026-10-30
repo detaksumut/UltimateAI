@@ -18,6 +18,17 @@ assert.equal(market.addCandle({
 }), true);
 assert.equal(market.getLatestCandle(symbol, timeframe).timestamp,
   new Date(secondsTimestamp * 1000).toISOString());
+const numericStringTimestamp = String(secondsTimestamp + 1);
+assert.equal(market.addCandle({
+  symbol, timeframe, timestamp: numericStringTimestamp,
+  open: 11, high: 13, low: 10, close: 12,
+}), true);
+assert.equal(market.getLatestCandle(symbol, timeframe).timestamp,
+  new Date((secondsTimestamp + 1) * 1000).toISOString());
+assert.equal(market.addCandle({
+  symbol, timeframe, timestamp: '9999999999999',
+  open: 11, high: 13, low: 10, close: 12,
+}), false);
 assert.equal(market.addCandle({
   symbol, timeframe, timestamp: new Date().toISOString(),
   open: 10, high: 8, low: 9, close: 11,
