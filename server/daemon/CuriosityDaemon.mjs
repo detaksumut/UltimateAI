@@ -1,540 +1,314 @@
 /**
  * CuriosityDaemon.mjs
- * Autonomous Curiosity Daemon (Deep 4-Wave Diurnal Intelligence Pulse).
- * 
- * Wave Schedule (WIB - UTC+7):
- *  - 07:00 WIB: Market & Domestic 5 Pillars (POL, EKO, SHM, KMD, CRP)
- *  - 13:00 WIB: Hukum, Sosial, Life, & TECHNOLOGY (HUK, SOS, LIF, TEK)
- *  - 17:00 WIB: Regional Asia, ASEAN & China (ASN, CHN, ASI)
- *  - 21:00 WIB: Geopolitik Global Barat: Wall Street, Eropa & Rusia (WST, EUR, RUS)
- * 
- * Deep Cognitive Processing:
- *  - Tavily AI Advanced Ingestion (include_raw_content: true, search_depth: 'advanced')
- *  - Local Ollama Hermes-3:8B Deep Cognitive Digestion & Causal Synthesis
- *  - Rich Dossier Archival (20-50 KB) to F:\UltimateAI_Memory\02_Documentation\
- *  - Structured Graph & SQLite Indexing (storage/vault/learned_knowledge.json)
+ * Gold JINI Tavily ingestion — four scheduled WIB waves.
+ * Search results are stored as market intelligence; they are not sent to an LLM.
  */
-
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { modelRoutingServiceInstance } from '../local_router/ModelRoutingService.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { localDriveFStorageInstance } from '../memory/LocalDriveFStorage.mjs';
-import { memoryIndexSQLiteInstance } from '../memory/MemoryIndexSQLite.mjs';
-import { domainKnowledgeGraphInstance } from '../knowledge/DomainKnowledgeGraph.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.resolve(__dirname, '../data');
+const STATE_FILE = path.join(DATA_DIR, 'gold-news-session-state.json');
+const VAULT_DIR = path.resolve(__dirname, '../../storage/vault');
+const TZ = 'Asia/Jakarta';
+const WAVES = [
+  { key: 'wave-0700', hour: 7, label: 'Gelombang 1 — Pagi' },
+  { key: 'wave-1300', hour: 13, label: 'Gelombang 2 — Siang' },
+  { key: 'wave-1700', hour: 17, label: 'Gelombang 3 — Sore' },
+  { key: 'wave-2100', hour: 21, label: 'Gelombang 4 — Malam' }
+];
+const GOLD_QUERY = [
+  'latest XAUUSD spot gold price drivers and market-moving gold news',
+  'Federal Reserve interest rate policy FOMC speeches US CPI PCE inflation NFP jobs data',
+  'US Treasury real yields DXY US dollar central bank gold purchases ETF flows',
+  'geopolitical risk oil prices and economic calendar events affecting gold'
+].join('; ');
 
-export const INTELLIGENCE_CLUSTERS = {
-  // Wave 1 - 07:00 WIB
-  POL: {
-    wave: 7,
-    name: 'Politik Nasional',
-    category: 'POLITIK',
-    query: 'Kebijakan politik nasional hukum tata negara reformasi birokrasi dan regulasi strategis Indonesia 2026',
-    subClusters: ['Regulasi Pemerintah', 'Stabilitas Politik', 'Diplomasi Luar Negeri']
-  },
-  EKO: {
-    wave: 7,
-    name: 'Ekonomi Makro',
-    category: 'EKONOMI',
-    query: 'Pertumbuhan ekonomi makro inflasi APBN penerimaan pajak dan kebijakan fiskal moneter Bank Indonesia 2026',
-    subClusters: ['Fiskal & Moneter', 'Inflasi & Suku Bunga', 'Investasi Domestik']
-  },
-  SHM: {
-    wave: 7,
-    name: 'Pasar Saham & IHSG',
-    category: 'PASAR_MODAL',
-    query: 'IHSG bursa efek Indonesia saham perbankan energi net foreign flow dividen dan kinerja emiten 2026',
-    subClusters: ['IHSG Analysis', 'Foreign Flow', 'Blue-chip Sectors']
-  },
-  KMD: {
-    wave: 7,
-    name: 'Komoditas Strategis',
-    category: 'KOMODITAS',
-    query: 'Harga komoditas CPO minyak mentah batubara nikel tembaga emas dan ekspor Indonesia 2026',
-    subClusters: ['Energi & Tambang', 'Agrikultur & CPO', 'Logam Mulia']
-  },
-  CRP: {
-    wave: 7,
-    name: 'Kripto & Web3',
-    category: 'KRIPTO',
-    query: 'Pasar cryptocurrency Bitcoin Ethereum adopsi web3 bursa kripto dan regulasi OJK Bappebti 2026',
-    subClusters: ['Bitcoin & Altcoins', 'Regulasi OJK/Bappebti', 'Infrastruktur Web3']
-  },
-
-  // Wave 2 - 13:00 WIB
-  HUK: {
-    wave: 13,
-    name: 'Hukum & Peradilan',
-    category: 'HUKUM',
-    query: 'Putusan Mahkamah Konstitusi reformasi hukum peradilan tata kelola korupsi dan kepatuhan regulasi 2026',
-    subClusters: ['Putusan MK & MA', 'Kepatuhan Regulasi', 'Penegakan Hukum']
-  },
-  SOS: {
-    wave: 13,
-    name: 'Dinamika Sosial & Tenaga Kerja',
-    category: 'SOSIAL',
-    query: 'Ketenagakerjaan upah minimum demografi pendidikan serikat pekerja dan kesejahteraan sosial Indonesia 2026',
-    subClusters: ['Ketenagakerjaan', 'Demografi & Pendidikan', 'Jaminan Sosial']
-  },
-  LIF: {
-    wave: 13,
-    name: 'Humaniora & Kesehatan',
-    category: 'HUMANIORA',
-    query: 'Sistem kesehatan nasional BPJS riset medis bioteknologi gaya hidup dan ketahanan pangan 2026',
-    subClusters: ['Kesehatan Masyarakat', 'Bioteknologi', 'Ketahanan Pangan']
-  },
-  TEK: {
-    wave: 13,
-    name: 'Teknologi & Sains Utama',
-    category: 'TEKNOLOGI',
-    query: 'Perkembangan AI LLM agentic AI cybersecurity zero-day hardware GPU semikonduktor open source 2026',
-    subClusters: [
-      'AI & Agentic Systems (LLM, Reasoning, Multi-agent)',
-      'Cybersecurity & Zero-day Vulnerabilities (CVE, Ransomware)',
-      'Semikonduktor & AI Hardware (GPU, NPU, TSMC, Nvidia)',
-      'Cloud Infrastructure & Open-Source Frameworks'
-    ]
-  },
-
-  // Wave 3 - 17:00 WIB
-  ASN: {
-    wave: 17,
-    name: 'Regional ASEAN & Pasifik',
-    category: 'REGIONAL',
-    query: 'Geopolitik ASEAN perdagangan intra-kawasan sengketa Laut Cina Selatan dan diplomasi Indo-Pasifik 2026',
-    subClusters: ['Integrasi Ekonomi ASEAN', 'Keamanan Maritim', 'Kerjasama Bilateral']
-  },
-  CHN: {
-    wave: 17,
-    name: 'Ekonomi & Industri China',
-    category: 'CHINA',
-    query: 'Pertumbuhan ekonomi China industri kendaraan listrik semikonduktor ekspor manufaktur dan kebijakan Beijing 2026',
-    subClusters: ['Kebijakan Industri Beijing', 'Pasar EV & Baterai', 'Hubungan Dagang RI-China']
-  },
-  ASI: {
-    wave: 17,
-    name: 'Bursa & Pasar Asia Timur',
-    category: 'BURSA_ASIA',
-    query: 'Bursa saham Nikkei Hang Seng Kospi Taiwan Semiconductor dan aliran modal Asia Timur 2026',
-    subClusters: ['Pasar Saham Asia', 'Rantai Pasok Asia', 'Suku Bunga Kawasan']
-  },
-
-  // Wave 4 - 21:00 WIB
-  WST: {
-    wave: 21,
-    name: 'Wall Street & Pasar Global Barat',
-    category: 'GLOBAL_MARKET',
-    query: 'Wall Street S&P 500 Nasdaq kebijakan suku bunga Federal Reserve yield US Treasury dan ekonomi AS 2026',
-    subClusters: ['Federal Reserve Rate', 'Big Tech Earnings', 'Treasury & Dollar Index']
-  },
-  EUR: {
-    wave: 21,
-    name: 'Uni Eropa & Inggris',
-    category: 'EROPA',
-    query: 'Ekonomi zona Euro kebijakan Bank Sentral Eropa ECB regulasi AI Act energi industri dan pasar modal UK 2026',
-    subClusters: ['Regulasi Uni Eropa & AI Act', 'Kebijakan ECB', 'Energi & Industri Eropa']
-  },
-  RUS: {
-    wave: 21,
-    name: 'Rusia & Energi Global',
-    category: 'EURASIA',
-    query: 'Geopolitik Rusia jalur pasokan minyak gas ekspor energi dinamika BRICS dan stabilitas Eurasia 2026',
-    subClusters: ['Pasokan Minyak & Gas', 'Dinamika Aliansi BRICS', 'Keamanan Eurasia']
-  }
-};
+function wibParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(date);
+  return Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+}
+function dayKey(p) { return `${p.year}-${p.month}-${p.day}`; }
+function loadState() {
+  try {
+    const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    return { runs: Array.isArray(state.runs) ? state.runs : [], lastRun: state.lastRun || null };
+  } catch { return { runs: [], lastRun: null }; }
+}
+function saveState(state) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const safe = { runs: (state.runs || []).slice(-90), lastRun: state.lastRun || null };
+  const temp = STATE_FILE + '.tmp';
+  fs.writeFileSync(temp, JSON.stringify(safe, null, 2), 'utf8');
+  fs.renameSync(temp, STATE_FILE);
+}
+function safeText(value, max = 12000) {
+  return String(value || '').replace(/\u0000/g, '').slice(0, max);
+}
 
 export class CuriosityDaemon {
-  // Bounded autonomy: maximum cognitive harvests per daemon session
-  static MAX_HARVESTS_PER_SESSION = 10;
-
   constructor() {
     this.isActive = false;
     this.timer = null;
-    this.lastRunWave = null;
-    this.lastRunDate = {}; // wave -> 'YYYY-MM-DD'
-    this.history = [];
     this.currentlyCrawling = null;
-    this.sessionHarvestCount = 0;  // A8: bounded autonomy counter
+    this.lastRunWave = null;
+    this.lastRunDate = {};
+    this.history = [];
     this._loadPersistedHistory();
   }
 
   _loadPersistedHistory() {
     try {
-      const vaultFile = path.join(process.cwd(), 'storage', 'vault', 'learned_knowledge.json');
-      if (fs.existsSync(vaultFile)) {
-        const raw = fs.readFileSync(vaultFile, 'utf-8');
-        const list = JSON.parse(raw || '[]');
-        this.history = list.map(item => ({
-          clusterCode: item.cluster,
-          clusterName: item.name,
-          category: item.category,
+      const file = path.join(VAULT_DIR, 'learned_knowledge.json');
+      if (fs.existsSync(file)) {
+        const items = JSON.parse(fs.readFileSync(file, 'utf8') || '[]');
+        this.history = items.map(item => ({
+          clusterCode: item.cluster || 'GOLD',
+          clusterName: item.name || 'Gold JINI Market Intelligence',
+          category: item.category || 'GOLD_MARKET',
           wave: item.wave,
-          fileName: path.basename(item.filePath),
+          fileName: path.basename(item.filePath || ''),
           filePath: item.filePath,
           savedToDriveF: (item.filePath || '').startsWith('F:'),
-          sizeKb: `${((item.fileSizeBytes || 0) / 1024).toFixed(1)} KB`,
           sourcesCount: item.sourcesCount || 0,
           sources: item.sources || [],
           timestamp: item.generatedAt,
-          status: item.status
+          status: item.status || 'SAVED'
         }));
       }
-    } catch (_) {}
-
-    // A9: Restore lastRunDate from persisted daemon state so we know which waves
-    // already ran today, even after a restart.
+    } catch {}
     try {
-      const stateFile = path.join(process.cwd(), 'storage', 'vault', 'daemon_state.json');
-      if (fs.existsSync(stateFile)) {
-        const raw = fs.readFileSync(stateFile, 'utf-8');
-        const saved = JSON.parse(raw || '{}');
-        if (saved.lastRunDate && typeof saved.lastRunDate === 'object') {
-          this.lastRunDate = saved.lastRunDate;
-        }
-      }
-    } catch (_) {}
+      const file = path.join(VAULT_DIR, 'daemon_state.json');
+      const saved = JSON.parse(fs.readFileSync(file, 'utf8') || '{}');
+      this.lastRunDate = saved.lastRunDate || {};
+    } catch {}
   }
 
-  /**
-   * A9: Persist lastRunDate to disk so it survives daemon restart.
-   */
   _persistRunDate() {
     try {
-      const stateFile = path.join(process.cwd(), 'storage', 'vault', 'daemon_state.json');
-      const vaultDir = path.dirname(stateFile);
-      if (!fs.existsSync(vaultDir)) fs.mkdirSync(vaultDir, { recursive: true });
-      fs.writeFileSync(stateFile, JSON.stringify({
+      fs.mkdirSync(VAULT_DIR, { recursive: true });
+      fs.writeFileSync(path.join(VAULT_DIR, 'daemon_state.json'), JSON.stringify({
         lastRunDate: this.lastRunDate,
         lastRunWave: this.lastRunWave,
         updatedAt: new Date().toISOString()
-      }, null, 2), 'utf-8');
-    } catch (_) {}
+      }, null, 2), 'utf8');
+    } catch (error) {
+      console.warn('[CuriosityDaemon] Cannot persist schedule state:', error.message);
+    }
   }
 
   start() {
     if (this.isActive) return;
     this.isActive = true;
-    console.log('[CuriosityDaemon] Memulai Autonomous Curiosity Daemon (4 Gelombang Diurnal: 07:00, 13:00, 17:00, 21:00 WIB)...');
-    
-    // Check every 60 seconds
+    console.log('[CuriosityDaemon] Gold JINI Tavily ingestion enabled: 07:00, 13:00, 17:00, 21:00 WIB.');
+    this._checkDiurnalPulse().catch(e => console.warn('[CuriosityDaemon] Initial check:', e.message));
     this.timer = setInterval(() => {
-      this._checkDiurnalPulse();
-    }, 60000);
-
-    // Initial pulse check
-    setTimeout(() => {
-      this._checkDiurnalPulse();
-    }, 5000);
+      this._checkDiurnalPulse().catch(e => console.warn('[CuriosityDaemon] Schedule check:', e.message));
+    }, 15000);
+    this.timer.unref?.();
   }
 
   stop() {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
     this.isActive = false;
     console.log('[CuriosityDaemon] Curiosity Daemon dihentikan.');
   }
 
   getWIBTime() {
-    const now = new Date();
-    // UTC+7
-    const wibTimestamp = now.getTime() + 7 * 3600 * 1000;
-    const wibDate = new Date(wibTimestamp);
-    const hour = wibDate.getUTCHours();
-    const minute = wibDate.getUTCMinutes();
-    const dateStr = wibDate.toISOString().slice(0, 10);
-    return { hour, minute, dateStr, fullIso: wibDate.toISOString() };
+    const p = wibParts();
+    return { hour: Number(p.hour), minute: Number(p.minute), dateStr: dayKey(p), fullIso: new Date().toISOString() };
   }
 
   async _checkDiurnalPulse() {
     if (this.currentlyCrawling) return;
-    const { hour, minute, dateStr } = this.getWIBTime();
-
-    const targetWaves = [7, 13, 17, 21];
-    if (targetWaves.includes(hour) && minute >= 0 && minute <= 15) {
-      if (this.lastRunDate[hour] !== dateStr) {
-        console.log(`[CuriosityDaemon] Gelombang Terjadwal WIB: ${hour}:00 WIB terdeteksi! Memulai siklus panen otonom...`);
-        this.lastRunDate[hour] = dateStr;
-        this.lastRunWave = hour;
-        this._persistRunDate(); // A9: persist so recovery after restart knows
-        await this.runWave(hour);
-      }
+    const p = wibParts();
+    const day = dayKey(p);
+    const minuteOfDay = Number(p.hour) * 60 + Number(p.minute);
+    for (const wave of WAVES) {
+      const target = wave.hour * 60;
+      if (minuteOfDay < target || minuteOfDay >= target + 2) continue;
+      const state = loadState();
+      const alreadyRan = (state.runs || []).some(r => r.dayKey === day && r.session === wave.key);
+      if (alreadyRan) continue;
+      this.lastRunDate[wave.hour] = day;
+      this.lastRunWave = wave.hour;
+      this._persistRunDate();
+      await this.executeDeepHarvest(wave, day, 'scheduled');
+      break;
     }
   }
 
-  async runWave(waveHour) {
-    const targetClusters = Object.entries(INTELLIGENCE_CLUSTERS).filter(([_, c]) => c.wave === waveHour);
-    console.log(`[CuriosityDaemon] Menjalankan Gelombang ${waveHour}:00 WIB (${targetClusters.length} klaster)...`);
-
-    for (const [code, info] of targetClusters) {
-      try {
-        await this.executeDeepHarvest(code);
-      } catch (err) {
-        console.error(`[CuriosityDaemon] Gagal memproses klaster ${code}:`, err.message);
-      }
-    }
-  }
-
-  /**
-   * Deep Cognitive Harvest Pipeline for a specific cluster
-   */
-  async executeDeepHarvest(clusterCode) {
-    const cluster = INTELLIGENCE_CLUSTERS[clusterCode];
-    if (!cluster) {
-      throw new Error(`KLASTER_TIDAK_DIKENAL: Kode klaster '${clusterCode}' tidak terdaftar.`);
-    }
-
-    // A8: Bounded autonomy — respect session harvest budget
-    if (this.sessionHarvestCount >= CuriosityDaemon.MAX_HARVESTS_PER_SESSION) {
-      throw new Error(`AUTONOMY_BUDGET_EXCEEDED: Session harvest limit (${CuriosityDaemon.MAX_HARVESTS_PER_SESSION}) reached. Daemon will not exceed bounded autonomy.`);
-    }
-
-    if (this.currentlyCrawling) {
-      throw new Error(`DAEMON_BUSY: Sistem sedang memproses klaster '${this.currentlyCrawling}'. Harap tunggu.`);
-    }
-
-    this.currentlyCrawling = clusterCode;
-    this.sessionHarvestCount++;
-    const startTime = Date.now();
-    console.log(`\n======================================================`);
-    console.log(`[CuriosityDaemon] 🧠 MEMULAI DEEP HARVEST: [${clusterCode}] ${cluster.name}`);
-    console.log(`[CuriosityDaemon] Query: "${cluster.query}"`);
-    console.log(`======================================================`);
-
+  async executeDeepHarvest(wave, day = dayKey(wibParts()), reason = 'manual') {
+    if (this.currentlyCrawling) throw new Error('DAEMON_BUSY: Gold JINI ingestion is already running.');
+    this.currentlyCrawling = wave.key;
+    const startedAt = new Date().toISOString();
+    console.log(`[CuriosityDaemon] Tavily Gold JINI ${wave.label} — query XAUUSD/fundamental news`);
     try {
-      // 1. Tavily AI Advanced Harvest with Raw Content
-      const apiKey = (process.env.TAVILY_API_KEY || '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').trim();
-      let harvestData = null;
-
-      try {
-        const res = await fetch('https://api.tavily.com/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            api_key: apiKey,
-            query: cluster.query,
-            search_depth: 'advanced',
-            include_raw_content: true,
-            include_answer: true,
-            max_results: 5
-          }),
-          signal: AbortSignal.timeout(20000)
-        });
-
-        if (res.ok) {
-          harvestData = await res.json();
-        } else {
-          console.warn(`[CuriosityDaemon] Tavily HTTP status: ${res.status}`);
-        }
-      } catch (fetchErr) {
-        console.warn(`[CuriosityDaemon] Tavily network error: ${fetchErr.message}`);
-      }
-
-      const directAnswer = harvestData?.answer || `Investigasi intelijen mendalam klaster ${cluster.name}.`;
-      const rawResults = harvestData?.results || [];
-
-      console.log(`[CuriosityDaemon] Tavily berhasil menghimpun ${rawResults.length} sumber primer.`);
-
-      // 2. Compile Raw Ingestion Corpus for Hermes-3 Digestion
-      let rawCorpus = '';
-      rawResults.forEach((r, idx) => {
-        const title = r.title || 'Informasi Publik';
-        const url = r.url || '';
-        const bodySnippet = r.content || '';
-        // If raw_content exists, use first 4000 characters per source to provide deep substance
-        const rawContent = (r.raw_content || '').replace(/\s+/g, ' ').slice(0, 4000);
-        const substance = rawContent.length > 500 ? rawContent : bodySnippet;
-
-        rawCorpus += `\n--- SUMBER ${idx + 1}: ${title} ---\nURL: ${url}\nNASKAH SUBSTANSI:\n${substance}\n`;
+      const apiKey = (process.env.TAVILY_API_KEY || '').trim();
+      if (!apiKey) throw new Error('TAVILY_API_KEY is missing from the server environment; no hard-coded key fallback is used.');
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: apiKey,
+          query: GOLD_QUERY,
+          search_depth: 'advanced',
+          include_raw_content: true,
+          include_answer: true,
+          max_results: 8
+        }),
+        signal: AbortSignal.timeout(25000)
       });
+      if (!response.ok) throw new Error(`Tavily HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+      const data = await response.json();
+      const rawResults = Array.isArray(data.results) ? data.results : [];
+      if (!rawResults.length && !data.answer) throw new Error('Tavily returned no usable answer or sources.');
 
-      // 3. Local Cognitive Digestion by Hermes-3 (or Fallback via ModelRoutingService)
-      console.log(`[CuriosityDaemon] 🤖 Menyerahkan naskah (${rawCorpus.length} karakter) ke Hermes-3:8B untuk pencernaan kognitif...`);
+      const fetchedAt = new Date().toISOString();
+      const sources = rawResults.map((r, i) => {
+        let domain = '';
+        try { domain = new URL(r.url).hostname.replace(/^www\./, ''); } catch {}
+        return {
+          key: `gold-tavily-${Date.now()}-${i + 1}`,
+          label: safeText(r.title || 'Gold market source', 300),
+          title: safeText(r.title || 'Gold market source', 300),
+          url: r.url || '',
+          domain,
+          status: 'READ',
+          fetchedAt,
+          score: Number.isFinite(r.score) ? r.score : null,
+          content: safeText(r.raw_content || r.content || '', 12000),
+          snippet: safeText(r.content || '', 3000)
+        };
+      }).filter(s => /^https?:\/\//i.test(s.url));
 
-      const digestionPrompt = `Anda adalah Master Intelijen Kognitif JIN-UltimateAI.
-Tugas Anda adalah membedah dan menganalisis naskah hasil investigasi intelijen terkini (Tahun 2026) mengenai klaster: ${cluster.name} (${clusterCode}).
+      const record = {
+        session: wave.key,
+        sessionLabel: wave.label,
+        dayKey: day,
+        scheduledAtWIB: `${day} ${String(wave.hour).padStart(2, '0')}:00 WIB`,
+        startedAt,
+        completedAt: new Date().toISOString(),
+        reason,
+        success: true,
+        provider: 'TAVILY_AI',
+        query: GOLD_QUERY,
+        directAnswer: safeText(data.answer || '', 12000),
+        fetchedAt,
+        sources
+      };
+      const state = loadState();
+      state.runs = [...state.runs, record].slice(-90);
+      state.lastRun = record;
+      saveState(state);
 
-Naskah Mentah Fakta Lapangan:
-${rawCorpus.slice(0, 14000)}
-
-Instruksi Analisis Mendalam:
-Susun laporan analisis komprehensif tanpa asumsi kosong, berbobot, terstruktur dengan sub-bab berikut:
-1. SINTESIS SEBAB-AKIBAT & MEKANISME STRATEGIS (Jelaskan akar penyebab, dinamika perubahan, dan mekanisme sistemik)
-2. MATRIKS DATA KUANTITATIF & FAKTA TERVERIFIKASI (Sajikan metrik angka, benchmark, skor performa, regulasi terkait)
-3. ENTITAS KUNCI, AKTOR & ARSITEKTUR TEKNOLOGI (Sebutkan nama perusahaan, laboratorium riset, arsitektur model/chip, atau pejabat pembuat kebijakan)
-4. PROYEKSI RISIKO & DAMPAK 2026+ (Jelaskan ancaman, risiko kegagalan, dan dinamika geopolitik/industri)
-5. IMPLIKASI AKSI DAN PANDUAN UNTUK ULTIMATEAI (Petunjuk bagi sistem kami untuk mengoptimalkan kapabilitas lokal)
-
-Gunakan Bahasa Indonesia profesional, presisi, dan padat pengetahuan.`;
-
-      let digestionResult = '';
-      try {
-        const routed = await modelRoutingServiceInstance.routeChat({
-          messages: [
-            { role: 'system', content: 'Anda adalah analis intelijen strategis dan saintis AI UltimateAI.' },
-            { role: 'user', content: digestionPrompt }
-          ],
-          capability: 'REASONING',
-          temperature: 0.2
-        });
-        digestionResult = (routed && routed.content) || '';
-      } catch (llmErr) {
-        console.warn(`[CuriosityDaemon] LLM Digestion warning: ${llmErr.message}, menggunakan sintesis analitik langsung.`);
-        digestionResult = `## 1. SINTESIS SEBAB-AKIBAT\n${directAnswer}\n\n## 2. MATRIKS FAKTA TERVERIFIKASI\nTerhimpun ${rawResults.length} sumber data komprehensif.`;
-      }
-
-      // 4. Assemble Rich Multi-Pillar Dossier (20 - 50 KB)
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-      const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-      const fileName = `${clusterCode}_${dateStr}_${timeStr}_${cluster.category}.md`;
+      const dateStamp = day.replace(/-/g, '');
+      const timeStamp = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+        .format(now).replace(/:/g, '');
+      const fileName = `GOLD_JINI_${wave.hour}_${dateStamp}_${timeStamp}.md`;
+      const dossier = [
+        '# Gold JINI — Tavily Market Intelligence',
+        '',
+        `- Gelombang: ${wave.label} (${wave.hour}:00 WIB)`,
+        `- Waktu pengambilan: ${now.toLocaleString('id-ID', { timeZone: TZ })} WIB`,
+        '- Provider: Tavily AI Advanced Search',
+        '- Tujuan: intelijen berita dan fundamental Gold JINI; bukan sinyal trading otomatis.',
+        '',
+        '## Ringkasan Tavily',
+        safeText(data.answer || 'Tavily tidak memberikan ringkasan langsung.', 12000),
+        '',
+        '## Sumber',
+        ...sources.flatMap((s, i) => [
+          `### ${i + 1}. ${s.title}`,
+          `- URL: ${s.url}`,
+          `- Domain: ${s.domain}`,
+          `- Relevance: ${s.score ?? 'n/a'}`,
+          '',
+          safeText(s.content || s.snippet, 12000),
+          ''
+        ])
+      ].join('\n');
 
-      let fullDossier = `# DOSSIER INTELIJEN: [${clusterCode}] ${cluster.name.toUpperCase()}\n\n`;
-      fullDossier += `> **METADATA KOGNITIF JIN-ULTIMATEAI**\n`;
-      fullDossier += `> - **Klaster**: ${clusterCode} (${cluster.name})\n`;
-      fullDossier += `> - **Gelombang Diurnal**: Pukul ${cluster.wave}:00 WIB\n`;
-      fullDossier += `> - **Waktu Analisis**: ${now.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB\n`;
-      fullDossier += `> - **Engine Ekstraksi**: Tavily Advanced Harvester (Live 2026 Grounding)\n`;
-      fullDossier += `> - **Engine Pencernaan Kognitif**: Ollama Local Hermes-3:8B\n`;
-      fullDossier += `> - **Sub-Klaster**: ${cluster.subClusters.join(' | ')}\n\n`;
-
-      fullDossier += `## RINGKASAN EKSEKUTIF\n${directAnswer}\n\n`;
-      fullDossier += `## ANALISIS MENDALAM HERMES-3 (COGNITIVE DIGESTION)\n\n`;
-      fullDossier += `${digestionResult}\n\n`;
-
-      fullDossier += `## DATA SUMBER TERVERIFIKASI (VERIFIABLE GROUNDING)\n\n`;
-      rawResults.forEach((r, idx) => {
-        let hostname = 'web';
-        try { hostname = new URL(r.url).hostname; } catch (_) {}
-        fullDossier += `### Sumber ${idx + 1}: ${r.title || 'Dokumen Publik'}\n`;
-        fullDossier += `- **Domain**: ${hostname} ([Tautan Asli](${r.url}))\n`;
-        fullDossier += `- **Skor Relevansi**: ${Math.round((r.score || 0.85) * 100)}%\n`;
-        fullDossier += `- **Kutipan Kunci**:\n  ${r.content || 'Naskah terindeks dalam memori.'}\n\n`;
-      });
-
-      fullDossier += `## LAMPIRAN NASKAH LENGKAP HASIL PANEN\n\n`;
-      fullDossier += `\`\`\`text\n${rawCorpus.slice(0, 16000)}\n\`\`\`\n\n`;
-      fullDossier += `\n---\n*Dokumen ini merupakan aset pengetahuan berdaulat JIN-UltimateAI yang digenerasi secara otonom.*`;
-
-      // 5. Persist to Drive F: & Local Storage Fallback
       let finalPath = '';
       let savedToDriveF = false;
-
-      const writeResult = localDriveFStorageInstance.writeRecord('02_Documentation', fileName, fullDossier);
-      if (writeResult && writeResult.success) {
-        finalPath = writeResult.path;
-        savedToDriveF = true;
-        console.log(`[CuriosityDaemon] 💾 Tersimpan aman di Drive F: ${finalPath}`);
-      } else {
-        const vaultDocDir = path.join(process.cwd(), 'storage', 'vault', 'documents');
-        if (!fs.existsSync(vaultDocDir)) {
-          fs.mkdirSync(vaultDocDir, { recursive: true });
-        }
-        finalPath = path.join(vaultDocDir, fileName);
-        fs.writeFileSync(finalPath, fullDossier, 'utf-8');
-        console.log(`[CuriosityDaemon] 💾 Tersimpan di Vault Dokumen: ${finalPath}`);
-      }
-
-      // 6. Index into SQLite FTS5 Search Index
       try {
-        if (memoryIndexSQLiteInstance) {
-          memoryIndexSQLiteInstance.upsert({
-            id: `curiosity_${clusterCode}_${Date.now()}`,
-            timestamp: now.toISOString(),
-            category: cluster.category,
-            priority: 'HIGH',
-            tags: JSON.stringify([clusterCode, cluster.category, 'HERMES3_DIGEST', 'TAVILY_ADVANCED']),
-            content: `[${clusterCode} ${cluster.name}]: ${directAnswer}\n${digestionResult.slice(0, 500)}`,
-            source: `Autonomous Curiosity Daemon (${cluster.wave}:00 WIB)`
-          }, finalPath);
+        const written = localDriveFStorageInstance.writeRecord('02_Documentation', fileName, dossier);
+        if (written?.success) {
+          finalPath = written.path;
+          savedToDriveF = true;
         }
-      } catch (idxErr) {
-        console.warn(`[CuriosityDaemon] SQLite indexing warning: ${idxErr.message}`);
+      } catch (e) {
+        console.warn('[CuriosityDaemon] Drive F save unavailable:', e.message);
       }
-
-      // 7. Register Claim into DomainKnowledgeGraph
-      try {
-        domainKnowledgeGraphInstance.registerClaim({
-          claim: `[${clusterCode}] Sintesis Diurnal 2026: ${directAnswer.slice(0, 200)}`,
-          domain: cluster.category,
-          source: finalPath,
-          confidence: 0.98,
-          verificationState: 'VERIFIED'
-        });
-      } catch (_) {}
-
-      const formattedSources = rawResults.map(r => {
-        let domain = 'web';
-        try { domain = new URL(r.url).hostname.replace(/^www\./, ''); } catch (_) {}
-        return {
-          title: r.title || cluster.name,
-          url: r.url,
-          domain,
-          score: Math.round((r.score || 0.85) * 100) / 100
-        };
-      });
-
-      // 8. Record in Learned Knowledge Repository (storage/vault/learned_knowledge.json)
-      try {
-        const vaultDir = path.join(process.cwd(), 'storage', 'vault');
-        const vaultFile = path.join(vaultDir, 'learned_knowledge.json');
-        if (!fs.existsSync(vaultDir)) fs.mkdirSync(vaultDir, { recursive: true });
-
-        let knowledgeList = [];
-        if (fs.existsSync(vaultFile)) {
-          try { knowledgeList = JSON.parse(fs.readFileSync(vaultFile, 'utf-8') || '[]'); } catch (_) {}
-        }
-
-        const newKnowledgeItem = {
-          knowledgeId: `knw_${clusterCode}_${Date.now()}`,
-          cluster: clusterCode,
-          name: cluster.name,
-          category: cluster.category,
-          wave: cluster.wave,
-          summary: directAnswer,
-          filePath: finalPath,
-          fileSizeBytes: Buffer.byteLength(fullDossier, 'utf-8'),
-          sourcesCount: rawResults.length,
-          sources: formattedSources,
-          generatedAt: now.toISOString(),
-          status: 'PROMOTED'
-        };
-
-        knowledgeList.unshift(newKnowledgeItem);
-        if (knowledgeList.length > 50) knowledgeList = knowledgeList.slice(0, 50);
-        fs.writeFileSync(vaultFile, JSON.stringify(knowledgeList, null, 2), 'utf-8');
-      } catch (vaultErr) {
-        console.warn('[CuriosityDaemon] Failed updating learned_knowledge.json:', vaultErr.message);
+      if (!finalPath) {
+        const localDir = path.join(VAULT_DIR, 'gold-jini');
+        fs.mkdirSync(localDir, { recursive: true });
+        finalPath = path.join(localDir, fileName);
+        fs.writeFileSync(finalPath, dossier, 'utf8');
       }
-
-      const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
-      const sizeKb = (Buffer.byteLength(fullDossier, 'utf-8') / 1024).toFixed(1);
 
       const report = {
-        clusterCode,
-        clusterName: cluster.name,
-        category: cluster.category,
-        wave: cluster.wave,
+        clusterCode: 'GOLD',
+        clusterName: 'Gold JINI Market Intelligence',
+        category: 'GOLD_MARKET',
+        wave: wave.hour,
         fileName,
         filePath: finalPath,
         savedToDriveF,
-        sizeKb: `${sizeKb} KB`,
-        sourcesCount: rawResults.length,
-        sources: formattedSources,
-        durationSeconds: durationSec,
-        timestamp: now.toISOString(),
+        sizeKb: `${(Buffer.byteLength(dossier, 'utf8') / 1024).toFixed(1)} KB`,
+        sourcesCount: sources.length,
+        sources: sources.map(s => ({ title: s.title, url: s.url, domain: s.domain, score: s.score })),
+        durationSeconds: ((Date.now() - new Date(startedAt).getTime()) / 1000).toFixed(1),
+        timestamp: record.completedAt,
         status: 'SUCCESS'
       };
-
       this.history.unshift(report);
-      if (this.history.length > 30) this.history.pop();
+      this.history = this.history.slice(0, 30);
 
-      console.log(`[CuriosityDaemon] ✅ SELESAI: ${fileName} (${sizeKb} KB) dalam ${durationSec}s`);
+      try {
+        fs.mkdirSync(VAULT_DIR, { recursive: true });
+        const vaultFile = path.join(VAULT_DIR, 'learned_knowledge.json');
+        let items = [];
+        try { items = JSON.parse(fs.readFileSync(vaultFile, 'utf8') || '[]'); } catch {}
+        items.unshift({
+          knowledgeId: `gold_${wave.hour}_${Date.now()}`,
+          cluster: 'GOLD',
+          name: report.clusterName,
+          category: report.category,
+          wave: wave.hour,
+          summary: record.directAnswer,
+          filePath: finalPath,
+          fileSizeBytes: Buffer.byteLength(dossier, 'utf8'),
+          sourcesCount: sources.length,
+          sources: report.sources,
+          generatedAt: record.completedAt,
+          status: 'SAVED'
+        });
+        fs.writeFileSync(vaultFile, JSON.stringify(items.slice(0, 50), null, 2), 'utf8');
+      } catch (e) {
+        console.warn('[CuriosityDaemon] History index save warning:', e.message);
+      }
+      console.log(`[CuriosityDaemon] Gold JINI saved: ${sources.length} Tavily sources; provider=TAVILY_AI; ${finalPath}`);
       return report;
+    } catch (error) {
+      const state = loadState();
+      const failed = {
+        session: wave.key, sessionLabel: wave.label, dayKey: day, startedAt,
+        completedAt: new Date().toISOString(), reason, success: false,
+        provider: 'TAVILY_AI', error: error.message, sources: []
+      };
+      state.runs = [...state.runs, failed].slice(-90);
+      state.lastRun = failed;
+      try { saveState(state); } catch {}
+      console.error('[CuriosityDaemon] Gold JINI Tavily ingestion failed:', error.message);
+      return { status: 'FAILED', error: error.message, wave: wave.hour };
     } finally {
       this.currentlyCrawling = null;
     }
@@ -542,15 +316,18 @@ Gunakan Bahasa Indonesia profesional, presisi, dan padat pengetahuan.`;
 
   getStatus() {
     const wib = this.getWIBTime();
+    const state = loadState();
     return {
       isActive: this.isActive,
-      currentWIBTime: `${wib.hour.toString().padStart(2, '0')}:${wib.minute.toString().padStart(2, '0')} WIB (${wib.dateStr})`,
+      currentWIBTime: `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')} WIB (${wib.dateStr})`,
       currentlyCrawling: this.currentlyCrawling,
       lastRunWave: this.lastRunWave,
       lastRunDate: this.lastRunDate,
-      clustersCount: Object.keys(INTELLIGENCE_CLUSTERS).length,
-      clusters: INTELLIGENCE_CLUSTERS,
-      recentDossiers: this.history.slice(0, 10)
+      clustersCount: 1,
+      clusters: Object.fromEntries(WAVES.map(w => [w.key, { wave: w.hour, name: 'Gold JINI Market Intelligence', query: GOLD_QUERY }])),
+      recentDossiers: this.history.slice(0, 10),
+      goldNewsLastRun: state.lastRun,
+      schedule: WAVES.map(w => ({ session: w.key, searchAtWIB: `${String(w.hour).padStart(2, '0')}:00` }))
     };
   }
 }

@@ -1,3 +1,4 @@
+import 'dotenv/config'; // Load project-root .env before reading API keys.
 /**
  * LocalRouterServer.mjs
  * UltimateAI Local Router Service on 127.0.0.1:20200.
@@ -152,6 +153,20 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
   return trimmed;
 }
 
+// In-memory live trading candles received from the user's local MetaTrader 5 bridge.
+// Data is intentionally volatile: a server restart requires the MT5 bridge to publish again.
+const JIN_TRADING_CANDLES = new Map();
+const JIN_TRADING_TICKS = new Map();
+const JIN_TRADING_TF_MS = { M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
+function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
+function jinTradingValidCandle(c) {
+  if (!c || typeof c !== 'object' || !['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(String(c.symbol || '').toUpperCase())) return false;
+  if (!Object.hasOwn(JIN_TRADING_TF_MS, String(c.timeframe || '').toUpperCase())) return false;
+  const nums = [c.open,c.high,c.low,c.close,c.volume];
+  const time = typeof c.timestamp === 'string' ? Date.parse(c.timestamp) : Number(c.timestamp);
+  return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) &&
+    c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high);
+}
 export function createLocalRouterServer() {
   const server = http.createServer(async (req, res) => {
     // CORS Headers
@@ -872,6 +887,79 @@ Requirements:
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ service: 'MARKET_PRICE_STUDIO', ok: false, error: err.message, range: '1D' }));
       }
+      return;
+    }
+
+    // JIN Trading OHLC bridge: local MT5 Expert Advisor publishes broker candles here.
+    if (pathname === '/api/trading/ohlc/ingest' && req.method === 'POST') {
+      try {
+        const remote = req.socket.remoteAddress || '';
+        if (!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(remote)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Only local MT5 bridge connections are accepted.' }));
+          return;
+        }
+        const payload = await readJsonBody();
+        const incoming = Array.isArray(payload.candles) ? payload.candles.slice(0, 2500) : [];
+        let accepted = 0, rejected = 0;
+        const now = Date.now();
+        for (const raw of incoming) {
+          const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
+            timestamp: typeof raw.timestamp === 'number' ? new Date(raw.timestamp * (raw.timestamp < 1e12 ? 1000 : 1)).toISOString() : raw.timestamp,
+            source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
+          if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
+          const key = jinTradingKey(candle.symbol, candle.timeframe);
+          const rows = JIN_TRADING_CANDLES.get(key) || new Map();
+          rows.set(candle.timestamp, candle);
+          const sorted = [...rows.entries()].sort((a,b)=>Date.parse(a[0])-Date.parse(b[0])).slice(-500);
+          JIN_TRADING_CANDLES.set(key, new Map(sorted));
+          accepted++;
+        }
+        const ticks = Array.isArray(payload.ticks) ? payload.ticks.slice(0, 20) : [];
+        for (const t of ticks) {
+          const symbol = String(t.symbol || '').toUpperCase();
+          if (['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(symbol) &&
+              Number.isFinite(t.bid) && Number.isFinite(t.ask) && t.ask >= t.bid) {
+            JIN_TRADING_TICKS.set(symbol, { symbol, bid: t.bid, ask: t.ask, spread: t.ask-t.bid,
+              timestamp: new Date().toISOString(), source: 'MT5_LOCAL_BRIDGE' });
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, accepted, rejected, candleSets: [...JIN_TRADING_CANDLES.keys()], timestamp: new Date().toISOString() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message || 'Invalid MT5 OHLC payload' }));
+      }
+      return;
+    }
+    if (pathname === '/api/trading/ohlc' && req.method === 'GET') {
+      const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
+      const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
+      const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit') || 300)));
+      const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])]
+        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-limit);
+      const latest = rows.at(-1) || null;
+      const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
+      const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*2 ? 'FRESH' : 'STALE';
+      const tick = JIN_TRADING_TICKS.get(symbol) || null;
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', count: rows.length, freshness,
+        lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows }));
+      return;
+    }
+    if (pathname === '/api/trading/ohlc/status' && req.method === 'GET') {
+      const sets = {};
+      for (const tf of Object.keys(JIN_TRADING_TF_MS)) {
+        const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
+        const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,tf))?.values() || [])];
+        const latest = rows.at(-1) || null;
+        const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
+        sets[tf] = { count: rows.length, lastUpdate: latest?.timestamp || null,
+          freshness: !latest ? 'NO_DATA' : ageMs < JIN_TRADING_TF_MS[tf]*2 ? 'FRESH' : 'STALE' };
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, symbol: String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase(),
+        source: 'MT5_LOCAL_BRIDGE', timeframes: sets, tick: JIN_TRADING_TICKS.get(String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase()) || null }));
       return;
     }
 
@@ -4300,6 +4388,176 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
+
+    // JIN XAUUSD session-news scheduler status and history.
+    if (pathname === '/api/trading/fundamental-status' && req.method === 'GET') {
+      try {
+        const { getGoldNewsSchedulerStatus } = await import('./GoldNewsSessionScheduler.mjs');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: true, ...getGoldNewsSchedulerStatus() }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: error.message }));
+      }
+      return;
+    }
+
+    // JIN XAUUSD Gold News Search: direct Tavily query with strict per-article date validation.
+    // Never trust the fetch timestamp or Tavily's generated answer as an article publication date.
+    if (pathname === '/api/trading/gold-news-search' && req.method === 'POST') {
+      try {
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 12000) throw new Error('Request body too large');
+        }
+        const payload = JSON.parse(body || '{}');
+        const instrument = String(payload.instrument || 'XAUUSD').slice(0, 20);
+        const session = ['asia', 'london', 'newyork'].includes(payload.session) ? payload.session : 'all';
+        const apiKey = String(process.env.TAVILY_API_KEY || '').trim();
+        if (!apiKey) throw new Error('TAVILY_API_KEY belum tersedia di environment LocalRouterServer.');
+
+        const query = [
+          'gold XAUUSD news article with publication date in the last 7 days',
+          'Federal Reserve rate decision speeches, US CPI PCE inflation, NFP jobs, Treasury real yields, DXY US dollar and central-bank gold demand',
+          'official economic releases and scheduled events affecting spot gold',
+          session === 'all' ? '' : 'current trading session ' + session
+        ].filter(Boolean).join('; ');
+
+        const response = await fetch('https://api.tavily.com/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: apiKey,
+            query,
+            topic: 'news',
+            search_depth: 'advanced',
+            days: 7,
+            max_results: 15,
+            include_answer: false,
+            include_raw_content: false
+          }),
+          signal: AbortSignal.timeout(20000)
+        });
+        if (!response.ok) throw new Error('Tavily HTTP ' + response.status + ': ' + (await response.text()).slice(0, 250));
+
+        const result = await response.json();
+        const fetchedAt = new Date();
+        const fetchedAtIso = fetchedAt.toISOString();
+        const cutoffMs = fetchedAt.getTime() - 7 * 24 * 60 * 60 * 1000;
+        const futureLimitMs = fetchedAt.getTime() + 24 * 60 * 60 * 1000;
+        const seenUrls = new Set();
+
+        const sources = (Array.isArray(result.results) ? result.results : []).map((item) => {
+          const rawUrl = String(item.url || '').trim();
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(rawUrl);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) return null;
+          } catch {
+            return null;
+          }
+
+          // Only explicit publication-date metadata is accepted. Do not infer dates from snippets,
+          // page contents, search time, or generic page-update metadata.
+          const rawPublishedAt = item.published_date ?? item.publishedDate ?? null;
+          if (typeof rawPublishedAt !== 'string' || !rawPublishedAt.trim()) return null;
+          const publishedMs = Date.parse(rawPublishedAt);
+          if (!Number.isFinite(publishedMs) || publishedMs < cutoffMs || publishedMs > futureLimitMs) return null;
+
+          const canonicalUrl = parsedUrl.toString();
+          if (seenUrls.has(canonicalUrl)) return null;
+          seenUrls.add(canonicalUrl);
+
+          return {
+            title: String(item.title || '').trim().slice(0, 300),
+            url: canonicalUrl,
+            domain: parsedUrl.hostname.replace(/^www\./, ''),
+            snippet: String(item.content || '').trim().slice(0, 2000),
+            score: Number.isFinite(item.score) ? item.score : null,
+            publishedAt: new Date(publishedMs).toISOString(),
+            publicationDateVerified: true,
+            freshness: 'RECENT',
+            category: 'GOLD_MARKET'
+          };
+        }).filter(Boolean);
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({
+          // A successful provider response is distinct from finding qualifying articles.
+          success: true,
+          query,
+          provider: 'TAVILY_AI',
+          freshnessWindowDays: 7,
+          directAnswer: null,
+          fetchedAt: fetchedAtIso,
+          instrument,
+          session,
+          sources,
+          error: sources.length ? null : 'Tavily berhasil merespons, tetapi tidak ada artikel dengan tanggal publikasi valid dalam 7 hari terakhir. Hasil tanpa tanggal dan halaman lama tidak ditampilkan.'
+        }));
+      } catch (error) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: false, provider: 'TAVILY_AI', error: error.message || 'Gold news search failed' }));
+      }
+      return;
+    }
+
+    // JIN XAUUSD Fundamental Reader: fetch only allowlisted public sources.
+    if (pathname === '/api/trading/fundamental-read' && req.method === 'POST') {
+      try {
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 20000) throw new Error('Request body too large');
+        }
+        const payload = JSON.parse(body || '{}');
+        const allowedSources = {
+          fed: { label: 'Federal Reserve', url: 'https://www.federalreserve.gov/newsevents/pressreleases.htm', host: 'www.federalreserve.gov' },
+          bls: { label: 'BLS Releases', url: 'https://www.bls.gov/schedule/news_release/', host: 'www.bls.gov' },
+          bea: { label: 'BEA Releases', url: 'https://www.bea.gov/news/schedule', host: 'www.bea.gov' },
+          treasury: { label: 'US Treasury Yields', url: 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates', host: 'home.treasury.gov' },
+          cftc: { label: 'CFTC COT Reports', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', host: 'www.cftc.gov' }
+        };
+        const requested = Array.isArray(payload.sources) ? payload.sources : Object.keys(allowedSources);
+        const selected = [...new Set(requested)].filter(key => allowedSources[key]).slice(0, 5);
+        const results = await Promise.all(selected.map(async key => {
+          const source = allowedSources[key];
+          try {
+            const response = await fetch(source.url, {
+              headers: { 'User-Agent': 'UltimateAI-JIN-FundamentalReader/1.0', 'Accept': 'text/html,application/xhtml+xml' },
+              signal: AbortSignal.timeout(12000),
+              redirect: 'error'
+            });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const finalUrl = new URL(response.url);
+            if (finalUrl.hostname !== source.host || !['https:'].includes(finalUrl.protocol)) throw new Error('Unexpected source host');
+            const html = (await response.text()).slice(0, 1500000);
+            const textContent = html
+              .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+              .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+              .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6])\b[^>]*>/gi, '\n')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/&nbsp;|&#160;/gi, ' ')
+              .replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+              .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+              .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim()
+              .slice(0, 18000);
+            if (textContent.length < 100) throw new Error('Page content too short or blocked');
+            return { key, label: source.label, url: source.url, status: 'READ', httpStatus: response.status, fetchedAt: new Date().toISOString(), content: textContent };
+          } catch (error) {
+            return { key, label: source.label, url: source.url, status: 'SOURCE_UNAVAILABLE', fetchedAt: new Date().toISOString(), error: error.message };
+          }
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ success: true, fetchedAt: new Date().toISOString(), sources: results }));
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: error.message || 'Fundamental source read failed' }));
+      }
+      return;
+    }
+
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));
@@ -4325,6 +4583,7 @@ if (isDirectExecution) {
     console.log(`  - Chat API:    http://127.0.0.1:${PORT}/v1/chat/completions`);
     console.log(`  - Daemon:      http://127.0.0.1:${PORT}/api/daemon/status`);
     console.log(`=======================================================`);
+    // Gold JINI ingestion is owned by CuriosityDaemon to avoid duplicate Tavily searches.
     import('../daemon/CuriosityDaemon.mjs')
       .then(m => m.curiosityDaemonInstance.start())
       .catch(e => console.warn('[LocalRouter] Failed to start CuriosityDaemon:', e.message));
