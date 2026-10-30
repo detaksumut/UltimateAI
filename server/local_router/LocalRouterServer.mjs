@@ -4401,7 +4401,8 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
-    // JIN XAUUSD Gold News Search: manual refresh uses the existing Tavily-backed WebSearchTool.
+    // JIN XAUUSD Gold News Search: direct Tavily query with a strict recency window.
+    // Do not route this panel through the legacy WebSearchTool / generic news ingestion.
     if (pathname === '/api/trading/gold-news-search' && req.method === 'POST') {
       try {
         let body = '';
@@ -4412,33 +4413,61 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
         const payload = JSON.parse(body || '{}');
         const instrument = String(payload.instrument || 'XAUUSD').slice(0, 20);
         const session = ['asia', 'london', 'newyork'].includes(payload.session) ? payload.session : 'all';
+        const apiKey = String(process.env.TAVILY_API_KEY || '').trim();
+        if (!apiKey) throw new Error('TAVILY_API_KEY belum tersedia di environment LocalRouterServer.');
         const query = [
-          'Latest verified financial news and official economic announcements affecting gold XAUUSD',
-          'Federal Reserve interest rates and monetary policy, US CPI inflation PCE, NFP employment, US Treasury yields, US dollar',
-          'published news and upcoming economic releases relevant to gold',
+          'latest gold XAUUSD market-moving news published in the last 7 days',
+          'Federal Reserve rate decision speeches, US CPI PCE inflation, NFP jobs, Treasury real yields, DXY US dollar and central-bank gold demand',
+          'official economic releases and scheduled events affecting spot gold',
           session === 'all' ? '' : 'current trading session ' + session
         ].filter(Boolean).join('; ');
-        const { webSearchToolInstance } = await import('../tools/WebSearchTool.mjs');
-        const result = await webSearchToolInstance.execute({ query, maxResults: 8, layer: 'ALL' }, AbortSignal.timeout(12000));
-        const sources = (Array.isArray(result.sources) ? result.sources : []).map(s => ({
-          title: String(s.title || '').slice(0, 300),
-          url: s.url,
-          domain: s.domain || '',
-          snippet: String(s.snippet || '').slice(0, 4000),
-          score: Number.isFinite(s.score) ? s.score : null,
-          category: s.category || 'GENERAL'
-        })).filter(s => /^https?:$/.test((() => { try { return new URL(s.url).protocol; } catch { return ''; } })()));
+        const response = await fetch('https://api.tavily.com/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: apiKey,
+            query,
+            topic: 'news',
+            search_depth: 'advanced',
+            days: 7,
+            max_results: 8,
+            include_answer: true,
+            include_raw_content: false
+          }),
+          signal: AbortSignal.timeout(20000)
+        });
+        if (!response.ok) throw new Error('Tavily HTTP ' + response.status + ': ' + (await response.text()).slice(0, 250));
+        const result = await response.json();
+        const fetchedAt = new Date().toISOString();
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const sources = (Array.isArray(result.results) ? result.results : []).map(s => {
+          let publishedAt = s.published_date || s.publishedDate || s.date || null;
+          const parsedDate = publishedAt ? Date.parse(publishedAt) : NaN;
+          const domain = (() => { try { return new URL(s.url).hostname.replace(/^www\\./, ''); } catch { return ''; } })();
+          return {
+            title: String(s.title || '').slice(0, 300),
+            url: s.url,
+            domain,
+            snippet: String(s.content || '').slice(0, 4000),
+            score: Number.isFinite(s.score) ? s.score : null,
+            publishedAt: Number.isFinite(parsedDate) ? new Date(parsedDate).toISOString() : publishedAt,
+            freshness: Number.isFinite(parsedDate) ? (parsedDate >= cutoff ? 'RECENT' : 'STALE') : 'DATE_UNVERIFIED',
+            category: 'GOLD_MARKET'
+          };
+        }).filter(s => /^https?:$/.test((() => { try { return new URL(s.url).protocol; } catch { return ''; } })()))
+          .filter(s => s.freshness !== 'STALE');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({
           success: sources.length > 0,
-          query: result.query || query,
-          provider: result.provider || 'UNKNOWN',
-          directAnswer: result.directAnswer || null,
-          fetchedAt: new Date().toISOString(),
+          query,
+          provider: 'TAVILY_AI',
+          freshnessWindowDays: 7,
+          directAnswer: result.answer || null,
+          fetchedAt,
           instrument,
           session,
           sources,
-          error: sources.length ? null : 'Pencarian tidak menghasilkan sumber yang dapat digunakan.'
+          error: sources.length ? null : 'Tidak ada berita dengan tanggal publikasi yang memenuhi batas 7 hari. Sumber tanpa tanggal ditandai DATE_UNVERIFIED.'
         }));
       } catch (error) {
         res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
