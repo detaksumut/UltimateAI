@@ -309,7 +309,6 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
           })()}
         </div>
       </div>
-      </div>
     </section></>;
   }
 
