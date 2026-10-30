@@ -31,7 +31,7 @@ const errorText=e=>{const v=e?.message??e?.error??e; if(typeof v==='string')retu
 export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
  const [tab,setTab]=useState('summary'),[busy,setBusy]=useState(false),[status,setStatus]=useState('BELUM DICARI'),[error,setError]=useState(''),[sources,setSources]=useState([]),[report,setReport]=useState(null),[market,setMarket]=useState([]),[marketAt,setMarketAt]=useState(null),[marketBusy,setMarketBusy]=useState(false),[marketError,setMarketError]=useState(''),[history,setHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem('jin-gold-news-history-v1')||'[]')}catch{return[]}});
  const readMarket=useCallback(async()=>{if(marketBusy)return;setMarketBusy(true);setMarketError('');try{
-  const endpoint=String(RouterConfig.getEndpoint()).replace(/\\/+$/,'');
+  const endpoint=String(RouterConfig.getEndpoint()).replace(/\/+$/,'');
   const route=endpoint.endsWith('/api')?'/trading/intermarket-quotes':'/api/trading/intermarket-quotes';
   let quotes=null;let fetchedAt=null;let primaryError='';
   try{
