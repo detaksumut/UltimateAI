@@ -13,8 +13,10 @@ export function getChartCandles(symbol, timeframe, limit = 100) {
     const validCandles = candles.filter(c => {
       if (!c || typeof c !== 'object') return false;
       const { open, high, low, close, volume, timestamp, symbol: s, timeframe: tf } = c;
-      return [open, high, low, close, volume].every(v => typeof v === 'number' && Number.isFinite(v)) &&
-        typeof timestamp === 'string' && Number.isFinite(new Date(timestamp).getTime()) &&
+      const timestampMs = typeof timestamp === 'number' ? timestamp : Date.parse(timestamp);
+      return [open, high, low, close].every(v => typeof v === 'number' && Number.isFinite(v)) &&
+        (volume == null || (typeof volume === 'number' && Number.isFinite(volume))) &&
+        Number.isFinite(timestampMs) &&
         s === symbol && tf === timeframe && high >= Math.max(open, close, low) && low <= Math.min(open, close, high);
     });
     if (!validCandles.length) return { candles: [], count: 0, freshness: 'NO_DATA', status: 'NO_DATA', error: 'Tidak ada candle valid' };
