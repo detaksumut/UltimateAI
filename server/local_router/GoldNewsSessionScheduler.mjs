@@ -137,9 +137,11 @@ function tick() {
 export function getGoldNewsSchedulerStatus() {
   const state = loadState();
   return {
-    enabled: true,
+    enabled: false,
+    delegatedTo: 'CuriosityDaemon',
+    note: 'Scheduled ingestion is owned by CuriosityDaemon; this module only exposes legacy status compatibility.',
     timezone: TZ,
-    providerMode: 'TAVILY_FIRST_WITH_EXISTING_FALLBACK',
+    providerMode: 'TAVILY_ONLY',
     schedule: WAVES.map(w => ({
       session: w.key, label: w.label,
       searchAtWIB: `${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')}`
@@ -149,10 +151,7 @@ export function getGoldNewsSchedulerStatus() {
   };
 }
 export function startGoldNewsSessionScheduler() {
-  if (timer) return getGoldNewsSchedulerStatus();
-  console.log('[GoldNewsScheduler] Gold JIN news ingestion enabled: 07:00, 13:00, 17:00, 21:00 WIB.');
-  tick();
-  timer = setInterval(tick, 15000);
-  timer.unref?.();
+  // Legacy compatibility only: CuriosityDaemon is the sole scheduled ingestion owner.
+  console.log('[GoldNewsScheduler] Legacy scheduler disabled; CuriosityDaemon owns Gold JINI ingestion.');
   return getGoldNewsSchedulerStatus();
 }
