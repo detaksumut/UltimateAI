@@ -4402,8 +4402,8 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
-    // JIN XAUUSD Gold News Search: direct Tavily query with a strict recency window.
-    // Do not route this panel through the legacy WebSearchTool / generic news ingestion.
+    // JIN XAUUSD Gold News Search: direct Tavily query with strict per-article date validation.
+    // Never trust the fetch timestamp or Tavily's generated answer as an article publication date.
     if (pathname === '/api/trading/gold-news-search' && req.method === 'POST') {
       try {
         let body = '';
@@ -4416,12 +4416,14 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
         const session = ['asia', 'london', 'newyork'].includes(payload.session) ? payload.session : 'all';
         const apiKey = String(process.env.TAVILY_API_KEY || '').trim();
         if (!apiKey) throw new Error('TAVILY_API_KEY belum tersedia di environment LocalRouterServer.');
+
         const query = [
-          'latest gold XAUUSD market-moving news published in the last 7 days',
+          'gold XAUUSD news article with publication date in the last 7 days',
           'Federal Reserve rate decision speeches, US CPI PCE inflation, NFP jobs, Treasury real yields, DXY US dollar and central-bank gold demand',
           'official economic releases and scheduled events affecting spot gold',
           session === 'all' ? '' : 'current trading session ' + session
         ].filter(Boolean).join('; ');
+
         const response = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4431,48 +4433,72 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
             topic: 'news',
             search_depth: 'advanced',
             days: 7,
-            max_results: 8,
-            include_answer: true,
+            max_results: 15,
+            include_answer: false,
             include_raw_content: false
           }),
           signal: AbortSignal.timeout(20000)
         });
         if (!response.ok) throw new Error('Tavily HTTP ' + response.status + ': ' + (await response.text()).slice(0, 250));
+
         const result = await response.json();
-        const fetchedAt = new Date().toISOString();
-        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const sources = (Array.isArray(result.results) ? result.results : []).map(s => {
-          let publishedAt = s.published_date || s.publishedDate || s.date || null;
-          const parsedDate = publishedAt ? Date.parse(publishedAt) : NaN;
-          const domain = (() => { try { return new URL(s.url).hostname.replace(/^www\\./, ''); } catch { return ''; } })();
+        const fetchedAt = new Date();
+        const fetchedAtIso = fetchedAt.toISOString();
+        const cutoffMs = fetchedAt.getTime() - 7 * 24 * 60 * 60 * 1000;
+        const futureLimitMs = fetchedAt.getTime() + 24 * 60 * 60 * 1000;
+        const seenUrls = new Set();
+
+        const sources = (Array.isArray(result.results) ? result.results : []).map((item) => {
+          const rawUrl = String(item.url || '').trim();
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(rawUrl);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) return null;
+          } catch {
+            return null;
+          }
+
+          // Only explicit publication-date metadata is accepted. Do not infer dates from snippets,
+          // page contents, search time, or generic page-update metadata.
+          const rawPublishedAt = item.published_date ?? item.publishedDate ?? null;
+          if (typeof rawPublishedAt !== 'string' || !rawPublishedAt.trim()) return null;
+          const publishedMs = Date.parse(rawPublishedAt);
+          if (!Number.isFinite(publishedMs) || publishedMs < cutoffMs || publishedMs > futureLimitMs) return null;
+
+          const canonicalUrl = parsedUrl.toString();
+          if (seenUrls.has(canonicalUrl)) return null;
+          seenUrls.add(canonicalUrl);
+
           return {
-            title: String(s.title || '').slice(0, 300),
-            url: s.url,
-            domain,
-            snippet: String(s.content || '').slice(0, 4000),
-            score: Number.isFinite(s.score) ? s.score : null,
-            publishedAt: Number.isFinite(parsedDate) ? new Date(parsedDate).toISOString() : publishedAt,
-            freshness: Number.isFinite(parsedDate) ? (parsedDate >= cutoff ? 'RECENT' : 'STALE') : 'DATE_UNVERIFIED',
+            title: String(item.title || '').trim().slice(0, 300),
+            url: canonicalUrl,
+            domain: parsedUrl.hostname.replace(/^www\./, ''),
+            snippet: String(item.content || '').trim().slice(0, 2000),
+            score: Number.isFinite(item.score) ? item.score : null,
+            publishedAt: new Date(publishedMs).toISOString(),
+            publicationDateVerified: true,
+            freshness: 'RECENT',
             category: 'GOLD_MARKET'
           };
-        }).filter(s => /^https?:$/.test((() => { try { return new URL(s.url).protocol; } catch { return ''; } })()))
-          .filter(s => s.freshness === 'RECENT');
+        }).filter(Boolean);
+
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({
-          success: sources.length > 0,
+          // A successful provider response is distinct from finding qualifying articles.
+          success: true,
           query,
           provider: 'TAVILY_AI',
           freshnessWindowDays: 7,
-          directAnswer: result.answer || null,
-          fetchedAt,
+          directAnswer: null,
+          fetchedAt: fetchedAtIso,
           instrument,
           session,
           sources,
-          error: sources.length ? null : 'Tidak ada berita dengan tanggal publikasi terverifikasi dalam 7 hari terakhir. Sumber lama atau tanpa tanggal publikasi tidak ditampilkan.'
+          error: sources.length ? null : 'Tavily berhasil merespons, tetapi tidak ada artikel dengan tanggal publikasi valid dalam 7 hari terakhir. Hasil tanpa tanggal dan halaman lama tidak ditampilkan.'
         }));
       } catch (error) {
         res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ success: false, error: error.message || 'Gold news search failed' }));
+        res.end(JSON.stringify({ success: false, provider: 'TAVILY_AI', error: error.message || 'Gold news search failed' }));
       }
       return;
     }
