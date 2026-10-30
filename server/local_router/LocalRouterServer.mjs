@@ -908,7 +908,7 @@ Requirements:
           const rawTimestamp = raw.timestamp ?? raw.time ?? raw.time_msc;
           const timestampNumber = typeof rawTimestamp === 'number' || (typeof rawTimestamp === 'string' && /^\d{10,13}$/.test(rawTimestamp.trim()))
             ? Number(rawTimestamp) : null;
-          const normalizedTimeframe = String(raw.timeframe || '').trim().toUpperCase().replace(/[\\s_-]+/g, '');
+          const normalizedTimeframe = String(raw.timeframe || '').trim().toUpperCase().replace(/[\s_-]+/g, '');
           const timeframe = ({ '5':'M5', '5M':'M5', 'PERIODM5':'M5', '15':'M15', '15M':'M15', 'PERIODM15':'M15',
             '60':'H1', '1H':'H1', 'H1':'H1', 'PERIODH1':'H1', '240':'H4', '4H':'H4', 'H4':'H4', 'PERIODH4':'H4',
             'D1':'D1', 'PERIODD1':'D1' })[normalizedTimeframe] || normalizedTimeframe;
@@ -916,7 +916,7 @@ Requirements:
           const candle = { ...raw, symbol: String(raw.symbol || '').trim().toUpperCase(), timeframe,
             open: toFiniteNumber(raw.open), high: toFiniteNumber(raw.high), low: toFiniteNumber(raw.low), close: toFiniteNumber(raw.close),
             timestamp: timestampNumber != null
-              ? new Date(timestampNumber * (timestampNumber < 1e12 ? 1000 : 1)).toISOString()
+              ? (() => { const ms = timestampNumber * (timestampNumber < 1e12 ? 1000 : 1); return Number.isFinite(ms) && Number.isFinite(new Date(ms).getTime()) ? new Date(ms).toISOString() : ''; })()
               : (typeof rawTimestamp === 'string' ? rawTimestamp : ''),
             volume: [raw.volume, raw.tick_volume, raw.real_volume].map(toFiniteNumber).find(Number.isFinite) ?? null,
             source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
