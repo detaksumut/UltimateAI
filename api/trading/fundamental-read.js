@@ -30,13 +30,13 @@ export default async function handler(req, res) {
         if (finalUrl.protocol !== 'https:' || finalUrl.hostname !== source.host) throw new Error('Unexpected source host');
         const html = (await response.text()).slice(0, 1500000);
         const content = html
-          .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')
-          .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')
-          .replace(/<(br|\\/p|\\/div|\\/li|\\/tr|\\/h[1-6])\\b[^>]*>/gi, '\\n')
+          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6])\b[^>]*>/gi, '\n')
           .replace(/<[^>]+>/g, ' ')
           .replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"')
           .replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
-          .replace(/[ \\t]+/g, ' ').replace(/\\n\\s*\\n+/g, '\\n').trim().slice(0, 18000);
+          .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim().slice(0, 18000);
         if (content.length < 100) throw new Error('Page content too short or blocked');
         return { key, label: source.label, url: source.url, status: 'READ', httpStatus: response.status, fetchedAt: new Date().toISOString(), content };
       } catch (error) {
