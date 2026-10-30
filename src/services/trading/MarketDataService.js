@@ -12,15 +12,14 @@ export const CANDLE_SCHEMA = {
 const TIMEFRAMES = { M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
 
 function normalizeTimestamp(value) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return new Date(value < 1e12 ? value * 1000 : value).toISOString();
+  let timestamp = value;
+  if (typeof value === 'string' && /^\d{10,13}$/.test(value.trim())) timestamp = Number(value.trim());
+  if (typeof timestamp === 'number' && Number.isFinite(timestamp)) {
+    const ms = timestamp < 1e12 ? timestamp * 1000 : timestamp;
+    return Number.isFinite(ms) && Number.isFinite(new Date(ms).getTime()) ? new Date(ms).toISOString() : null;
   }
-  if (typeof value === 'string' && /^\d{10,13}$/.test(value.trim())) {
-    const numeric = Number(value.trim());
-    return new Date(numeric < 1e12 ? numeric * 1000 : numeric).toISOString();
-  }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) && Number.isFinite(new Date(parsed).getTime()) ? new Date(parsed).toISOString() : null;
 }
 
 function isValidCandle(c) {
