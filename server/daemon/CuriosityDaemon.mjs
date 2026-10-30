@@ -135,7 +135,7 @@ export class CuriosityDaemon {
       if (minuteOfDay < target || minuteOfDay >= target + 2) continue;
       const state = loadState();
       const alreadyRan = (state.runs || []).some(r => r.dayKey === day && r.session === wave.key);
-      if (alreadyRan || this.lastRunDate[wave.hour] === day) continue;
+      if (alreadyRan) continue;
       this.lastRunDate[wave.hour] = day;
       this.lastRunWave = wave.hour;
       this._persistRunDate();
