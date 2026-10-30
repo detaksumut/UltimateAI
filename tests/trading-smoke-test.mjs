@@ -26,7 +26,7 @@ assert.equal(market.addCandle({
 assert.equal(market.getLatestCandle(symbol, timeframe).timestamp,
   new Date((secondsTimestamp + 1) * 1000).toISOString());
 assert.equal(market.addCandle({
-  symbol, timeframe, timestamp: '9999999999999',
+  symbol, timeframe, timestamp: 'not-a-timestamp',
   open: 11, high: 13, low: 10, close: 12,
 }), false);
 assert.equal(market.addCandle({
