@@ -5,6 +5,7 @@ import GoldNewsModal from './GoldNewsModal.jsx';
 import MarketWatchScreenReader from './MarketWatchScreenReader.jsx';
 
 const instruments = [
+  { value: 'TVC:USOIL', label: 'USOIL (WTI Crude Oil)' },
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
   { value: 'BINANCE:BTCUSDT', label: 'BTCUSDT' },
   { value: 'BINANCE:ETHUSDT', label: 'ETHUSDT' },
@@ -22,8 +23,8 @@ const intervals = [
 ];
 
 export default function TradingStudioModal({ onClose }) {
-  const [symbol, setSymbol] = useState('OANDA:XAUUSD');
-  const [interval, setInterval] = useState('60');
+  const [symbol, setSymbol] = useState('TVC:USOIL');
+  const [interval, setInterval] = useState('240');
   const [chartMode, setChartMode] = useState('normal');
   const [signal, setSignal] = useState(null);
   const [showGoldNews, setShowGoldNews] = useState(false);
@@ -63,7 +64,13 @@ export default function TradingStudioModal({ onClose }) {
         </div>
       </header>
 
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button></div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{fontSize:9,color:"#94a3b8"}}>Chart TradingView embed · pilih instrumen dan timeframe dari kontrol di atas. Screenshot untuk pembacaan JINI diunggah melalui panel kiri.</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <a href="https://id.tradingview.com/chart/W7kNYFdb/" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",padding:"8px 10px",border:"1px solid #155e75",borderRadius:6,background:"#071827",color:"#bae6fd",fontSize:10,fontWeight:800,textDecoration:"none"}}>↗ BUKA CHART TERSIMPAN</a>
+          <button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button>
+        </div>
+      </div>
       <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'start' }}>
         {!isFullChart && <aside aria-label="JINI market watch screen reader" style={{ minWidth: 0 }}><MarketWatchScreenReader /></aside>}
