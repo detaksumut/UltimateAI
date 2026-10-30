@@ -132,7 +132,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     poll();
     const timer = window.setInterval(poll, 5000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [instrument]);
+  }, [instrument, timeframe]);
 
   useEffect(() => {
     let active = true;
