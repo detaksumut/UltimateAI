@@ -1,8 +1,8 @@
 /**
  * GoldNewsSessionScheduler.mjs
- * Persistent-while-LocalRouter-running scheduler for XAUUSD macro news.
- * Runs ten minutes before the configured WIB session boundaries, once per
- * session/day. Does not poll news every 30 minutes.
+ * Scheduled Tavily news ingestion for JIN Gold News Intelligence.
+ * Runs at 07:00, 13:00, 17:00 and 21:00 WIB and stores bounded history
+ * for the Gold News panel. This is no longer an LLM training/feeding pipeline.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,12 +12,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const STATE_FILE = path.join(DATA_DIR, 'gold-news-session-state.json');
 const TZ = 'Asia/Jakarta';
-const SESSIONS = [
-  { key: 'asia', label: 'Asia', hour: 6, minute: 0 },
-  { key: 'london', label: 'London', hour: 14, minute: 0 },
-  { key: 'newyork', label: 'New York', hour: 19, minute: 0 },
+const WAVES = [
+  { key: 'wave-0700', label: 'Wave 1 · Pagi', hour: 7, minute: 0 },
+  { key: 'wave-1300', label: 'Wave 2 · Siang', hour: 13, minute: 0 },
+  { key: 'wave-1700', label: 'Wave 3 · Sore', hour: 17, minute: 0 },
+  { key: 'wave-2100', label: 'Wave 4 · Malam', hour: 21, minute: 0 },
 ];
-const PRE_MINUTES = Number(process.env.JIN_GOLD_NEWS_PRE_SESSION_MINUTES || 10);
 let timer = null;
 let running = false;
 
@@ -40,47 +40,82 @@ function saveState(state) {
   fs.renameSync(temp, STATE_FILE);
 }
 async function fetchSources() {
-  const response = await fetch('http://127.0.0.1:' + (process.env.LOCAL_ROUTER_PORT || '20200') + '/api/trading/fundamental-read', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sources: ['fed','bls','bea','treasury','cftc'], instrument: 'XAUUSD', scheduled: true, timezone: TZ }),
-    signal: AbortSignal.timeout(45000)
-  });
-  const payload = await response.json();
-  if (!response.ok || !payload.success) throw new Error(payload.error || 'Fundamental news source fetch failed');
-  return payload;
+  const { webSearchToolInstance } = await import('../tools/WebSearchTool.mjs');
+  const query = [
+    'Latest gold XAUUSD financial news and official economic announcements',
+    'Federal Reserve rates inflation CPI PCE NFP US Treasury yields US dollar',
+    'gold price drivers geopolitical risk central bank gold purchases',
+    'latest published headlines and upcoming economic releases'
+  ].join('; ');
+  const result = await webSearchToolInstance.execute(
+    { query, maxResults: 8, layer: 'ALL' },
+    AbortSignal.timeout(20000)
+  );
+  const sources = (Array.isArray(result.sources) ? result.sources : [])
+    .filter(s => {
+      try { return ['http:', 'https:'].includes(new URL(s.url).protocol); } catch { return false; }
+    })
+    .map((s, i) => ({
+      key: s.id || `gold-news-${i + 1}`,
+      label: String(s.title || s.domain || `Gold news ${i + 1}`).slice(0, 300),
+      url: s.url,
+      status: 'READ',
+      fetchedAt: new Date().toISOString(),
+      content: [
+        `Provider: ${result.provider || 'UNKNOWN'}`,
+        `Domain: ${s.domain || ''}`,
+        `Search snippet (not full article text): ${s.snippet || ''}`,
+        `Relevance score: ${s.score ?? 'not available'}`,
+        `Category: ${s.category || 'GENERAL'}`
+      ].join('\n'),
+      score: Number.isFinite(s.score) ? s.score : null
+    }));
+  return {
+    success: sources.length > 0,
+    provider: result.provider || 'UNKNOWN',
+    directAnswer: result.directAnswer || null,
+    query: result.query || query,
+    fetchedAt: new Date().toISOString(),
+    sources
+  };
 }
-async function runSession(session, dayKey, reason = 'scheduled') {
+async function runWave(wave, dayKey, reason = 'scheduled') {
   if (running) return;
   running = true;
   const startedAt = new Date().toISOString();
   const state = loadState();
   try {
     const payload = await fetchSources();
+    if (!payload.success) throw new Error('Tavily/fallback search returned no usable sources');
     const record = {
-      session: session.key, sessionLabel: session.label, dayKey,
-      scheduledAtWIB: `${dayKey} ${String(session.hour).padStart(2,'0')}:${String(session.minute).padStart(2,'0')} WIB`,
-      startedAt, completedAt: new Date().toISOString(), reason,
-      success: true, fetchedAt: payload.fetchedAt || new Date().toISOString(),
-      sources: (payload.sources || []).map(s => ({
-        key: s.key, label: s.label, url: s.url, status: s.status,
-        fetchedAt: s.fetchedAt, error: s.error || null, content: s.content || ''
-      }))
+      session: wave.key,
+      sessionLabel: wave.label,
+      dayKey,
+      scheduledAtWIB: `${dayKey} ${String(wave.hour).padStart(2, '0')}:${String(wave.minute).padStart(2, '0')} WIB`,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      reason,
+      success: true,
+      provider: payload.provider,
+      query: payload.query,
+      directAnswer: payload.directAnswer,
+      fetchedAt: payload.fetchedAt,
+      sources: payload.sources
     };
     state.runs = [...(state.runs || []), record].slice(-90);
     state.lastRun = record;
     saveState(state);
-    console.log(`[GoldNewsScheduler] ${session.label} session news fetched: ${record.sources.filter(s => s.status === 'READ').length}/${record.sources.length} sources`);
+    console.log(`[GoldNewsScheduler] ${wave.label}: ${record.provider}; ${record.sources.length} sources saved for Gold News panel.`);
   } catch (error) {
     const record = {
-      session: session.key, sessionLabel: session.label, dayKey, startedAt,
-      completedAt: new Date().toISOString(), reason, success: false, error: error.message,
-      sources: []
+      session: wave.key, sessionLabel: wave.label, dayKey, startedAt,
+      completedAt: new Date().toISOString(), reason, success: false,
+      provider: 'UNAVAILABLE', error: error.message, sources: []
     };
     state.runs = [...(state.runs || []), record].slice(-90);
     state.lastRun = record;
     try { saveState(state); } catch (saveError) { console.error('[GoldNewsScheduler] State save failed:', saveError.message); }
-    console.warn('[GoldNewsScheduler] Session fetch failed:', error.message);
+    console.warn('[GoldNewsScheduler] Scheduled search failed:', error.message);
   } finally { running = false; }
 }
 function tick() {
@@ -88,13 +123,13 @@ function tick() {
   const day = currentKey(p);
   const minuteOfDay = Number(p.hour) * 60 + Number(p.minute);
   const state = loadState();
-  for (const session of SESSIONS) {
-    const boundary = session.hour * 60 + session.minute;
-    const trigger = boundary - PRE_MINUTES;
-    const key = `${day}:${session.key}`;
+  for (const wave of WAVES) {
+    const target = wave.hour * 60 + wave.minute;
+    const key = `${day}:${wave.key}`;
     const alreadyRan = (state.runs || []).some(r => `${r.dayKey}:${r.session}` === key);
-    if (!alreadyRan && minuteOfDay >= trigger && minuteOfDay < boundary) {
-      void runSession(session, day, 'pre-session');
+    // A two-minute catch-up window prevents missed waves if the timer drifts.
+    if (!alreadyRan && minuteOfDay >= target && minuteOfDay < target + 2) {
+      void runWave(wave, day, 'scheduled');
       break;
     }
   }
@@ -102,14 +137,20 @@ function tick() {
 export function getGoldNewsSchedulerStatus() {
   const state = loadState();
   return {
-    enabled: true, timezone: TZ, preSessionMinutes: PRE_MINUTES,
-    schedule: SESSIONS.map(s => ({ session: s.key, label: s.label, boundaryWIB: `${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')}`, searchAtWIB: `${String(Math.floor((s.hour*60+s.minute-PRE_MINUTES)/60)).padStart(2,'0')}:${String((s.hour*60+s.minute-PRE_MINUTES)%60).padStart(2,'0')}` })),
-    lastRun: state.lastRun, history: (state.runs || []).slice(-12)
+    enabled: true,
+    timezone: TZ,
+    providerMode: 'TAVILY_FIRST_WITH_EXISTING_FALLBACK',
+    schedule: WAVES.map(w => ({
+      session: w.key, label: w.label,
+      searchAtWIB: `${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')}`
+    })),
+    lastRun: state.lastRun,
+    history: (state.runs || []).slice(-12)
   };
 }
 export function startGoldNewsSessionScheduler() {
   if (timer) return getGoldNewsSchedulerStatus();
-  console.log(`[GoldNewsScheduler] Enabled; searches ${PRE_MINUTES} min before Asia/London/New York sessions (WIB).`);
+  console.log('[GoldNewsScheduler] Gold JIN news ingestion enabled: 07:00, 13:00, 17:00, 21:00 WIB.');
   tick();
   timer = setInterval(tick, 15000);
   timer.unref?.();
