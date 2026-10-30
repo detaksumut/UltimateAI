@@ -4527,9 +4527,7 @@ if (isDirectExecution) {
     console.log(`  - Chat API:    http://127.0.0.1:${PORT}/v1/chat/completions`);
     console.log(`  - Daemon:      http://127.0.0.1:${PORT}/api/daemon/status`);
     console.log(`=======================================================`);
-    import('./GoldNewsSessionScheduler.mjs')
-      .then(m => m.startGoldNewsSessionScheduler())
-      .catch(e => console.warn('[LocalRouter] Failed to start GoldNewsSessionScheduler:', e.message));
+    // Gold JINI ingestion is owned by CuriosityDaemon to avoid duplicate Tavily searches.
     import('../daemon/CuriosityDaemon.mjs')
       .then(m => m.curiosityDaemonInstance.start())
       .catch(e => console.warn('[LocalRouter] Failed to start CuriosityDaemon:', e.message));
