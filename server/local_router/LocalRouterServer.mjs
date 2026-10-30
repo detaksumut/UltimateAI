@@ -4455,7 +4455,7 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
             category: 'GOLD_MARKET'
           };
         }).filter(s => /^https?:$/.test((() => { try { return new URL(s.url).protocol; } catch { return ''; } })()))
-          .filter(s => s.freshness !== 'STALE');
+          .filter(s => s.freshness === 'RECENT');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({
           success: sources.length > 0,
@@ -4467,7 +4467,7 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
           instrument,
           session,
           sources,
-          error: sources.length ? null : 'Tidak ada berita dengan tanggal publikasi yang memenuhi batas 7 hari. Sumber tanpa tanggal ditandai DATE_UNVERIFIED.'
+          error: sources.length ? null : 'Tidak ada berita dengan tanggal publikasi terverifikasi dalam 7 hari terakhir. Sumber lama atau tanpa tanggal publikasi tidak ditampilkan.'
         }));
       } catch (error) {
         res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
