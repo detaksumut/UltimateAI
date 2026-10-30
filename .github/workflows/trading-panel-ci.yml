@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/trading-ai-analyst-panel
+      - fix/jin-visual-candles-pipeline
   pull_request:
     branches:
       - main
