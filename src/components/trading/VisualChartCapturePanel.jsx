@@ -4,6 +4,35 @@ import { localRouterClient } from '../../services/router/LocalRouterClient.js';
 
 const btn = { border: '1px solid #155e75', borderRadius: 4, padding: '5px 7px', background: '#071827', color: '#a5f3fc', fontSize: 9, fontWeight: 700, cursor: 'pointer' };
 
+function extractJsonObject(raw) {
+  const text = String(raw || '').replace(/\u0000/g, '').trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const source = fenced ? fenced[1].trim() : text;
+  for (let start = source.indexOf('{'); start >= 0; start = source.indexOf('{', start + 1)) {
+    let depth = 0, inString = false, escaped = false;
+    for (let i = start; i < source.length; i++) {
+      const ch = source[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) {
+        const candidate = source.slice(start, i + 1);
+        try {
+          const value = JSON.parse(candidate);
+          if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+        } catch {}
+        break;
+      }
+    }
+  }
+  throw new Error('Respons model tidak memuat objek JSON valid. Periksa dukungan vision/provider dan log respons router.');
+}
+
 export default function VisualChartCapturePanel({ instrument, timeframe, onTimeframeChange }) {
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,6 +68,13 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
     setBusy(true); setError(''); setStatus('MEMBACA GRAFIK…');
     try {
       const frame = visualChartCapture.capture({ maxWidth: 2200, quality: 0.95 });
+      if (!frame?.dataUrl?.startsWith('data:image/')) {
+        throw new Error('Screenshot tidak menghasilkan data URL gambar yang valid; gambar tidak dikirim ke model.');
+      }
+      console.info('[JIN Vision] Mengirim screenshot ke Local Router', {
+        mimeType: frame.mimeType, width: frame.width, height: frame.height,
+        dataUrlBytes: frame.dataUrl.length, capturedAt: frame.capturedAt,
+      });
       const messages = [
         { role: 'system', content: 'You are a chart-vision data extractor. Return ONLY valid JSON, no markdown. Never invent unreadable numeric values. Output schema: {"instrument":"string","timeframe":"string","symbol_match":true,"timeframe_match":true,"visible_candles":0,"ohlc_readable":false,"last_price":null,"open":null,"high":null,"low":null,"close":null,"trend":"BULLISH|BEARISH|SIDEWAYS|UNKNOWN","momentum":"BULLISH|BEARISH|NEUTRAL|UNKNOWN","support":null,"resistance":null,"volatility":"LOW|NORMAL|HIGH|UNKNOWN","scenario":"BUY_BIAS|SELL_BIAS|WAIT","confidence":0,"data_quality":"GOOD|PARTIAL|POOR","note":"short reason"}. Numeric prices must be numbers or null. If screenshot shows a recursive screen-share dialog, mark data_quality POOR and scenario WAIT.' },
         { role: 'user', content: [
@@ -46,11 +82,22 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
           { type: 'image_url', image_url: { url: frame.dataUrl, detail: 'high' } }
         ]}
       ];
-      const raw = await localRouterClient.streamChat({ messages, temperature: 0.0 }, { onError: e => setError(e?.message || 'Vision request failed.') });
-      const match = String(raw || '').match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Model tidak mengembalikan JSON data visual. Router/model harus mendukung input gambar.');
-      let data;
-      try { data = JSON.parse(match[0]); } catch { throw new Error('Respons vision bukan JSON valid.'); }
+      let raw = '';
+      try {
+        raw = await localRouterClient.streamChat({ messages, temperature: 0.0 }, {
+          onError: e => setError(e?.message || 'Vision request failed.')
+        });
+      } catch (error) {
+        throw new Error(`Permintaan vision gagal di router/provider: ${error?.message || 'error tidak diketahui'}`);
+      }
+      console.info('[JIN Vision] Respons router diterima', {
+        responseChars: String(raw || '').length,
+        responsePreview: String(raw || '').slice(0, 240),
+      });
+      const data = extractJsonObject(raw);
+      const requiredKeys = ['instrument', 'timeframe', 'trend', 'momentum', 'scenario'];
+      const missingKeys = requiredKeys.filter(key => !(key in data));
+      if (missingKeys.length) throw new Error(`JSON vision tidak sesuai skema; field hilang: ${missingKeys.join(', ')}.`);
       ['last_price','open','high','low','close','support','resistance'].forEach(k => { if (!Number.isFinite(data[k])) data[k] = null; });
       data.confidence = Number.isFinite(Number(data.confidence)) ? Math.max(0, Math.min(100, Number(data.confidence))) : 0;
       data.visible_candles = Number.isFinite(Number(data.visible_candles)) ? Math.max(0, Number(data.visible_candles)) : 0;
