@@ -25,6 +25,7 @@ export default function TradingStudioModal({ onClose }) {
   const [symbol, setSymbol] = useState('TVC:USOIL');
   const [interval, setInterval] = useState('240');
   const [chartMode, setChartMode] = useState('normal');
+  const [tradingViewMode, setTradingViewMode] = useState('saved');
   const [signal, setSignal] = useState(null);
   const [showGoldNews, setShowGoldNews] = useState(false);
   useEffect(() => {
@@ -54,6 +55,10 @@ export default function TradingStudioModal({ onClose }) {
               {intervals.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
             </select>
           </label>
+          <div role="group" aria-label="Mode TradingView" style={{ display: 'flex', gap: 4, padding: 3, border: '1px solid #164e63', borderRadius: 5, background: '#06101d' }}>
+            <button type="button" onClick={() => setTradingViewMode('saved')} aria-pressed={tradingViewMode === 'saved'} style={modeButtonStyle(tradingViewMode === 'saved')} title="Muat halaman chart TradingView tersimpan">▣ Chart Lengkap</button>
+            <button type="button" onClick={() => setTradingViewMode('widget')} aria-pressed={tradingViewMode === 'widget'} style={modeButtonStyle(tradingViewMode === 'widget')} title="Gunakan widget chart embed">▥ Widget</button>
+          </div>
           <div role="group" aria-label="Ukuran chart" style={{ display: 'flex', gap: 4, padding: 3, border: '1px solid #164e63', borderRadius: 5, background: '#06101d' }}>
             <button type="button" onClick={() => setChartMode('compact')} aria-pressed={chartMode === 'compact'} style={modeButtonStyle(chartMode === 'compact')} title="Perkecil chart, perluas area analisis">▤ Compact</button>
             <button type="button" onClick={() => setChartMode('normal')} aria-pressed={chartMode === 'normal'} style={modeButtonStyle(chartMode === 'normal')} title="Tampilan chart dan AI normal">▥ Normal</button>
@@ -73,12 +78,21 @@ export default function TradingStudioModal({ onClose }) {
       <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'start' }}>
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
-          <iframe
+          {tradingViewMode === 'saved' ? <iframe
+            title="TradingView saved chart layout"
+            src="https://id.tradingview.com/chart/W7kNYFdb/"
+            style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, border: 0, display: 'block' }}
+            allow="fullscreen; clipboard-read; clipboard-write"
+            referrerPolicy="strict-origin-when-cross-origin"
+          /> : <iframe
             title={`TradingView ${instrument} ${timeframe}`}
             src={`https://www.tradingview.com/widgetembed/?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=030812&studies=[]&theme=dark&style=1&timezone=Asia%2FJakarta&withdateranges=1&hideideas=1`}
             style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, border: 0, display: 'block' }}
             allowFullScreen
-          />
+          />}
+          {tradingViewMode === 'saved' && <div style={{ position: 'absolute', zIndex: 4, left: 8, bottom: 8, maxWidth: 'calc(100% - 16px)', padding: '7px 9px', borderRadius: 5, border: '1px solid #155e75', background: 'rgba(3,8,18,.92)', color: '#bae6fd', fontSize: 10 }}>
+            Jika halaman chart lengkap tidak tampil karena kebijakan embed TradingView, klik <a href="https://id.tradingview.com/chart/W7kNYFdb/" target="_blank" rel="noopener noreferrer" style={{ color: '#67e8f9', fontWeight: 800 }}>Buka chart di tab baru</a> atau pilih mode Widget.
+          </div>}
           {signal && <div role="status" style={{ position: 'absolute', zIndex: 5, top: 58, right: 18, width: 220, padding: 10, borderRadius: 6, border: '1px solid ' + (signal.side === 'BUY' ? '#10b981' : signal.side === 'SELL' ? '#f43f5e' : '#f59e0b'), background: 'rgba(3,8,18,.94)', boxShadow: '0 4px 18px #0008', pointerEvents: 'none' }}>
             <div style={{ fontSize: 11, fontWeight: 900, color: signal.side === 'BUY' ? '#34d399' : signal.side === 'SELL' ? '#fb7185' : '#fbbf24' }}>JIN SIGNAL · {signal.side}</div>
             <div style={{ fontSize: 10, color: '#e2e8f0', marginTop: 5 }}>Entry: {Number.isFinite(signal.entry) ? signal.entry.toFixed(2) : '—'}</div>
