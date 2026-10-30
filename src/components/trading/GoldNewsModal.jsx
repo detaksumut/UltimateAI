@@ -59,14 +59,16 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
   const raw=await localRouterClient.streamChat({messages:[{role:'system',content:'Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output JSON tanpa markdown.'},{role:'user',content:prompt}],temperature:0.1});const parsed=parseJson(raw);
   // Keep only claims that point to a source actually supplied to the model.
-  const evidenceByUrl=new Map(evidence.map(s=>[s.url,s]));
+  const normalizeSourceUrl=value=>{
+   try{const u=new URL(String(value));u.hash='';u.search='';u.hostname=u.hostname.toLowerCase().replace(/^www\\./,'');u.pathname=u.pathname.replace(/\\/+$/,'');return u.toString().replace(/\\/$/,'');}catch{return '';}
+  };
+  const evidenceByUrl=new Map(evidence.map(s=>[normalizeSourceUrl(s.url),s]).filter(([url])=>!!url));
   const candidateFacts=Array.isArray(parsed.facts)?parsed.facts:[];
-  const verifiedFacts=candidateFacts.filter(f=>typeof f?.sourceUrl==='string'&&evidenceByUrl.has(f.sourceUrl));
-  parsed.facts=verifiedFacts.map(f=>{
-   const source=evidenceByUrl.get(f.sourceUrl);
+  const verifiedFacts=candidateFacts.map(f=>({fact:f,source:evidenceByUrl.get(normalizeSourceUrl(f?.sourceUrl))})).filter(x=>x.source);
+  parsed.facts=verifiedFacts.map(({fact:f,source})=>{
    const dateText=String(source?.content||'');
    const hasPublicationDate=!!f.publishedAt&&dateText.includes(String(f.publishedAt).slice(0,10));
-   return {...f,publishedAt:hasPublicationDate?f.publishedAt:'',sourceLabel:source?.source||f.sourceLabel||'Sumber tidak diketahui'};
+   return {...f,sourceUrl:source.url,publishedAt:hasPublicationDate?f.publishedAt:'',sourceLabel:source?.source||f.sourceLabel||'Sumber terverifikasi'};
   });
   if(!parsed.facts.length)parsed.summary='Belum ada klaim berita yang dapat dihubungkan secara tepat ke URL sumber yang dibaca. Tidak ada kesimpulan arah XAUUSD yang dibuat.';
   if(!Array.isArray(parsed.risks))parsed.risks=[];
@@ -87,7 +89,7 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   return()=>clearInterval(id);
  },[open,readNews]);
  useEffect(()=>{const f=e=>{if(e.key==='Escape'&&open)onClose()};window.addEventListener('keydown',f);return()=>window.removeEventListener('keydown',f)},[open,onClose]);
- if(!open)return null;const facts=Array.isArray(report?.facts)?report.facts:[];const visible=tab==='summary'?facts:facts.filter(f=>!f.session||f.session==='all'||f.session===tab);
+ if(!open)return null;const facts=Array.isArray(report?.facts)?report.facts:[];const visible=tab==='summary'?facts:facts.filter(f=>{const s=String(f.session||'all').toLowerCase();return s==='all'||s===String(tab).toLowerCase()});
  const btn=k=>({border:'1px solid '+(tab===k?'#0284c7':'#20364a'),background:tab===k?'#0878e8':'#06111e',color:tab===k?'#fff':'#a9c4d9',padding:'11px 15px',fontSize:13,fontWeight:900,borderRadius:5,cursor:'pointer',whiteSpace:'nowrap'});
  return <div role="dialog" aria-modal="true" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}} style={{position:'fixed',inset:0,zIndex:100010,background:'rgba(0,3,10,.86)',backdropFilter:'blur(5px)',display:'flex',alignItems:'center',justifyContent:'center',padding:0}}><div style={{width:'100vw',height:'100dvh',maxHeight:'100dvh',display:'flex',flexDirection:'column',background:'#030b15',border:'1px solid #087e9c',borderRadius:0,overflow:'hidden',color:'#dbeafe',fontFamily:'Inter,system-ui,sans-serif'}}>
  <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:'18px 24px',borderBottom:'1px solid #164e63',flexWrap:'wrap'}}><div><div style={{fontSize:24,fontWeight:900}}>JIN GOLD NEWS INTELLIGENCE</div><div style={{...muted,fontSize:14}}>Berita XAUUSD · WIB · sesi: {sessionNow().toUpperCase()}</div></div><div style={{display:'flex',gap:7}}><button style={btn('refresh')} disabled={busy} onClick={()=>readNews('refresh manual')}>{busy?'MEMBACA…':'↻ REFRESH'}</button><button style={btn('close')} onClick={onClose}>×</button></div></header>
