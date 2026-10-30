@@ -64,8 +64,13 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   catch(firstError) {
    // One focused retry for models that prepend prose or return malformed JSON.
    const repairPrompt='Ubah respons berikut menjadi SATU objek JSON valid sesuai schema. Pertahankan hanya informasi yang benar-benar ada; jangan menambah fakta. Jika tidak ada fakta yang dapat dipastikan, gunakan summary yang menjelaskan keterbatasan, facts: [], risks: [], missing: []. Keluarkan JSON saja. Schema: {"summary":"string","facts":[],"risks":[],"missing":[],"asOf":"ISO timestamp"}\\n\\nRespons yang harus diperbaiki:\\n'+String(raw??'').slice(0,12000);
-   raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:repairPrompt}],temperature:0.0,signal:AbortSignal.timeout(8000)});
-   parsed=parseJson(raw);
+   try {
+    raw=await localRouterClient.streamChat({messages:[{role:'system',content:systemPrompt},{role:'user',content:repairPrompt}],temperature:0.0,signal:AbortSignal.timeout(8000)});
+    parsed=parseJson(raw);
+   } catch(repairError) {
+    // Never turn malformed model output into invented news or an unhandled UI error.
+    parsed={summary:'Analisis AI gagal menghasilkan JSON valid. Sumber telah dibaca, tetapi tidak ada klaim berita yang dipublikasikan karena hasil analisis tidak lolos validasi.',facts:[],risks:[],missing:['Respons model tidak valid setelah satu kali percobaan perbaikan. Coba Refresh atau periksa LocalRouterClient.'],asOf:new Date().toISOString(),analysisValid:false};
+   }
   }
   if(typeof parsed.summary!=='string') parsed.summary='';
   if(!Array.isArray(parsed.facts)) parsed.facts=[];
@@ -76,6 +81,8 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
     try{const u=new URL(String(value));u.hash='';u.search='';u.hostname=u.hostname.toLowerCase();if(u.hostname.startsWith('www.'))u.hostname=u.hostname.slice(4);while(u.pathname.length>1&&u.pathname.endsWith('/'))u.pathname=u.pathname.slice(0,-1);return u.toString().replace(/\/$/,'');}catch{return '';}
   };
   const evidenceByUrl=new Map(evidence.map(s=>[normalizeSourceUrl(s.url),s]).filter(([url])=>!!url));
+  // Normalize model-controlled arrays before any push/filter operations.
+  if(!Array.isArray(parsed.missing)) parsed.missing=[];
   const candidateFacts=Array.isArray(parsed.facts)?parsed.facts:[];
   const nowMs=Date.now();
   const MAX_NEWS_AGE_MS=72*60*60*1000;
