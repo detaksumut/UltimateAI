@@ -162,9 +162,10 @@ function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
 function jinTradingValidCandle(c) {
   if (!c || typeof c !== 'object' || !['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(String(c.symbol || '').toUpperCase())) return false;
   if (!Object.hasOwn(JIN_TRADING_TF_MS, String(c.timeframe || '').toUpperCase())) return false;
-  const nums = [c.open,c.high,c.low,c.close,c.volume];
+  const nums = [c.open,c.high,c.low,c.close];
   const time = typeof c.timestamp === 'string' ? Date.parse(c.timestamp) : Number(c.timestamp);
-  return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) &&
+  return nums.every(Number.isFinite) && nums.every(v => v >= 0) &&
+    (c.volume == null || (Number.isFinite(c.volume) && c.volume >= 0)) && Number.isFinite(time) &&
     c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high);
 }
 export function createLocalRouterServer() {
@@ -904,8 +905,15 @@ Requirements:
         let accepted = 0, rejected = 0;
         const now = Date.now();
         for (const raw of incoming) {
+          const rawTimestamp = raw.timestamp ?? raw.time ?? raw.time_msc;
+          const numericTimestamp = typeof rawTimestamp === 'number' ? rawTimestamp : null;
           const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
-            timestamp: typeof raw.timestamp === 'number' ? new Date(raw.timestamp * (raw.timestamp < 1e12 ? 1000 : 1)).toISOString() : raw.timestamp,
+            timestamp: numericTimestamp != null
+              ? new Date(numericTimestamp * (numericTimestamp < 1e12 ? 1000 : 1)).toISOString()
+              : (typeof rawTimestamp === 'string' ? rawTimestamp : ''),
+            volume: Number.isFinite(raw.volume) ? raw.volume
+              : Number.isFinite(raw.tick_volume) ? raw.tick_volume
+              : Number.isFinite(raw.real_volume) ? raw.real_volume : null,
             source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
           if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
           const key = jinTradingKey(candle.symbol, candle.timeframe);
