@@ -239,7 +239,7 @@ export class CuriosityDaemon {
       let finalPath = '';
       let savedToDriveF = false;
       try {
-        const written = localDriveFStorageInstance.writeRecord('02_Documentation/GoldJINI', fileName, dossier);
+        const written = localDriveFStorageInstance.writeRecord('02_Documentation', fileName, dossier);
         if (written?.success) {
           finalPath = written.path;
           savedToDriveF = true;
