@@ -6,6 +6,7 @@ import CrossAssetMonitor from './CrossAssetMonitor.jsx';
 import MarketWatchScreenReader from './MarketWatchScreenReader.jsx';
 
 const instruments = [
+  { value: 'TVC:USOIL', label: 'USOIL (WTI Crude Oil)' },
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
   { value: 'BINANCE:BTCUSDT', label: 'BTCUSDT' },
   { value: 'BINANCE:ETHUSDT', label: 'ETHUSDT' },
@@ -23,8 +24,8 @@ const intervals = [
 ];
 
 export default function TradingStudioModal({ onClose }) {
-  const [symbol, setSymbol] = useState('OANDA:XAUUSD');
-  const [interval, setInterval] = useState('60');
+  const [symbol, setSymbol] = useState('TVC:USOIL');
+  const [interval, setInterval] = useState('240');
   const [chartMode, setChartMode] = useState('normal');
   const [signal, setSignal] = useState(null);
   const [showGoldNews, setShowGoldNews] = useState(true);
