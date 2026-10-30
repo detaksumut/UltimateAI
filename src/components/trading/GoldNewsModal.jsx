@@ -43,7 +43,7 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   }catch(e){primaryError=errorText(e);}
   // The server endpoint may respond successfully while every provider quote is null.
   // Treat an all-empty payload as a source failure so the fallback is actually attempted.
-  if(quotes && !quotes.some(q=>Number.isFinite(Number(q?.price)))){
+  if(quotes && !quotes.some(q=>q?.price!=null && Number.isFinite(Number(q.price)))){
    primaryError=primaryError||'Endpoint utama merespons tetapi tidak mengembalikan harga yang valid';
    quotes=null;
   }
