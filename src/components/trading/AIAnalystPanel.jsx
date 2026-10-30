@@ -26,6 +26,7 @@ const fmt = (value, digits = 2) => Number.isFinite(value)
 
 export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIMEFRAMES.M15 }) {
   const [analysis, setAnalysis] = useState({ ...initialState, instrument, timeframe });
+  const [candleFeedStatus, setCandleFeedStatus] = useState({ symbol: instrument, timeframe, count: 0, minimumRequired: 50, ready: false, freshness: 'UNKNOWN', lastUpdate: null, source: 'MT5_LOCAL_BRIDGE', error: null });
   const [visualData, setVisualData] = useState(null);
   const [visualResults, setVisualResults] = useState({});
   const [activeTab, setActiveTab] = useState('advanced');
@@ -91,11 +92,12 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
   // TradingView's embedded chart is cross-origin and is not used as a numeric feed.
   useEffect(() => {
     let cancelled = false;
-    const timeframes = ['H4','H1','M15','M5','D1'];
+    const timeframes = ['H4','H1','M30','M15','M5','D1'];
+    const bridgeSymbol = String(instrument).split(':').pop().toUpperCase();
     const poll = async () => {
       const results = await Promise.all(timeframes.map(async tf => {
         try {
-          const response = await fetch(`http://127.0.0.1:20200/api/trading/ohlc?symbol=${encodeURIComponent(instrument)}&timeframe=${tf}&limit=300`, { cache: 'no-store' });
+          const response = await fetch(`http://127.0.0.1:20200/api/trading/ohlc?symbol=${encodeURIComponent(bridgeSymbol)}&timeframe=${tf}&limit=300`, { cache: 'no-store' });
           if (!response.ok) throw new Error(`MT5 bridge HTTP ${response.status}`);
           return await response.json();
         } catch (error) {
@@ -103,6 +105,13 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         }
       }));
       if (cancelled) return;
+      const selectedFeed = results.find(result => String(result?.timeframe || '').toUpperCase() === String(timeframe).toUpperCase());
+      if (selectedFeed) {
+        const count = Number(selectedFeed.validCount ?? selectedFeed.count ?? selectedFeed.candles?.length ?? 0);
+        setCandleFeedStatus({ symbol: bridgeSymbol, timeframe, count, minimumRequired: Number(selectedFeed.minimumRequired || 50), ready: selectedFeed.ready === true || count >= 50, freshness: selectedFeed.freshness || 'UNKNOWN', lastUpdate: selectedFeed.lastUpdate || null, source: selectedFeed.source || 'MT5_LOCAL_BRIDGE', error: selectedFeed.error || null });
+      } else {
+        setCandleFeedStatus(previous => ({ ...previous, symbol: bridgeSymbol, timeframe, error: `Feed timeframe ${timeframe} tidak tersedia pada endpoint.` }));
+      }
       let total = 0;
       let latestTimestamp = null;
       for (const result of results) {
@@ -323,6 +332,7 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
         <strong style={{ color: '#00e5ff', letterSpacing: '.04em' }}>JIN MARKET ANALYSIS</strong>
         <span style={{ color: statusColor, fontWeight: 700 }}>{analysis.dataStatus}</span>
       </header>
+      <div role="status" aria-live="polite" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, padding: '7px 9px', border: '1px solid ' + (candleFeedStatus.count >= 50 ? '#166534' : '#92400e'), borderRadius: 5, background: candleFeedStatus.count >= 50 ? '#052e1a' : '#211608', color: candleFeedStatus.count >= 50 ? '#86efac' : '#fbbf24', fontSize: 10 }}><strong>FEED OHLC {candleFeedStatus.symbol} · {candleFeedStatus.timeframe}</strong><span>{candleFeedStatus.count}/{candleFeedStatus.minimumRequired} candle valid{candleFeedStatus.count >= 50 ? ' · SIAP' : ' · BELUM CUKUP'}</span></div>
       <nav aria-label="Tab analisis pasar" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
         <button type="button" onClick={() => setActiveTab('advanced')} style={tabStyle('advanced')}>ANALISIS LANJUTAN</button>
       </nav>
