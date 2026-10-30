@@ -157,7 +157,7 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
 // Data is intentionally volatile: a server restart requires the MT5 bridge to publish again.
 const JIN_TRADING_CANDLES = new Map();
 const JIN_TRADING_TICKS = new Map();
-const JIN_TRADING_TF_MS = { M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
+const JIN_TRADING_TF_MS = { M5: 300000, M15: 900000, M30: 1800000, H1: 3600000, H4: 14400000, D1: 86400000 };
 function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
 function jinTradingValidCandle(c) {
   if (!c || typeof c !== 'object' || !['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(String(c.symbol || '').toUpperCase())) return false;
