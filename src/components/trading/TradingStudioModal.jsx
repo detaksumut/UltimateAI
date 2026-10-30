@@ -4,8 +4,8 @@ import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
 
 const instruments = [
-  { value: 'TVC:USOIL', label: 'USOIL (WTI Crude Oil)' },
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
+  { value: 'TVC:USOIL', label: 'USOIL (WTI Crude Oil)' },
   { value: 'BINANCE:BTCUSDT', label: 'BTCUSDT' },
   { value: 'BINANCE:ETHUSDT', label: 'ETHUSDT' },
   { value: 'OANDA:EURUSD', label: 'EURUSD' },
@@ -22,7 +22,7 @@ const intervals = [
 ];
 
 export default function TradingStudioModal({ onClose }) {
-  const [symbol, setSymbol] = useState('TVC:USOIL');
+  const [symbol, setSymbol] = useState('OANDA:XAUUSD');
   const [interval, setInterval] = useState('240');
   const [chartMode, setChartMode] = useState('normal');
   const [tradingViewMode, setTradingViewMode] = useState('widget');
