@@ -906,14 +906,19 @@ Requirements:
         const now = Date.now();
         for (const raw of incoming) {
           const rawTimestamp = raw.timestamp ?? raw.time ?? raw.time_msc;
-          const numericTimestamp = typeof rawTimestamp === 'number' ? rawTimestamp : null;
-          const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
-            timestamp: numericTimestamp != null
-              ? new Date(numericTimestamp * (numericTimestamp < 1e12 ? 1000 : 1)).toISOString()
+          const timestampNumber = typeof rawTimestamp === 'number' || (typeof rawTimestamp === 'string' && /^\d{10,13}$/.test(rawTimestamp.trim()))
+            ? Number(rawTimestamp) : null;
+          const normalizedTimeframe = String(raw.timeframe || '').trim().toUpperCase().replace(/[\\s_-]+/g, '');
+          const timeframe = ({ '5':'M5', '5M':'M5', 'PERIODM5':'M5', '15':'M15', '15M':'M15', 'PERIODM15':'M15',
+            '60':'H1', '1H':'H1', 'H1':'H1', 'PERIODH1':'H1', '240':'H4', '4H':'H4', 'H4':'H4', 'PERIODH4':'H4',
+            'D1':'D1', 'PERIODD1':'D1' })[normalizedTimeframe] || normalizedTimeframe;
+          const toFiniteNumber = value => value == null || value === '' ? NaN : Number(value);
+          const candle = { ...raw, symbol: String(raw.symbol || '').trim().toUpperCase(), timeframe,
+            open: toFiniteNumber(raw.open), high: toFiniteNumber(raw.high), low: toFiniteNumber(raw.low), close: toFiniteNumber(raw.close),
+            timestamp: timestampNumber != null
+              ? new Date(timestampNumber * (timestampNumber < 1e12 ? 1000 : 1)).toISOString()
               : (typeof rawTimestamp === 'string' ? rawTimestamp : ''),
-            volume: Number.isFinite(raw.volume) ? raw.volume
-              : Number.isFinite(raw.tick_volume) ? raw.tick_volume
-              : Number.isFinite(raw.real_volume) ? raw.real_volume : null,
+            volume: [raw.volume, raw.tick_volume, raw.real_volume].map(toFiniteNumber).find(Number.isFinite) ?? null,
             source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
           if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
           const key = jinTradingKey(candle.symbol, candle.timeframe);
