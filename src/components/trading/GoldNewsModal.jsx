@@ -30,7 +30,36 @@ const parseJson=t=>{
 const errorText=e=>{const v=e?.message??e?.error??e; if(typeof v==='string')return v;try{return JSON.stringify(v)}catch{return String(v)}};
 export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
  const [tab,setTab]=useState('summary'),[busy,setBusy]=useState(false),[status,setStatus]=useState('BELUM DICARI'),[error,setError]=useState(''),[sources,setSources]=useState([]),[report,setReport]=useState(null),[market,setMarket]=useState([]),[marketAt,setMarketAt]=useState(null),[marketBusy,setMarketBusy]=useState(false),[marketError,setMarketError]=useState(''),[history,setHistory]=useState(()=>{try{return JSON.parse(localStorage.getItem('jin-gold-news-history-v1')||'[]')}catch{return[]}});
- const readMarket=useCallback(async()=>{if(marketBusy)return;setMarketBusy(true);setMarketError('');try{const endpoint=String(RouterConfig.getEndpoint()).replace(/\/+$/,'');const route=endpoint.endsWith('/api')?'/trading/intermarket-quotes':'/api/trading/intermarket-quotes';const r=await fetch(endpoint+route,{signal:AbortSignal.timeout(12000),cache:'no-store'});const data=await r.json();if(!r.ok||!data.success)throw Error(data.error||'Kuotasi pasar tidak tersedia.');setMarket(Array.isArray(data.quotes)?data.quotes:[]);setMarketAt(data.fetchedAt||new Date().toISOString());}catch(e){setMarketError(errorText(e)||'Gagal mengambil kuotasi.');}finally{setMarketBusy(false)}},[marketBusy]);
+ const readMarket=useCallback(async()=>{if(marketBusy)return;setMarketBusy(true);setMarketError('');try{
+  const endpoint=String(RouterConfig.getEndpoint()).replace(/\\/+$/,'');
+  const route=endpoint.endsWith('/api')?'/trading/intermarket-quotes':'/api/trading/intermarket-quotes';
+  let quotes=null;let fetchedAt=null;let primaryError='';
+  try{
+   const r=await fetch(endpoint+route,{signal:AbortSignal.timeout(12000),cache:'no-store'});
+   const data=await r.json();
+   if(!r.ok||!data.success)throw Error(typeof data.error==='string'?data.error:JSON.stringify(data.error||'Kuotasi pasar tidak tersedia.'));
+   quotes=Array.isArray(data.quotes)?data.quotes:null;fetchedAt=data.fetchedAt||null;
+   if(!quotes)throw Error('Format data kuotasi tidak valid.');
+  }catch(e){primaryError=errorText(e);}
+  if(!quotes){
+   const symbols=MARKET_SYMBOLS;
+   const results=await Promise.allSettled(symbols.map(async([symbol,label,ticker])=>{
+    const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+'?range=5d&interval=5m';
+    const response=await fetch('https://proxy.cors.dev/'+url,{signal:AbortSignal.timeout(12000),cache:'no-store'});
+    if(!response.ok)throw Error(symbol+' HTTP '+response.status);
+    const payload=await response.json();const meta=payload?.chart?.result?.[0]?.meta;
+    const price=Number(meta?.regularMarketPrice);const previous=Number(meta?.chartPreviousClose??meta?.previousClose);
+    if(!Number.isFinite(price))throw Error(symbol+' harga tidak tersedia');
+    return {symbol,label,ticker,price,changePercent:Number.isFinite(previous)&&previous!==0?(price-previous)/previous*100:null,marketState:meta.marketState||'UNKNOWN',delayed:true,quoteAt:meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,source:'Yahoo Finance melalui proxy CORS'};
+   }));
+   quotes=results.map((r,i)=>r.status==='fulfilled'?r.value:{symbol:symbols[i][0],label:symbols[i][1],ticker:symbols[i][2],price:null,changePercent:null,marketState:'UNAVAILABLE',delayed:true,error:errorText(r.reason)||'Data tidak tersedia',source:'Yahoo Finance'});
+   const available=quotes.filter(q=>Number.isFinite(q.price)).length;
+   if(!available)throw Error('Endpoint lokal gagal ('+primaryError+') dan sumber cadangan tidak mengembalikan kuotasi. Pastikan internet aktif atau endpoint API terpasang.');
+   setMarketError('Menggunakan sumber cadangan Yahoo Finance; data dapat tertunda.');
+   fetchedAt=new Date().toISOString();
+  }
+  setMarket(quotes);setMarketAt(fetchedAt||new Date().toISOString());
+ }catch(e){setMarketError(errorText(e)||'Gagal mengambil kuotasi.');}finally{setMarketBusy(false)}},[marketBusy]);
  const readNews=useCallback(async(reason)=>{if(busy)return;setBusy(true);setError('');setStatus('MEMBACA SUMBER RESMI…');try{
   const endpoint=String(RouterConfig.getEndpoint()).replace(/\/+$/,'');
   const statusRoute=endpoint.endsWith('/api')?'/trading/fundamental-status':'/api/trading/fundamental-status';
