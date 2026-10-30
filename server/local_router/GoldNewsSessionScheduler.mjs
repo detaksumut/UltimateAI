@@ -137,7 +137,8 @@ function tick() {
 export function getGoldNewsSchedulerStatus() {
   const state = loadState();
   return {
-    enabled: false,
+    enabled: true,
+    schedulerOwner: 'CuriosityDaemon',
     delegatedTo: 'CuriosityDaemon',
     note: 'Scheduled ingestion is owned by CuriosityDaemon; this module only exposes legacy status compatibility.',
     timezone: TZ,
