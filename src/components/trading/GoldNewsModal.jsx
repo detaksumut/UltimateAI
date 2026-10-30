@@ -12,24 +12,33 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD'}){
   const endpoint=String(RouterConfig.getEndpoint()).replace(/\/+$/,'');
   const statusRoute=endpoint.endsWith('/api')?'/trading/fundamental-status':'/api/trading/fundamental-status';
   const readRoute=endpoint.endsWith('/api')?'/trading/fundamental-read':'/api/trading/fundamental-read';
-  let payload=null; let usedScheduled=false;
+  let payload=null; let usedScheduled=false; let usedTavily=false;
+  if(reason==='refresh manual'){
+   const searchResponse=await fetch(endpoint+(endpoint.endsWith('/api')?'/trading/gold-news-search':'/api/trading/gold-news-search'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instrument,session:sessionNow(),requestedAt:new Date().toISOString()}),signal:AbortSignal.timeout(20000),cache:'no-store'});
+   const searchPayload=await searchResponse.json();
+   if(!searchResponse.ok||!searchPayload.success)throw Error(searchPayload.error||'Pencarian Tavily untuk berita Gold gagal.');
+   payload={success:true,fetchedAt:searchPayload.fetchedAt,searchProvider:searchPayload.provider,directAnswer:searchPayload.directAnswer,sources:searchPayload.sources.map((s,i)=>({key:'tavily_'+i,label:s.title||s.domain||('Hasil Tavily '+(i+1)),url:s.url,status:'READ',fetchedAt:searchPayload.fetchedAt,content:'Judul: '+(s.title||'Tidak tersedia')+'\\nDomain: '+(s.domain||'Tidak tersedia')+'\\nCuplikan hasil pencarian (bukan konfirmasi artikel penuh): '+(s.snippet||'Tidak tersedia')+'\\nSkor relevansi pencarian: '+(s.score??'tidak tersedia')+'\\nKategori domain: '+(s.category||'GENERAL')}))};
+   usedTavily=true;
+  }
   try {
+   if(!payload){
    const sr=await fetch(endpoint+statusRoute,{signal:AbortSignal.timeout(5000),cache:'no-store'});
    if(sr.ok){const state=await sr.json();const last=state.lastRun;const age=last?.completedAt?Date.now()-Date.parse(last.completedAt):Infinity;
     if(last?.success&&Array.isArray(last.sources)&&last.sources.some(s=>s.status==='READ'&&s.content)&&age<10*60*60*1000){
      payload={success:true,sources:last.sources,fetchedAt:last.fetchedAt,scheduledSession:last.sessionLabel,scheduledAtWIB:last.scheduledAtWIB};usedScheduled=true;
     }
    }
-  } catch {}
+   }
+  } catch(e) { if(reason!=='refresh manual'){} else { throw e; } }
   if(!payload){
    const response=await fetch(endpoint+readRoute,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sources:SOURCES.map(s=>s.key),instrument,session:sessionNow(),requestedAt:new Date().toISOString()}),signal:AbortSignal.timeout(45000)});
    payload=await response.json();if(!response.ok||!payload.success)throw Error(payload.error||'Endpoint pembaca berita belum tersedia.');
   }
   const read=Array.isArray(payload.sources)?payload.sources:[];setSources(read);const readable=read.filter(s=>s.status==='READ'&&s.content);if(!readable.length)throw Error('Tidak ada isi sumber yang berhasil dibaca. Berita tidak dapat diverifikasi.');
   const evidence=readable.map(s=>({source:s.label,url:s.url,fetchedAt:s.fetchedAt,content:String(s.content).slice(0,10000)}));
-  const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
+  const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
   const raw=await localRouterClient.streamChat({messages:[{role:'system',content:'Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output JSON tanpa markdown.'},{role:'user',content:prompt}],temperature:0.1});const parsed=parseJson(raw);
-  const item={...parsed,checkedAt:new Date().toISOString(),sourceCount:readable.length,reason,sourceFetchMode:usedScheduled?'scheduled pre-session':'manual live read',scheduledSession:payload.scheduledSession||null,scheduledAtWIB:payload.scheduledAtWIB||null};setReport(item);setStatus(readable.length+' SUMBER DIBACA');setHistory(old=>{const next=[item,...old].slice(0,100);try{localStorage.setItem('jin-gold-news-history-v1',JSON.stringify(next))}catch{}return next});
+  const item={...parsed,checkedAt:new Date().toISOString(),sourceCount:readable.length,reason,sourceFetchMode:usedScheduled?'scheduled pre-session':usedTavily?'manual Tavily search ('+(payload.searchProvider||'provider unknown')+')':'manual live read',scheduledSession:payload.scheduledSession||null,scheduledAtWIB:payload.scheduledAtWIB||null};setReport(item);setStatus(readable.length+' SUMBER DIBACA');setHistory(old=>{const next=[item,...old].slice(0,100);try{localStorage.setItem('jin-gold-news-history-v1',JSON.stringify(next))}catch{}return next});
  }catch(e){setError(e?.message||'Pencarian berita gagal.');setStatus('GAGAL / BELUM TERVERIFIKASI')}finally{setBusy(false)}},[busy,instrument]);
  useEffect(()=>{if(open){setTab(sessionNow());if(!report)readNews('modal dibuka')}},[open]);
  useEffect(()=>{
