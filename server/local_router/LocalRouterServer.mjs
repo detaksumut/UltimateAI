@@ -1,3 +1,4 @@
+import 'dotenv/config'; // Load project-root .env before reading API keys.
 /**
  * LocalRouterServer.mjs
  * UltimateAI Local Router Service on 127.0.0.1:20200.
