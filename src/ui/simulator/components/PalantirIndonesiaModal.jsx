@@ -35,7 +35,7 @@ export default function PalantirIndonesiaModal({ open, onClose }) {
   const [activeTab, setActiveTab] = useState('TERRITORIAL'); // 'TERRITORIAL' | 'CCTV_RECON'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('ALL');
-  const [activeStyle, setActiveStyle] = useState('DARK_INTELLIGENCE');
+  const [activeStyle, setActiveStyle] = useState('SATELLITE');
   const [searchQuery, setSearchQuery] = useState('');
   const [cursorCoords, setCursorCoords] = useState({ lon: 118.0149, lat: -2.5489 });
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
