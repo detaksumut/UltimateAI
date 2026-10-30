@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
+import MarketWatchScreenReader from './MarketWatchScreenReader.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -36,7 +37,7 @@ export default function TradingStudioModal({ onClose }) {
   const instrument = symbol.split(':').pop();
   const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
   const isFullChart = chartMode === 'full';
-  const gridColumns = isFullChart ? 'minmax(0, 1fr)' : chartMode === 'compact' ? 'minmax(280px, 0.85fr) minmax(360px, 1.4fr)' : 'minmax(0, 1.65fr) minmax(300px, 1fr)';
+  const gridColumns = isFullChart ? 'minmax(0, 1fr)' : chartMode === 'compact' ? 'minmax(260px, 0.85fr) minmax(340px, 1.2fr) minmax(320px, 1fr)' : 'minmax(260px, 0.85fr) minmax(0, 1.35fr) minmax(300px, 1fr)';
 
   return (
     <main style={{ minHeight: 'calc(100vh - 24px)', background: '#030812', color: '#e2e8f0', padding: 10, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box' }}>
@@ -64,7 +65,8 @@ export default function TradingStudioModal({ onClose }) {
 
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button></div>
       <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
-      <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
+      <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'start' }}>
+        {!isFullChart && <aside aria-label="JINI market watch screen reader" style={{ minWidth: 0 }}><MarketWatchScreenReader /></aside>}
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
           <iframe
             title={`TradingView ${instrument} ${timeframe}`}
@@ -86,7 +88,7 @@ export default function TradingStudioModal({ onClose }) {
           <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
         </section>}
       </div>
-      <style>{'@media(max-width:850px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
+      <style>{'@media(max-width:1150px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
 }
