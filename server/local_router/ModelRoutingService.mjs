@@ -362,12 +362,13 @@ export class ModelRoutingService {
     // 2. CLOUD ROUTE: GEMINI
     if (route.provider === 'gemini') {
       try {
+        const selectedGeminiModel = route.candidates[0]?.model || (model && model.startsWith('gemini-') ? model : process.env.GEMINI_MODEL || 'gemini-3.6-flash');
         const raw = await geminiProviderInstance.sendChat(
-          { messages: sanitizedMessages, stream, model, temperature },
+          { messages: sanitizedMessages, stream, model: selectedGeminiModel, temperature },
           safeOnChunk
         );
 
-        const resolvedModel = geminiProviderInstance._resolveModel(model);
+        const resolvedModel = geminiProviderInstance._resolveModel(selectedGeminiModel);
         const responseId = `gemini-${Date.now()}`;
         return {
           content: raw,
