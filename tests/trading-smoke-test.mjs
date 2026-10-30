@@ -10,6 +10,19 @@ const timeframe = TIMEFRAMES.M15 || 'M15';
 assert.equal(getChartCandles(symbol, timeframe, 50).status, 'NO_DATA');
 assert.equal(market.addCandle({ symbol, timeframe, open: 1, high: 0, low: 0, close: 1, volume: 1, timestamp: new Date().toISOString() }), false);
 
+// Missing broker volume is allowed, while malformed OHLC is still rejected.
+const secondsTimestamp = Math.floor(Date.now() / 1000);
+assert.equal(market.addCandle({
+  symbol, timeframe, timestamp: secondsTimestamp,
+  open: 10, high: 12, low: 9, close: 11,
+}), true);
+assert.equal(market.getLatestCandle(symbol, timeframe).timestamp,
+  new Date(secondsTimestamp * 1000).toISOString());
+assert.equal(market.addCandle({
+  symbol, timeframe, timestamp: new Date().toISOString(),
+  open: 10, high: 8, low: 9, close: 11,
+}), false);
+
 // Generate deterministic, valid, fresh candles to exercise the real service pipeline.
 const now = Date.now();
 const candles = [];
