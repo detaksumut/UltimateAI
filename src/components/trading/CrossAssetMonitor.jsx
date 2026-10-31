@@ -62,7 +62,9 @@ export default function CrossAssetMonitor() {
   const [readings, setReadings] = useState(() => Object.fromEntries(ASSETS.map(a => [a.symbol, emptyReading(a.symbol)])));
   const [errors, setErrors] = useState({});
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [loading, setLoading] = useState(false);\n  const [fundamentals, setFundamentals] = useState({});\n  const [fundamentalError, setFundamentalError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [fundamentals, setFundamentals] = useState({});
+  const [fundamentalError, setFundamentalError] = useState('');
 
   const refreshAll = async () => {
     setLoading(true);
