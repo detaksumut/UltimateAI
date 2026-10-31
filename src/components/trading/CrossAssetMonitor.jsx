@@ -66,7 +66,23 @@ export default function CrossAssetMonitor() {
 
   const refreshAll = async () => {
     setLoading(true);
-    const results = await Promise.allSettled(ASSETS.map(asset => fetchDaily(asset.symbol)));
+    const [results, newsResult] = await Promise.all([
+      Promise.allSettled(ASSETS.map(asset => fetchDaily(asset.symbol))),
+      fetch('/api/trading/fundamental-analysis', { cache: 'no-store' })
+        .then(async response => {
+          const data = await response.json();
+          if (!response.ok || !data?.ok) throw new Error(data?.error || `News HTTP ${response.status}`);
+          return data;
+        })
+        .catch(error => ({ ok: false, error: String(error?.message || error) })),
+    ]);
+    if (newsResult.ok) {
+      setFundamentals(newsResult.analyses || {});
+      setFundamentalError('');
+    } else {
+      setFundamentals({});
+      setFundamentalError(newsResult.error || 'Berita fundamental tidak tersedia.');
+    }
     const nextReadings = {};
     const nextErrors = {};
     const allCandles = [];
@@ -99,8 +115,8 @@ export default function CrossAssetMonitor() {
     let alive = true;
     const run = async () => { if (alive) await refreshAll(); };
     run();
-    const timer = setInterval(run, 60000);
-    return () => { alive = false; clearInterval(timer); };
+    // D1/news refresh only on page entry or manual button click; no polling timer.
+    return () => { alive = false; };
   }, []);
 
   const rows = useMemo(() => ASSETS.map(asset => ({
