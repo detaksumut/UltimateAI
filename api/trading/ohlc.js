@@ -49,8 +49,9 @@ export default async function handler(req, res) {
       });
     }
     const rows = Array.isArray(payload.bars) ? payload.bars : [];
+    const parsePrice = value => value === null || value === undefined || value === '' ? NaN : Number(value);
     const candles = rows.map(bar => {
-      const open = Number(bar.open), high = Number(bar.high), low = Number(bar.low), close = Number(bar.close);
+      const open = parsePrice(bar.open), high = parsePrice(bar.high), low = parsePrice(bar.low), close = parsePrice(bar.close);
       const timestamp = bar.bar_start;
       if (![open, high, low, close].every(Number.isFinite) || !Number.isFinite(Date.parse(timestamp)) ||
           high < Math.max(open, close, low) || low > Math.min(open, close, high)) return null;
