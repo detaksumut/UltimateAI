@@ -24,7 +24,7 @@ function summarizeCandles(symbol, input) {
     Number(c.high) >= Math.max(Number(c.open), Number(c.close), Number(c.low)) &&
     Number(c.low) <= Math.min(Number(c.open), Number(c.close), Number(c.high)) &&
     c.isSimulated !== true
-  ).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp);
+  ).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
   if (valid.length < 20) return {
     symbol, trend: 'DATA BELUM CUKUP', price: valid.length ? Number(valid.at(-1).close) : null,
     date: valid.at(-1)?.timestamp || null, source: valid.at(-1)?.source || null,
