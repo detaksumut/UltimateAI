@@ -3,7 +3,6 @@ import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
 import CrossAssetMonitor from './CrossAssetMonitor.jsx';
-import LiveInstrumentTrendPanel from './LiveInstrumentTrendPanel.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -108,7 +107,7 @@ export default function TradingStudioModal({ onClose }) {
         <VisualChartCapturePanel instrument={instrument} timeframe={timeframe} onTimeframeChange={setInterval} />
         <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
       </section>
-      <LiveInstrumentTrendPanel />
+      
       <section aria-label="Cross Asset Monitor" style={{ marginTop: 12, minWidth: 0 }}>
         <CrossAssetMonitor />
       </section>
