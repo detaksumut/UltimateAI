@@ -93,7 +93,7 @@ const EXTRA_MAP = {
 
 // Tokens that must never be treated as a ticker candidate.
 const JUNK_TICKERS = new Set([
-  'INC', 'LTD', 'CO', 'CORP', 'CORPORATION', 'WWW', 'disabled provider', 'FINANCE', 'TICKER',
+  'INC', 'LTD', 'CO', 'CORP', 'CORPORATION', 'WWW', 'provider-nonaktif', 'FINANCE', 'TICKER',
   'IDX', 'BEI', 'HOLDING', 'TBK', 'FROM', 'THE', 'AND', 'MARKET', 'STOCK',
   'PRICE', 'HARGA', 'COM', 'HTTP', 'HTTPS', 'SYMBOL', 'SERIES', 'FUTURES',
   'INDEX', 'COMPOSITE', 'METALS', 'ENERGY', 'GLOBAL', 'INDONESIA', 'BURSA',
@@ -206,7 +206,7 @@ export function symbolToCanonical(symbol, rawName, extra = {}) {
     currency: isIndonesia ? 'IDR' : 'USD',
     quoteCandidates: [isIndonesia ? 'IDR' : 'USD'],
     meta: { disabled provider: ticker },
-    providers: ['disabled provider'],
+    providers: ['provider-nonaktif'],
     isOpenWorld: true
   };
 }
