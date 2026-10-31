@@ -85,7 +85,7 @@ export default function TradingStudioModal({ onClose }) {
         </div>
       </div>
       
-      <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'start' }}>
+      <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 0, alignItems: 'start' }}>
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
           <iframe
             title={`TradingView ${instrument} ${timeframe}`}
