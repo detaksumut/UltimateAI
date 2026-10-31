@@ -6,7 +6,7 @@ const SYMBOLS = [
   ['XAGUSD', 'Silver'], ['COPPER', 'Copper'],
   ['SPX', 'S&P 500'], ['USDJPY', 'USD/JPY']
 ];
-const fmt = (v, digits = 3) => Number.isFinite(Number(v)) ? Number(v).toLocaleString('id-ID', { maximumFractionDigits: digits }) : '—';
+const fmt = (v, digits = 3) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v).toLocaleString('id-ID', { maximumFractionDigits: digits }) : '—';
 function Sparkline({ points = [], positive }) {
   const values = points.map(Number).filter(Number.isFinite);
   if (values.length < 2) return <span style={{ color: '#64748b' }}>—</span>;
@@ -48,7 +48,7 @@ export default function IntermarketLiveTable() {
           <td style={{ padding: '8px 9px', minWidth: 160 }}><div style={{ fontWeight: 800 }}>{symbol} <span style={{ color: q?.price != null ? '#f59e0b' : '#ef4444', fontSize: 9 }}>●</span></div><div style={{ color: '#9ca3af', fontSize: 10, marginTop: 2 }}>{label}</div><div style={{ color: '#6b7280', fontSize: 9, marginTop: 2 }}>{q?.marketState || 'NO DATA'}{q?.delayed ? ' · DELAYED' : ''}</div></td>
           <td style={{ padding: '8px 9px', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(bid)}</td>
           <td style={{ padding: '8px 9px', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(ask)}</td>
-          <td style={{ padding: '8px 9px', whiteSpace: 'nowrap' }}>{Number.isFinite(Number(bid)) && Number.isFinite(Number(ask)) ? fmt(Number(ask)-Number(bid), 4) : '—'}</td>
+          <td style={{ padding: '8px 9px', whiteSpace: 'nowrap' }}>{bid != null && ask != null && Number.isFinite(Number(bid)) && Number.isFinite(Number(ask)) ? fmt(Number(ask)-Number(bid), 4) : '—'}</td>
           <td style={{ padding: '8px 9px', color: down ? '#f87171' : up ? '#34d399' : '#e5e7eb', fontWeight: 700, whiteSpace: 'nowrap' }}>{q?.change == null ? '—' : (Number(q.change)>0?'+':'')+fmt(q.change)}</td>
           <td style={{ padding: '8px 9px', color: down ? '#f87171' : up ? '#34d399' : '#e5e7eb', fontWeight: 700, whiteSpace: 'nowrap' }}>{pct == null ? '—' : (Number(pct)>0?'+':'')+fmt(pct,2)+'%'}</td>
           <td style={{ padding: '5px 9px' }}><Sparkline points={q?.sparkline || []} positive={up || (!down && Number(q?.change) >= 0)} /></td>
