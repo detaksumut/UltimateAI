@@ -39,11 +39,19 @@ async function quote(item) {
     ? ((price - previousClose) / previousClose) * 100
     : null;
   const marketState = String(meta.marketState || 'UNKNOWN');
+  const indicators = result.indicators?.quote?.[0] || {};
+  const sparkline = (indicators.close || []).filter(v => Number.isFinite(v)).slice(-48);
+  const bid = Number(meta.bid);
+  const ask = Number(meta.ask);
   return {
     symbol: item.symbol,
     label: item.label,
     ticker: item.ticker,
     price,
+    bid: Number.isFinite(bid) ? bid : null,
+    ask: Number.isFinite(ask) ? ask : null,
+    change: Number.isFinite(previousClose) ? price - previousClose : null,
+    sparkline,
     previousClose: Number.isFinite(previousClose) ? previousClose : null,
     changePercent: Number.isFinite(changePercent) ? changePercent : null,
     currency: meta.currency || null,
