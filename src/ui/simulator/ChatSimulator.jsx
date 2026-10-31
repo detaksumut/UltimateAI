@@ -3,8 +3,8 @@ import './simulator.css';
 import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx';
 import MarketIntelligenceView from './components/MarketIntelligenceView.jsx';
 import MarketIntelligenceModal from './components/MarketIntelligenceModal.jsx';
-import TradingStudioModal from '../../components/trading/TradingStudioModal.jsx';
 import PalantirIndonesiaModal from './components/PalantirIndonesiaModal.jsx';
+import TradingStudioModal from '../../components/trading/TradingStudioModal.jsx';
 import LiveHologramAvatar from './components/LiveHologramAvatar.jsx';
 import LiveTickerPanel from './components/LiveTickerPanel.jsx';
 import JINTickerConversation from './components/JINTickerConversation.jsx';
@@ -346,7 +346,7 @@ const closeAppModal = () => {
         </div>
       </div>
 
-      {/* TRADING STUDIO — chart feature retained; live trend widget remains removed */}
+      {/* TRADING STUDIO — opens inside the active JIN simulator */}
       <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
         <div className="hud-label">Trading Intelligence</div>
         <div style={{ padding: '6px 10px' }}>
@@ -726,9 +726,6 @@ const closeAppModal = () => {
       {tradingStudioOpen && (
         <div role="dialog" aria-modal="true" aria-label="Trading Studio" onClick={(e) => { if (e.target === e.currentTarget) setTradingStudioOpen(false); }} style={{ position: 'fixed', inset: 0, zIndex: 10050, overflowY: 'auto', background: 'rgba(0,0,0,0.86)', backdropFilter: 'blur(8px)' }}>
           <div style={{ minHeight: '100%', padding: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-              <button type="button" aria-label="Tutup Trading Studio" onClick={() => setTradingStudioOpen(false)} style={{ border: '1px solid rgba(0,229,255,0.35)', borderRadius: 6, background: '#06101d', color: '#67e8f9', padding: '5px 10px', cursor: 'pointer' }}>TUTUP ✕</button>
-            </div>
             <TradingStudioModal onClose={() => setTradingStudioOpen(false)} />
           </div>
         </div>
