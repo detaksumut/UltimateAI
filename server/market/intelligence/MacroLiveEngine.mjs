@@ -7,7 +7,6 @@
  *  - BLS public API v2 (tanpa key)
  *      CES0000000001 = Total Nonfarm Payroll (NFP, ribuan)
  *      CES0500000003 = Average Hourly Earnings
- *  - Yahoo ZQ=F 30-Day Fed Funds Futures -> implied rate -> probabilitas kenaikan Fed
  *
  * JUJUR: sumber live gratis tidak menyediakan consensus/ekspektasi.
  *  -> `consensus` selalu null + `consensusAvailable:false`. TIDAK PERNAH dikarang.
@@ -172,7 +171,6 @@ function blsEnvelope(series, seriesId, indicator) {
   };
 }
 
-const YAHOO_CHART = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
 /**
  * ZQ=F = 30-Day Fed Funds Futures; harga = 100 - implied average effective rate.
@@ -184,48 +182,12 @@ const YAHOO_CHART = 'https://query1.finance.yahoo.com/v8/finance/chart';
  * jadi TIDAK boleh dipakai sebagai hikeStep.
  * CATATAN: ini implied probability dari futures, BUKAN CME FedWatch Tool.
  */
-export async function fetchFedHikeProbability({ effr, hikeStep = 0.25 } = {}) {
-  const base = {
-    indicator: 'FED_HIKE_PROB',
-    label: 'Probabilitas kenaikan Fed (implied, Fed Funds Futures)',
-    unit: 'PERCENT_PROB',
-    dataStatus: 'UNAVAILABLE',
-    source: 'Yahoo Finance ZQ=F + FRED DFF/DFEDTARU',
-    sourceUrl: 'https://finance.yahoo.com/quote/ZQ=F',
-    method: 'impliedRate = 100 - ZQ price; prob = (impliedRate - EFFR) / hikeStep',
-    disclaimer: 'Implied probability dari futures. BUKAN CME FedWatch. Bukan janji.'
-  };
-  if (!Number.isFinite(effr)) return { ...base, error: 'EFFR (DFF) tidak tersedia' };
-  try {
-    const res = await fetch(`${YAHOO_CHART}/${encodeURIComponent('ZQ=F')}?range=5d&interval=1d`, {
-      signal: AbortSignal.timeout(12000),
-      headers: { 'User-Agent': 'JIN-Market-Intelligence/1.0', Accept: 'application/json' }
-    });
-    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status} untuk ZQ=F`);
-    const json = await res.json();
-    const meta = json?.chart?.result?.[0]?.meta;
-    const price = Number(meta?.regularMarketPrice ?? meta?.chartPreviousClose);
-    if (!Number.isFinite(price)) throw new Error('harga ZQ=F kosong');
-    const impliedRate = 100 - price;
-    const step = Number.isFinite(hikeStep) && hikeStep > 0 ? hikeStep : 0.25;
-    const rawProb = ((impliedRate - effr) / step) * 100;
-    return {
-      ...base,
-      zqPrice: price,
-      impliedRate: Number(impliedRate.toFixed(4)),
-      currentEffr: effr,
-      hikeStep: step,
-      impliedProbPct: Number(Math.max(0, Math.min(100, rawProb)).toFixed(1)),
-      dataStatus: 'LIVE',
-      retrievedAt: new Date().toISOString()
-    };
-  } catch (err) {
-    return { ...base, error: String(err.message || err) };
-  }
+export async function fetchFedHikeProbability() {
+  return { indicator: 'FED_HIKE_PROB', label: 'Probabilitas kenaikan Fed', unit: 'PERCENT_PROB',
+    dataStatus: 'UNAVAILABLE', source: 'Tidak tersedia', sourceUrl: null,
+    error: 'Provider futures Fed dinonaktifkan.' };
 }
 
-
-/** Orkestrator: seluruh makro AS live, paralel, degrade per-item (tidak gagal total). */
 export async function fetchLiveMacro() {
   const fredIds = Object.keys(FRED_META);
   const [fredSeries, blsSeries] = await Promise.all([
@@ -276,7 +238,7 @@ export async function fetchLiveMacro() {
   for (const i of items) if (i.asOf) asOf[i.indicator] = i.asOf;
 
   return {
-    provider: 'FRED + BLS + Yahoo Fed Funds Futures',
+    provider: 'FRED + BLS',
     live: true,
     noApiKeyRequired: true,
     retrievedAt: new Date().toISOString(),
