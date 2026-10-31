@@ -28,19 +28,24 @@ function chartUrl(symbol) {
   return `https://www.tradingview.com/widgetembed/?${params.toString()}`;
 }
 
-export default function TradingStudioModal({ onClose }) {
+export default function TradingStudioModal() {
   return (
     <main
       aria-label="Live Oil and Silver Charts"
       style={{
-        minHeight: '100%',
         width: '100%',
+        height: '100vh',
+        minHeight: '100vh',
         boxSizing: 'border-box',
         padding: 8,
+        margin: 0,
         background: '#030812',
         display: 'grid',
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gridTemplateRows: 'minmax(0, 1fr)',
+        alignItems: 'stretch',
         gap: 8,
+        overflow: 'hidden',
       }}
     >
       {CHARTS.map(({ symbol, title }) => (
@@ -49,23 +54,23 @@ export default function TradingStudioModal({ onClose }) {
           aria-label={title}
           style={{
             minWidth: 0,
-            height: 'min(68vh, 420px)',
-            minHeight: 240,
+            minHeight: 0,
+            height: '100%',
             overflow: 'hidden',
-            borderRadius: 6,
+            borderRadius: 4,
             background: '#030812',
           }}
         >
           <iframe
             title={title}
             src={chartUrl(symbol)}
-            loading="lazy"
-            style={{ display: 'block', width: '100%', height: '100%', border: 0 }}
+            loading="eager"
+            style={{ display: 'block', width: '100%', height: '100%', minHeight: 0, border: 0 }}
             allowFullScreen
           />
         </section>
       ))}
-      <style>{'@media(max-width:700px){main[aria-label="Live Oil and Silver Charts"]{grid-template-columns:1fr!important}main[aria-label="Live Oil and Silver Charts"] section{height:42vh!important;min-height:220px!important}}'}</style>
+      <style>{'@media(max-width:700px){main[aria-label="Live Oil and Silver Charts"]{height:100vh!important;grid-template-columns:1fr!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;overflow:auto!important}main[aria-label="Live Oil and Silver Charts"] section{height:calc(50vh - 12px)!important;min-height:220px!important}}'}</style>
     </main>
   );
 }
