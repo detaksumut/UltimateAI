@@ -1,7 +1,7 @@
 /**
  * analyzeMarket.mjs - MIE v1 orkestrator analysis (makro LIVE)
  *
- * DATA: Yahoo (harga/seri) + FRED & BLS (makro AS live) - semua real, tanpa mock.
+ * DATA: disabled provider (harga/seri) + FRED & BLS (makro AS live) - semua real, tanpa mock.
  * FLOW: Foreign flow IDX tidak punya sumber live gratis (idx.co.id 403) ->
  *       tetap MANUAL_SNAPSHOT. TIDAK PERNAH dikarang.
  * JUJUR: consensus tidak tersedia -> selalu null + flag.
@@ -11,7 +11,7 @@ import { buildScenarios, detectMarketState } from './ScenarioEngine.mjs';
 import { loadMacroSnapshot } from './MacroStore.mjs';
 import { fetchLiveMacro } from './MacroLiveEngine.mjs';
 import { scoreMacro, buildScores } from './TransmissionEngine.mjs';
-import { MIE_BASKET, fetchYahooCloses } from './MarketIntelligenceEngine.mjs';
+import { MIE_BASKET, fetchdisabled providerCloses } from './MarketIntelligenceEngine.mjs';
 
 const chg = (q) => (q.ok && q.last != null && q.prev ? ((q.last - q.prev) / q.prev) * 100 : null);
 const quote = (q, label) => ({
@@ -27,13 +27,13 @@ export async function analyzeMarket({ symbol = 'IHSG' } = {}) {
   const target = MIE_BASKET[key] ? key : 'IHSG';
   const startedAt = new Date().toISOString();
   const [main, usdidr, dxy, us10y, wti, gold, btc, macroLive] = await Promise.all([
-    fetchYahooCloses(MIE_BASKET[target].yahoo),
-    fetchYahooCloses(MIE_BASKET.USDIDR.yahoo, '1mo'),
-    fetchYahooCloses(MIE_BASKET.DXY.yahoo, '1mo'),
-    fetchYahooCloses(MIE_BASKET.US10Y.yahoo, '1mo'),
-    fetchYahooCloses(MIE_BASKET.WTI.yahoo, '1mo'),
-    fetchYahooCloses(MIE_BASKET.GOLD.yahoo, '1mo'),
-    fetchYahooCloses(MIE_BASKET.BTC.yahoo, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET[target].disabled provider),
+    fetchdisabled providerCloses(MIE_BASKET.USDIDR.disabled provider, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET.DXY.disabled provider, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET.US10Y.disabled provider, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET.WTI.disabled provider, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET.GOLD.disabled provider, '1mo'),
+    fetchdisabled providerCloses(MIE_BASKET.BTC.disabled provider, '1mo'),
     fetchLiveMacro()
   ]);
   const closes = Array.isArray(main.closes) ? main.closes : [];
@@ -71,7 +71,7 @@ export async function analyzeMarket({ symbol = 'IHSG' } = {}) {
     support, resistance,
     dataStatus: closes.length >= 15 ? 'COMPUTED_FROM_LIVE_SERIES' : 'UNAVAILABLE',
     note: closes.length >= 15
-      ? `Dihitung dari ${closes.length} close harian Yahoo (real).`
+      ? `Dihitung dari ${closes.length} close harian yang tersedia.`
       : 'Series tidak cukup.'
   };
 
