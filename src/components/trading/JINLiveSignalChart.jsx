@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { marketDataServiceInstance } from '../../services/trading/MarketDataService.js';
 
 const TF_MS = { M5: 300000, M15: 900000, M30: 1800000, H1: 3600000, H4: 14400000, D1: 86400000 };
 const TF_FROM_INTERVAL = { '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' };
@@ -60,6 +61,17 @@ export default function JINLiveSignalChart({symbol='XAUUSD',interval='60'}) {
         const next={};
         for(const [timeframe,data] of results) {
           next[timeframe]=(data.ok && Array.isArray(data.candles) ? data.candles.filter(valid) : []).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
+        }
+        // Keep the same validated broker candles available to ChartReader and the
+        // advanced analysis modal, not only to this SVG component.
+        const allCandles = Object.entries(next).flatMap(([timeframe, rows]) =>
+          rows.map(c => ({ ...c, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', isSimulated: false }))
+        );
+        if (allCandles.length) {
+          marketDataServiceInstance.addBatchCandles(allCandles);
+          marketDataServiceInstance.setStatus('CONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
+        } else {
+          marketDataServiceInstance.setStatus('DISCONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
         }
         setSeries(next); setError(''); setLastPoll(new Date().toISOString());
       } catch(e) { if(!cancelled)setError(e?.message||'Sumber OHLC lokal tidak tersedia'); }
