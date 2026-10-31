@@ -4,7 +4,6 @@ import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx'
 import MarketIntelligenceView from './components/MarketIntelligenceView.jsx';
 import MarketIntelligenceModal from './components/MarketIntelligenceModal.jsx';
 import PalantirIndonesiaModal from './components/PalantirIndonesiaModal.jsx';
-import TradingStudioModal from '../../components/trading/TradingStudioModal.jsx';
 import LiveHologramAvatar from './components/LiveHologramAvatar.jsx';
 import LiveTickerPanel from './components/LiveTickerPanel.jsx';
 import JINTickerConversation from './components/JINTickerConversation.jsx';
@@ -57,7 +56,6 @@ export default function ChatSimulator() {
   const [mieModal, setMieModal] = useState({ open: false, symbol: 'IHSG' });
   // PalantirIndonesia Geospatial Intelligence modal
   const [palantirModalOpen, setPalantirModalOpen] = useState(false);
-  const [tradingStudioOpen, setTradingStudioOpen] = useState(false);
 // MY APPLICATIONS modal state
 const [visibleApp, setVisibleApp] = useState(null);
 const [appLoading, setAppLoading] = useState(false);
@@ -343,16 +341,6 @@ const closeAppModal = () => {
                   border: `1px solid ${c}44`, background: `${c}11`, color: c, letterSpacing: '0.02em' }}>{l}</button>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* TRADING STUDIO — opens inside the active JIN simulator */}
-      <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
-        <div className="hud-label">Trading Intelligence</div>
-        <div style={{ padding: '6px 10px' }}>
-          <button type="button" onClick={() => setTradingStudioOpen(true)} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(0,229,255,0.4)', background: 'linear-gradient(90deg, rgba(0,229,255,0.15), rgba(16,185,129,0.12))', color: '#00e5ff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em' }}>
-            <span>📈 TRADING STUDIO</span><span style={{ fontSize: 8, color: '#34d399' }}>OPEN</span>
-          </button>
         </div>
       </div>
 
@@ -722,14 +710,6 @@ const closeAppModal = () => {
           );
         })}
       </nav>
-
-      {tradingStudioOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Trading Studio" onClick={(e) => { if (e.target === e.currentTarget) setTradingStudioOpen(false); }} style={{ position: 'fixed', inset: 0, zIndex: 10050, overflowY: 'auto', background: 'rgba(0,0,0,0.86)', backdropFilter: 'blur(8px)' }}>
-          <div style={{ minHeight: '100%', padding: 12 }}>
-            <TradingStudioModal onClose={() => setTradingStudioOpen(false)} />
-          </div>
-        </div>
-      )}
 
       {/* ═══ MARKET INTELLIGENCE POPUP MODAL (MIE v1) ═══ */}
       <MarketIntelligenceModal
