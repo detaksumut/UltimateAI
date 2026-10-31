@@ -62,7 +62,7 @@ export default function CrossAssetMonitor() {
   const [readings, setReadings] = useState(() => Object.fromEntries(ASSETS.map(a => [a.symbol, emptyReading(a.symbol)])));
   const [errors, setErrors] = useState({});
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);\n  const [fundamentals, setFundamentals] = useState({});\n  const [fundamentalError, setFundamentalError] = useState('');
 
   const refreshAll = async () => {
     setLoading(true);
@@ -124,8 +124,8 @@ export default function CrossAssetMonitor() {
     </header>
     {Object.keys(errors).length > 0 && <div role="status" style={{ marginTop: 8, color: '#fbbf24', fontSize: 10 }}>{Object.keys(errors).length} instrumen bermasalah atau belum memiliki 20 candle D1 valid. Rincian tersedia saat mengarahkan kursor ke status instrumen.</div>}
     <div style={{ marginTop: 10, overflowX: 'auto' }}>
-      <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: 10 }}>
-        <thead><tr>{['INSTRUMEN', 'D1 TREND'].map(h => <th key={h} style={{ padding: 8, textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #164e63', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
+      <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 10 }}>
+        <thead><tr>{['INSTRUMEN', 'D1 TREND', 'ANALISA FUNDAMENTAL'].map(h => <th key={h} style={{ padding: 8, textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #164e63', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
         <tbody>{rows.map(asset => <tr key={asset.symbol}>
           <td style={{ padding: 8, borderBottom: '1px solid #12283a', fontWeight: 800, color: asset.symbol === 'XAUUSD' ? '#67e8f9' : '#e2e8f0' }}>
             {asset.label}<div style={{ fontSize: 8, color: '#64748b', marginTop: 3 }}>{asset.group}</div>
@@ -134,11 +134,33 @@ export default function CrossAssetMonitor() {
             <span style={pill(asset.reading.trend)}>{asset.reading.trend}</span>
             {asset.reading.price != null && <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 4 }}>{fmtPrice(asset.reading.price)}{asset.reading.date ? ` · ${new Date(asset.reading.date).toLocaleDateString()}` : ''}</div>}
           </td>
+          <td style={{ padding: 8, borderBottom: '1px solid #12283a', minWidth: 260, maxWidth: 430, whiteSpace: 'normal', lineHeight: 1.45 }}>
+            {(() => {
+              const context = fundamentals[asset.symbol];
+              const headline = context?.headlines?.[0];
+              const headlines = context?.headlines || [];
+              const joined = headlines.map(item => item.title).join(' ').toLowerCase();
+              const bearishTerms = ['hawkish', 'rate hike', 'higher rates', 'strong dollar', 'yields rise', 'inflation rises', 'selloff', 'falls', 'fall', 'drop', 'decline', 'plunge', 'weak demand', 'oversupply'];
+              const bullishTerms = ['rate cut', 'dovish', 'yields fall', 'dollar weakens', 'safe haven', 'rally', 'surge', 'rises', 'rise', 'strong demand', 'supply disruption'];
+              const bearish = bearishTerms.filter(term => joined.includes(term)).length;
+              const bullish = bullishTerms.filter(term => joined.includes(term)).length;
+              const signal = headlines.length === 0 ? 'BERITA BELUM TERSEDIA'
+                : bullish > bearish ? 'BERITA CENDERUNG POSITIF'
+                : bearish > bullish ? 'BERITA CENDERUNG NEGATIF'
+                : 'BERITA CAMPURAN / NETRAL';
+              return <div title={context?.error || context?.theme || fundamentalError}>
+                <div style={{ color: signal.includes('POSITIF') ? '#4ade80' : signal.includes('NEGATIF') ? '#fb7185' : '#cbd5e1', fontWeight: 800, fontSize: 9 }}>{signal}</div>
+                {headline ? <a href={headline.link || undefined} target="_blank" rel="noreferrer" style={{ display: 'block', color: '#cbd5e1', marginTop: 4, fontSize: 9, textDecoration: 'underline' }}>{headline.title}</a> : <div style={{ color: '#94a3b8', fontSize: 9, marginTop: 4 }}>{fundamentalError || context?.error || 'Belum ada headline relevan dari penyedia berita.'}</div>}
+                {headline?.publisher && <div style={{ color: '#64748b', fontSize: 8, marginTop: 3 }}>{headline.publisher}{headline.publishedAt ? ` · ${new Date(headline.publishedAt).toLocaleString()}` : ''}</div>}
+                <div style={{ color: '#94a3b8', fontSize: 8, marginTop: 4 }}>Konteks berita otomatis; perlu dikonfirmasi terhadap D1 dan kalender ekonomi.</div>
+              </div>;
+            })()}
+          </td>
         </tr>)}</tbody>
       </table>
     </div>
     <div style={{ marginTop: 8, fontSize: 9, color: '#64748b' }}>
-      {updatedAt ? `Pembaruan terakhir: ${new Date(updatedAt).toLocaleTimeString()} · ` : ''}Sumber: Yahoo Finance (data publik, dapat tertunda). XAUUSD memakai proksi futures emas GC=F, bukan kuotasi spot MT5. Tren memakai 20 candle D1 valid; bukan rekomendasi transaksi.
+      {updatedAt ? `Pembaruan terakhir: ${new Date(updatedAt).toLocaleTimeString()} · ` : ''}Sumber harga dan headline: Yahoo Finance (dapat tertunda). XAUUSD memakai proksi futures GC=F, bukan kuotasi spot MT5. Analisa berita memakai pencocokan kata sederhana; bukan analisa AI penuh atau rekomendasi transaksi.
     </div>
   </section>;
 }
