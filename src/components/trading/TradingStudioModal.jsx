@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
+import CrossAssetMonitor from './CrossAssetMonitor.jsx';
 import LiveInstrumentTrendPanel from './LiveInstrumentTrendPanel.jsx';
 
 const instruments = [
@@ -108,6 +109,9 @@ export default function TradingStudioModal({ onClose }) {
         <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
       </section>
       <LiveInstrumentTrendPanel />
+      <section aria-label="Cross Asset Monitor" style={{ marginTop: 12, minWidth: 0 }}>
+        <CrossAssetMonitor />
+      </section>
       <section id="jin-gold-news-panel" aria-label="Gold Fundamental News Intelligence" style={{marginTop:12}}>
         <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} inline />
       </section>
