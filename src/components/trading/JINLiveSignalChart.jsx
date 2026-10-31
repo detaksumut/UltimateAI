@@ -3,13 +3,13 @@ import { marketDataServiceInstance } from '../../services/trading/MarketDataServ
 
 const TF_MS = { M5: 300000, M15: 900000, M30: 1800000, H1: 3600000, H4: 14400000, D1: 86400000 };
 const TF_FROM_INTERVAL = { '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' };
-const API = 'http://127.0.0.1:20200/api/trading/ohlc';
+const API = '/api/trading/ohlc';
 
 function valid(c) {
   return c && [c.open,c.high,c.low,c.close].every(Number.isFinite) &&
     c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high) &&
     typeof c.timestamp === 'string' && Number.isFinite(Date.parse(c.timestamp)) &&
-    c.isSimulated !== true && c.source === 'MT5_LOCAL_BRIDGE';
+    c.isSimulated !== true && ['MT5_LOCAL_BRIDGE', 'GOLDPRICE_DEV'].includes(c.source);
 }
 function trend(candles) {
   if (!Array.isArray(candles) || candles.length < 50) return 'UNKNOWN';
@@ -65,13 +65,13 @@ export default function JINLiveSignalChart({symbol='XAUUSD',interval='60'}) {
         // Keep the same validated broker candles available to ChartReader and the
         // advanced analysis modal, not only to this SVG component.
         const allCandles = Object.entries(next).flatMap(([timeframe, rows]) =>
-          rows.map(c => ({ ...c, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', isSimulated: false }))
+          rows.map(c => ({ ...c, symbol, timeframe, source: c.source || 'UNKNOWN', isSimulated: false }))
         );
         if (allCandles.length) {
           marketDataServiceInstance.addBatchCandles(allCandles);
-          marketDataServiceInstance.setStatus('CONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
+          marketDataServiceInstance.setStatus('CONNECTED', { source: [...new Set(allCandles.map(c => c.source))].join('+'), isSimulated: false });
         } else {
-          marketDataServiceInstance.setStatus('DISCONNECTED', { source: 'MT5_LOCAL_BRIDGE', isSimulated: false });
+          marketDataServiceInstance.setStatus('DISCONNECTED', { source: 'GOLDPRICE_DEV', isSimulated: false });
         }
         setSeries(next); setError(''); setLastPoll(new Date().toISOString());
       } catch(e) { if(!cancelled)setError(e?.message||'Sumber OHLC lokal tidak tersedia'); }
