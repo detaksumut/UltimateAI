@@ -58,7 +58,7 @@ function buildAuthHeaders() {
 /** Mask anything that looks like a key/token from an arbitrary text blob. */
 export function maskSecrets(text = '') {
   const raw = String(text);
-  const key = String(process.env.NINEROUTER_KEY || '').trim();
+  const key = resolveNineRouterApiKey();
   let out = raw;
   if (key && key.length >= 8) {
     out = out.split(key).join('[REDACTED]');
