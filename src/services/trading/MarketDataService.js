@@ -6,7 +6,7 @@
 export const CANDLE_SCHEMA = {
   symbol: 'string', timeframe: 'string', timestamp: 'string',
   open: 'number', high: 'number', low: 'number', close: 'number',
-  volume: 'number', source: 'string', isSimulated: 'boolean',
+  volume: 'number|null', source: 'string', isSimulated: 'boolean',
 };
 
 const TIMEFRAMES = { M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
@@ -15,7 +15,7 @@ function isValidCandle(c) {
   if (!c || typeof c !== 'object') return false;
   const { symbol, timeframe, open, high, low, close, volume, timestamp } = c;
   if (!symbol || !timeframe ||
-      ![open, high, low, close, volume].every(v => typeof v === 'number' && Number.isFinite(v)) ||
+      ![open, high, low, close].every(v => typeof v === 'number' && Number.isFinite(v)) || !(volume === null || (typeof volume === 'number' && Number.isFinite(volume))) ||
       typeof timestamp !== 'string' || !Number.isFinite(new Date(timestamp).getTime())) return false;
   return high >= Math.max(open, close, low) && low <= Math.min(open, close, high);
 }
