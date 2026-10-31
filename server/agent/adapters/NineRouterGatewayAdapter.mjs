@@ -31,6 +31,7 @@
 import crypto from 'crypto';
 
 import '../../config/env.mjs';
+import { resolveNineRouterApiKey } from '../../config/ninerouter-auth.mjs';
 import { resolveRequestSizes } from '../ImageOutputConfig.mjs';
 
 const DISCOVERY_CACHE_TTL_MS = 30_000;
@@ -40,20 +41,18 @@ const REQUEST_TIMEOUT_MS = 120_000;
 export const NINEROUTER_DEFAULT_URL = 'http://127.0.0.1:20128';
 export const GATEWAY_NAME = '9ROUTER';
 
-const PLACEHOLDER_KEYS = new Set(['NINEROUTER_KEY_ANDA', 'YOUR_NINEROUTER_KEY', '']);
-
 function resolveBaseUrl() {
   return (process.env.NINEROUTER_URL || NINEROUTER_DEFAULT_URL).replace(/\/+$/, '');
 }
 
 function hasAuthConfigured() {
-  const key = String(process.env.NINEROUTER_KEY || '').trim();
-  return key.length > 0 && !PLACEHOLDER_KEYS.has(key);
+  return Boolean(resolveNineRouterApiKey());
 }
 
 function buildAuthHeaders() {
-  if (!hasAuthConfigured()) return {};
-  return { Authorization: `Bearer ${String(process.env.NINEROUTER_KEY).trim()}` };
+  const key = resolveNineRouterApiKey();
+  if (!key) return {};
+  return { Authorization: `Bearer ${key}` };
 }
 
 /** Mask anything that looks like a key/token from an arbitrary text blob. */
