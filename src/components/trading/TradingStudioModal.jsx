@@ -108,11 +108,15 @@ export default function TradingStudioModal({ onClose }) {
         </section>
       </div>
       
-      <section aria-label="Cross Asset Monitor" style={{ marginTop: 12, minWidth: 0 }}>
-        <CrossAssetMonitor />
+      <section aria-label="Fundamental news and cross-asset monitor" className="jin-fundamental-crossasset-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginTop: 12, alignItems: 'start', minWidth: 0 }}>
+        <div style={{ minWidth: 0 }}>
+          <GoldNewsModal open={true} onClose={() => {}} instrument={instrument} inline />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <CrossAssetMonitor />
+        </div>
       </section>
-      <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
-      <style>{'@media(max-width:900px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
+      <style>{'@media(max-width:900px){.jin-trading-grid,.jin-fundamental-crossasset-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
 }
