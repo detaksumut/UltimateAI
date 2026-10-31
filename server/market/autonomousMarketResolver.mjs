@@ -205,8 +205,8 @@ export function symbolToCanonical(symbol, rawName, extra = {}) {
     category: isIndonesia ? 'indonesia' : 'global',
     currency: isIndonesia ? 'IDR' : 'USD',
     quoteCandidates: [isIndonesia ? 'IDR' : 'USD'],
-    meta: { disabled provider: ticker },
-    providers: ['provider-nonaktif'],
+    meta: {},
+    providers: [],
     isOpenWorld: true
   };
 }
