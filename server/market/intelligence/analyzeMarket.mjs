@@ -1,7 +1,7 @@
 /**
  * analyzeMarket.mjs - MIE v1 orkestrator analysis (makro LIVE)
  *
- * DATA: disabled provider (harga/seri) + FRED & BLS (makro AS live) - semua real, tanpa mock.
+ * DATA: provider harga nonaktif + FRED & BLS (makro AS live) - semua real, tanpa mock.
  * FLOW: Foreign flow IDX tidak punya sumber live gratis (idx.co.id 403) ->
  *       tetap MANUAL_SNAPSHOT. TIDAK PERNAH dikarang.
  * JUJUR: consensus tidak tersedia -> selalu null + flag.
@@ -11,7 +11,7 @@ import { buildScenarios, detectMarketState } from './ScenarioEngine.mjs';
 import { loadMacroSnapshot } from './MacroStore.mjs';
 import { fetchLiveMacro } from './MacroLiveEngine.mjs';
 import { scoreMacro, buildScores } from './TransmissionEngine.mjs';
-import { MIE_BASKET, fetchdisabled providerCloses } from './MarketIntelligenceEngine.mjs';
+import { MIE_BASKET, fetchExternalCloses } from './MarketIntelligenceEngine.mjs';
 
 const chg = (q) => (q.ok && q.last != null && q.prev ? ((q.last - q.prev) / q.prev) * 100 : null);
 const quote = (q, label) => ({
@@ -27,13 +27,13 @@ export async function analyzeMarket({ symbol = 'IHSG' } = {}) {
   const target = MIE_BASKET[key] ? key : 'IHSG';
   const startedAt = new Date().toISOString();
   const [main, usdidr, dxy, us10y, wti, gold, btc, macroLive] = await Promise.all([
-    fetchdisabled providerCloses(MIE_BASKET[target].disabled provider),
-    fetchdisabled providerCloses(MIE_BASKET.USDIDR.disabled provider, '1mo'),
-    fetchdisabled providerCloses(MIE_BASKET.DXY.disabled provider, '1mo'),
-    fetchdisabled providerCloses(MIE_BASKET.US10Y.disabled provider, '1mo'),
-    fetchdisabled providerCloses(MIE_BASKET.WTI.disabled provider, '1mo'),
-    fetchdisabled providerCloses(MIE_BASKET.GOLD.disabled provider, '1mo'),
-    fetchdisabled providerCloses(MIE_BASKET.BTC.disabled provider, '1mo'),
+    fetchExternalCloses(MIE_BASKET[target].symbol),
+    fetchExternalCloses(MIE_BASKET.USDIDR.symbol, '1mo'),
+    fetchExternalCloses(MIE_BASKET.DXY.symbol, '1mo'),
+    fetchExternalCloses(MIE_BASKET.US10Y.symbol, '1mo'),
+    fetchExternalCloses(MIE_BASKET.WTI.symbol, '1mo'),
+    fetchExternalCloses(MIE_BASKET.GOLD.symbol, '1mo'),
+    fetchExternalCloses(MIE_BASKET.BTC.symbol, '1mo'),
     fetchLiveMacro()
   ]);
   const closes = Array.isArray(main.closes) ? main.closes : [];
