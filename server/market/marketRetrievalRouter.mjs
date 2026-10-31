@@ -1,54 +1,28 @@
 /**
- * marketRetrievalRouter.mjs
- * CANONICAL MARKET RETRIEVAL ROUTER.
- *
- * MarketQuery (utterance)
- *   → CanonicalInstrumentResolver
- *   → ProviderRouter (fallback chain, per category)
- *   → ProviderAdapters (each with its OWN symbol format)
- *   → Normalized Common Schema
- *
- * Golden rules enforced here:
- *   - A common instrument like BTC must NOT terminate at the first failed internal
- *     route. The router attempts EVERY configured provider before concluding.
- *   - EXHAUSTED is allowed ONLY AFTER canonical resolution succeeded AND every
- *     configured provider was actually attempted and failed/returned unverifiable
- *     data.
- *   - DO NOT give up because ONE internal engine / symbol mapping / provider /
- *     endpoint failed.
- *   - Distinguish NO DATA EXISTS (unresolvable instrument → immediate honest no) from
- *     THE CURRENT PROVIDER FAILED (keep trying the chain).
- *   - Never fabricate a price. If only price is available, return just that.
- *   - The UI source list reflects ONLY providers actually attempted (diagnostics).
+ * Market retrieval router.
+ * Provider adapters must be exported by providerAdapters.mjs and must also be
+ * present in the canonical instrument's provider chain.
  */
 import { resolveCanonicalInstrument, providerChainFor } from './instrumentResolver.mjs';
 import * as adapters from './providerAdapters.mjs';
 
 const ADAPTERS = {
   binance: adapters.binanceQuote,
-  coingecko: adapters.coingeckoQuote,
-  yahoo: adapters.yahooQuote
+  coingecko: adapters.coingeckoQuote
 };
 
-// Optionally honor a narrowed/forced provider order override (e.g. certifi tests).
 function effectiveChain(canonical, options = {}) {
   const base = providerChainFor(canonical);
   if (Array.isArray(options.providerOrder) && options.providerOrder.length) {
-    const lower = options.providerOrder.map((p) => String(p).toLowerCase());
-    const filtered = base.filter((p) => lower.includes(p));
+    const lower = options.providerOrder.map(p => String(p).toLowerCase());
+    const filtered = base.filter(p => lower.includes(p));
     return filtered.length ? filtered : base;
   }
   return base;
 }
 
-/**
- * Retrieve REAL market data for an utterance/canonical/panelId.
- * @param {string|object} query - utterance, canonical object, or panelId
- * @param {object} options - { providerOrder?, reportType? }
- * @returns { Promise<object> } normalizedResult (common schema) or honest exhausted
- */
 export async function retrieveMarketData(query, options = {}) {
-  const canonical = (query && typeof query === 'object' && query.asset)
+  const canonical = query && typeof query === 'object' && query.asset
     ? query
     : resolveCanonicalInstrument(query);
 
@@ -66,18 +40,15 @@ export async function retrieveMarketData(query, options = {}) {
 
   const diagnostics = [];
   const attempted = [];
-  const chain = effectiveChain(canonical, options);
-
-  for (const providerName of chain) {
+  for (const providerName of effectiveChain(canonical, options)) {
     const adapter = ADAPTERS[providerName];
-    if (!adapter) {
+    if (typeof adapter !== 'function') {
       diagnostics.push({ provider: providerName, status: 'SKIPPED no-adapter' });
       continue;
     }
     attempted.push(providerName);
     try {
       const result = await adapter(canonical, diagnostics);
-      // Normalize is already performed by the adapter (common schema).
       return {
         ok: true,
         exhausted: false,
@@ -88,8 +59,8 @@ export async function retrieveMarketData(query, options = {}) {
         attempted
       };
     } catch (err) {
-      const diag = adapters.classifyRouterError(err,
-        err && /HTTP (\d+)/.exec(String(err.message)) ? Number(/HTTP (\d+)/.exec(String(err.message))[1]) : undefined);
+      const statusMatch = err && /HTTP (\d+)/.exec(String(err.message));
+      const diag = adapters.classifyRouterError(err, statusMatch ? Number(statusMatch[1]) : undefined);
       diagnostics.push({
         provider: providerName,
         status: 'FAILED',
@@ -99,7 +70,6 @@ export async function retrieveMarketData(query, options = {}) {
     }
   }
 
-  // Only reached after EVERY configured provider was attempted.
   return {
     ok: false,
     exhausted: true,
@@ -112,7 +82,6 @@ export async function retrieveMarketData(query, options = {}) {
   };
 }
 
-/** Strip any non-schema fields; keep only real returned values. */
 function sanitize(r) {
   return {
     asset: r.asset,

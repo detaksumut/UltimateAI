@@ -1,6 +1,6 @@
 // Live intermarket quotes for JIN Gold News Intelligence.
-// Yahoo Finance chart metadata is used as a public market-data fallback; quotes can be delayed
-// and market availability varies by instrument. The UI must never invent missing prices.
+// Yahoo Finance chart metadata is a public fallback; quotes can be delayed.
+// Missing quote fields remain null: never convert absent values into zero.
 const send = (res, status, body) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store, max-age=0');
@@ -20,10 +20,15 @@ const INSTRUMENTS = [
   { symbol: 'USDJPY', label: 'USD/JPY', ticker: 'USDJPY=X' }
 ];
 
+const finiteOrNull = value =>
+  value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+    ? Number(value)
+    : null;
+
 async function quote(item) {
   const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(item.ticker) + '?range=5d&interval=5m';
   const response = await fetch(url, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 JIN-GoldNews/1.0' },
+    headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 JIN-GoldNews/1.0' },
     signal: AbortSignal.timeout(8000),
     cache: 'no-store'
   });
@@ -31,32 +36,33 @@ async function quote(item) {
   const payload = await response.json();
   const result = payload?.chart?.result?.[0];
   if (!result?.meta) throw new Error(item.symbol + ' quote metadata unavailable');
+
   const meta = result.meta;
-  const price = Number(meta.regularMarketPrice);
-  const previousClose = Number(meta.chartPreviousClose ?? meta.previousClose);
-  if (!Number.isFinite(price)) throw new Error(item.symbol + ' price unavailable');
-  const changePercent = Number.isFinite(previousClose) && previousClose !== 0
-    ? ((price - previousClose) / previousClose) * 100
+  const price = finiteOrNull(meta.regularMarketPrice);
+  const previousClose = finiteOrNull(meta.chartPreviousClose ?? meta.previousClose);
+  if (price === null) throw new Error(item.symbol + ' price unavailable');
+
+  const change = previousClose !== null ? price - previousClose : null;
+  const changePercent = previousClose !== null && previousClose !== 0
+    ? (change / previousClose) * 100
     : null;
-  const marketState = String(meta.marketState || 'UNKNOWN');
   const indicators = result.indicators?.quote?.[0] || {};
-  const sparkline = (indicators.close || []).filter(v => Number.isFinite(v)).slice(-48);
-  const bid = Number(meta.bid);
-  const ask = Number(meta.ask);
+  const sparkline = (indicators.close || []).filter(v => v !== null && Number.isFinite(v)).slice(-48);
+
   return {
     symbol: item.symbol,
     label: item.label,
     ticker: item.ticker,
     price,
-    bid: Number.isFinite(bid) ? bid : null,
-    ask: Number.isFinite(ask) ? ask : null,
-    change: Number.isFinite(previousClose) ? price - previousClose : null,
+    bid: finiteOrNull(meta.bid),
+    ask: finiteOrNull(meta.ask),
+    change,
     sparkline,
-    previousClose: Number.isFinite(previousClose) ? previousClose : null,
-    changePercent: Number.isFinite(changePercent) ? changePercent : null,
+    previousClose,
+    changePercent,
     currency: meta.currency || null,
     exchange: meta.exchangeName || null,
-    marketState,
+    marketState: String(meta.marketState || 'UNKNOWN'),
     delayed: true,
     quoteAt: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null,
     source: 'Yahoo Finance chart metadata'
@@ -66,21 +72,34 @@ async function quote(item) {
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return send(res, 204, {});
   if (req.method !== 'GET') return send(res, 405, { success: false, error: 'Method not allowed. Use GET.' });
-  try {
-    const settled = await Promise.allSettled(INSTRUMENTS.map(quote));
-    const quotes = settled.map((item, index) => item.status === 'fulfilled'
-      ? item.value
-      : ({ symbol: INSTRUMENTS[index].symbol, label: INSTRUMENTS[index].label, ticker: INSTRUMENTS[index].ticker, price: null, changePercent: null, marketState: 'UNAVAILABLE', delayed: true, error: item.reason?.message || 'Quote unavailable', source: 'Yahoo Finance' }));
-    return send(res, 200, {
-      success: true,
-      provider: 'Yahoo Finance chart metadata',
-      fetchedAt: new Date().toISOString(),
-      delayed: true,
-      quotes,
-      unavailableCount: quotes.filter(q => !Number.isFinite(q.price)).length,
-      note: 'Public fallback data may be delayed and is not a guaranteed real-time exchange feed.'
-    });
-  } catch (error) {
-    return send(res, 502, { success: false, error: error?.message || 'Intermarket quote request failed' });
-  }
+
+  const settled = await Promise.allSettled(INSTRUMENTS.map(quote));
+  const quotes = settled.map((item, index) => item.status === 'fulfilled'
+    ? item.value
+    : ({
+        symbol: INSTRUMENTS[index].symbol,
+        label: INSTRUMENTS[index].label,
+        ticker: INSTRUMENTS[index].ticker,
+        price: null,
+        bid: null,
+        ask: null,
+        change: null,
+        sparkline: [],
+        previousClose: null,
+        changePercent: null,
+        marketState: 'UNAVAILABLE',
+        delayed: true,
+        error: item.reason?.message || 'Quote unavailable',
+        source: 'Yahoo Finance'
+      }));
+
+  return send(res, 200, {
+    success: true,
+    provider: 'Yahoo Finance chart metadata',
+    fetchedAt: new Date().toISOString(),
+    delayed: true,
+    quotes,
+    unavailableCount: quotes.filter(q => !Number.isFinite(q.price)).length,
+    note: 'Public fallback data may be delayed and is not a guaranteed real-time exchange feed.'
+  });
 }
