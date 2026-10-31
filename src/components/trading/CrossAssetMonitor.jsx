@@ -40,7 +40,7 @@ function summarizeGold(candles) {
       c.high >= Math.max(c.open, c.close, c.low) &&
       c.low <= Math.min(c.open, c.close, c.high) &&
       c.isSimulated !== true &&
-      ['GOLDPRICE_DEV', 'MT5_LOCAL_BRIDGE'].includes(c.source))
+      ['GOLDPRICE_DEV', 'MT5_LOCAL_BRIDGE', 'YAHOO_FINANCE'].includes(c.source))
     .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
   if (valid.length < 20) return { symbol: 'XAUUSD', trend: 'DATA BELUM CUKUP', price: valid.at(-1)?.close ?? null, date: valid.at(-1)?.timestamp ?? null };
   const closes = valid.map(c => c.close);
