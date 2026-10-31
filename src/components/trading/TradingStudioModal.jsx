@@ -13,17 +13,18 @@ function chartUrl(symbol) {
     style: '1',
     timezone: 'Asia/Jakarta',
     hide_top_toolbar: '1',
+    hide_side_toolbar: '1',
     hide_legend: '1',
     hide_volume: '1',
-    hidesidetoolbar: '1',
-    symboledit: '0',
+    allow_symbol_change: '0',
     saveimage: '0',
     withdateranges: '0',
     hideideas: '1',
-    toolbarbg: '030812',
     details: '0',
     hotlist: '0',
     calendar: '0',
+    toolbarbg: '030812',
+    show_popup_button: '0',
   });
   return `https://www.tradingview.com/widgetembed/?${params.toString()}`;
 }
@@ -37,14 +38,14 @@ export default function TradingStudioModal() {
         height: '100vh',
         minHeight: '100vh',
         boxSizing: 'border-box',
-        padding: 8,
+        padding: 4,
         margin: 0,
         background: '#030812',
         display: 'grid',
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         gridTemplateRows: 'minmax(0, 1fr)',
         alignItems: 'stretch',
-        gap: 8,
+        gap: 4,
         overflow: 'hidden',
       }}
     >
@@ -57,7 +58,6 @@ export default function TradingStudioModal() {
             minHeight: 0,
             height: '100%',
             overflow: 'hidden',
-            borderRadius: 4,
             background: '#030812',
           }}
         >
@@ -70,7 +70,7 @@ export default function TradingStudioModal() {
           />
         </section>
       ))}
-      <style>{'@media(max-width:700px){main[aria-label="Live Oil and Silver Charts"]{height:100vh!important;grid-template-columns:1fr!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;overflow:auto!important}main[aria-label="Live Oil and Silver Charts"] section{height:calc(50vh - 12px)!important;min-height:220px!important}}'}</style>
+      <style>{'@media(max-width:700px){main[aria-label="Live Oil and Silver Charts"]{height:100vh!important;grid-template-columns:1fr!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;overflow:auto!important}main[aria-label="Live Oil and Silver Charts"] section{height:calc(50vh - 8px)!important;min-height:220px!important}}'}</style>
     </main>
   );
 }
