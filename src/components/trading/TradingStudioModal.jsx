@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
+import CrossAssetMonitor from './CrossAssetMonitor.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -25,7 +26,7 @@ export default function TradingStudioModal({ onClose }) {
   const [interval, setInterval] = useState('60');
   const [chartMode, setChartMode] = useState('normal');
   const [signal, setSignal] = useState(null);
-  const [showGoldNews, setShowGoldNews] = useState(false);
+  const [showGoldNews, setShowGoldNews] = useState(true);
   useEffect(() => {
     const onSignal = event => setSignal(event.detail || null);
     const onClear = () => setSignal(null);
@@ -62,8 +63,6 @@ export default function TradingStudioModal({ onClose }) {
         </div>
       </header>
 
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}><button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button></div>
-      <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
           <iframe
@@ -86,6 +85,18 @@ export default function TradingStudioModal({ onClose }) {
           <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
         </section>}
       </div>
+      <section aria-label="Trend Instrumen Live" style={{ marginTop: 12, minWidth: 0 }}>
+        <CrossAssetMonitor />
+      </section>
+      <section id="jin-gold-news-panel" aria-label="Berita Fundamental Emas" style={{ marginTop: 12, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, color: '#22d3ee', fontSize: 13, letterSpacing: 1, fontWeight: 900 }}>✦ BERITA FUNDAMENTAL EMAS</h2>
+          <button type="button" onClick={() => setShowGoldNews(v => !v)} aria-expanded={showGoldNews} style={{ padding: '7px 10px', border: '1px solid #155e75', borderRadius: 5, background: '#071827', color: '#a5f3fc', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
+            {showGoldNews ? 'SEMBUNYIKAN BERITA' : 'TAMPILKAN BERITA'}
+          </button>
+        </div>
+        {showGoldNews && <GoldNewsModal open={showGoldNews} onClose={() => setShowGoldNews(false)} instrument={instrument} inline />}
+      </section>
       <style>{'@media(max-width:850px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
