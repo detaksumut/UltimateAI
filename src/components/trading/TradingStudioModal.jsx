@@ -47,7 +47,7 @@ export default function TradingStudioModal({ onClose }) {
   const instrument = symbol.split(':').pop();
   const timeframe = ({ '5': 'M5', '15': 'M15', '30': 'M30', '60': 'H1', '240': 'H4', D: 'D1' })[interval] || 'H1';
   const isFullChart = chartMode === 'full';
-  const gridColumns = 'minmax(0, 1fr)';
+  const gridColumns = 'repeat(2, minmax(0, 1fr))';
 
   return (
     <main style={{ minHeight: 'calc(100vh - 24px)', background: '#030812', color: '#e2e8f0', padding: 10, fontFamily: 'Inter, system-ui, sans-serif', boxSizing: 'border-box' }}>
@@ -101,18 +101,18 @@ export default function TradingStudioModal({ onClose }) {
             <div style={{ fontSize: 8, color: '#64748b', marginTop: 5 }}>Dari pembacaan 4 TF · {signal.createdAt ? new Date(signal.createdAt).toLocaleTimeString() : ''}</div>
           </div>}
         </section>
+        <section aria-label="AI Technical Analyst" style={{minWidth:0,minHeight:560,border:'1px solid #164e63',borderRadius:7,background:'#06101d',padding:12,boxSizing:'border-box'}}>
+          <h2 style={{color:'#22d3ee',fontSize:12,letterSpacing:1,fontWeight:800,margin:'0 0 12px'}}>JIN GOLD TECHNICAL ANALYSIS</h2>
+          <VisualChartCapturePanel instrument={instrument} timeframe={timeframe} onTimeframeChange={setInterval} />
+          <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
+        </section>
       </div>
-      <section aria-label="AI Technical Analyst" style={{marginTop:12,minWidth:0,border:'1px solid #164e63',borderRadius:7,background:'#06101d',padding:12}}>
-        <h2 style={{color:'#22d3ee',fontSize:12,letterSpacing:1,fontWeight:800,margin:'0 0 12px'}}>JIN GOLD TECHNICAL ANALYSIS</h2>
-        <VisualChartCapturePanel instrument={instrument} timeframe={timeframe} onTimeframeChange={setInterval} />
-        <AIAnalystPanel instrument={instrument} timeframe={timeframe} />
-      </section>
       
       <section aria-label="Cross Asset Monitor" style={{ marginTop: 12, minWidth: 0 }}>
         <CrossAssetMonitor />
       </section>
       <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
-      <style>{'@media(max-width:1150px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
+      <style>{'@media(max-width:900px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
 }
