@@ -11,6 +11,7 @@
  */
 
 import { ModelRuntime } from './ModelRuntime.mjs';
+import { resolveNineRouterApiKey } from '../config/ninerouter-auth.mjs';
 
 const NON_STREAM_TIMEOUT_MS = 120_000;
 const STREAM_INACTIVITY_MS  = 120_000;
@@ -26,11 +27,9 @@ export class NineRouterChatAdapter extends ModelRuntime {
   isConfigured() { return true; }
 
   _baseHeaders() {
-    const key = String(process.env.NINEROUTER_KEY || '').trim();
+    const key = resolveNineRouterApiKey();
     const hdrs = { 'Content-Type': 'application/json' };
-    if (key && key.length > 0 && !['NINEROUTER_KEY_ANDA', 'YOUR_NINEROUTER_KEY'].includes(key)) {
-      hdrs['Authorization'] = `Bearer ${key}`;
-    }
+    if (key) hdrs.Authorization = `Bearer ${key}`;
     return hdrs;
   }
 
@@ -117,6 +116,12 @@ export class NineRouterChatAdapter extends ModelRuntime {
 
       if (!res.ok) {
         const errText = await res.text().catch(() => String(res.status));
+        if (res.status === 401 || res.status === 403) {
+          // Never include the configured token or opaque gateway details in auth errors.
+          throw new Error(
+            `9Router HTTP ${res.status}: autentikasi ditolak. Periksa key aktif di 9Router dan pastikan NINE_ROUTER_API_KEY, NINEROUTER_API_KEY, atau NINEROUTER_KEY menunjuk ke key yang sama. Nilai key tidak dicetak.`
+          );
+        }
         throw new Error(`9Router HTTP ${res.status}: ${errText}`);
       }
 
