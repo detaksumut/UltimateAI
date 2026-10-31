@@ -81,7 +81,6 @@ export default function TradingStudioModal({ onClose }) {
         <div style={{fontSize:9,color:"#94a3b8"}}>Chart TradingView · AI Technical Analysis, pemantauan lintas-instrumen D1/H4, dan penelusuran berita fundamental tersaji di bawah chart.</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           <a href="https://id.tradingview.com/chart/W7kNYFdb/" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",padding:"8px 10px",border:"1px solid #155e75",borderRadius:6,background:"#071827",color:"#bae6fd",fontSize:10,fontWeight:800,textDecoration:"none"}}>↗ BUKA CHART TERSIMPAN</a>
-          <button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button>
         </div>
       </div>
       
