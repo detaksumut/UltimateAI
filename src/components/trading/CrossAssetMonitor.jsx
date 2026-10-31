@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { marketDataServiceInstance } from '../../services/trading/MarketDataService.js';
-import { getChartCandles } from '../../services/trading/ChartReader.js';
 
 const ASSETS = [
   { symbol: 'XAUUSD', label: 'GOLD · XAUUSD', group: 'ACUAN UTAMA' },
@@ -17,110 +16,99 @@ const ASSETS = [
   { symbol: 'BTCUSDT', label: 'Bitcoin · BTCUSDT', group: 'RISK SENTIMENT' },
 ];
 const fmtPrice = v => Number.isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—';
+const emptyReading = symbol => ({ symbol, trend: 'MEMUAT DATA…', price: null, date: null, source: null, error: null });
 
-function summarize(symbol) {
-  const result = getChartCandles(symbol, 'D1', 200);
-  const candles = (result.candles || []).filter(c => Number.isFinite(c.close));
-  if (candles.length < 20) return { symbol, trend: 'DATA BELUM CUKUP', price: null, date: null };
-  const closes = candles.map(c => c.close);
-  const last = closes.at(-1);
+function summarizeCandles(symbol, input) {
+  const valid = (Array.isArray(input) ? input : []).filter(c =>
+    c && [Number(c.open), Number(c.high), Number(c.low), Number(c.close)].every(Number.isFinite) &&
+    Number(c.high) >= Math.max(Number(c.open), Number(c.close), Number(c.low)) &&
+    Number(c.low) <= Math.min(Number(c.open), Number(c.close), Number(c.high)) &&
+    c.isSimulated !== true
+  ).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp);
+  if (valid.length < 20) return {
+    symbol, trend: 'DATA BELUM CUKUP', price: valid.length ? Number(valid.at(-1).close) : null,
+    date: valid.at(-1)?.timestamp || null, source: valid.at(-1)?.source || null,
+    error: `Hanya ${valid.length} candle D1 valid; diperlukan minimal 20.`
+  };
+  const closes = valid.map(c => Number(c.close));
   const recent = closes.slice(-5).reduce((s, v) => s + v, 0) / 5;
   const prior = closes.slice(-20, -5).reduce((s, v) => s + v, 0) / 15;
   return {
     symbol,
     trend: recent > prior * 1.001 ? 'BULLISH' : recent < prior * 0.999 ? 'BEARISH' : 'SIDEWAYS',
-    price: last,
-    date: candles.at(-1)?.timestamp || null,
+    price: closes.at(-1), date: valid.at(-1)?.timestamp || null,
+    source: valid.at(-1)?.source || null, error: null,
   };
 }
 
-function summarizeGold(candles) {
-  const valid = (Array.isArray(candles) ? candles : [])
-    .filter(c => c && [c.open, c.high, c.low, c.close].every(Number.isFinite) &&
-      c.high >= Math.max(c.open, c.close, c.low) &&
-      c.low <= Math.min(c.open, c.close, c.high) &&
-      c.isSimulated !== true &&
-      ['GOLDPRICE_DEV', 'MT5_LOCAL_BRIDGE', 'YAHOO_FINANCE'].includes(c.source))
-    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
-  if (valid.length < 20) return { symbol: 'XAUUSD', trend: 'DATA BELUM CUKUP', price: valid.at(-1)?.close ?? null, date: valid.at(-1)?.timestamp ?? null };
-  const closes = valid.map(c => c.close);
-  const last = closes.at(-1);
-  const recent = closes.slice(-5).reduce((s, v) => s + v, 0) / 5;
-  const prior = closes.slice(-20, -5).reduce((s, v) => s + v, 0) / 15;
-  return {
-    symbol: 'XAUUSD',
-    trend: recent > prior * 1.001 ? 'BULLISH' : recent < prior * 0.999 ? 'BEARISH' : 'SIDEWAYS',
-    price: last,
-    date: valid.at(-1)?.timestamp || null,
-  };
+async function fetchDaily(symbol) {
+  const response = await fetch(`/api/trading/ohlc?symbol=${encodeURIComponent(symbol)}&timeframe=D1&limit=60`, { cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok || !data?.ok || !Array.isArray(data.candles)) {
+    throw new Error(data?.error || data?.message || `OHLC HTTP ${response.status}`);
+  }
+  const candles = data.candles.map(c => ({
+    ...c,
+    open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close),
+    timestamp: c.timestamp || c.time || c.date || c.datetime,
+    source: c.source || data.source || 'UNKNOWN',
+    isSimulated: c.isSimulated ?? data.isSimulated ?? false,
+  }));
+  return { data, candles, reading: summarizeCandles(symbol, candles) };
 }
 
 export default function CrossAssetMonitor() {
   const [revision, setRevision] = useState(0);
-  const [gold, setGold] = useState({ symbol: 'XAUUSD', trend: 'MEMUAT DATA…', price: null, date: null });
-  const [goldError, setGoldError] = useState('');
+  const [readings, setReadings] = useState(() => Object.fromEntries(ASSETS.map(a => [a.symbol, emptyReading(a.symbol)])));
+  const [errors, setErrors] = useState({});
   const [updatedAt, setUpdatedAt] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const refreshGold = async () => {
+  const refreshAll = async () => {
     setLoading(true);
-    try {
-      const response = await fetch('/api/trading/ohlc?symbol=XAUUSD&timeframe=D1&limit=30', { cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok || !data?.ok || !Array.isArray(data.candles)) {
-        throw new Error(data?.error || data?.message || `OHLC HTTP ${response.status}`);
+    const results = await Promise.allSettled(ASSETS.map(asset => fetchDaily(asset.symbol)));
+    const nextReadings = {};
+    const nextErrors = {};
+    const allCandles = [];
+    results.forEach((result, index) => {
+      const symbol = ASSETS[index].symbol;
+      if (result.status === 'fulfilled') {
+        const { reading, candles, data } = result.value;
+        nextReadings[symbol] = reading;
+        if (reading.error) nextErrors[symbol] = reading.error;
+        allCandles.push(...candles.map(c => ({ ...c, symbol, timeframe: 'D1' })));
+        if (reading.trend === 'DATA BELUM CUKUP') nextErrors[symbol] = reading.error;
+      } else {
+        const message = String(result.reason?.message || result.reason || 'Data tidak tersedia');
+        nextReadings[symbol] = { ...emptyReading(symbol), trend: 'DATA TIDAK TERSEDIA', error: message };
+        nextErrors[symbol] = message;
       }
-      // Normalize provider candles before validation: providers may expose source/isSimulated
-      // at the response level and OHLC values may arrive as numeric strings.
-      const candles = data.candles.map(c => ({
-        ...c,
-        open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close),
-        timestamp: c.timestamp || c.time || c.date || c.datetime,
-        source: c.source || data.source || 'GOLDPRICE_DEV',
-        isSimulated: c.isSimulated ?? data.isSimulated ?? false,
-      }));
-      const nextGold = summarizeGold(candles);
-      setGold(nextGold);
-      setGoldError(nextGold.trend === 'DATA BELUM CUKUP' ? 'Riwayat candle D1 valid belum cukup untuk menghitung tren.' : '');
-      setUpdatedAt(new Date().toISOString());
-      const marketCandles = candles.filter(c => c && Number.isFinite(c.close)).map(c => ({
-        ...c, symbol: 'XAUUSD', timeframe: 'D1', source: c.source || data.source || 'GOLDPRICE_DEV', isSimulated: c.isSimulated === true,
-      }));
-      if (marketCandles.length) {
-        marketDataServiceInstance.addBatchCandles(marketCandles);
-        marketDataServiceInstance.setStatus('CONNECTED', { source: data.source || 'GOLDPRICE_DEV', isSimulated: false });
-      }
-    } catch (error) {
-      setGoldError(error?.message || 'Gagal mengambil data D1');
-      setGold(current => ({ ...current, trend: 'DATA TIDAK TERSEDIA' }));
-    } finally {
-      setLoading(false);
+    });
+    setReadings(current => ({ ...current, ...nextReadings }));
+    setErrors(nextErrors);
+    setUpdatedAt(new Date().toISOString());
+    if (allCandles.length) {
+      marketDataServiceInstance.addBatchCandles(allCandles);
+      marketDataServiceInstance.setStatus('CONNECTED', { source: 'YAHOO_FINANCE', isSimulated: false });
     }
+    setRevision(v => v + 1);
+    setLoading(false);
   };
 
   useEffect(() => {
-    const unsub = marketDataServiceInstance.subscribe(() => setRevision(v => v + 1));
-    const timer = setInterval(() => setRevision(v => v + 1), 30000);
-    refreshGold();
-    const goldTimer = setInterval(refreshGold, 30000);
-    return () => {
-      if (typeof unsub === 'function') unsub();
-      clearInterval(timer);
-      clearInterval(goldTimer);
-    };
+    let alive = true;
+    const run = async () => { if (alive) await refreshAll(); };
+    run();
+    const timer = setInterval(run, 60000);
+    return () => { alive = false; clearInterval(timer); };
   }, []);
 
   const rows = useMemo(() => ASSETS.map(asset => ({
-    ...asset,
-    reading: asset.symbol === 'XAUUSD' ? gold : summarize(asset.symbol),
-  })), [revision, gold]);
+    ...asset, reading: readings[asset.symbol] || emptyReading(asset.symbol),
+  })), [readings, revision]);
 
   const pill = value => ({
-    display: 'inline-block',
-    padding: '4px 7px',
-    borderRadius: 4,
-    fontSize: 9,
-    fontWeight: 900,
+    display: 'inline-block', padding: '4px 7px', borderRadius: 4, fontSize: 9, fontWeight: 900,
     border: '1px solid ' + (value === 'BULLISH' ? '#166534' : value === 'BEARISH' ? '#9f1239' : '#334155'),
     color: value === 'BULLISH' ? '#4ade80' : value === 'BEARISH' ? '#fb7185' : '#cbd5e1',
     background: value === 'BULLISH' ? '#052e16' : value === 'BEARISH' ? '#4c0519' : '#0f172a',
@@ -130,11 +118,11 @@ export default function CrossAssetMonitor() {
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <div>
         <h2 style={{ margin: 0, color: '#67e8f9', fontSize: 14, letterSpacing: '.06em' }}>JIN CROSS-ASSET GOLD MONITOR</h2>
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>Tren harian D1 · data diperbarui otomatis setiap 30 detik</div>
+        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>Tren harian D1 · pembaruan otomatis setiap 60 detik · data publik dapat tertunda</div>
       </div>
-      <button onClick={() => { setRevision(v => v + 1); refreshGold(); }} disabled={loading} style={{ padding: '7px 10px', background: '#082f49', border: '1px solid #0e7490', borderRadius: 5, color: '#67e8f9', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'MEMUAT…' : '↻ REFRESH DATA'}</button>
+      <button onClick={refreshAll} disabled={loading} style={{ padding: '7px 10px', background: '#082f49', border: '1px solid #0e7490', borderRadius: 5, color: '#67e8f9', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'MEMUAT DATA…' : '↻ REFRESH DATA'}</button>
     </header>
-    {goldError && <div role="status" style={{ marginTop: 8, color: '#fbbf24', fontSize: 10 }}>Gold D1: {goldError}</div>}
+    {Object.keys(errors).length > 0 && <div role="status" style={{ marginTop: 8, color: '#fbbf24', fontSize: 10 }}>{Object.keys(errors).length} instrumen bermasalah atau belum memiliki 20 candle D1 valid. Rincian tersedia saat mengarahkan kursor ke status instrumen.</div>}
     <div style={{ marginTop: 10, overflowX: 'auto' }}>
       <table style={{ width: '100%', minWidth: 360, borderCollapse: 'collapse', fontSize: 10 }}>
         <thead><tr>{['INSTRUMEN', 'D1 TREND'].map(h => <th key={h} style={{ padding: 8, textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #164e63', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
@@ -142,15 +130,15 @@ export default function CrossAssetMonitor() {
           <td style={{ padding: 8, borderBottom: '1px solid #12283a', fontWeight: 800, color: asset.symbol === 'XAUUSD' ? '#67e8f9' : '#e2e8f0' }}>
             {asset.label}<div style={{ fontSize: 8, color: '#64748b', marginTop: 3 }}>{asset.group}</div>
           </td>
-          <td style={{ padding: 8, borderBottom: '1px solid #12283a', whiteSpace: 'nowrap' }}>
+          <td style={{ padding: 8, borderBottom: '1px solid #12283a', whiteSpace: 'nowrap' }} title={errors[asset.symbol] || asset.reading.error || `Sumber: ${asset.reading.source || 'menunggu data'}`}>
             <span style={pill(asset.reading.trend)}>{asset.reading.trend}</span>
-            {asset.symbol === 'XAUUSD' && asset.reading.price != null && <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 4 }}>{fmtPrice(asset.reading.price)}{asset.reading.date ? ` · ${new Date(asset.reading.date).toLocaleDateString()}` : ''}</div>}
+            {asset.reading.price != null && <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 4 }}>{fmtPrice(asset.reading.price)}{asset.reading.date ? ` · ${new Date(asset.reading.date).toLocaleDateString()}` : ''}</div>}
           </td>
         </tr>)}</tbody>
       </table>
     </div>
     <div style={{ marginTop: 8, fontSize: 9, color: '#64748b' }}>
-      {updatedAt ? `Pembaruan terakhir: ${new Date(updatedAt).toLocaleTimeString()} · ` : ''}Tren Gold dihitung dari candle D1 valid yang diterima. Data paket gratis dapat tertunda; bukan harga real-time.
+      {updatedAt ? `Pembaruan terakhir: ${new Date(updatedAt).toLocaleTimeString()} · ` : ''}Sumber: Yahoo Finance (data publik, dapat tertunda). XAUUSD memakai proksi futures emas GC=F, bukan kuotasi spot MT5. Tren memakai 20 candle D1 valid; bukan rekomendasi transaksi.
     </div>
   </section>;
 }
