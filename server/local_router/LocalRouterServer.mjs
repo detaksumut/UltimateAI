@@ -154,6 +154,9 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
 }
 
 export function createLocalRouterServer() {
+  // In-memory SSOT for broker-authenticated MT5 OHLC. Never seed simulated candles.
+  const jinOhlc = new Map();
+  const jinTicks = new Map();
   const server = http.createServer(async (req, res) => {
     // CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -177,6 +180,78 @@ export function createLocalRouterServer() {
         try { resolve(JSON.parse(body || '{}')); } catch { resolve({}); }
       });
     });
+
+    // JIN OHLC bridge: real broker candles arrive from the MT5 Expert Advisor.
+    if (pathname === '/api/trading/ohlc/ingest' && req.method === 'POST') {
+      try {
+        let raw = '';
+        for await (const chunk of req) {
+          raw += chunk;
+          if (raw.length > 2_000_000) throw new Error('OHLC payload exceeds 2 MB');
+        }
+        const payload = JSON.parse(raw || '{}');
+        const allowedSymbols = new Set(['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30']);
+        const allowedFrames = new Set(['M5','M15','H1','H4','D1']);
+        let accepted = 0;
+        const rejected = [];
+        for (const item of Array.isArray(payload.candles) ? payload.candles : []) {
+          const symbol = String(item?.symbol || '').toUpperCase();
+          const timeframe = String(item?.timeframe || '').toUpperCase();
+          const rawTs = item?.timestamp;
+          const timestamp = typeof rawTs === 'number'
+            ? new Date(rawTs < 1e12 ? rawTs * 1000 : rawTs).toISOString()
+            : (typeof rawTs === 'string' ? new Date(rawTs).toISOString() : '');
+          const nums = ['open','high','low','close','volume'].map(k => Number(item?.[k]));
+          const [open,high,low,close,volume] = nums;
+          const valid = allowedSymbols.has(symbol) && allowedFrames.has(timeframe) &&
+            timestamp && Number.isFinite(Date.parse(timestamp)) &&
+            nums.every(Number.isFinite) && volume >= 0 &&
+            high >= Math.max(open,close,low) && low <= Math.min(open,close,high);
+          if (!valid) { rejected.push({ symbol, timeframe, reason: 'INVALID_CANDLE' }); continue; }
+          const candle = { symbol, timeframe, timestamp, open, high, low, close, volume,
+            source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
+          const key = symbol + '|' + timeframe;
+          const previous = jinOhlc.get(key) || [];
+          const byTime = new Map(previous.map(c => [c.timestamp,c]));
+          byTime.set(timestamp,candle);
+          jinOhlc.set(key,Array.from(byTime.values()).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-500));
+          accepted++;
+        }
+        for (const tick of Array.isArray(payload.ticks) ? payload.ticks : []) {
+          const symbol = String(tick?.symbol || '').toUpperCase();
+          const bid = Number(tick?.bid), ask = Number(tick?.ask);
+          if (allowedSymbols.has(symbol) && Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask >= bid) {
+            jinTicks.set(symbol,{ symbol,bid,ask,timestamp:new Date().toISOString(),source:'MT5_LOCAL_BRIDGE' });
+          }
+        }
+        res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' });
+        res.end(JSON.stringify({ ok:true, source:'MT5_LOCAL_BRIDGE', accepted, rejected:rejected.length,
+          rejectedSamples:rejected.slice(0,10), updatedAt:new Date().toISOString() }));
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' });
+        res.end(JSON.stringify({ ok:false, error:error?.message || 'Invalid OHLC payload' }));
+      }
+      return;
+    }
+    if ((pathname === '/api/trading/ohlc' || pathname === '/api/trading/ohlc/status') && req.method === 'GET') {
+      const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
+      const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
+      const candles = jinOhlc.get(symbol + '|' + timeframe) || [];
+      const last = candles.at(-1) || null;
+      const age = last ? Date.now() - Date.parse(last.timestamp) : Infinity;
+      const timeframeMs = ({M5:300000,M15:900000,H1:3600000,H4:14400000,D1:86400000})[timeframe] || 3600000;
+      const freshness = !last ? 'NO_DATA' : age < timeframeMs * 2 ? 'FRESH' : age < timeframeMs * 24 ? 'RECENT' : 'STALE';
+      const limit = Math.max(1,Math.min(500,Number.parseInt(url.searchParams.get('limit') || '300',10) || 300));
+      const body = pathname.endsWith('/status')
+        ? { ok:true, symbol, timeframe, count:candles.length, lastUpdate:last?.timestamp || null, freshness,
+            source:'MT5_LOCAL_BRIDGE', isSimulated:false, tick:jinTicks.get(symbol) || null }
+        : { ok:true, symbol, timeframe, count:Math.min(limit,candles.length), candles:candles.slice(-limit),
+            lastUpdate:last?.timestamp || null, freshness, source:'MT5_LOCAL_BRIDGE', isSimulated:false,
+            tick:jinTicks.get(symbol) || null };
+      res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store, max-age=0' });
+      res.end(JSON.stringify(body));
+      return;
+    }
 
     // 1. Dashboard UI: GET /dashboard/connections, GET /dashboard, GET /
     if ((pathname === '/dashboard/connections' || pathname === '/dashboard' || pathname === '/') && req.method === 'GET') {
