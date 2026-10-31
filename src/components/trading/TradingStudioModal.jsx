@@ -36,7 +36,7 @@ export default function TradingStudioModal({ onClose }) {
   const [chartMode, setChartMode] = useState('normal');
   const [tradingViewMode, setTradingViewMode] = useState('widget');
   const [signal, setSignal] = useState(null);
-  const [showGoldNews, setShowGoldNews] = useState(true);
+  const [showGoldNews, setShowGoldNews] = useState(false);
   useEffect(() => {
     const onSignal = event => setSignal(event.detail || null);
     const onClear = () => setSignal(null);
@@ -81,7 +81,7 @@ export default function TradingStudioModal({ onClose }) {
         <div style={{fontSize:9,color:"#94a3b8"}}>Chart TradingView · AI Technical Analysis, pemantauan lintas-instrumen D1/H4, dan penelusuran berita fundamental tersaji di bawah chart.</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           <a href="https://id.tradingview.com/chart/W7kNYFdb/" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",padding:"8px 10px",border:"1px solid #155e75",borderRadius:6,background:"#071827",color:"#bae6fd",fontSize:10,fontWeight:800,textDecoration:"none"}}>↗ BUKA CHART TERSIMPAN</a>
-          <button type="button" onClick={()=>document.getElementById('jin-gold-news-panel')?.scrollIntoView({behavior:'smooth',block:'start'})} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button>
+          <button type="button" onClick={()=>setShowGoldNews(true)} style={{padding:"9px 13px",border:"1px solid #0891b2",borderRadius:6,background:"#062333",color:"#67e8f9",fontWeight:900,cursor:"pointer"}}>✦ BERITA FUNDAMENTAL EMAS</button>
         </div>
       </div>
       
@@ -111,9 +111,7 @@ export default function TradingStudioModal({ onClose }) {
       <section aria-label="Cross Asset Monitor" style={{ marginTop: 12, minWidth: 0 }}>
         <CrossAssetMonitor />
       </section>
-      <section id="jin-gold-news-panel" aria-label="Gold Fundamental News Intelligence" style={{marginTop:12}}>
-        <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} inline />
-      </section>
+      <GoldNewsModal open={showGoldNews} onClose={()=>setShowGoldNews(false)} instrument={instrument} />
       <style>{'@media(max-width:1150px){.jin-trading-grid{grid-template-columns:1fr!important}.jin-trading-grid section[aria-label="TradingView live chart"]{height:auto!important;min-height:60vh!important}}'}</style>
     </main>
   );
