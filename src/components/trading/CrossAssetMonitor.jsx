@@ -118,7 +118,7 @@ export default function CrossAssetMonitor() {
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       <div>
         <h2 style={{ margin: 0, color: '#67e8f9', fontSize: 14, letterSpacing: '.06em' }}>JIN CROSS-ASSET GOLD MONITOR</h2>
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>Tren harian D1 · pembaruan otomatis setiap 60 detik · data publik dapat tertunda</div>
+        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>Tren harian D1 · diperbarui saat sesi dibuka atau tombol refresh ditekan · data publik dapat tertunda</div>
       </div>
       <button onClick={refreshAll} disabled={loading} style={{ padding: '7px 10px', background: '#082f49', border: '1px solid #0e7490', borderRadius: 5, color: '#67e8f9', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'MEMUAT DATA…' : '↻ REFRESH DATA'}</button>
     </header>
