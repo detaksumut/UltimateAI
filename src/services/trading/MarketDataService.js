@@ -55,7 +55,21 @@ export class MarketDataService {
     if (previous && ['open','high','low','close','volume'].every(k => previous[k] === candle[k])) return false;
     this.candles.set(key, candle); this.lastUpdate = candle.timestamp; this.notify(); return true;
   }
-  addBatchCandles(candles = []) { let added = 0; candles.forEach(c => { if (this.addCandle(c)) added++; }); return added; }
+  addBatchCandles(candles = []) {
+    let added = 0;
+    for (const candle of candles) {
+      if (!isValidCandle(candle)) continue;
+      const key = `${candle.symbol}|${candle.timeframe}|${candle.timestamp}`;
+      const previous = this.candles.get(key);
+      if (previous && ['open','high','low','close','volume'].every(k => previous[k] === candle[k])) continue;
+      this.candles.set(key, candle);
+      this.lastUpdate = candle.timestamp;
+      added++;
+    }
+    // Batch inserts notify subscribers once instead of causing thousands of renders.
+    if (added) this.notify();
+    return added;
+  }
   setTick(symbol, { bid, ask, timestamp = new Date().toISOString(), source = 'unknown' } = {}) {
     if (!symbol || !Number.isFinite(bid) || !Number.isFinite(ask) || ask < bid) return false;
     this.ticks.set(symbol, { symbol, bid, ask, spread: ask - bid, timestamp, source });
