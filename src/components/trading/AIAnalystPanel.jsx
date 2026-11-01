@@ -8,6 +8,7 @@ import { marketDataServiceInstance, TIMEFRAMES } from '../../services/trading/Ma
 import { getChartCandles } from '../../services/trading/ChartReader.js';
 import { calculateIndicators } from '../../services/trading/IndicatorCalculator.js';
 import AdvancedAnalysisModal from './JINAdvancedAnalysisModal.jsx';
+import { RouterConfig } from '../../services/router/RouterConfig.js';
 
 const initialState = {
   instrument: 'XAUUSD', timeframe: TIMEFRAMES.M15,
@@ -95,7 +96,8 @@ export default function AIAnalystPanel({ instrument = 'XAUUSD', timeframe = TIME
     const poll = async () => {
       const results = await Promise.all(timeframes.map(async tf => {
         try {
-          const response = await fetch(`http://127.0.0.1:20200/api/trading/ohlc?symbol=${encodeURIComponent(instrument)}&timeframe=${tf}&limit=300`, { cache: 'no-store' });
+          const url = RouterConfig.api(`/trading/ohlc?symbol=${encodeURIComponent(instrument)}&timeframe=${tf}&limit=300`);
+          const response = await fetch(url, { cache: 'no-store' });
           if (!response.ok) throw new Error(`MT5 bridge HTTP ${response.status}`);
           return await response.json();
         } catch (error) {

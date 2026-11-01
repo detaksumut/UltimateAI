@@ -24,6 +24,8 @@ import { LOCAL_ROUTER_HEALTH_PATHS, LOCAL_ROUTER_HEALTH_PATH } from '../config/e
 import { wordpressPublisherToolInstance } from '../tools/WordPressPublisherTool.mjs';
 import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
 import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
+import visualChartAnalysisHandler from '../../api/trading/visual-chart-analysis.js';
+import intermarketQuotesHandler from '../../api/trading/intermarket-quotes.js';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
   if (!artifact || !artifact.renderable) return false;
@@ -294,7 +296,7 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 10C. POST /api/agent/run — AgentRuntime autonomous execution
+    // 10C. POST /api/agent/run â€” AgentRuntime autonomous execution
     if ((pathname === '/api/agent/run' || pathname === '/v1/agent/run') && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
@@ -328,7 +330,7 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 10C1. POST /api/files/parse — Parse PDF / DOCX documents uploaded from the frontend.
+    // 10C1. POST /api/files/parse â€” Parse PDF / DOCX documents uploaded from the frontend.
     // The frontend sends { fileName: string, dataUrl: string } and expects { text: string }.
     if (pathname === '/api/files/parse' && req.method === 'POST') {
       let body = '';
@@ -355,7 +357,7 @@ export function createLocalRouterServer() {
       return;
     }
 
-    // 10C2. POST /api/agent/stream-work — SSE streaming for professional work execution
+    // 10C2. POST /api/agent/stream-work â€” SSE streaming for professional work execution
     if ((pathname === '/api/agent/stream-work' || pathname === '/v1/agent/stream-work') && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
@@ -787,7 +789,7 @@ Requirements:
       return;
     }
 
-    // 11C. JIN DEVICE INTELLIGENCE APIs (LOCAL ONLY — read/analyze/diagnose)
+    // 11C. JIN DEVICE INTELLIGENCE APIs (LOCAL ONLY â€” read/analyze/diagnose)
     const deviceBase = (pathname === '/api/device/system' || pathname === '/api/device/memory'
       || pathname === '/api/device/process' || pathname === '/api/device/storage'
       || pathname === '/api/device/storage/deep' || pathname === '/api/device/runtime'
@@ -855,7 +857,7 @@ Requirements:
       return;
     }
 
-    // 11C2 (quote). CANONICAL MARKET QUOTE — resolve any instrument identifier and
+    // 11C2 (quote). CANONICAL MARKET QUOTE â€” resolve any instrument identifier and
     // retrieve REAL data through the provider fallback chain.
     if (pathname === '/api/market/quote' && req.method === 'GET') {
       try {
@@ -932,7 +934,7 @@ Requirements:
       }
       return;
     }
-    if (pathname === '/api/trading/ohlc' && req.method === 'GET') {
+    if ((pathname === '/api/trading/ohlc' || pathname === '/trading/ohlc') && req.method === 'GET') {
       const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
       const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit') || 300)));
@@ -947,7 +949,7 @@ Requirements:
         lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows }));
       return;
     }
-    if (pathname === '/api/trading/ohlc/status' && req.method === 'GET') {
+    if ((pathname === '/api/trading/ohlc/status' || pathname === '/trading/ohlc/status') && req.method === 'GET') {
       const sets = {};
       for (const tf of Object.keys(JIN_TRADING_TF_MS)) {
         const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
@@ -963,7 +965,7 @@ Requirements:
       return;
     }
 
-    // 11C2c. JIN CHART STUDIO — real provider candlestick (Binance klines)
+    // 11C2c. JIN CHART STUDIO â€” real provider candlestick (Binance klines)
     if (pathname === '/api/market/chart' && req.method === 'GET') {
       try {
         const u = new URL(req.url, 'http://localhost');
@@ -982,7 +984,7 @@ Requirements:
       return;
     }
 
-    // 11C2d. JIN CHART STUDIO — provider capability metadata
+    // 11C2d. JIN CHART STUDIO â€” provider capability metadata
     if (pathname === '/api/market/chart/providers' && req.method === 'GET') {
       try {
         const u = new URL(req.url, 'http://localhost');
@@ -996,7 +998,7 @@ Requirements:
       return;
     }
 
-    // 11C2e. JIN PERSISTENT INTELLIGENCE — resilient chart retrieval + report
+    // 11C2e. JIN PERSISTENT INTELLIGENCE â€” resilient chart retrieval + report
     if (pathname === '/api/market/chart/resilient' && req.method === 'GET') {
       try {
         const u = new URL(req.url, 'http://localhost');
@@ -1007,7 +1009,7 @@ Requirements:
           try {
             const parsed = JSON.parse(profilesRaw);
             if (parsed && Array.isArray(parsed.enabled)) networkProfiles = parsed;
-          } catch { /* malformed → no fallback */ }
+          } catch { /* malformed â†’ no fallback */ }
         }
         const result = await getResilientMarketChart({
           panelId: u.searchParams.get('panelId') || '',
@@ -1073,7 +1075,7 @@ Requirements:
       return;
     }
 
-    // 11D. SLIDE STUDIO — Autonomous Programmatic Corporate Presentation Engine
+    // 11D. SLIDE STUDIO â€” Autonomous Programmatic Corporate Presentation Engine
     if ((pathname === '/api/studio/slide/create' || pathname === '/v1/studio/slide/create') && req.method === 'POST') {
       const body = await readJsonBody();
       try {
@@ -1088,7 +1090,7 @@ Requirements:
       return;
     }
 
-    // 11E. GET /artifacts/slides/* — Static serving for generated slide assets
+    // 11E. GET /artifacts/slides/* â€” Static serving for generated slide assets
     if (pathname.startsWith('/artifacts/slides/') && req.method === 'GET') {
       const fileName = path.basename(pathname);
       const filePath = path.join('d:/Users/ultimateai/artifacts/slides', fileName);
@@ -1111,7 +1113,7 @@ Requirements:
       }
     }
 
-    // 11F. ARCHITECTURAL STUDIO — Autonomous Architectural Design & Building Workflow Engine
+    // 11F. ARCHITECTURAL STUDIO â€” Autonomous Architectural Design & Building Workflow Engine
     if (pathname === '/api/studio/architectural/create' && req.method === 'POST') {
       const body = await readJsonBody();
       try {
@@ -1171,9 +1173,9 @@ Requirements:
 
       const requestId = 'req-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
 
-      // ═══════════════════════════════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // 0. FAST-PATH DETERMINISTIC CLASSIFIERS & DIRECT DISPATCH
-      // ═══════════════════════════════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       if (userPrompt && typeof userPrompt === 'string' && userPrompt.trim().length > 0 && !payload.skipIntentGate && !payload._internal) {
         const { semanticIntentEngineInstance } = await import('../agent/SemanticIntentEngine.mjs');
         const sie = semanticIntentEngineInstance;
@@ -1187,11 +1189,11 @@ Requirements:
           userPrompt.includes('--- [STATUS DOKUMEN') ||
           /(?:baca\s+ini|baca\s+dokumen|point\s+point|poin\s+poin|outline|rangkum|ringkas|buatkan\s+point|buat\s+analisa|buatkan\s+analisa|analisa\s+kamu|analisis\s+dokumen|kesimpul\w*|simpulkan)\b/i.test(userPrompt);
 
-        // ═══════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         // PRIORITY 1: ACTIVE STUDIO CONTINUATION & CREATION GATE
         // Evaluated before any generic classifier or image generator!
         // (Skipped for document reading/summarization contexts)
-        // ═══════════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         if (!isDocRequest) {
           try {
             const { studioContinuationRouterInstance } = await import('../studio/core/StudioContinuationRouter.mjs');
@@ -1277,11 +1279,11 @@ Requirements:
 
         if (deterministicDecision) {
           console.log(`[INTENT_GATE] Fast-path hit: intent=${deterministicDecision.intent}`);
-          console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → ProductionEngine`);
+          console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} â†’ ProductionEngine`);
 
           // 0A. SLIDE STUDIO PATH
-          // PRINCIPLE: AI DECIDES → CODE EXECUTES.
-          // Multi-slide deck creation (isDeck) is NOT handled here — the deck plan
+          // PRINCIPLE: AI DECIDES â†’ CODE EXECUTES.
+          // Multi-slide deck creation (isDeck) is NOT handled here â€” the deck plan
           // must come from the LLM, not from deterministic code.
           // Only single-slide rendering (no deck count) is handled here.
           if (deterministicDecision.intent === 'SLIDE_STUDIO') {
@@ -1293,7 +1295,7 @@ Requirements:
                 // Multi-slide deck: do NOT fabricate a plan.
                 // Let the request fall through to the LLM.
                 // StudioContinuationRouter has already initialized the session with slidePlan:[].
-                console.log(`[INTENT_GATE] Deck creation detected (${deckDetection.count} slides) — passing to LLM for AI deck planning.`);
+                console.log(`[INTENT_GATE] Deck creation detected (${deckDetection.count} slides) â€” passing to LLM for AI deck planning.`);
                 // fall through (no return)
               } else {
                 // Single-slide: deterministic render from user-provided content
@@ -1303,10 +1305,10 @@ Requirements:
                 const previewUrl = `/artifacts/slides/${path.basename(slideResult.files.preview.path)}`;
                 const slideTitle = `SLIDE MASTER: ${slideResult.title.toUpperCase()}`;
                 const detailedTextDisplay = `Berikut adalah **${slideResult.title}** yang telah selesai dirancang:\n\n` +
-                  `• **Arketipe Visual**: ${slideResult.slideType}\n` +
-                  `• **Format**: 16:9 Widescreen High Definition\n` +
-                  `• **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
-                  `👉 **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
+                  `â€¢ **Arketipe Visual**: ${slideResult.slideType}\n` +
+                  `â€¢ **Format**: 16:9 Widescreen High Definition\n` +
+                  `â€¢ **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
+                  `ðŸ‘‰ **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
                   `Silakan sampaikan catatan jika Anda ingin mengubah bagian tertentu pada slide ini.`;
 
                 if (isStream) {
@@ -1394,7 +1396,7 @@ Requirements:
                 masterDesignStateInstance.approveMasterDraft();
                 const productionResult = await architecturalStudioInstance.produceAllSteps();
                 
-                responseText = `### 🏛️ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
+                responseText = `### ðŸ›ï¸ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
                   `Master Design Draft telah disetujui. Seluruh 8 langkah visual rancang bangun telah diproduksi secara mandiri (1 Komponen = 1 Artifact Terpisah):\n\n` +
                   `1. **[STEP 01: Denah Tata Ruang (Lt 1 & 2)](/artifacts/architecture/STEP_01_DENAH.svg)** (Kode: AR-01)\n` +
                   `2. **[STEP 02: Rangka Struktur & Grid As Kolom](/artifacts/architecture/STEP_02_STRUKTUR.svg)** (Kode: ST-02)\n` +
@@ -1415,11 +1417,11 @@ Requirements:
                 };
               } else if (activeProject && isRevision) {
                 const revResult = architecturalStudioInstance.applyRevision(cleanPrompt);
-                responseText = `### 🔄 Revisi Desain Arsitektur Diterapkan\n\n` +
+                responseText = `### ðŸ”„ Revisi Desain Arsitektur Diterapkan\n\n` +
                   `Instruksi: *"${cleanPrompt}"*\n\n` +
-                  `• **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
-                  `• **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
-                  `• **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
+                  `â€¢ **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
+                  `â€¢ **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
+                  `â€¢ **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
 
                 agentPayload = {
                   intent: 'ARCHITECTURAL_DESIGN',
@@ -1429,7 +1431,7 @@ Requirements:
               } else {
                 const initResult = architecturalStudioInstance.initiateDesignProject(cleanPrompt);
                 responseText = initResult.masterDraft + `\n\n---\n` +
-                  `💡 **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
+                  `ðŸ’¡ **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
 
                 agentPayload = {
                   intent: 'ARCHITECTURAL_DESIGN',
@@ -2038,7 +2040,7 @@ Requirements:
           }
           const p = userPrompt.toLowerCase();
 
-          // Deteksi pertanyaan waktu/tanggal — jawab dari waktu sistem, bukan pencarian internet
+          // Deteksi pertanyaan waktu/tanggal â€” jawab dari waktu sistem, bukan pencarian internet
           const isDateTimeQuestion = /\b(tahun berapa|tanggal berapa|hari ini|sekarang|jam berapa|what (is|are) the (date|time|year)|hari apa|waktu saat ini)\b/i.test(p);
           if (isDateTimeQuestion) return false;
 
@@ -2126,23 +2128,23 @@ Requirements:
         }
       }
 
-      // ─────────────────────────────────────────────────────────────────────
-      // INTENT GATE — Cognitive Routing (TEST 10.1)
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // INTENT GATE â€” Cognitive Routing (TEST 10.1)
       //
       // Menggunakan HANYA fast-path deterministik dari SemanticIntentEngine:
-      //   - _deterministicCasualChatClassifier  → actionRequired: false (~0ms)
-      //   - _deterministicTaskClassifier        → actionRequired: true  (~0ms)
-      //   - _imageGenerationClassifier          → actionRequired: true  (~0ms)
-      //   - _deviceInspectionDecision           → actionRequired: true  (~0ms)
+      //   - _deterministicCasualChatClassifier  â†’ actionRequired: false (~0ms)
+      //   - _deterministicTaskClassifier        â†’ actionRequired: true  (~0ms)
+      //   - _imageGenerationClassifier          â†’ actionRequired: true  (~0ms)
+      //   - _deviceInspectionDecision           â†’ actionRequired: true  (~0ms)
       //
       // CRITICAL: Tidak memanggil semanticIntentEngineInstance.interpret() penuh
-      // karena itu akan memanggil /v1/chat/completions lagi → infinite loop.
+      // karena itu akan memanggil /v1/chat/completions lagi â†’ infinite loop.
       //
       // Zero-regression guarantee:
-      //   - Percakapan biasa (CASUAL_CHAT) → actionRequired=false → LLM stream (no change)
-      //   - AgentRuntime gagal             → graceful fallback ke LLM stream normal
-      //   - Classifiers melempar error     → graceful fallback ke LLM stream normal
-      // ─────────────────────────────────────────────────────────────────────
+      //   - Percakapan biasa (CASUAL_CHAT) â†’ actionRequired=false â†’ LLM stream (no change)
+      //   - AgentRuntime gagal             â†’ graceful fallback ke LLM stream normal
+      //   - Classifiers melempar error     â†’ graceful fallback ke LLM stream normal
+      // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       let intentGateRouted = false;
 
       // RECURSION GUARD: Internal reasoning calls from AgentRuntime, AgentPlanner,
@@ -2235,7 +2237,7 @@ Requirements:
           let deterministicDecision = null;
 
           if (isDocumentRequest) {
-            // Deterministically classify as DOCUMENT_ANALYSIS (actionRequired=true → Document Pipeline)
+            // Deterministically classify as DOCUMENT_ANALYSIS (actionRequired=true â†’ Document Pipeline)
             deterministicDecision = {
               intent: 'DOCUMENT_ANALYSIS',
               goal: cleanPrompt,
@@ -2245,7 +2247,7 @@ Requirements:
             };
             console.log(`[INTENT_GATE] Fast-path hit: intent=DOCUMENT_ANALYSIS (document marker + analysis verb detected)`);
           } else {
-            // Media playback / slide / image classifier — only when no document is attached
+            // Media playback / slide / image classifier â€” only when no document is attached
             deterministicDecision =
               sie._mediaPlaybackClassifier(cleanPrompt, []) ||
               sie._slideStudioClassifier(cleanPrompt, []) ||
@@ -2260,12 +2262,12 @@ Requirements:
           const actionRequired = Boolean(deterministicDecision?.actionRequired);
 
           if (actionRequired) {
-            console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} → Pipeline`);
+            console.log(`[INTENT_GATE] actionRequired=true intent=${deterministicDecision.intent} â†’ Pipeline`);
 
-            // ══════════════════════════════════════════════════════════════════
+            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             // DOCUMENT ANALYSIS PIPELINE
-            // UPLOAD → READING → UNDERSTANDING → ANALYSIS → SYNTHESIS → RESPONSE
-            // ══════════════════════════════════════════════════════════════════
+            // UPLOAD â†’ READING â†’ UNDERSTANDING â†’ ANALYSIS â†’ SYNTHESIS â†’ RESPONSE
+            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
             if (deterministicDecision.intent === 'DOCUMENT_ANALYSIS') {
               try {
                 const requestId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -2316,10 +2318,10 @@ Requirements:
                   if (isStreamDoc && !res.writableEnded) res.write(`data: ${chunk}\n\n`);
                 };
 
-                // STAGE 1 — DOCUMENT_READING
+                // STAGE 1 â€” DOCUMENT_READING
                 console.log(`[DOCUMENT_PIPELINE] started requestId=${requestId} file="${fileName}"`);
                 console.log(`[DOCUMENT_PIPELINE] reading via 9Router`);
-                emitStatus('⏳ Membaca dokumen via 9Router...');
+                emitStatus('â³ Membaca dokumen via 9Router...');
 
                 const { readViaNineRouter } = await import('../document/DocumentPipelineAdapter.mjs');
                 const nineRouterResult = await readViaNineRouter({
@@ -2340,17 +2342,17 @@ Requirements:
                   mode: 'full_document'
                 });
 
-                // STAGE 2 — DOCUMENT_UNDERSTANDING
+                // STAGE 2 â€” DOCUMENT_UNDERSTANDING
                 console.log(`[DOCUMENT_PIPELINE] understanding chunks=${docResult.totalChunks} coverage=${docResult.coveragePercent}%`);
-                emitStatus('🔍 Memahami isi dokumen...');
+                emitStatus('ðŸ” Memahami isi dokumen...');
 
                 // Compile full document context from processed chunks
                 const chunkTexts = (docResult.relevantChunks || []).map(c => c.content || '').filter(Boolean);
                 const fullDocumentContext = chunkTexts.join('\n\n');
 
-                // STAGE 3 — DOCUMENT_ANALYSIS
+                // STAGE 3 â€” DOCUMENT_ANALYSIS
                 console.log(`[DOCUMENT_PIPELINE] analysis`);
-                emitStatus('📊 Menganalisis dokumen...');
+                emitStatus('ðŸ“Š Menganalisis dokumen...');
 
                 // Build synthesis prompt for LLM
                 const systemPromptDoc = [
@@ -2372,12 +2374,12 @@ Requirements:
                   }
                 ];
 
-                // STAGE 4 — DOCUMENT_SYNTHESIS via LLM
+                // STAGE 4 â€” DOCUMENT_SYNTHESIS via LLM
                 // R3/R4/R8 Invariant: Qwen dilarang untuk analisis dokumen (dokumen milik 9Router).
                 // R11/R12: DOC_QWEN_BOUNDARY default OFF di produksi, opt-in eksplisit via env DOC_QWEN_BOUNDARY === '1'.
                 const useQwenBoundary = process.env.DOC_QWEN_BOUNDARY === '1';
                 console.log(`[DOCUMENT_PIPELINE] synthesis boundary_qwen=${useQwenBoundary}`);
-                emitStatus('✍️ Menyusun rangkuman...');
+                emitStatus('âœï¸ Menyusun rangkuman...');
 
                 // Route to LLM for synthesis with strict capability
                 const { modelRoutingServiceInstance } = await import('./ModelRoutingService.mjs');
@@ -2410,9 +2412,9 @@ Requirements:
                   synthesisText = routeRes.content;
                 }
 
-                // STAGE 5 — COMPLETED
+                // STAGE 5 â€” COMPLETED
                 console.log(`[DOCUMENT_PIPELINE] completed requestId=${requestId} chars=${synthesisText.length}`);
-                emitStatus('✅ Rangkuman selesai.');
+                emitStatus('âœ… Rangkuman selesai.');
 
                 if (isStreamDoc && !res.writableEnded) {
                   const finalChunk = JSON.stringify({
@@ -2522,7 +2524,7 @@ Requirements:
                     `    title="${title}">\n` +
                     `  </iframe>\n` +
                     `</div>\n\n` +
-                    `🔗 [Buka "${title}" di YouTube](${watchUrl})${topicNotice}`;
+                    `ðŸ”— [Buka "${title}" di YouTube](${watchUrl})${topicNotice}`;
                 } else {
                   playbackText = `Maaf, saya belum menemukan video musik resmi yang terverifikasi untuk pencarian **"${cleanPrompt}"** di YouTube. Anda dapat mencoba kata kunci atau nama penyanyi yang lebih spesifik.`;
                 }
@@ -2583,8 +2585,8 @@ Requirements:
               }
             }
 
-            // DIRECT SLIDE STUDIO PATH — programmatic vector & PPTX presentation
-            // PRINCIPLE: AI DECIDES → CODE EXECUTES.
+            // DIRECT SLIDE STUDIO PATH â€” programmatic vector & PPTX presentation
+            // PRINCIPLE: AI DECIDES â†’ CODE EXECUTES.
             // Multi-slide deck creation: deck plan must come from the LLM, not from code.
             if (deterministicDecision.intent === 'SLIDE_STUDIO') {
               try {
@@ -2594,7 +2596,7 @@ Requirements:
                 if (deckDetection.isDeck && deckDetection.count >= 2) {
                   // Multi-slide deck: do NOT fabricate a plan.
                   // Fall through to LLM for AI-driven deck planning.
-                  console.log(`[INTENT_GATE][DIRECT] Deck creation (${deckDetection.count} slides) — passing to LLM.`);
+                  console.log(`[INTENT_GATE][DIRECT] Deck creation (${deckDetection.count} slides) â€” passing to LLM.`);
                   // fall through (no return)
                 } else {
                   // Single-slide: deterministic render from user-provided content
@@ -2604,10 +2606,10 @@ Requirements:
                   const previewUrl = `/artifacts/slides/${path.basename(slideResult.files.preview.path)}`;
                   const slideTitle = `SLIDE MASTER: ${slideResult.title.toUpperCase()}`;
                   const detailedTextDisplay = `Berikut adalah **${slideResult.title}** yang telah selesai dirancang:\n\n` +
-                    `• **Arketipe Visual**: ${slideResult.slideType}\n` +
-                    `• **Format**: 16:9 Widescreen High Definition\n` +
-                    `• **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
-                    `👉 **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
+                    `â€¢ **Arketipe Visual**: ${slideResult.slideType}\n` +
+                    `â€¢ **Format**: 16:9 Widescreen High Definition\n` +
+                    `â€¢ **Berkas**: Vektor SVG, Pratinjau Gambar, dan Microsoft PowerPoint (.pptx) terpisah\n\n` +
+                    `ðŸ‘‰ **[Unduh Berkas PowerPoint (.pptx)](${pptxUrl})**\n\n` +
                     `Silakan sampaikan catatan jika Anda ingin mengubah bagian tertentu pada slide ini.`;
 
                   if (isStream) {
@@ -2688,7 +2690,7 @@ Requirements:
                   masterDesignStateInstance.approveMasterDraft();
                   const productionResult = await architecturalStudioInstance.produceAllSteps();
                   
-                  responseText = `### 🏛️ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
+                  responseText = `### ðŸ›ï¸ Proyek Rancang Bangun Arsitektur: Produksi Visual Selesai\n\n` +
                     `Master Design Draft telah disetujui. Seluruh 8 langkah visual rancang bangun telah diproduksi secara mandiri (1 Komponen = 1 Artifact Terpisah):\n\n` +
                     `1. **[STEP 01: Denah Tata Ruang (Lt 1 & 2)](/artifacts/architecture/STEP_01_DENAH.svg)** (Kode: AR-01)\n` +
                     `2. **[STEP 02: Rangka Struktur & Grid As Kolom](/artifacts/architecture/STEP_02_STRUKTUR.svg)** (Kode: ST-02)\n` +
@@ -2709,11 +2711,11 @@ Requirements:
                   };
                 } else if (activeProject && isRevision) {
                   const revResult = architecturalStudioInstance.applyRevision(cleanPrompt);
-                  responseText = `### 🔄 Revisi Desain Arsitektur Diterapkan\n\n` +
+                  responseText = `### ðŸ”„ Revisi Desain Arsitektur Diterapkan\n\n` +
                     `Instruksi: *"${cleanPrompt}"*\n\n` +
-                    `• **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
-                    `• **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
-                    `• **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
+                    `â€¢ **Komponen Terdampak**: ${revResult.evaluation.affectedComponents.join(', ')}\n` +
+                    `â€¢ **Status State**: Komponen terkait ditandai \`UPDATE_REQUIRED\` untuk menjaga integritas geometri.\n` +
+                    `â€¢ **Tindakan**: MasterDesignState telah diperbarui. Ketik **'Lanjutkan'** untuk memutakhirkan gambar terkait.`;
 
                   agentPayload = {
                     intent: 'ARCHITECTURAL_DESIGN',
@@ -2723,7 +2725,7 @@ Requirements:
                 } else {
                   const initResult = architecturalStudioInstance.initiateDesignProject(cleanPrompt);
                   responseText = initResult.masterDraft + `\n\n---\n` +
-                    `💡 **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
+                    `ðŸ’¡ **Langkah Selanjutnya**: Silakan tinjau Master Design Draft di atas. Jika konsep, zonasi, dan asumsi telah sesuai, ketik **"Setuju"** atau **"Lanjutkan"** untuk memproduksi 8 gambar visual secara mandiri satu per satu. Anda juga dapat langsung memberikan instruksi revisi (misal: *"geser kamar utama ke belakang"*).`;
 
                   agentPayload = {
                     intent: 'ARCHITECTURAL_DESIGN',
@@ -2952,7 +2954,7 @@ Requirements:
                 } else {
                   let imagePrompt = visualIntent.providerPrompt || cleanPrompt;
 
-                  // ── CONTEXT-AWARE PROMPT ENRICHMENT ──
+                  // â”€â”€ CONTEXT-AWARE PROMPT ENRICHMENT â”€â”€
                   // When user says e.g. "buat visual slide 1" or "visualkan slide ini",
                   // resolve the full slide content / context from the preceding conversation.
                   const slideMatch = (userPrompt || cleanPrompt).match(/\bslide\s+(\d+)\b/i);
@@ -3306,7 +3308,7 @@ Requirements:
 
                 if (payload.stream) {
                   try {
-                    // Emit as SSE stream — compatible with ConversationController.streamChat()
+                    // Emit as SSE stream â€” compatible with ConversationController.streamChat()
                     res.writeHead(200, {
                       'Content-Type': 'text/event-stream',
                       'Cache-Control': 'no-cache',
@@ -3321,7 +3323,7 @@ Requirements:
                     for (let i = 0; i < responseText.length; i += tokenSize) {
                       if (res.writableEnded || res.destroyed) break;
                       if (Date.now() - streamStart > MAX_STREAM_MS) {
-                        console.warn('[INTENT_GATE] Stream timeout — forcing end');
+                        console.warn('[INTENT_GATE] Stream timeout â€” forcing end');
                         break;
                       }
                       const chunk = responseText.slice(i, i + tokenSize);
@@ -3422,7 +3424,7 @@ Requirements:
                 console.log(`[INTENT_GATE] AgentRuntime response sent (${responseText.length} chars)`);
                 return;
               } else {
-                console.warn('[INTENT_GATE] AgentRuntime returned empty response — falling back to LLM stream');
+                console.warn('[INTENT_GATE] AgentRuntime returned empty response â€” falling back to LLM stream');
               }
             } catch (agentErr) {
               console.warn('[INTENT_GATE] AgentRuntime failed:', agentErr.message);
@@ -3449,10 +3451,10 @@ Requirements:
               }
             }
           } else {
-            console.log(`[INTENT_GATE] actionRequired=false intent=${deterministicDecision?.intent || 'unknown'} → LLM stream (zero-regression)`);
+            console.log(`[INTENT_GATE] actionRequired=false intent=${deterministicDecision?.intent || 'unknown'} â†’ LLM stream (zero-regression)`);
           }
         } catch (gateErr) {
-          console.warn('[INTENT_GATE] Gate error — falling back to LLM stream:', gateErr.message);
+          console.warn('[INTENT_GATE] Gate error â€” falling back to LLM stream:', gateErr.message);
         }
       }
 
@@ -3462,9 +3464,9 @@ Requirements:
         requestedModel: model
       });
 
-      // ═══════════════════════════════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // FALLBACK IMAGE DETECTION - If intent gate failed but request is image-related
-      // ═══════════════════════════════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       const hasDocContext = userPrompt.includes('--- [BERKAS DOKUMEN') ||
         userPrompt.includes('--- [DOKUMEN') ||
         userPrompt.includes('--- [Konteks Dokumen') ||
@@ -3797,7 +3799,7 @@ Requirements:
       return;
     }
 
-    // 13. GET /api/artifacts/images/:file — static image artifact serving
+    // 13. GET /api/artifacts/images/:file â€” static image artifact serving
     const imageArtifactMatch = pathname.match(/^\/api\/artifacts\/images\/([a-zA-Z0-9_.-]+)$/);
     if (imageArtifactMatch && req.method === 'GET') {
       const filename = imageArtifactMatch[1];
@@ -3821,7 +3823,7 @@ Requirements:
       return;
     }
 
-    // 14. POST /api/ultimateai/generate-image — LocalRouter image generation endpoint
+    // 14. POST /api/ultimateai/generate-image â€” LocalRouter image generation endpoint
     if (pathname === '/api/ultimateai/generate-image' && req.method === 'POST') {
       const body = await readJsonBody();
       try {
@@ -4140,7 +4142,7 @@ Requirements:
       return;
     }
 
-    // 8C. MARKET INTELLIGENCE (MIE v1) — ANALISIS MAKRO & TEKNIKAL.
+    // 8C. MARKET INTELLIGENCE (MIE v1) â€” ANALISIS MAKRO & TEKNIKAL.
     if (pathname === '/api/market/analyze' && req.method === 'GET') {
       try {
         const u = new URL(req.url, 'http://localhost');
@@ -4172,7 +4174,7 @@ Requirements:
       return;
     }
 
-    // 20. MEMORY CORE HEALTH — polled by frontend every 30s
+    // 20. MEMORY CORE HEALTH â€” polled by frontend every 30s
     if (pathname === '/api/memory/health' && req.method === 'GET') {
       try {
         let memoryStatus = { status: 'OK', vaultFiles: 0, indexed: 0, summary: 'Memory core online.' };
@@ -4182,7 +4184,7 @@ Requirements:
             memoryStatus = await memoryBridgeInstance.getHealth();
           }
         } catch {
-          // MemoryBridge belum tersedia — kembalikan stub yang valid
+          // MemoryBridge belum tersedia â€” kembalikan stub yang valid
           memoryStatus = { status: 'OK', vaultFiles: 0, indexed: 0, summary: 'Memory bridge not yet loaded.' };
         }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=25' });
@@ -4194,11 +4196,11 @@ Requirements:
       return;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════════════
-    // JINI AI — WordPress Publisher Routes (beritaindonesia.news)
-    // ══════════════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // JINI AI â€” WordPress Publisher Routes (beritaindonesia.news)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    // POST /api/wordpress/test — Uji koneksi ke WordPress REST API
+    // POST /api/wordpress/test â€” Uji koneksi ke WordPress REST API
     if (pathname === '/api/wordpress/test' && req.method === 'POST') {
       try {
         const result = await wordpressPublisherToolInstance.execute({ operation: 'test' });
@@ -4211,7 +4213,7 @@ Requirements:
       return;
     }
 
-    // GET /api/wordpress/posts — Daftar artikel
+    // GET /api/wordpress/posts â€” Daftar artikel
     if (pathname === '/api/wordpress/posts' && req.method === 'GET') {
       try {
         const result = await wordpressPublisherToolInstance.execute({ operation: 'list_posts' });
@@ -4224,7 +4226,7 @@ Requirements:
       return;
     }
 
-    // GET /api/wordpress/categories — Daftar kategori
+    // GET /api/wordpress/categories â€” Daftar kategori
     if (pathname === '/api/wordpress/categories' && req.method === 'GET') {
       try {
         const result = await wordpressPublisherToolInstance.execute({ operation: 'list_categories' });
@@ -4237,7 +4239,7 @@ Requirements:
       return;
     }
 
-    // GET /api/wordpress/tags — Daftar tag
+    // GET /api/wordpress/tags â€” Daftar tag
     if (pathname === '/api/wordpress/tags' && req.method === 'GET') {
       try {
         const result = await wordpressPublisherToolInstance.execute({ operation: 'list_tags' });
@@ -4250,7 +4252,7 @@ Requirements:
       return;
     }
 
-    // POST /api/wordpress/media — Unggah gambar ke Media Library
+    // POST /api/wordpress/media â€” Unggah gambar ke Media Library
     if (pathname === '/api/wordpress/media' && req.method === 'POST') {
       try {
         const body = await readJsonBody();
@@ -4269,7 +4271,7 @@ Requirements:
       return;
     }
 
-    // POST /api/wordpress/posts — Buat artikel (draft atau publish)
+    // POST /api/wordpress/posts â€” Buat artikel (draft atau publish)
     if (pathname === '/api/wordpress/posts' && req.method === 'POST') {
       try {
         const body = await readJsonBody();
@@ -4293,11 +4295,11 @@ Requirements:
       return;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════════════
-    // JINI AI — Chat Endpoint (untuk widget chat beritaindonesia.news)
-    // ═════════════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // JINI AI â€” Chat Endpoint (untuk widget chat beritaindonesia.news)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    // POST /api/jini/chat — Kirim pesan ke JINI, dapatkan respons AI dengan sumber
+    // POST /api/jini/chat â€” Kirim pesan ke JINI, dapatkan respons AI dengan sumber
     if (pathname === '/api/jini/chat' && req.method === 'POST') {
       try {
         const body = await readJsonBody();
@@ -4338,7 +4340,7 @@ Requirements:
         // Bangun konteks sistem untuk JINI AI
         const systemPrompt = `Anda adalah JINI AI, asisten cerdas untuk portal berita Berita Indonesia (beritaindonesia.news).
 Informasi waktu saat ini: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} (WIB / Asia/Jakarta).
-Jika ditanya tentang tanggal, tahun, hari, atau waktu saat ini — jawab dari informasi waktu di atas. Jangan mengklaim telah mencari ke internet untuk menjawab pertanyaan waktu.
+Jika ditanya tentang tanggal, tahun, hari, atau waktu saat ini â€” jawab dari informasi waktu di atas. Jangan mengklaim telah mencari ke internet untuk menjawab pertanyaan waktu.
 Tugas Anda: menjawab pertanyaan pengunjung tentang berita nasional, hukum, ekonomi, dan topik lain.
 Aturan:
 - Jawab dalam bahasa Indonesia yang sopan, profesional, dan objektif.
@@ -4363,7 +4365,7 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
 
         let replyText = aiContent;
         if (sources.length > 0) {
-          replyText += '\n\n📚 Sumber referensi:\n' + sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`).join('\n');
+          replyText += '\n\nðŸ“š Sumber referensi:\n' + sources.map((s, i) => `${i + 1}. ${s.title} â€” ${s.url}`).join('\n');
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -4558,6 +4560,82 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       return;
     }
 
+    // Dedicated Gemini Vision endpoint for JIN Trade chart screenshots.
+    if ((pathname === '/trading/visual-chart-analysis' || pathname === '/api/trading/visual-chart-analysis') && (req.method === 'POST' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      const body = await readJsonBody();
+      let statusCode = 200;
+      const headers = {};
+      const adaptedReq = { method: req.method, body };
+      const adaptedRes = {
+        setHeader(name, value) { headers[name] = value; },
+        status(code) {
+          statusCode = code;
+          return {
+            json(payload) {
+              if (!res.writableEnded) {
+                res.writeHead(statusCode, headers);
+                res.end(statusCode === 204 ? '' : JSON.stringify(payload));
+              }
+              return res;
+            }
+          };
+        }
+      };
+
+      try {
+        await visualChartAnalysisHandler(adaptedReq, adaptedRes);
+      } catch (error) {
+        if (!res.writableEnded) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: error?.message || 'Visual chart analysis failed.' }));
+        }
+      }
+      return;
+    }
+
+    // Intermarket quotes endpoint for JIN Gold News & Cross-Asset Monitor.
+    if ((pathname === '/trading/intermarket-quotes' || pathname === '/api/trading/intermarket-quotes') && (req.method === 'GET' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      let statusCode = 200;
+      const headers = {};
+      const adaptedReq = { method: req.method };
+      const adaptedRes = {
+        setHeader(name, value) { headers[name] = value; },
+        status(code) {
+          statusCode = code;
+          return {
+            json(payload) {
+              if (!res.writableEnded) {
+                res.writeHead(statusCode, headers);
+                res.end(statusCode === 204 ? '' : JSON.stringify(payload));
+              }
+              return res;
+            }
+          };
+        }
+      };
+
+      try {
+        await intermarketQuotesHandler(adaptedReq, adaptedRes);
+      } catch (error) {
+        if (!res.writableEnded) {
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: error?.message || 'Intermarket quote request failed' }));
+        }
+      }
+      return;
+    }
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));
@@ -4589,3 +4667,4 @@ if (isDirectExecution) {
       .catch(e => console.warn('[LocalRouter] Failed to start CuriosityDaemon:', e.message));
   });
 }
+

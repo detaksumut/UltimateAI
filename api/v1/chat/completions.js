@@ -956,7 +956,8 @@ export default async function handler(req, res) {
       }
     }
 
-    const textModel = (process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash').trim();
+    let textModel = (process.env.GEMINI_TEXT_MODEL || 'gemini-3.6-flash').trim();
+    if (textModel === 'gemini-2.5-flash' || textModel === 'gemini-2.5-pro') textModel = 'gemini-3.6-flash';
     const textModelPath = textModel.startsWith('models/') ? textModel : `models/${textModel}`;
 
     for (const key of textKeys) {

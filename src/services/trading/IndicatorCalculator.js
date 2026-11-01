@@ -17,7 +17,8 @@ function rsi(values, period = 14) {
   }
   let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
   let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  const result = [null];
+  const firstRs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
+  const result = [100 - 100 / (1 + firstRs)];
   for (let i = period; i < gains.length; i++) {
     avgGain = (avgGain * (period - 1) + gains[i]) / period;
     avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
@@ -34,7 +35,7 @@ function atr(candles, period = 14) {
     ranges.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
   }
   let current = ranges.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  const result = [null];
+  const result = [current];
   for (let i = period; i < ranges.length; i++) { current = (current * (period - 1) + ranges[i]) / period; result.push(current); }
   return result;
 }
