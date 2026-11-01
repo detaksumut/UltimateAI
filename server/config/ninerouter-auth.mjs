@@ -7,7 +7,7 @@
  */
 const PLACEHOLDER_KEYS = new Set([
   '',
-  'undefined',
+  'UNDEFINED',
   'YOUR_NINEROUTER_KEY',
   'NINEROUTER_KEY_ANDA',
   'YOUR_NINE_ROUTER_API_KEY'
@@ -24,3 +24,4 @@ export function resolveNineRouterApiKey(env = process.env) {
 }
 
 export default resolveNineRouterApiKey;
+

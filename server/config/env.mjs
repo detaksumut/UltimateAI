@@ -1,3 +1,4 @@
+import { resolveNineRouterApiKey } from './ninerouter-auth.mjs';
 /**
  * env.mjs
  * UltimateAI Local Router Configuration & Environment Management.
@@ -47,7 +48,7 @@ export const config = {
   },
   ninerouter: {
     url: process.env.NINEROUTER_URL || 'http://127.0.0.1:20128',
-    keyConfigured: Boolean(process.env.NINEROUTER_KEY && String(process.env.NINEROUTER_KEY).trim().length > 0)
+    keyConfigured: Boolean(resolveNineRouterApiKey())
   }
 };
 
@@ -62,3 +63,4 @@ export function getProviderConfigStatus() {
 }
 
 export default config;
+
