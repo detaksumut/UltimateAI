@@ -70,7 +70,9 @@ const formatError = (value) => {
           image: frame.dataUrl,
           schema: 'chart-ohlc-v1'
         }),
-        signal: AbortSignal.timeout(60000),
+        // 90s timeout: LocalRouter dapat menghabiskan hingga 3 model × 20s = 60s untuk fallback.
+        // Vercel serverless jauh lebih cepat (biasanya selesai <10s), jadi 90s aman untuk keduanya.
+        signal: AbortSignal.timeout(90000),
         cache: 'no-store'
       });
       const contentType = response.headers.get('content-type') || '';

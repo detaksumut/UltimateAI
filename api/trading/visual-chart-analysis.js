@@ -28,7 +28,8 @@ export default async function handler(req, res) {
     const keys = collectGeminiKeys();
     if (!keys.length) return send(res, 503, { success: false, error: 'GEMINI_API_KEY belum disetel pada environment LIVE (Vercel). Tambahkan key pada Production lalu redeploy.' });
     const prompt = 'Extract only what is visibly supported by this trading-chart screenshot. UI instrument requested: ' + instrument + '. Requested timeframe: ' + timeframe + '. Read the chart\'s own displayed symbol and timeframe; do not assume them from the request. Do not infer exact OHLC prices from candle pixels. Return one JSON object only with this schema: {"instrument":"string","timeframe":"string","symbol_match":true,"timeframe_match":true,"visible_candles":0,"ohlc_readable":false,"last_price":null,"open":null,"high":null,"low":null,"close":null,"trend":"BULLISH|BEARISH|SIDEWAYS|UNKNOWN","momentum":"BULLISH|BEARISH|NEUTRAL|UNKNOWN","support":null,"resistance":null,"volatility":"LOW|NORMAL|HIGH|UNKNOWN","scenario":"BUY_BIAS|SELL_BIAS|WAIT","confidence":0,"data_quality":"GOOD|PARTIAL|POOR","note":"short reason"}. Numeric prices must be numbers or null. If chart symbol/timeframe is not legible, use an empty string and PARTIAL or POOR. If screenshot is not a chart or shows recursive screen-sharing, use POOR and WAIT. Never fabricate prices.';
-    const VERIFIED_VISION_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3-flash-preview'];
+    // gemini-3.8-flash dikeluarkan dari rotation: secara konsisten 503/timeout (30s+) dan menyebabkan batch melebihi client timeout 60s.
+    const VERIFIED_VISION_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview'];
     const RETIRED_MODELS = new Set(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash']);
 
     let configuredModel = String(process.env.GEMINI_VISION_MODEL || '').trim();
@@ -75,7 +76,9 @@ export default async function handler(req, res) {
                 }
               }
             }),
-            signal: AbortSignal.timeout(45000)
+            // 20s per-model timeout: dengan 3 kandidat model × N kunci, total latency tetap
+            // di bawah 60s client timeout di VisualChartCapturePanel.
+            signal: AbortSignal.timeout(20000)
           });
 
           if (!response.ok) {
