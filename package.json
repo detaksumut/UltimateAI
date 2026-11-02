@@ -13,6 +13,7 @@
     "test": "jest --coverage",
     "build": "npx vite build",
     "serve": "node server/local_router/LocalRouterServer.mjs",
+    "start:mt5-bridge": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start_xm_mt5_jin_bridge.ps1",
     "certify:runtime": "node server/telemetry/RuntimeCertificationHarness.mjs",
     "test:adversarial": "node tests/adversarial_test_suite.mjs",
     "test:full-duplex": "node tests/full_duplex_adversarial_test.mjs",

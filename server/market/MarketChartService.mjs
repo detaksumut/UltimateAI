@@ -107,6 +107,71 @@ export async function getMarketChart({ panelId, interval = '1h', limit = 300 }) 
     return { ok: false, error: 'Instrumen tidak dikenal.', panelId };
   }
 
+  // XM MT5 is the authoritative source for GOLD/XAUUSD when the local
+  // read-only bridge is running. Never fall back to Yahoo or synthetic candles.
+  const isGold = asset.isGold === true || panelId === 'market.gold' ||
+    String(asset.symbol || '').toUpperCase().replace(/[^A-Z]/g, '') === 'XAUUSD';
+  if (isGold) {
+    const tfMap = { '5m': 'M5', '15m': 'M15', '1h': 'H1', '4h': 'H4', '1d': 'D1',
+      'M5': 'M5', 'M15': 'M15', 'H1': 'H1', 'H4': 'H4', 'D1': 'D1' };
+    const requested = String(interval || '1h');
+    const timeframe = tfMap[requested] || tfMap[requested.toLowerCase()] || 'H1';
+    const routerPort = Number(process.env.LOCAL_ROUTER_PORT || 20200);
+    try {
+      const response = await fetch(`http://127.0.0.1:${routerPort}/api/trading/ohlc?symbol=XAUUSD&timeframe=${timeframe}&limit=${Math.min(500, Math.max(1, Number(limit) || 300))}`, {
+        signal: AbortSignal.timeout(4000),
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (!response.ok) throw new Error(`MT5 bridge HTTP ${response.status}`);
+      const payload = await response.json();
+      if (!payload.ok || !Array.isArray(payload.candles) || payload.candles.length === 0) {
+        return { ok: false, error: 'Belum ada candle XM MT5. Pastikan terminal MT5 aktif dan connector berjalan.', provider: { id: 'xm_mt5', name: 'XM MT5' }, panelId, symbol: 'XAUUSD', source: 'MT5_LOCAL_BRIDGE', live: false, freshness: payload.freshness || 'NO_DATA', count: payload.count || 0 };
+      }
+      const intervalMs = ({ M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 })[timeframe];
+      const last = payload.candles[payload.candles.length - 1];
+      const lastTime = Date.parse(last.timestamp);
+      const tick = payload.tick || null;
+      const tickTime = tick && Number.isFinite(Date.parse(tick.timestamp)) ? Date.parse(tick.timestamp) : null;
+      const tickPrice = tick && Number.isFinite(Number(tick.bid)) ? Number(tick.bid) : null;
+      const lastHigh = Number(last.high);
+      const lastLow = Number(last.low);
+      const tolerance = Math.max(2, Number(tick?.spread || 0) * 3);
+      // Fail closed: a recent broker tick must be inside the active candle's
+      // range (with a small tolerance). Never draw or label mismatched prices LIVE.
+      const sameActiveWindow = Number.isFinite(lastTime) && tickTime !== null &&
+        tickTime >= lastTime && tickTime - lastTime <= intervalMs * 2;
+      const tickOutsideLatestCandle = sameActiveWindow && tickPrice !== null &&
+        Number.isFinite(lastHigh) && Number.isFinite(lastLow) &&
+        (tickPrice > lastHigh + tolerance || tickPrice < lastLow - tolerance);
+      if (tickOutsideLatestCandle) {
+        return {
+          ok: false,
+          error: `Data XM MT5 tidak sinkron: tick bid ${tickPrice} berada di luar rentang candle ${timeframe} terbaru [${lastLow}, ${lastHigh}]. Chart ditahan agar analisis tidak memakai harga keliru.`,
+          provider: { id: 'xm_mt5', name: 'XM MT5' },
+          panelId, symbol: 'XAUUSD', source: 'MT5_LOCAL_BRIDGE',
+          live: false, freshness: 'DESYNC', integrity: 'FAILED',
+          tick, lastCandleTime: last.timestamp
+        };
+      }
+      const candles = payload.candles.map((c) => {
+        const openTime = Date.parse(c.timestamp);
+        return { openTime, closeTime: openTime + intervalMs - 1, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close), volume: Number(c.volume || 0) };
+      }).filter(c => Number.isFinite(c.openTime) && [c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite));
+      const live = payload.freshness === 'FRESH' && Number.isFinite(lastTime) && Date.now() - lastTime < ({ M5: 600000, M15: 1800000, H1: 7200000, H4: 28800000, D1: 172800000 })[timeframe];
+      return {
+        ok: true,
+        instrument: { panelId, symbol: 'XAU/USD', name: 'Emas (Gold)', category: asset.category },
+        provider: { id: 'xm_mt5', name: 'XM MT5' },
+        chartMode: 'JIN_RENDERED', symbol: 'XAUUSD', interval: requested,
+        timeframe, source: 'XM Global MT5 / MT5_LOCAL_BRIDGE', live,
+        freshness: payload.freshness, integrity: 'PASSED', count: candles.length,
+        lastUpdate: lastTime, lastUpdateLabel: formatWIB(lastTime), tick: payload.tick || null, candles
+      };
+    } catch (err) {
+      return { ok: false, error: `XM MT5 belum terhubung: ${err.message}`, provider: { id: 'xm_mt5', name: 'XM MT5' }, panelId, symbol: 'XAUUSD', source: 'MT5_LOCAL_BRIDGE', live: false };
+    }
+  }
+
   // Priority / only real provider: Binance spot for crypto.
   const binanceSymbol = binanceSymbolForPanel(asset);
   if (binanceSymbol) {
@@ -161,6 +226,17 @@ export function getMarketChartProviders({ panelId }) {
 
   const providers = [];
 
+  if (asset && (asset.isGold === true || panelId === 'market.gold' ||
+      String(asset.symbol || '').toUpperCase().replace(/[^A-Z]/g, '') === 'XAUUSD')) {
+    providers.push({
+      id: 'xm_mt5', name: 'XM MT5', sourceType: 'LOCAL_BROKER_TERMINAL',
+      supportsLive: true, supportsHistorical: true, supportsNativeView: false,
+      supportsApi: true, chartMode: 'JIN_RENDERED', symbol: 'XAUUSD',
+      instrumentSupported: true,
+      note: 'Candlestick broker XM MT5 melalui connector lokal; tidak memakai harga simulasi.'
+    });
+  }
+
   if (asset && asset.category === 'crypto') {
     const binanceSymbol = binanceSymbolForPanel(asset);
     providers.push({
@@ -196,9 +272,9 @@ export function getMarketChartProviders({ panelId }) {
     ok: true,
     panelId,
     providers,
-    autoPriority: ['binance', 'open_source'],
+    autoPriority: providers.some(p => p.id === 'xm_mt5') ? ['xm_mt5', 'open_source'] : ['binance', 'open_source'],
     modeChains: {
-      JIN_RENDERED: ['binance'],
+      JIN_RENDERED: providers.some(p => p.id === 'xm_mt5') ? ['xm_mt5'] : ['binance'],
       OPEN_SOURCE: ['open_source']
     }
   };
