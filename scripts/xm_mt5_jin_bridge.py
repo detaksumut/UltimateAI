@@ -87,6 +87,39 @@ def main():
                     "ask": float(tick.ask),
                     "timestamp": iso_utc(tick.time),
                 })
+
+            # Integrity gate: when a recent candle and tick refer to the same
+            # active timeframe window, the tick must be inside that candle's
+            # OHLC range (with a small allowance). Do not ingest a price series
+            # that contradicts the live broker quote.
+            if ticks:
+                bid = float(tick.bid)
+                tick_epoch = int(tick.time)
+                timeframe_seconds = {"M5": 300, "M15": 900, "H1": 3600, "H4": 14400, "D1": 86400}
+                invalid_timeframes = set()
+                for tf_name, tf_seconds in timeframe_seconds.items():
+                    tf_rows = [c for c in candles if c["timeframe"] == tf_name]
+                    if not tf_rows:
+                        continue
+                    latest = max(tf_rows, key=lambda c: c["timestamp"])
+                    try:
+                        candle_epoch = int(datetime.fromisoformat(latest["timestamp"].replace("Z", "+00:00")).timestamp())
+                    except (TypeError, ValueError):
+                        invalid_timeframes.add(tf_name)
+                        continue
+                    same_window = 0 <= tick_epoch - candle_epoch <= tf_seconds * 2
+                    tolerance = max(2.0, (float(tick.ask) - bid) * 3.0)
+                    if same_window and (bid > latest["high"] + tolerance or bid < latest["low"] - tolerance):
+                        invalid_timeframes.add(tf_name)
+                        print(
+                            f"[INTEGRITY] REJECT {tf_name}: broker bid={bid:.2f} "
+                            f"outside latest candle range [{latest['low']:.2f}, {latest['high']:.2f}] "
+                            f"at {latest['timestamp']}; candle ingestion skipped for this timeframe.",
+                            file=sys.stderr,
+                        )
+                if invalid_timeframes:
+                    candles = [c for c in candles if c["timeframe"] not in invalid_timeframes]
+
             try:
                 result = post_payload({"candles": candles, "ticks": ticks})
                 print(f"[JIN] {datetime.now().strftime('%H:%M:%S')} accepted={result.get('accepted',0)} rejected={result.get('rejected',0)} sets={','.join(result.get('candleSets',[]))} tick={'OK' if ticks else 'NO_TICK'}")
