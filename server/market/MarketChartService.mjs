@@ -127,13 +127,36 @@ export async function getMarketChart({ panelId, interval = '1h', limit = 300 }) 
       if (!payload.ok || !Array.isArray(payload.candles) || payload.candles.length === 0) {
         return { ok: false, error: 'Belum ada candle XM MT5. Pastikan terminal MT5 aktif dan connector berjalan.', provider: { id: 'xm_mt5', name: 'XM MT5' }, panelId, symbol: 'XAUUSD', source: 'MT5_LOCAL_BRIDGE', live: false, freshness: payload.freshness || 'NO_DATA', count: payload.count || 0 };
       }
-      const candles = payload.candles.map((c) => {
-        const openTime = Date.parse(c.timestamp);
-        const intervalMs = ({ M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 })[timeframe];
-        return { openTime, closeTime: openTime + intervalMs - 1, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close), volume: Number(c.volume || 0) };
-      }).filter(c => Number.isFinite(c.openTime) && [c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite));
+      const intervalMs = ({ M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 })[timeframe];
       const last = payload.candles[payload.candles.length - 1];
       const lastTime = Date.parse(last.timestamp);
+      const tick = payload.tick || null;
+      const tickTime = tick && Number.isFinite(Date.parse(tick.timestamp)) ? Date.parse(tick.timestamp) : null;
+      const tickPrice = tick && Number.isFinite(Number(tick.bid)) ? Number(tick.bid) : null;
+      const lastHigh = Number(last.high);
+      const lastLow = Number(last.low);
+      const tolerance = Math.max(2, Number(tick?.spread || 0) * 3);
+      // Fail closed: a recent broker tick must be inside the active candle's
+      // range (with a small tolerance). Never draw or label mismatched prices LIVE.
+      const sameActiveWindow = Number.isFinite(lastTime) && tickTime !== null &&
+        tickTime >= lastTime && tickTime - lastTime <= intervalMs * 2;
+      const tickOutsideLatestCandle = sameActiveWindow && tickPrice !== null &&
+        Number.isFinite(lastHigh) && Number.isFinite(lastLow) &&
+        (tickPrice > lastHigh + tolerance || tickPrice < lastLow - tolerance);
+      if (tickOutsideLatestCandle) {
+        return {
+          ok: false,
+          error: `Data XM MT5 tidak sinkron: tick bid ${tickPrice} berada di luar rentang candle ${timeframe} terbaru [${lastLow}, ${lastHigh}]. Chart ditahan agar analisis tidak memakai harga keliru.`,
+          provider: { id: 'xm_mt5', name: 'XM MT5' },
+          panelId, symbol: 'XAUUSD', source: 'MT5_LOCAL_BRIDGE',
+          live: false, freshness: 'DESYNC', integrity: 'FAILED',
+          tick, lastCandleTime: last.timestamp
+        };
+      }
+      const candles = payload.candles.map((c) => {
+        const openTime = Date.parse(c.timestamp);
+        return { openTime, closeTime: openTime + intervalMs - 1, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close), volume: Number(c.volume || 0) };
+      }).filter(c => Number.isFinite(c.openTime) && [c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite));
       const live = payload.freshness === 'FRESH' && Number.isFinite(lastTime) && Date.now() - lastTime < ({ M5: 600000, M15: 1800000, H1: 7200000, H4: 28800000, D1: 172800000 })[timeframe];
       return {
         ok: true,
@@ -141,7 +164,7 @@ export async function getMarketChart({ panelId, interval = '1h', limit = 300 }) 
         provider: { id: 'xm_mt5', name: 'XM MT5' },
         chartMode: 'JIN_RENDERED', symbol: 'XAUUSD', interval: requested,
         timeframe, source: 'XM Global MT5 / MT5_LOCAL_BRIDGE', live,
-        freshness: payload.freshness, count: candles.length,
+        freshness: payload.freshness, integrity: 'PASSED', count: candles.length,
         lastUpdate: lastTime, lastUpdateLabel: formatWIB(lastTime), tick: payload.tick || null, candles
       };
     } catch (err) {
