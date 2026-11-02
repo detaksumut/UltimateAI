@@ -921,7 +921,7 @@ Requirements:
           if (['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(symbol) &&
               Number.isFinite(t.bid) && Number.isFinite(t.ask) && t.ask >= t.bid) {
             JIN_TRADING_TICKS.set(symbol, { symbol, bid: t.bid, ask: t.ask, spread: t.ask-t.bid,
-              timestamp: new Date().toISOString(), source: 'MT5_LOCAL_BRIDGE' });
+              timestamp: typeof t.timestamp === 'string' && Number.isFinite(Date.parse(t.timestamp)) ? new Date(t.timestamp).toISOString() : new Date().toISOString(), source: 'MT5_LOCAL_BRIDGE' });
           }
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
