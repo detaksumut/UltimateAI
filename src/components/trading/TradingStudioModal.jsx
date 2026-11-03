@@ -3,6 +3,7 @@ import AIAnalystPanel from './AIAnalystPanel.jsx';
 import VisualChartCapturePanel from './VisualChartCapturePanel.jsx';
 import GoldNewsModal from './GoldNewsModal.jsx';
 import CrossAssetMonitor from './CrossAssetMonitor.jsx';
+import JINLiveSignalChart from './JINLiveSignalChart.jsx';
 
 const instruments = [
   { value: 'OANDA:XAUUSD', label: 'XAUUSD (Gold)' },
@@ -65,12 +66,16 @@ export default function TradingStudioModal({ onClose }) {
 
       <div className="jin-trading-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: 10, minHeight: 'calc(100vh - 95px)', alignItems: 'stretch' }}>
         <section aria-label="TradingView live chart" style={{ position: 'relative', minWidth: 0, minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, height: isFullChart ? 'calc(100vh - 105px)' : 'auto', border: '1px solid #164e63', borderRadius: 7, overflow: 'hidden', background: '#030812' }}>
-          <iframe
-            title={`TradingView ${instrument} ${timeframe}`}
-            src={`https://www.tradingview.com/widgetembed/?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=030812&studies=[]&theme=dark&style=1&timezone=Asia%2FJakarta&withdateranges=1&hideideas=1`}
-            style={{ width: '100%', height: '100%', minHeight: isFullChart ? 'calc(100vh - 105px)' : 560, border: 0, display: 'block' }}
-            allowFullScreen
-          />
+          {instrument === 'XAUUSD' ? (
+            <JINLiveSignalChart symbol="XAUUSD" interval={interval} />
+          ) : (
+            <div style={{ minHeight: 560, height: '100%', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center', color: '#fbbf24', fontSize: 12 }}>
+              <div>
+                <strong>CHART MT5 LANGSUNG TERSEDIA UNTUK XAUUSD</strong>
+                <p style={{ color: '#94a3b8', lineHeight: 1.6 }}>Pilih XAUUSD (Gold) untuk menampilkan candle langsung dari terminal XM MT5. Instrumen lain tidak akan diganti dengan data emas.</p>
+              </div>
+            </div>
+          )}
           {signal && <div role="status" style={{ position: 'absolute', zIndex: 5, top: 58, right: 18, width: 220, padding: 10, borderRadius: 6, border: '1px solid ' + (signal.side === 'BUY' ? '#10b981' : signal.side === 'SELL' ? '#f43f5e' : '#f59e0b'), background: 'rgba(3,8,18,.94)', boxShadow: '0 4px 18px #0008', pointerEvents: 'none' }}>
             <div style={{ fontSize: 11, fontWeight: 900, color: signal.side === 'BUY' ? '#34d399' : signal.side === 'SELL' ? '#fb7185' : '#fbbf24' }}>JIN SIGNAL · {signal.side}</div>
             <div style={{ fontSize: 10, color: '#e2e8f0', marginTop: 5 }}>Entry: {Number.isFinite(signal.entry) ? signal.entry.toFixed(2) : '—'}</div>
