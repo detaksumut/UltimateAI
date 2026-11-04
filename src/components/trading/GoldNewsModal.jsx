@@ -37,7 +37,7 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD',inline=f
    const searchResponse=await fetch(endpoint+(endpoint.endsWith('/api')?'/trading/gold-news-search':'/api/trading/gold-news-search'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instrument,session:sessionNow(),requestedAt:new Date().toISOString()}),signal:AbortSignal.timeout(20000),cache:'no-store'});
    const searchPayload=await searchResponse.json();
    if(!searchResponse.ok||!searchPayload.success)throw Error(errorText(searchPayload.error)||('Pencarian Tavily gagal (HTTP '+searchResponse.status+').'));
-   payload={success:true,fetchedAt:searchPayload.fetchedAt,searchProvider:searchPayload.provider,directAnswer:searchPayload.directAnswer,sources:searchPayload.sources.map((s,i)=>({key:'tavily_'+i,label:s.title||s.domain||('Hasil Tavily '+(i+1)),url:s.url,status:'READ',fetchedAt:searchPayload.fetchedAt,content:'Judul: '+(s.title||'Tidak tersedia')+'\\nDomain: '+(s.domain||'Tidak tersedia')+'\\nCuplikan hasil pencarian (bukan konfirmasi artikel penuh): '+(s.snippet||'Tidak tersedia')+'\\nSkor relevansi pencarian: '+(s.score??'tidak tersedia')+'\\nKategori domain: '+(s.category||'GENERAL')}))};
+   payload={success:true,fetchedAt:searchPayload.fetchedAt,searchProvider:searchPayload.provider,directAnswer:searchPayload.directAnswer,sources:searchPayload.sources.map((s,i)=>({key:'tavily_'+i,label:s.title||s.domain||('Hasil Tavily '+(i+1)),url:s.url,status:'SEARCH_SNIPPET',fetchedAt:searchPayload.fetchedAt,content:'Judul: '+(s.title||'Tidak tersedia')+'\\nDomain: '+(s.domain||'Tidak tersedia')+'\\nCuplikan hasil pencarian (bukan konfirmasi artikel penuh): '+(s.snippet||'Tidak tersedia')+'\\nSkor relevansi pencarian: '+(s.score??'tidak tersedia')+'\\nKategori domain: '+(s.category||'GENERAL')}))};
    usedTavily=true;
   }
   try {
@@ -54,7 +54,30 @@ export default function GoldNewsModal({open,onClose,instrument='XAUUSD',inline=f
    const response=await fetch(endpoint+readRoute,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sources:SOURCES.map(s=>s.key),instrument,session:sessionNow(),requestedAt:new Date().toISOString()}),signal:AbortSignal.timeout(45000)});
    payload=await response.json();if(!response.ok||!payload.success)throw Error(payload.error||'Endpoint pembaca berita belum tersedia.');
   }
-  const read=Array.isArray(payload.sources)?payload.sources:[];setSources(read);const readable=read.filter(s=>s.status==='READ'&&s.content);if(!readable.length)throw Error('Tidak ada isi sumber yang berhasil dibaca. Berita tidak dapat diverifikasi.');
+  // Search snippets and failed HTML fetches are discovery metadata, never article evidence.
+  const isUsableFullText = s => s?.status === 'READ' && typeof s.content === 'string' &&
+    s.content.trim().length >= 300 &&
+    !/search snippet \\(not full article text\\)|cuplikan hasil pencarian \\(bukan konfirmasi artikel penuh\\)|oops, something went wrong|access denied|enable javascript to continue/i.test(s.content);
+  let read=Array.isArray(payload.sources)?payload.sources:[];
+  let readable=read.filter(isUsableFullText);
+  // Scheduled Tavily ingestion stores snippets only. Read primary macro sources
+  // before asking the model to produce current-news facts.
+  if(!readable.length){
+    const response=await fetch(endpoint+readRoute,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sources:SOURCES.map(s=>s.key),instrument,session:sessionNow(),requestedAt:new Date().toISOString()}),
+      signal:AbortSignal.timeout(45000),
+      cache:'no-store'
+    });
+    const officialPayload=await response.json();
+    if(!response.ok||!officialPayload.success)throw Error(officialPayload.error||'Pembacaan sumber primer gagal.');
+    read=Array.isArray(officialPayload.sources)?officialPayload.sources:[];
+    readable=read.filter(isUsableFullText);
+    payload={...payload,officialRead:true,officialReadAt:officialPayload.fetchedAt};
+  }
+  setSources(read);
+  if(!readable.length)throw Error('Tidak ada isi artikel/sumber primer yang berhasil dibaca. Cuplikan Tavily dan halaman yang gagal dibuka tidak boleh dipakai sebagai fakta berita.');
   const evidence=readable.map(s=>({source:s.label,url:s.url,fetchedAt:s.fetchedAt,content:String(s.content).slice(0,10000)}));
   const prompt=['Analisis hanya berita/peristiwa makro yang dapat memengaruhi XAUUSD dari bukti halaman berikut. Jangan mengarang headline, angka actual/consensus/previous, tanggal atau waktu. Pisahkan jadwal masa depan dari berita yang telah terbit.','Output JSON valid: {"summary":"...","facts":[{"headline":"...","summary":"...","sourceLabel":"...","sourceUrl":"...","publishedAt":"...","eventTimeWIB":"...","session":"asia|london|newyork|all","importance":"HIGH|MEDIUM|LOW","impact":"BULLISH_GOLD|BEARISH_GOLD|VOLATILITY_RISK|MIXED|UNKNOWN","impactReason":"...","factOrInterpretation":"FACT|INTERPRETATION|SCHEDULE"}],"risks":["..."],"missing":["..."],"asOf":"ISO timestamp"}. Jika tidak ada bukti relevan, facts [].','Instrumen '+instrument+'; sesi '+sessionNow()+'; waktu '+new Date().toISOString()+'. Provider pencarian: '+(payload.searchProvider||'pembacaan sumber terjadwal/resmi')+'. Catatan: hasil Tavily adalah cuplikan pencarian dan bukan bukti bahwa artikel penuh telah dibaca; jangan mengklaim tanggal publikasi jika tidak tersedia. Ringkasan mesin pencari (jika ada): '+(payload.directAnswer||'tidak tersedia')+'. Bukti: '+JSON.stringify(evidence)].join('\n\n');
   const systemPrompt='Analis berita fundamental emas. Hanya gunakan bukti sumber, jangan mengarang fakta terkini. Output SATU objek JSON valid tanpa markdown atau teks pembuka/penutup. Wajib memakai double quotes untuk key dan string.';
