@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { localRouterClient } from '../../services/router/LocalRouterClient.js';
 import { RouterConfig } from '../../services/router/RouterConfig.js';
+import GoldDriversPanel from './GoldDriversPanel.jsx';
 
 const SOURCES = [
-  { key: 'fed', label: 'Federal Reserve / FOMC' },
-  { key: 'bls', label: 'BLS / CPI & Employment' },
-  { key: 'bea', label: 'BEA / PCE & GDP' },
-  { key: 'treasury', label: 'US Treasury / Yields' },
-  { key: 'cftc', label: 'CFTC / COT' },
+  { key: 'fed',      label: 'Federal Reserve / FOMC' },
+  { key: 'bls',      label: 'BLS / CPI & Employment'  },
+  { key: 'bea',      label: 'BEA / PCE & GDP'          },
+  { key: 'treasury', label: 'US Treasury / Yields'      },
+  { key: 'cftc',     label: 'CFTC / COT'                },
 ];
-const card = { background: '#071321', border: '1px solid #164e63', borderRadius: 7, padding: 10, minWidth: 0 };
-const muted = { color: '#94a3b8', fontSize: 11, lineHeight: 1.6 };
-const button = { border: '1px solid #0891b2', borderRadius: 5, background: '#082334', color: '#a5f3fc', padding: '8px 11px', fontSize: 10, fontWeight: 800, cursor: 'pointer' };
+
+const card   = { background: '#071321', border: '1px solid #164e63', borderRadius: 7, padding: 10, minWidth: 0 };
+const muted  = { color: '#94a3b8', fontSize: 11, lineHeight: 1.6 };
+const btn    = { border: '1px solid #0891b2', borderRadius: 5, background: '#082334', color: '#a5f3fc', padding: '8px 11px', fontSize: 10, fontWeight: 800, cursor: 'pointer' };
 
 function safeJson(text) {
   const match = String(text || '').match(/\{[\s\S]*\}/);
@@ -19,19 +21,46 @@ function safeJson(text) {
   return JSON.parse(match[0]);
 }
 
+// ── Tab Button ─────────────────────────────────────────────────────────────────
+function TabBtn({ label, icon, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 5,
+        padding: '7px 13px',
+        borderRadius: 7,
+        border: active ? '1px solid #38bdf8' : '1px solid transparent',
+        background: active ? 'linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%)' : 'rgba(255,255,255,0.03)',
+        color: active ? '#ffffff' : '#64748b',
+        fontSize: 11, fontWeight: 800,
+        cursor: 'pointer',
+        boxShadow: active ? '0 0 12px rgba(59,130,246,0.35)' : 'none',
+        transition: 'all 0.15s ease',
+      }}
+    >
+      <span style={{ fontSize: 13 }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 export default function FundamentalResearchPanel({ instrument = 'XAUUSD' }) {
-  const [selected, setSelected] = useState(['fed', 'bls', 'bea', 'treasury']);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('BELUM DIBACA');
-  const [sources, setSources] = useState([]);
-  const [report, setReport] = useState(null);
-  const [error, setError] = useState('');
+  const [subTab,    setSubTab]   = useState('drivers'); // 'drivers' | 'research'
+  const [selected,  setSelected] = useState(['fed', 'bls', 'bea', 'treasury']);
+  const [busy,      setBusy]     = useState(false);
+  const [status,    setStatus]   = useState('BELUM DIBACA');
+  const [sources,   setSources]  = useState([]);
+  const [report,    setReport]   = useState(null);
+  const [error,     setError]    = useState('');
 
   const readAndAnalyze = async () => {
     setBusy(true); setError(''); setReport(null); setStatus('MEMBACA WEBSITE RESMI…');
     try {
       const endpoint = String(RouterConfig.getEndpoint()).replace(/\/+$/, '');
-      const route = endpoint.endsWith('/api') ? '/trading/fundamental-read' : '/api/trading/fundamental-read';
+      const route    = endpoint.endsWith('/api') ? '/trading/fundamental-read' : '/api/trading/fundamental-read';
       const response = await fetch(endpoint + route, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,35 +103,164 @@ export default function FundamentalResearchPanel({ instrument = 'XAUUSD' }) {
     } finally { setBusy(false); }
   };
 
-  const biasColor = report?.overallBias === 'BULLISH_GOLD' ? '#34d399' : report?.overallBias === 'BEARISH_GOLD' ? '#fb7185' : '#fbbf24';
-  return <section style={{ color: '#dbeafe', display: 'grid', gap: 10 }}>
-    <header style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <div><div style={{ color: '#67e8f9', fontSize: 13, fontWeight: 900 }}>JIN GOLD FUNDAMENTAL INTELLIGENCE</div><div style={muted}>AI wajib membaca isi halaman sumber sebelum menyimpulkan. Instrumen: {instrument}.</div></div>
-      <button type="button" style={button} onClick={readAndAnalyze} disabled={busy}>{busy ? 'MEMPROSES…' : '↻ BACA WEBSITE & ANALISIS'}</button>
-    </header>
-    <div style={{ ...card }}>
-      <div style={{ color: '#7dd3fc', fontWeight: 900, fontSize: 10, marginBottom: 8 }}>PILIH SUMBER YANG AKAN DIBACA</div>
-      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{SOURCES.map(s => <label key={s.key} style={{ ...muted, display: 'flex', gap: 5, alignItems: 'center', border: '1px solid #20394c', borderRadius: 5, padding: '6px 8px' }}><input type="checkbox" checked={selected.includes(s.key)} onChange={e => setSelected(old => e.target.checked ? [...old, s.key] : old.filter(k => k !== s.key))} />{s.label}</label>)}</div>
-      <div style={{ ...muted, marginTop: 7 }}>Website dibaca melalui Local Router; browser tidak sekadar mengirim URL kepada model. Jika isi halaman gagal diambil, sumber ditandai tidak tersedia.</div>
-    </div>
-    <div style={{ ...card, borderColor: report ? '#047857' : '#92400e' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><strong style={{ color: report ? '#34d399' : '#fbbf24', fontSize: 10 }}>{status}</strong><span style={muted}>{report?.analyzedAt ? new Date(report.analyzedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB' : 'Belum ada hasil terverifikasi'}</span></div>
-      {error && <div role="alert" style={{ color: '#fca5a5', marginTop: 8, fontSize: 11 }}>{error}</div>}
-      {report && <>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, marginTop: 9 }}>
-          {[
-            ['BIAS FUNDAMENTAL', report.overallBias || 'INSUFFICIENT_EVIDENCE', biasColor],
-            ['CONFIDENCE', Number.isFinite(Number(report.confidence)) ? Math.max(0, Math.min(100, Number(report.confidence))) + '%' : '—', '#7dd3fc'],
-            ['SUMBER DIBACA', String(report.sourceCount), '#7dd3fc'],
-          ].map(([label, value, color]) => <div key={label} style={card}><div style={{ ...muted, fontSize: 9 }}>{label}</div><div style={{ color, fontSize: 15, fontWeight: 900, marginTop: 5, overflowWrap: 'anywhere' }}>{value}</div></div>)}
+  const biasColor = report?.overallBias === 'BULLISH_GOLD' ? '#34d399'
+    : report?.overallBias === 'BEARISH_GOLD' ? '#fb7185' : '#fbbf24';
+
+  return (
+    <section style={{ color: '#dbeafe', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* ── Sub-Tab Bar ── */}
+      <div style={{
+        display: 'flex', gap: 6, alignItems: 'center',
+        padding: '8px 10px',
+        background: '#060f1e',
+        border: '1px solid rgba(0,229,255,0.12)',
+        borderRadius: 9,
+        flexWrap: 'wrap',
+      }}>
+        <TabBtn
+          icon="⚖️" label="Faktor Gold"
+          active={subTab === 'drivers'}
+          onClick={() => setSubTab('drivers')}
+        />
+        <TabBtn
+          icon="🔬" label="Research AI"
+          active={subTab === 'research'}
+          onClick={() => setSubTab('research')}
+        />
+        <div style={{ marginLeft: 'auto', fontSize: 9, color: '#334155' }}>
+          Instrumen: <span style={{ color: '#475569' }}>{instrument}</span>
         </div>
-        <div style={{ ...card, marginTop: 9 }}><div style={{ color: '#67e8f9', fontWeight: 900, fontSize: 10 }}>KESIMPULAN AI</div><p style={{ ...muted, color: '#dbeafe' }}>{report.summary || 'Kesimpulan belum tersedia.'}</p><div style={muted}>Fed: {report.fedImpact || 'Belum ditemukan.'}</div><div style={muted}>Inflasi & pekerjaan: {report.inflationJobs || 'Belum ditemukan.'}</div><div style={muted}>USD & yield: {report.yieldsUsd || 'Belum ditemukan.'}</div><div style={muted}>Faktor emas: {report.goldDrivers || 'Belum ditemukan.'}</div></div>
-        <div style={{ ...card, marginTop: 9 }}><div style={{ color: '#7dd3fc', fontWeight: 900, fontSize: 10 }}>FAKTA DAN SUMBER YANG DITEMUKAN</div>{(report.facts || []).length ? report.facts.map((f, i) => <div key={i} style={{ borderTop: '1px solid #19364b', paddingTop: 8, marginTop: 8 }}><div style={{ fontWeight: 800, fontSize: 11 }}>{f.topic || 'Fakta'}</div><div style={muted}>{f.fact || 'Isi tidak tersedia'}</div><div style={muted}>Publikasi: {f.publishedAt || 'Tidak ditemukan'} · Dampak: {f.impact || 'UNKNOWN'}</div>{f.sourceUrl && <a href={f.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: 10 }}>Buka sumber ↗</a>}</div>) : <p style={muted}>AI tidak menemukan fakta spesifik yang cukup kuat untuk dilaporkan.</p>}</div>
-        {!!(report.risks || []).length && <div style={{ ...card, marginTop: 9 }}><div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 10 }}>RISIKO / KETERBATASAN</div><ul style={muted}>{report.risks.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
-        {!!(report.missing || []).length && <div style={{ ...card, marginTop: 9 }}><div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 10 }}>DATA BELUM DITEMUKAN</div><ul style={muted}>{report.missing.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
-      </>}
-    </div>
-    {!!sources.length && <div style={{ ...card }}><div style={{ color: '#7dd3fc', fontSize: 10, fontWeight: 900, marginBottom: 7 }}>STATUS PEMBACAAN WEBSITE</div>{sources.map(s => <div key={s.key} style={{ borderTop: '1px solid #19364b', padding: '7px 0' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><strong style={{ fontSize: 10 }}>{s.label}</strong><span style={{ color: s.status === 'READ' ? '#34d399' : '#fbbf24', fontSize: 9 }}>{s.status}</span></div><a href={s.url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: 10 }}>{s.url}</a>{s.error && <div style={{ ...muted, color: '#fca5a5' }}>{s.error}</div>}</div>)}</div>}
-    <div style={{ ...muted, fontSize: 10 }}>Catatan: halaman jadwal tidak membuktikan suatu rilis telah terjadi. Actual, consensus, previous, dan dampak hanya ditampilkan bila didukung isi sumber. Ini analisis informasi, bukan instruksi entry otomatis.</div>
-  </section>;
+      </div>
+
+      {/* ── Tab: Faktor Gold ── */}
+      {subTab === 'drivers' && (
+        <GoldDriversPanel />
+      )}
+
+      {/* ── Tab: Research AI ── */}
+      {subTab === 'research' && (
+        <>
+          {/* Header + trigger button */}
+          <div style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: '#67e8f9', fontSize: 13, fontWeight: 900 }}>JIN GOLD FUNDAMENTAL INTELLIGENCE</div>
+              <div style={muted}>AI wajib membaca isi halaman sumber sebelum menyimpulkan. Instrumen: {instrument}.</div>
+            </div>
+            <button type="button" style={btn} onClick={readAndAnalyze} disabled={busy}>
+              {busy ? 'MEMPROSES…' : '↻ BACA WEBSITE & ANALISIS'}
+            </button>
+          </div>
+
+          {/* Source selector */}
+          <div style={{ ...card }}>
+            <div style={{ color: '#7dd3fc', fontWeight: 900, fontSize: 10, marginBottom: 8 }}>PILIH SUMBER YANG AKAN DIBACA</div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {SOURCES.map(s => (
+                <label key={s.key} style={{ ...muted, display: 'flex', gap: 5, alignItems: 'center', border: '1px solid #20394c', borderRadius: 5, padding: '6px 8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(s.key)}
+                    onChange={e => setSelected(old => e.target.checked ? [...old, s.key] : old.filter(k => k !== s.key))}
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+            <div style={{ ...muted, marginTop: 7 }}>
+              Website dibaca melalui Local Router; browser tidak sekadar mengirim URL kepada model. Jika isi halaman gagal diambil, sumber ditandai tidak tersedia.
+            </div>
+          </div>
+
+          {/* Status & Report */}
+          <div style={{ ...card, borderColor: report ? '#047857' : '#92400e' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <strong style={{ color: report ? '#34d399' : '#fbbf24', fontSize: 10 }}>{status}</strong>
+              <span style={muted}>
+                {report?.analyzedAt
+                  ? new Date(report.analyzedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB'
+                  : 'Belum ada hasil terverifikasi'}
+              </span>
+            </div>
+            {error && <div role="alert" style={{ color: '#fca5a5', marginTop: 8, fontSize: 11 }}>{error}</div>}
+
+            {report && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, marginTop: 9 }}>
+                  {[
+                    ['BIAS FUNDAMENTAL', report.overallBias || 'INSUFFICIENT_EVIDENCE', biasColor],
+                    ['CONFIDENCE', Number.isFinite(Number(report.confidence)) ? Math.max(0, Math.min(100, Number(report.confidence))) + '%' : '—', '#7dd3fc'],
+                    ['SUMBER DIBACA', String(report.sourceCount), '#7dd3fc'],
+                  ].map(([label, value, color]) => (
+                    <div key={label} style={card}>
+                      <div style={{ ...muted, fontSize: 9 }}>{label}</div>
+                      <div style={{ color, fontSize: 15, fontWeight: 900, marginTop: 5, overflowWrap: 'anywhere' }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ ...card, marginTop: 9 }}>
+                  <div style={{ color: '#67e8f9', fontWeight: 900, fontSize: 10 }}>KESIMPULAN AI</div>
+                  <p style={{ ...muted, color: '#dbeafe' }}>{report.summary || 'Kesimpulan belum tersedia.'}</p>
+                  <div style={muted}>Fed: {report.fedImpact || 'Belum ditemukan.'}</div>
+                  <div style={muted}>Inflasi & pekerjaan: {report.inflationJobs || 'Belum ditemukan.'}</div>
+                  <div style={muted}>USD & yield: {report.yieldsUsd || 'Belum ditemukan.'}</div>
+                  <div style={muted}>Faktor emas: {report.goldDrivers || 'Belum ditemukan.'}</div>
+                </div>
+
+                <div style={{ ...card, marginTop: 9 }}>
+                  <div style={{ color: '#7dd3fc', fontWeight: 900, fontSize: 10 }}>FAKTA DAN SUMBER YANG DITEMUKAN</div>
+                  {(report.facts || []).length
+                    ? report.facts.map((f, i) => (
+                        <div key={i} style={{ borderTop: '1px solid #19364b', paddingTop: 8, marginTop: 8 }}>
+                          <div style={{ fontWeight: 800, fontSize: 11 }}>{f.topic || 'Fakta'}</div>
+                          <div style={muted}>{f.fact || 'Isi tidak tersedia'}</div>
+                          <div style={muted}>Publikasi: {f.publishedAt || 'Tidak ditemukan'} · Dampak: {f.impact || 'UNKNOWN'}</div>
+                          {f.sourceUrl && <a href={f.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: 10 }}>Buka sumber ↗</a>}
+                        </div>
+                      ))
+                    : <p style={muted}>AI tidak menemukan fakta spesifik yang cukup kuat untuk dilaporkan.</p>}
+                </div>
+
+                {!!(report.risks || []).length && (
+                  <div style={{ ...card, marginTop: 9 }}>
+                    <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 10 }}>RISIKO / KETERBATASAN</div>
+                    <ul style={muted}>{report.risks.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </div>
+                )}
+
+                {!!(report.missing || []).length && (
+                  <div style={{ ...card, marginTop: 9 }}>
+                    <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: 10 }}>DATA BELUM DITEMUKAN</div>
+                    <ul style={muted}>{report.missing.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Source read status */}
+          {!!sources.length && (
+            <div style={{ ...card }}>
+              <div style={{ color: '#7dd3fc', fontSize: 10, fontWeight: 900, marginBottom: 7 }}>STATUS PEMBACAAN WEBSITE</div>
+              {sources.map(s => (
+                <div key={s.key} style={{ borderTop: '1px solid #19364b', padding: '7px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <strong style={{ fontSize: 10 }}>{s.label}</strong>
+                    <span style={{ color: s.status === 'READ' ? '#34d399' : '#fbbf24', fontSize: 9 }}>{s.status}</span>
+                  </div>
+                  <a href={s.url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: 10 }}>{s.url}</a>
+                  {s.error && <div style={{ ...muted, color: '#fca5a5' }}>{s.error}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ ...muted, fontSize: 10 }}>
+            Catatan: halaman jadwal tidak membuktikan suatu rilis telah terjadi. Actual, consensus, previous, dan dampak hanya ditampilkan bila didukung isi sumber. Ini analisis informasi, bukan instruksi entry otomatis.
+          </div>
+        </>
+      )}
+    </section>
+  );
 }

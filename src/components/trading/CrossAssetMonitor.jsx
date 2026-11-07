@@ -33,8 +33,48 @@ function summarize(symbol, tf) {
   return {symbol,tf,status:result.status,count:candles.length,freshness:result.freshness,price:last,change:base?((last-base)/base)*100:null,trend:recent>prior*1.001?'BULLISH':recent<prior*.999?'BEARISH':'SIDEWAYS',returns};
 }
 export default function CrossAssetMonitor(){
- const [revision,setRevision]=useState(0);
- useEffect(()=>{const unsub=marketDataServiceInstance.subscribe(()=>setRevision(v=>v+1));const timer=setInterval(()=>setRevision(v=>v+1),30000);return()=>{if(typeof unsub==='function')unsub();clearInterval(timer)}},[]);
+  const [revision, setRevision] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchCrossAssets = async () => {
+    setIsRefreshing(true);
+    try {
+      const requests = [];
+      for (const asset of ASSETS) {
+        for (const tf of TF) {
+          requests.push(
+            fetch("http://127.0.0.1:20200/trading/ohlc?symbol=" + encodeURIComponent(asset.symbol) + "&timeframe=" + tf + "&limit=60")
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data?.ok && Array.isArray(data.candles) && data.candles.length > 0) {
+                  marketDataServiceInstance.addBatchCandles(data.candles.map(c => ({
+                    ...c,
+                    symbol: asset.symbol,
+                    timeframe: tf,
+                    isSimulated: false
+                  })));
+                }
+              })
+              .catch(() => {})
+          );
+        }
+      }
+      await Promise.all(requests);
+      setRevision(v => v + 1);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCrossAssets();
+    const interval = setInterval(fetchCrossAssets, 25000);
+    const unsub = marketDataServiceInstance.subscribe(() => setRevision(v => v + 1));
+    return () => {
+      clearInterval(interval);
+      if (typeof unsub === "function") unsub();
+    };
+  }, []);
  const rows=useMemo(()=>ASSETS.map(a=>({...a,readings:TF.map(tf=>summarize(a.symbol,tf))})),[revision]);
  const gold=rows.find(r=>r.symbol==='XAUUSD');
  const correlations=useMemo(()=>Object.fromEntries(rows.filter(r=>r.symbol!=='XAUUSD').map(r=>{const daily=r.readings[0];const corr=gold?pearson(gold.readings[0].returns,daily.returns):null;return[r.symbol,corr]})),[rows]);

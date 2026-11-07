@@ -1,5 +1,19 @@
 [
   {
+    "id": "EVOLVE-1793752396066-CL9X",
+    "key": "EVOLUTION_RULE_SEMANTICINTENTENGINE",
+    "content": "[9ROUTER EVOLUTION RULE] Masalah: JINI gagal memberikan analisis makroekonomi XAUUSD yang memisahkan jadwal masa depan dari berita terbit secara akurat tanpa melanggar batasan format JSON. | Solusi/Aturan: Validasi ketat schema JSON wajib diterapkan sebelum output dikirim; pisahkan eksplisit array schedule dan facts berbasis timestamp bukti.",
+    "tier": "SELF_EVOLVED_RULE",
+    "confidence": 0.99,
+    "provenance": "NINEROUTER_AUTONOMOUS_CORRECTION",
+    "createdAt": "2026-11-04T00:33:16.066Z",
+    "metadata": {
+      "targetSubsystem": "SemanticIntentEngine",
+      "rootCause": "SemanticIntentEngine gagal menyaring cuplikan Tavily yang bercampur antara data aktual lampau, perkiraan (preview), dan jadwal ke depan, menyebabkan halusinasi data.",
+      "actionCategory": "DYNAMIC_RULE"
+    }
+  },
+  {
     "id": "EVOLVE-1792197573967-GTFB",
     "key": "EVOLUTION_RULE_PLAYER_EMBED",
     "content": "[9ROUTER EVOLUTION RULE] Masalah: Video YouTube layar hitam saat diputar | Solusi/Aturan: Player Embed harus validasi format video sebelum pemutaran.",
@@ -2390,6 +2404,138 @@
     "provenance": "USER_EXPLICIT_STORE",
     "createdAt": "2026-10-28T09:58:44.444Z",
     "lastAccessedAt": "2026-10-28T09:58:44.444Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793354639678-BKG6",
+    "key": "buatkan gambar pesawat terbang melintas",
+    "content": "Visual untuk pesawat terbang melintas di gunung telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-30T10:03:59.678Z",
+    "lastAccessedAt": "2026-10-30T10:03:59.678Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793354731120-9SHG",
+    "key": "ubah sausananya jadi sunset, gambar pesa",
+    "content": "Visual untuk pesawat terbang melintas di gunung telah selesai diperbarui.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-30T10:05:31.120Z",
+    "lastAccessedAt": "2026-10-30T10:05:31.120Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793363216072-LNOV",
+    "key": "buat gambar burung",
+    "content": "Visual untuk burung telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-30T12:26:56.072Z",
+    "lastAccessedAt": "2026-10-30T12:26:56.072Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793465741448-W5X6",
+    "key": "buatkan gambar pesawat terbang lagi take",
+    "content": "Visual untuk pesawat terbang lagi take off telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-31T16:55:41.448Z",
+    "lastAccessedAt": "2026-10-31T16:55:41.448Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793465769261-J0ZT",
+    "key": "buat gambar pesawat tebang melintasi gun",
+    "content": "Visual untuk pesawat tebang melintasi gunung telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-31T16:56:09.261Z",
+    "lastAccessedAt": "2026-10-31T16:56:09.261Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793465796018-ZUDH",
+    "key": "buat gambar kucing",
+    "content": "Visual untuk kucing telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-10-31T16:56:36.018Z",
+    "lastAccessedAt": "2026-10-31T16:56:36.018Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1793666120497-DIBL",
+    "key": "test",
+    "content": "Connection OK. Ready.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-03T00:35:20.497Z",
+    "lastAccessedAt": "2026-11-03T00:35:20.497Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794051800891-XXG6",
+    "key": "buatkan gambar pesawat terbang",
+    "content": "Visual untuk pesawat terbang telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-07T11:43:20.891Z",
+    "lastAccessedAt": "2026-11-07T11:43:20.891Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794051835190-NIYV",
+    "key": "buat pesaat terbang melintasi gunung",
+    "content": "Visual pesawat terbang yang sedang melintasi kawasan pegunungan telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-07T11:43:55.190Z",
+    "lastAccessedAt": "2026-11-07T11:43:55.190Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794051891878-U2J4",
+    "key": "buakan gambar pesawat terbang melintas g",
+    "content": "This version of Antigravity is no longer supported. Please download and install the latest version a",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-07T11:44:51.878Z",
+    "lastAccessedAt": "2026-11-07T11:44:51.878Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794051923418-YA4L",
+    "key": "gambar kucing",
+    "content": "This version of Antigravity is no longer supported. Please download and install the latest version a",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-07T11:45:23.418Z",
+    "lastAccessedAt": "2026-11-07T11:45:23.418Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794087051132-QYUX",
+    "key": "buatkan gambar pesawat terbang melintas",
+    "content": "Visual untuk pesawat terbang melintas gunung telah berhasil dibuat.",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-07T21:30:51.132Z",
+    "lastAccessedAt": "2026-11-07T21:30:51.132Z",
     "accessCount": 1
   }
 ]
