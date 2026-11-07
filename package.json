@@ -10,6 +10,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "npx vite",
+    "dev:desktop": "node scripts/start-desktop-dev.mjs",
     "test": "jest --coverage",
     "build": "npx vite build",
     "serve": "node server/local_router/LocalRouterServer.mjs",
@@ -40,6 +41,7 @@
     "hls.js": "^1.7.3",
     "jimp": "^0.22.10",
     "jszip": "^3.10.1",
+    "lightweight-charts": "^5.2.1",
     "lucide-react": "^1.21.0",
     "maplibre-gl": "^6.16.0",
     "node-fetch": "^3.3.2",
