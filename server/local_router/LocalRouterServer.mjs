@@ -26,6 +26,12 @@ import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
 import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
 import visualChartAnalysisHandler from '../../api/trading/visual-chart-analysis.js';
 import intermarketQuotesHandler from '../../api/trading/intermarket-quotes.js';
+import { paymentGatewayServiceInstance } from '../payment/PaymentGatewayService.mjs';
+import { paymentLedgerInstance } from '../payment/PaymentLedger.mjs';
+import {
+  JIN_TRADING_ALLOWED_SYMBOLS,
+  canonicalTradingSymbol,
+} from './TradingSymbols.mjs';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
   if (!artifact || !artifact.renderable) return false;
@@ -159,16 +165,155 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
 // Data is intentionally volatile: a server restart requires the MT5 bridge to publish again.
 const JIN_TRADING_CANDLES = new Map();
 const JIN_TRADING_TICKS = new Map();
-const JIN_TRADING_TF_MS = { M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
+const JIN_PENDING_ORDERS = new Map();
+const JIN_ORDER_RESULTS = new Map();
+const JIN_IDEMPOTENCY_MAP = new Map();
+const JIN_ORDER_AUDIT = [];
+
+function recordOrderAudit(orderId, event, details = {}) {
+  const item = {
+    orderId,
+    event,
+    timestamp: new Date().toISOString(),
+    details
+  };
+  JIN_ORDER_AUDIT.push(item);
+  if (JIN_ORDER_AUDIT.length > 500) JIN_ORDER_AUDIT.shift();
+  try {
+    fs.writeFileSync('server/data/order-audit-trail.json', JSON.stringify(JIN_ORDER_AUDIT.slice(-100), null, 2), 'utf8');
+  } catch (_) {}
+  console.log('[ORDER AUDIT] [' + item.timestamp + '] [' + orderId + '] ' + event + ':', typeof details === 'object' ? JSON.stringify(details) : details);
+}
+let JIN_LAST_BRIDGE_HEARTBEAT = 0;
+const JIN_TRADING_TF_MS = { M1: 60000, M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
 function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
 function jinTradingValidCandle(c) {
-  if (!c || typeof c !== 'object' || !['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(String(c.symbol || '').toUpperCase())) return false;
+  if (!c || typeof c !== 'object' || !JIN_TRADING_ALLOWED_SYMBOLS.includes(canonicalTradingSymbol(c.symbol))) return false;
   if (!Object.hasOwn(JIN_TRADING_TF_MS, String(c.timeframe || '').toUpperCase())) return false;
   const nums = [c.open,c.high,c.low,c.close,c.volume];
   const time = typeof c.timestamp === 'string' ? Date.parse(c.timestamp) : Number(c.timestamp);
   return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) &&
     c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high);
 }
+// Yahoo Finance fallback helper for market instruments when MT5 bridge is offline
+const YAHOO_SYMBOL_MAP = {
+  'XAUUSD': 'GC=F',
+  'GOLD': 'GC=F',
+  'BTCUSDT': 'BTC-USD',
+  'ETHUSDT': 'ETH-USD',
+  'EURUSD': 'EURUSD=X',
+  'GBPUSD': 'GBPUSD=X',
+  'US30': '^DJI',
+  'DXY': 'DX-Y.NYB',
+  'US10Y': '^TNX',
+  'US02Y': '^IRX',
+  'USDJPY': 'USDJPY=X',
+  'USDCHF': 'USDCHF=X',
+  'USOIL': 'CL=F',
+  'XAGUSD': 'SI=F',
+  'HG': 'HG=F',
+  'SPX500': '^GSPC'
+};
+
+const YAHOO_TF_PARAMS = {
+  'M1':  { interval: '1m',  range: '1d' },
+  'M5':  { interval: '5m',  range: '2d' },
+  'M15': { interval: '15m', range: '5d' },
+  'H1':  { interval: '1h',  range: '1mo' },
+  'H4':  { interval: '1h',  range: '3mo', aggregate: 4 },
+  'D1':  { interval: '1d',  range: '6mo' }
+};
+
+const YAHOO_CACHE = new Map();
+
+async function fetchYahooFallbackCandles(symbol, tf) {
+  const normSym = String(symbol || '').toUpperCase();
+  const ySymbol = YAHOO_SYMBOL_MAP[normSym] || normSym;
+  const cfg = YAHOO_TF_PARAMS[tf] || YAHOO_TF_PARAMS['M15'];
+  const cacheKey = String(ySymbol) + "_" + String(tf);
+  const cached = YAHOO_CACHE.get(cacheKey);
+  if (cached && (Date.now() - cached.time < 15000)) {
+    return cached.data;
+  }
+
+  try {
+    const url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(ySymbol) + "?interval=" + cfg.interval + "&range=" + cfg.range;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 JIN-Market-Intelligence/1.0' },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result || !Array.isArray(result.timestamp)) return null;
+
+    const timestamps = result.timestamp;
+    const quotes = result.indicators?.quote?.[0] || {};
+    const meta = result.meta || {};
+    const candles = [];
+
+    for (let i = 0; i < timestamps.length; i++) {
+      const o = quotes.open?.[i];
+      const h = quotes.high?.[i];
+      const l = quotes.low?.[i];
+      const c = quotes.close?.[i];
+      const v = quotes.volume?.[i] || 0;
+      if (!Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) continue;
+      candles.push({
+        symbol: normSym,
+        timeframe: tf,
+        timestamp: new Date(timestamps[i] * 1000).toISOString(),
+        open: Number(o),
+        high: Number(h),
+        low: Number(l),
+        close: Number(c),
+        volume: Number(v),
+        source: 'YAHOO_LIVE_FALLBACK',
+        isSimulated: false
+      });
+    }
+
+    let finalCandles = candles;
+    if (cfg.aggregate === 4 && candles.length >= 4) {
+      const agg = [];
+      for (let i = 0; i < candles.length; i += 4) {
+        const slice = candles.slice(i, i + 4);
+        if (slice.length === 0) continue;
+        const open = slice[0].open;
+        const close = slice[slice.length - 1].close;
+        const high = Math.max(...slice.map(s => s.high));
+        const low = Math.min(...slice.map(s => s.low));
+        const volume = slice.reduce((sum, s) => sum + (s.volume || 0), 0);
+        agg.push({
+          symbol: normSym,
+          timeframe: 'H4',
+          timestamp: slice[0].timestamp,
+          open, high, low, close, volume,
+          source: 'YAHOO_LIVE_FALLBACK',
+          isSimulated: false
+        });
+      }
+      finalCandles = agg;
+    }
+
+    const regularPrice = Number(meta.regularMarketPrice);
+    const tick = Number.isFinite(regularPrice) ? {
+      symbol: normSym,
+      bid: regularPrice,
+      ask: regularPrice + (normSym === 'XAUUSD' ? 0.35 : 0.01),
+      spread: normSym === 'XAUUSD' ? 0.35 : 0.01,
+      timestamp: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
+      source: 'YAHOO_LIVE_FALLBACK'
+    } : null;
+
+    const data = { candles: finalCandles, tick };
+    YAHOO_CACHE.set(cacheKey, { time: Date.now(), data });
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
+
 export function createLocalRouterServer() {
   const server = http.createServer(async (req, res) => {
     // CORS Headers
@@ -904,12 +1049,14 @@ Requirements:
         const payload = await readJsonBody();
         const incoming = Array.isArray(payload.candles) ? payload.candles.slice(0, 2500) : [];
         let accepted = 0, rejected = 0;
-        const now = Date.now();
+        // Note: reference time for freshness is the MT5 tick timestamp (broker time),
+        // not the server clock, which may be skewed vs the MT5 terminal server time.
+        // jinTradingValidCandle already enforces OHLC integrity and finite values.
         for (const raw of incoming) {
-          const candle = { ...raw, symbol: String(raw.symbol || '').toUpperCase(), timeframe: String(raw.timeframe || '').toUpperCase(),
+          const candle = { ...raw, symbol: canonicalTradingSymbol(raw.symbol), timeframe: String(raw.timeframe || '').toUpperCase(),
             timestamp: typeof raw.timestamp === 'number' ? new Date(raw.timestamp * (raw.timestamp < 1e12 ? 1000 : 1)).toISOString() : raw.timestamp,
             source: 'MT5_LOCAL_BRIDGE', isSimulated: false };
-          if (!jinTradingValidCandle(candle) || Date.parse(candle.timestamp) > now + 60000) { rejected++; continue; }
+          if (!jinTradingValidCandle(candle)) { rejected++; continue; }
           const key = jinTradingKey(candle.symbol, candle.timeframe);
           const rows = JIN_TRADING_CANDLES.get(key) || new Map();
           rows.set(candle.timestamp, candle);
@@ -919,15 +1066,33 @@ Requirements:
         }
         const ticks = Array.isArray(payload.ticks) ? payload.ticks.slice(0, 20) : [];
         for (const t of ticks) {
-          const symbol = String(t.symbol || '').toUpperCase();
-          if (['XAUUSD','BTCUSDT','ETHUSDT','EURUSD','GBPUSD','US30'].includes(symbol) &&
+          const symbol = canonicalTradingSymbol(t.symbol);
+          if (JIN_TRADING_ALLOWED_SYMBOLS.includes(symbol) &&
               Number.isFinite(t.bid) && Number.isFinite(t.ask) && t.ask >= t.bid) {
             JIN_TRADING_TICKS.set(symbol, { symbol, bid: t.bid, ask: t.ask, spread: t.ask-t.bid,
-              timestamp: new Date().toISOString(), source: 'MT5_LOCAL_BRIDGE' });
+              timestamp: t.timestamp || new Date().toISOString(), source: t.source || 'MT5_LOCAL_BRIDGE' });
           }
         }
+        JIN_LAST_BRIDGE_HEARTBEAT = Date.now();
+        const nowIngest = Date.now();
+        for (const [id, ord] of JIN_PENDING_ORDERS.entries()) {
+          const submitted = ord.submittedAtEpoch || nowIngest;
+          if (nowIngest - submitted > 10000) {
+            JIN_PENDING_ORDERS.delete(id);
+            const expired = {
+              orderId: id,
+              status: 'ORDER_EXPIRED',
+              retcode: -10,
+              comment: 'Order kadaluarsa (TTL 10s terlampaui). Dibatalkan otomatis demi keamanan.',
+              timestamp: new Date().toISOString()
+            };
+            JIN_ORDER_RESULTS.set(id, expired);
+            recordOrderAudit(id, 'ORDER_EXPIRED_TIMEOUT', expired);
+          }
+        }
+        const pendingOrders = Array.from(JIN_PENDING_ORDERS.values());
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, accepted, rejected, candleSets: [...JIN_TRADING_CANDLES.keys()], timestamp: new Date().toISOString() }));
+        res.end(JSON.stringify({ ok: true, accepted, rejected, candleSets: [...JIN_TRADING_CANDLES.keys()], pendingOrders, timestamp: new Date().toISOString() }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: err.message || 'Invalid MT5 OHLC payload' }));
@@ -935,35 +1100,214 @@ Requirements:
       return;
     }
     if ((pathname === '/api/trading/ohlc' || pathname === '/trading/ohlc') && req.method === 'GET') {
-      const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
-      const timeframe = String(url.searchParams.get('timeframe') || 'M5').toUpperCase();
+      const symbol = canonicalTradingSymbol(url.searchParams.get('symbol') || 'XAUUSD') || 'XAUUSD';
+      const rawTf = String(url.searchParams.get('timeframe') || 'M1').toUpperCase();
+      const tfNormMap = {
+        '1': 'M1', '1M': 'M1', 'M1': 'M1', '1MIN': 'M1',
+        '5': 'M5', '5M': 'M5', 'M5': 'M5', '5MIN': 'M5',
+        '15': 'M15', '15M': 'M15', 'M15': 'M15', '15MIN': 'M15',
+        '60': 'H1', '1H': 'H1', 'H1': 'H1', '1HR': 'H1',
+        '240': 'H4', '4H': 'H4', 'H4': 'H4', '4HR': 'H4',
+        'D': 'D1', '1D': 'D1', 'D1': 'D1', 'DAILY': 'D1'
+      };
+      const timeframe = tfNormMap[rawTf] || (Object.hasOwn(JIN_TRADING_TF_MS, rawTf) ? rawTf : 'M1');
       const limit = Math.min(500, Math.max(1, Number(url.searchParams.get('limit') || 300)));
-      const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])]
-        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-limit);
+      let rawRows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,timeframe))?.values() || [])];
+      let rows = rawRows
+        .filter(c => String(c.symbol || '').toUpperCase() === symbol && String(c.timeframe || '').toUpperCase() === timeframe)
+        .sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp))
+        .slice(-limit);
+      let tick = JIN_TRADING_TICKS.get(symbol) || null;
+      let effectiveSource = 'MT5_LOCAL_BRIDGE';
+
+      // Fallback: If MT5 local bridge is offline/empty, seamlessly fetch real live market data
+      if (rows.length === 0) {
+        const fallbackData = await fetchYahooFallbackCandles(symbol, timeframe);
+        if (fallbackData && Array.isArray(fallbackData.candles) && fallbackData.candles.length > 0) {
+          rows = fallbackData.candles.slice(-limit);
+          if (!tick && fallbackData.tick) tick = fallbackData.tick;
+          effectiveSource = 'LIVE_MARKET_FEED';
+        }
+      }
+
       const latest = rows.at(-1) || null;
-      const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
-      const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*2 ? 'FRESH' : 'STALE';
-      const tick = JIN_TRADING_TICKS.get(symbol) || null;
+      const refTime = tick ? Date.parse(tick.timestamp) : Date.now();
+      const ageMs = latest ? refTime - Date.parse(latest.timestamp) : null;
+      const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*3 ? 'FRESH' : 'STALE';
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, symbol, timeframe, source: 'MT5_LOCAL_BRIDGE', count: rows.length, freshness,
-        lastUpdate: latest?.timestamp || null, ageMs, tick, candles: rows }));
+      res.end(JSON.stringify({
+        ok: true,
+        symbol,
+        timeframe,
+        requestedTimeframe: rawTf,
+        actualTimeframe: timeframe,
+        source: effectiveSource,
+        count: rows.length,
+        freshness,
+        lastUpdate: latest?.timestamp || null,
+        lastCandle: latest ? {
+          timestamp: latest.timestamp,
+          open: Number(latest.open),
+          high: Number(latest.high),
+          low: Number(latest.low),
+          close: Number(latest.close),
+          volume: Number(latest.volume || 0)
+        } : null,
+        ageMs,
+        tick,
+        candles: rows
+      }));
       return;
     }
     if ((pathname === '/api/trading/ohlc/status' || pathname === '/trading/ohlc/status') && req.method === 'GET') {
       const sets = {};
+      const symbol = canonicalTradingSymbol(url.searchParams.get('symbol') || 'XAUUSD') || 'XAUUSD';
+      const tick = JIN_TRADING_TICKS.get(symbol) || null;
+      const refTime = tick ? Date.parse(tick.timestamp) : Date.now();
       for (const tf of Object.keys(JIN_TRADING_TF_MS)) {
-        const symbol = String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase();
         const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,tf))?.values() || [])];
         const latest = rows.at(-1) || null;
-        const ageMs = latest ? Date.now()-Date.parse(latest.timestamp) : null;
+        const ageMs = latest ? refTime - Date.parse(latest.timestamp) : null;
         sets[tf] = { count: rows.length, lastUpdate: latest?.timestamp || null,
           freshness: !latest ? 'NO_DATA' : ageMs < JIN_TRADING_TF_MS[tf]*2 ? 'FRESH' : 'STALE' };
       }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, symbol: String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase(),
-        source: 'MT5_LOCAL_BRIDGE', timeframes: sets, tick: JIN_TRADING_TICKS.get(String(url.searchParams.get('symbol') || 'XAUUSD').toUpperCase()) || null }));
+      res.end(JSON.stringify({ ok: true, symbol,
+        source: 'MT5_LOCAL_BRIDGE', timeframes: sets, tick }));
       return;
     }
+
+    // ─── ORDER SUBMISSION: POST /api/trading/order/submit ───
+    if ((pathname === '/api/trading/order/submit' || pathname === '/trading/order/submit') && req.method === 'POST') {
+      try {
+        const payload = await readJsonBody();
+        const now = Date.now();
+        const idempotencyKey = String(payload.idempotencyKey || '').trim();
+
+        // Idempotency check: Guard against duplicate submissions
+        if (idempotencyKey && JIN_IDEMPOTENCY_MAP.has(idempotencyKey)) {
+          const existingOrderId = JIN_IDEMPOTENCY_MAP.get(idempotencyKey);
+          const existingResult = JIN_ORDER_RESULTS.get(existingOrderId) || JIN_PENDING_ORDERS.get(existingOrderId) || null;
+          recordOrderAudit(existingOrderId, 'IDEMPOTENCY_HIT', { idempotencyKey, status: existingResult?.status });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            ok: true,
+            orderId: existingOrderId,
+            status: existingResult?.status || 'ORDER_SENT',
+            order: existingResult,
+            idempotent: true,
+            message: 'Order duplikat dicegah oleh idempotency guard.'
+          }));
+          return;
+        }
+
+        const bridgeActive = (now - JIN_LAST_BRIDGE_HEARTBEAT) < 8000;
+        if (!bridgeActive) {
+          const errorMsg = 'Bridge MT5 tidak terhubung (terminal XM MT5 offline atau bridge belum berjalan). Order dibatalkan demi keamanan.';
+          recordOrderAudit('REJECTED_OFFLINE', 'BRIDGE_OFFLINE_REJECT', { payload });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            ok: false,
+            status: 'BRIDGE_OFFLINE',
+            error: errorMsg,
+            timestamp: new Date().toISOString()
+          }));
+          return;
+        }
+
+        const orderId = 'ORD-' + now + '-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+        if (idempotencyKey) {
+          JIN_IDEMPOTENCY_MAP.set(idempotencyKey, orderId);
+        }
+
+        const order = {
+          orderId,
+          idempotencyKey,
+          side: String(payload.side || 'BUY').toUpperCase(),
+          instrument: String(payload.instrument || 'XAUUSD').toUpperCase(),
+          symbol: 'GOLD',
+          lotSize: Number(payload.lotSize || payload.volume || 0.01),
+          stopLoss: payload.stopLoss || payload.sl || null,
+          takeProfit: payload.takeProfit || payload.tp || null,
+          comment: String(payload.comment || ('JIN AI ' + payload.side)).slice(0, 31),
+          dryRun: payload.dryRun !== false, // default dry-run true
+          status: 'ORDER_SENT',
+          submittedAtEpoch: now / 1000,
+          createdAt: new Date().toISOString()
+        };
+
+        JIN_PENDING_ORDERS.set(orderId, order);
+        recordOrderAudit(orderId, 'ORDER_ENQUEUED', order);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          ok: true,
+          orderId,
+          status: 'ORDER_SENT',
+          order,
+          message: 'Order berhasil dikirim ke antrean eksekusi MT5.'
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, status: 'ERROR', error: err.message || 'Gagal memproses order' }));
+      }
+      return;
+    }
+
+    // ─── ORDER RESULT: POST /api/trading/order/result ───
+    if ((pathname === '/api/trading/order/result' || pathname === '/trading/order/result') && req.method === 'POST') {
+      try {
+        const report = await readJsonBody();
+        const orderId = report?.orderId;
+        if (orderId) {
+          const finalReport = {
+            ...report,
+            receivedAt: new Date().toISOString()
+          };
+          JIN_ORDER_RESULTS.set(orderId, finalReport);
+          JIN_PENDING_ORDERS.delete(orderId);
+          recordOrderAudit(orderId, 'ORDER_' + (report.status || 'RESULT'), finalReport);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    // ─── ORDER STATUS: GET /api/trading/order/status ───
+    if ((pathname === '/api/trading/order/status' || pathname === '/trading/order/status') && req.method === 'GET') {
+      const orderId = url.searchParams.get('orderId');
+      const now = Date.now();
+      const bridgeConnected = (now - JIN_LAST_BRIDGE_HEARTBEAT) < 8000;
+      const result = JIN_ORDER_RESULTS.get(orderId) || JIN_PENDING_ORDERS.get(orderId) || null;
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        ok: true,
+        orderId,
+        bridgeConnected,
+        order: result,
+        status: result?.status || (bridgeConnected ? 'WAITING_BROKER' : 'BRIDGE_OFFLINE')
+      }));
+      return;
+    }
+
+    // ─── ORDER AUDIT TRAIL: GET /api/trading/order/audit ───
+    if ((pathname === '/api/trading/order/audit' || pathname === '/trading/order/audit') && req.method === 'GET') {
+      const orderId = url.searchParams.get('orderId');
+      const filtered = orderId ? JIN_ORDER_AUDIT.filter(a => a.orderId === orderId) : JIN_ORDER_AUDIT.slice(-50);
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        ok: true,
+        count: filtered.length,
+        totalAuditEntries: JIN_ORDER_AUDIT.length,
+        auditTrail: filtered
+      }));
+      return;
+    }
+  
 
     // 11C2c. JIN CHART STUDIO â€” real provider candlestick (Binance klines)
     if (pathname === '/api/market/chart' && req.method === 'GET') {
@@ -4392,7 +4736,7 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
 
 
     // JIN XAUUSD session-news scheduler status and history.
-    if (pathname === '/api/trading/fundamental-status' && req.method === 'GET') {
+    if ((pathname === '/api/trading/fundamental-status' || pathname === '/trading/fundamental-status') && req.method === 'GET') {
       try {
         const { getGoldNewsSchedulerStatus } = await import('./GoldNewsSessionScheduler.mjs');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -4506,7 +4850,7 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
     }
 
     // JIN XAUUSD Fundamental Reader: fetch only allowlisted public sources.
-    if (pathname === '/api/trading/fundamental-read' && req.method === 'POST') {
+    if ((pathname === '/api/trading/fundamental-read' || pathname === '/trading/fundamental-read') && req.method === 'POST') {
       try {
         let body = '';
         for await (const chunk of req) {
@@ -4636,6 +4980,105 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       }
       return;
     }
+    // ── Payment Gateway & E-Wallet Deposit Routes (DANA, OVO, GoPay) ──
+    if (pathname === '/api/payment/config' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        config: paymentGatewayServiceInstance.getEnvironmentInfo()
+      }));
+      return;
+    }
+
+    if ((pathname === '/api/payment/deposit/create' || pathname === '/api/payment/create-deposit') && req.method === 'POST') {
+      let bodyStr = '';
+      req.on('data', chunk => { bodyStr += chunk; });
+      req.on('end', async () => {
+        try {
+          const body = JSON.parse(bodyStr || '{}');
+          const result = await paymentGatewayServiceInstance.createDeposit({
+            userId: body.userId || 'user-default',
+            amount: body.amount,
+            method: body.method,
+            customerDetails: body.customerDetails || {}
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
+    if (pathname === '/api/payment/webhook' && req.method === 'POST') {
+      let bodyStr = '';
+      req.on('data', chunk => { bodyStr += chunk; });
+      req.on('end', async () => {
+        try {
+          const payload = JSON.parse(bodyStr || '{}');
+          const result = await paymentGatewayServiceInstance.processWebhookNotification(payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ status: 'OK', result }));
+        } catch (err) {
+          console.error('[PaymentWebhook] Webhook verification error:', err.message);
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ status: 'ERROR', error: err.message }));
+        }
+      });
+      return;
+    }
+
+    if (pathname === '/api/payment/wallet' && req.method === 'GET') {
+      const urlObj = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+      const userId = urlObj.searchParams.get('userId') || 'user-default';
+      const wallet = paymentLedgerInstance.getWallet(userId);
+      const transactions = paymentLedgerInstance.getUserTransactions(userId);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, wallet, transactions }));
+      return;
+    }
+
+    if (pathname === '/api/payment/status' && req.method === 'GET') {
+      const urlObj = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+      const orderId = urlObj.searchParams.get('orderId');
+      if (!orderId) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: 'Parameter orderId diperlukan' }));
+        return;
+      }
+      const tx = paymentLedgerInstance.getTransaction(orderId);
+      if (!tx) {
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: 'Transaksi tidak ditemukan' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, transaction: tx }));
+      return;
+    }
+
+    if (pathname === '/api/payment/sandbox/simulate-pay' && req.method === 'POST') {
+      let bodyStr = '';
+      req.on('data', chunk => { bodyStr += chunk; });
+      req.on('end', async () => {
+        try {
+          const body = JSON.parse(bodyStr || '{}');
+          const result = await paymentGatewayServiceInstance.simulateSandboxPayment(
+            body.orderId,
+            body.status || 'settlement'
+          );
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, result }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+
     // 404 Handler
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: { message: `Route ${pathname} not found` } }));

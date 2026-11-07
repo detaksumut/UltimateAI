@@ -5,13 +5,15 @@
 input string InpLocalRouterURL = "http://127.0.0.1:20200/api/trading/ohlc/ingest";
 input string InpBrokerSymbol = ""; // Empty = chart symbol. Supports broker suffixes, e.g. XAUUSD.a.
 input int    InpBarsPerTimeframe = 300;
-input int    InpPublishSeconds = 5;
+input int    InpPublishSeconds = 1;
+
+datetime g_lastPublish = 0;
 
 string JIN_Symbol()
 {
    string s = InpBrokerSymbol == "" ? _Symbol : InpBrokerSymbol;
    StringToUpper(s);
-   if(StringFind(s, "XAUUSD") == 0) return "XAUUSD";
+   if(StringFind(s, "XAUUSD") == 0 || StringFind(s, "GOLD") == 0) return "XAUUSD";
    if(StringFind(s, "BTCUSDT") == 0) return "BTCUSDT";
    if(StringFind(s, "ETHUSDT") == 0) return "ETHUSDT";
    if(StringFind(s, "EURUSD") == 0) return "EURUSD";
@@ -52,14 +54,16 @@ void AppendRates(string &json, ENUM_TIMEFRAMES tf, string tfName, string symbol)
 
 void Publish()
 {
+   g_lastPublish = TimeCurrent();
    string symbol = JIN_Symbol();
    string candles = "";
    string brokerSymbol = InpBrokerSymbol == "" ? _Symbol : InpBrokerSymbol;
+   AppendRates(candles, PERIOD_D1, "D1", symbol);
    AppendRates(candles, PERIOD_H4, "H4", symbol);
    AppendRates(candles, PERIOD_H1, "H1", symbol);
    AppendRates(candles, PERIOD_M15, "M15", symbol);
    AppendRates(candles, PERIOD_M5, "M5", symbol);
-   AppendRates(candles, PERIOD_D1, "D1", symbol);
+   AppendRates(candles, PERIOD_M1, "M1", symbol);
 
    MqlTick tick;
    string ticks = "";
@@ -72,7 +76,7 @@ void Publish()
    int bytes = StringToCharArray(payload, post, 0, WHOLE_ARRAY, CP_UTF8);
    if(bytes > 0) ArrayResize(post, bytes - 1);
    ResetLastError();
-   int status = WebRequest("POST", InpLocalRouterURL, "Content-Type: application/json\r\n", 10000, post, response, responseHeaders);
+   int status = WebRequest("POST", InpLocalRouterURL, "Content-Type: application/json\r\n", 4000, post, response, responseHeaders);
    if(status == -1)
    {
       Print("[JIN MT5 Bridge] WebRequest failed. In MT5 open Tools > Options > Expert Advisors and allow URL http://127.0.0.1:20200. Error=", GetLastError());
@@ -80,16 +84,25 @@ void Publish()
    }
    string body = CharArrayToString(response, 0, -1, CP_UTF8);
    if(status < 200 || status >= 300) Print("[JIN MT5 Bridge] LocalRouter HTTP ", status, ": ", body);
-   else Print("[JIN MT5 Bridge] Published candles. HTTP ", status, ": ", body);
 }
 
 int OnInit()
 {
-   EventSetTimer(MathMax(5, InpPublishSeconds));
-   Print("[JIN MT5 Bridge] Started for broker symbol ", (InpBrokerSymbol == "" ? _Symbol : InpBrokerSymbol),
-         ". Ensure LocalRouterServer is running and allow http://127.0.0.1:20200 in MT5 WebRequest settings.");
+   int intervalSec = MathMax(1, InpPublishSeconds);
+   EventSetTimer(intervalSec);
+   Print("[JIN MT5 Bridge] Started real-time fast publisher for broker symbol ", (InpBrokerSymbol == "" ? _Symbol : InpBrokerSymbol),
+         " (interval: ", intervalSec, "s). Ensure LocalRouterServer is running.");
    Publish();
    return INIT_SUCCEEDED;
 }
 void OnDeinit(const int reason) { EventKillTimer(); }
-void OnTimer() { Publish(); }
+void OnTimer()
+{
+   if(TimeCurrent() - g_lastPublish >= MathMax(1, InpPublishSeconds))
+      Publish();
+}
+void OnTick()
+{
+   if(TimeCurrent() - g_lastPublish >= MathMax(1, InpPublishSeconds))
+      Publish();
+}

@@ -6,6 +6,7 @@ const MyProjects = lazy(() => import('./pages/MyProjects'));
 const GeneratedApps = lazy(() => import('./pages/GeneratedApps'));
 const ResearchBuilder = lazy(() => import('./pages/ResearchBuilder'));
 const TradingStudioModal = lazy(() => import('./components/trading/TradingStudioModal.jsx'));
+const PlatformTrader = lazy(() => import('./pages/PlatformTrader.jsx'));
 const BrokerWorkspace = lazy(() => import('./pages/BrokerWorkspace.jsx'));
 
 function BackgroundMusic() {
@@ -88,6 +89,7 @@ function App() {
         <Route path="/" element={<Navigate to="/simulator" replace />} />
         <Route path="/simulator" element={<ChatSimulator />} />
         <Route path="/trading" element={<TradingStudioModal />} />
+        <Route path="/platform-trader" element={<PlatformTrader />} />
         <Route path="/broker-workspace" element={<BrokerWorkspace />} />
         <Route path="/my-projects" element={<MyProjects />} />
         <Route path="/generated-apps" element={<GeneratedApps />} />

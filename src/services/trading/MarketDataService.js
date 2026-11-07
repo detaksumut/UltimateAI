@@ -9,7 +9,7 @@ export const CANDLE_SCHEMA = {
   volume: 'number', source: 'string', isSimulated: 'boolean',
 };
 
-const TIMEFRAMES = { M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
+const TIMEFRAMES = { M1: 'M1', M5: 'M5', M15: 'M15', H1: 'H1', H4: 'H4', D1: 'D1' };
 
 function isValidCandle(c) {
   if (!c || typeof c !== 'object') return false;
@@ -41,7 +41,9 @@ export class MarketDataService {
   }
   getAllCandles() { return Array.from(this.candles.values()); }
   getCandles(symbol, timeframe, limit = 500) {
-    return Array.from(this.candles.values()).filter(c => c.symbol === symbol && c.timeframe === timeframe)
+    const tf = String(timeframe || '').toUpperCase();
+    return Array.from(this.candles.values())
+      .filter(c => c.symbol === symbol && String(c.timeframe || '').toUpperCase() === tf)
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).slice(-limit);
   }
   getLatestCandle(symbol, timeframe) { return this.getCandles(symbol, timeframe, 1)[0] || null; }
