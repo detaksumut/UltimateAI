@@ -7,10 +7,18 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, dialog } = require
 const path = require('path');
 const fs = require('fs');
 const { RuntimeManager } = require('./runtime');
+const { BrokerWorkspaceManager } = require('./broker/BrokerWorkspaceManager.cjs');
+const {
+  BROKER_DEEP_LINK_PROTOCOL,
+  parseBrokerDeepLink,
+} = require('./broker/broker-deep-link.cjs');
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const IS_DEV = !app.isPackaged;
 const APP_NAME = 'UltimateAI';
+const DEV_SERVER_URL = process.env.ULTIMATEAI_DEV_URL
+  || process.env.VITE_DEV_SERVER_URL
+  || 'http://localhost:5177';
 const ICON_PATH = IS_DEV
   ? path.join(__dirname, '..', 'logo-ultimateAI.png')
   : path.join(process.resourcesPath, 'logo-ultimateAI.png');
@@ -19,7 +27,58 @@ const ICON_PATH = IS_DEV
 let mainWindow = null;
 let tray = null;
 let runtimeManager = null;
+let brokerWorkspace = null;
 let isQuitting = false;
+let pendingBrokerDeepLink = null;
+
+if (process.env.ULTIMATEAI_USER_DATA_DIR) {
+  try {
+    app.setPath('userData', path.resolve(process.env.ULTIMATEAI_USER_DATA_DIR));
+  } catch (_) {}
+}
+
+function findBrokerDeepLink(argv = []) {
+  return argv.find((arg) => typeof arg === 'string'
+    && arg.toLowerCase().startsWith(`${BROKER_DEEP_LINK_PROTOCOL}://`));
+}
+
+function rememberBrokerDeepLink(raw) {
+  const parsed = parseBrokerDeepLink(raw);
+  if (parsed.ok) pendingBrokerDeepLink = parsed;
+  return parsed;
+}
+
+function dispatchBrokerDeepLink(raw) {
+  const parsed = rememberBrokerDeepLink(raw);
+  if (!parsed.ok) return parsed;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    pendingBrokerDeepLink = null;
+    try {
+      mainWindow.webContents.send('app:deep-link', parsed);
+    } catch (_) {}
+  }
+  return parsed;
+}
+
+function registerBrokerDeepLinkProtocol() {
+  try {
+    if (process.defaultApp && process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(
+        BROKER_DEEP_LINK_PROTOCOL,
+        process.execPath,
+        [path.resolve(process.argv[1])],
+      );
+    } else {
+      app.setAsDefaultProtocolClient(BROKER_DEEP_LINK_PROTOCOL);
+    }
+  } catch (err) {
+    console.warn('[DeepLink] Gagal mendaftarkan protokol:', err?.message || err);
+  }
+}
 
 // ── Window State Management ────────────────────────────────────────────────
 function getWindowStateFile() {
@@ -63,7 +122,7 @@ function createMainWindow() {
 
   if (IS_DEV) {
     // In dev mode, load from Vite dev server
-    mainWindow.loadURL('http://localhost:5180');
+    mainWindow.loadURL(DEV_SERVER_URL);
     // mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     // In production, load the built frontend served by Express
@@ -72,6 +131,21 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (pendingBrokerDeepLink) {
+      try {
+        mainWindow.webContents.send('app:deep-link', pendingBrokerDeepLink);
+      } catch (_) {}
+    }
+  });
+
+  mainWindow.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
+    if (isMainFrame && brokerWorkspace) brokerWorkspace.hide();
+  });
+  mainWindow.webContents.on('render-process-gone', () => {
+    if (brokerWorkspace) brokerWorkspace.hide();
   });
 
   // Save bounds before closing
@@ -199,6 +273,11 @@ async function startApp() {
   createMainWindow();
   createTray();
 
+  brokerWorkspace = new BrokerWorkspaceManager({
+    getWindow: () => mainWindow,
+    appVersion: app.getVersion(),
+  });
+
   // Step 4: Start health monitoring
   runtimeManager.startHealthCheck((healthy) => {
     if (tray) {
@@ -213,12 +292,45 @@ ipcMain.handle('runtime:status', () => {
   return runtimeManager.getStatus();
 });
 
+ipcMain.handle('app:getPendingDeepLink', () => {
+  const link = pendingBrokerDeepLink;
+  pendingBrokerDeepLink = null;
+  return link;
+});
+
+function requireBrokerWorkspace() {
+  if (!brokerWorkspace) throw new Error('Broker Workspace belum siap.');
+  return brokerWorkspace;
+}
+
+ipcMain.handle('broker:list', () => requireBrokerWorkspace().listBrokers());
+ipcMain.handle('broker:open', (_event, brokerId, platformId) => requireBrokerWorkspace().open(brokerId, platformId));
+ipcMain.handle('broker:close', () => requireBrokerWorkspace().close());
+ipcMain.handle('broker:hide', () => requireBrokerWorkspace().hide());
+ipcMain.handle('broker:setBounds', (_event, rect) => requireBrokerWorkspace().setBounds(rect));
+ipcMain.handle('broker:reload', () => requireBrokerWorkspace().reload());
+ipcMain.handle('broker:loadLogin', (_event, brokerId, platformId) => requireBrokerWorkspace().loadLogin(brokerId, platformId));
+ipcMain.handle('broker:probe', () => requireBrokerWorkspace().probeNow());
+ipcMain.handle('broker:goBack', () => requireBrokerWorkspace().goBack());
+ipcMain.handle('broker:goForward', () => requireBrokerWorkspace().goForward());
+ipcMain.handle('broker:clearSession', () => requireBrokerWorkspace().clearSession());
+ipcMain.handle('broker:capture', (_event, options) => requireBrokerWorkspace().capture(options));
+ipcMain.handle('broker:openExternal', (_event, brokerId, platformId) => requireBrokerWorkspace().openExternal(brokerId, platformId));
+ipcMain.handle('broker:status', () => requireBrokerWorkspace().getStatus());
+
 // ── App Lifecycle ──────────────────────────────────────────────────────────
+registerBrokerDeepLinkProtocol();
+const initialBrokerDeepLink = findBrokerDeepLink(process.argv);
+if (initialBrokerDeepLink) rememberBrokerDeepLink(initialBrokerDeepLink);
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
+    const deepLink = findBrokerDeepLink(commandLine);
+    if (deepLink) dispatchBrokerDeepLink(deepLink);
+
     // Someone tried to run a second instance, we should focus our window.
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
@@ -227,10 +339,18 @@ if (!gotTheLock) {
     }
   });
 
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    dispatchBrokerDeepLink(url);
+  });
+
   app.whenReady().then(startApp);
 
   app.on('before-quit', async () => {
     isQuitting = true;
+    if (brokerWorkspace) {
+      brokerWorkspace.destroy();
+    }
     if (runtimeManager) {
       await runtimeManager.stop();
     }

@@ -42,13 +42,14 @@ class RuntimeManager {
         return;
       }
 
-      const serverPath = path.join(this.appPath, 'server.js');
+      const serverPath = path.join(__dirname, 'backend-entry.cjs');
 
       const env = {
         ...process.env,
         PORT: String(this.expressPort),
         NODE_ENV: this.isDev ? 'development' : 'production',
         ULTIMATEAI_DATA_PATH: this.userDataPath,
+        ULTIMATEAI_APP_ROOT: this.appPath,
       };
 
       try {
