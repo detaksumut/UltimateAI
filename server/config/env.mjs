@@ -1,4 +1,3 @@
-import { resolveNineRouterApiKey } from './ninerouter-auth.mjs';
 /**
  * env.mjs
  * UltimateAI Local Router Configuration & Environment Management.
@@ -64,4 +63,3 @@ export function getProviderConfigStatus() {
 }
 
 export default config;
-

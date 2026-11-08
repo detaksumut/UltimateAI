@@ -9,7 +9,7 @@ const http = require('http');
 
 const MAX_RETRIES = 3;
 const HEALTH_INTERVAL_MS = 30_000; // 30 seconds
-const STARTUP_TIMEOUT_MS = 15_000; // 15 seconds
+const STARTUP_TIMEOUT_MS = 30_000; // 30 seconds
 
 class RuntimeManager {
   constructor({ appPath, userDataPath, isDev }) {
@@ -61,6 +61,8 @@ class RuntimeManager {
         NODE_ENV: this.isDev ? 'development' : 'production',
         ULTIMATEAI_DATA_PATH: this.userDataPath,
         ULTIMATEAI_APP_ROOT: this.appPath,
+        // Ensure Electron bundled binary runs as a Node runtime for this script
+        ELECTRON_RUN_AS_NODE: '1',
       };
 
       try {
@@ -69,6 +71,13 @@ class RuntimeManager {
           env,
           stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
           windowsHide: true,
+        });
+
+        this.expressProcess.stdout?.on('data', (chunk) => {
+          if (process.stdout?.write) process.stdout.write(`[Express] ${chunk}`);
+        });
+        this.expressProcess.stderr?.on('data', (chunk) => {
+          if (process.stderr?.write) process.stderr.write(`[Express] ${chunk}`);
         });
 
         this.expressProcess.on('error', (err) => {
@@ -208,7 +217,13 @@ class RuntimeManager {
       const req = http.get(`http://127.0.0.1:${port}${urlPath}`, { timeout: 3000 }, (res) => {
         resolve(res.statusCode < 500);
       });
-      req.on('error', () => resolve(false));
+      req.on('error', () => {
+        const fallback = http.get(`http://localhost:${port}${urlPath}`, { timeout: 3000 }, (res) => {
+          resolve(res.statusCode < 500);
+        });
+        fallback.on('error', () => resolve(false));
+        fallback.on('timeout', () => { fallback.destroy(); resolve(false); });
+      });
       req.on('timeout', () => { req.destroy(); resolve(false); });
     });
   }
