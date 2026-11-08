@@ -20,7 +20,7 @@ const DEV_SERVER_URL = process.env.ULTIMATEAI_DEV_URL
   || process.env.VITE_DEV_SERVER_URL
   || 'http://localhost:5177';
 const ICON_PATH = IS_DEV
-  ? path.join(__dirname, '..', 'logo-ultimateAI.png')
+  ? path.join(__dirname, '..', 'public', 'logo-ultimateAI.png')
   : path.join(process.resourcesPath, 'logo-ultimateAI.png');
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -38,13 +38,16 @@ if (process.env.ULTIMATEAI_USER_DATA_DIR) {
 }
 
 function findBrokerDeepLink(argv = []) {
-  return argv.find((arg) => typeof arg === 'string'
+  const found = argv.find((arg) => typeof arg === 'string'
     && arg.toLowerCase().startsWith(`${BROKER_DEEP_LINK_PROTOCOL}://`));
+  if (found) console.log('[DeepLink] Ditemukan di argv:', found);
+  return found;
 }
 
 function rememberBrokerDeepLink(raw) {
   const parsed = parseBrokerDeepLink(raw);
   if (parsed.ok) pendingBrokerDeepLink = parsed;
+  console.log('[DeepLink] Parsed:', raw, '→', parsed.ok ? 'ok' : `gagal (${parsed.reason})`);
   return parsed;
 }
 
@@ -56,10 +59,19 @@ function dispatchBrokerDeepLink(raw) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
+    // If the renderer is still loading, let did-finish-load deliver the
+    // pending link instead of dropping it.
+    if (mainWindow.webContents.isLoading()) {
+      console.log('[DeepLink] Renderer masih loading, link ditunda.');
+      return parsed;
+    }
     pendingBrokerDeepLink = null;
     try {
       mainWindow.webContents.send('app:deep-link', parsed);
-    } catch (_) {}
+      console.log('[DeepLink] Dikirim ke renderer:', parsed.brokerId, parsed.platformId);
+    } catch (err) {
+      console.warn('[DeepLink] Gagal mengirim ke renderer:', err?.message || err);
+    }
   }
   return parsed;
 }
@@ -135,6 +147,7 @@ function createMainWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     if (pendingBrokerDeepLink) {
+      console.log('[DeepLink] Mengirim pending link setelah load:', pendingBrokerDeepLink.brokerId, pendingBrokerDeepLink.platformId);
       try {
         mainWindow.webContents.send('app:deep-link', pendingBrokerDeepLink);
       } catch (_) {}
@@ -256,7 +269,7 @@ async function startApp() {
 
   // Step 2: Start runtime (Express)
   runtimeManager = new RuntimeManager({
-    appPath: IS_DEV ? path.join(__dirname, '..') : path.join(process.resourcesPath, 'app.asar.unpacked'),
+    appPath: IS_DEV ? path.join(__dirname, '..') : path.join(process.resourcesPath, 'app'),
     userDataPath: app.getPath('userData'),
     isDev: IS_DEV,
   });
@@ -295,6 +308,7 @@ ipcMain.handle('runtime:status', () => {
 ipcMain.handle('app:getPendingDeepLink', () => {
   const link = pendingBrokerDeepLink;
   pendingBrokerDeepLink = null;
+  if (link) console.log('[DeepLink] Link diambil renderer saat mount:', link.brokerId, link.platformId);
   return link;
 });
 
@@ -329,7 +343,10 @@ if (!gotTheLock) {
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     const deepLink = findBrokerDeepLink(commandLine);
-    if (deepLink) dispatchBrokerDeepLink(deepLink);
+    if (deepLink) {
+      console.log('[DeepLink] Second instance membawa link:', deepLink);
+      dispatchBrokerDeepLink(deepLink);
+    }
 
     // Someone tried to run a second instance, we should focus our window.
     if (mainWindow) {

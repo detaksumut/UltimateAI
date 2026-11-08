@@ -30,13 +30,13 @@ const ui = {
     padding: 8,
   },
   label: {
-    fontSize: 8,
+    fontSize: 10.5,
     fontWeight: 900,
     letterSpacing: '0.08em',
     color: 'rgba(148,163,184,0.78)',
   },
   small: {
-    fontSize: 8.5,
+    fontSize: 11.5,
     color: '#94a3b8',
     lineHeight: 1.5,
   },
@@ -116,7 +116,7 @@ function Pill({ children, color = '#94a3b8' }) {
         border: `1px solid ${color}55`,
         background: `${color}16`,
         color,
-        fontSize: 7.5,
+        fontSize: 10.5,
         fontWeight: 900,
         letterSpacing: '0.04em',
         whiteSpace: 'nowrap',
@@ -146,7 +146,7 @@ function Section({ title, source, children, accent = '#00e5ff' }) {
       </div>
       {children}
       {source && (
-        <div style={{ ...ui.small, fontSize: 7, color: '#475569', marginTop: 6 }}>
+        <div style={{ ...ui.small, fontSize: 10, color: '#475569', marginTop: 6 }}>
           Sumber: {source}
         </div>
       )}
@@ -531,15 +531,15 @@ export default function ScalpingM1Panel({
           <Section title="STATUS SETUP" source={analysis.setupStatus?.dataSource}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Pill color={setupColor(analysis.setupStatus?.code)}>{analysis.setupStatus?.code || 'DATA UNAVAILABLE'}</Pill>
-              <span style={{ ...ui.small, fontSize: 7.5 }}>min RR {analysis.setupStatus?.minimumRR}</span>
+              <span style={{ ...ui.small, fontSize: 11 }}>min RR {analysis.setupStatus?.minimumRR}</span>
             </div>
-            <div style={{ ...ui.small, fontSize: 8, color: '#cbd5e1', marginTop: 5 }}>
+            <div style={{ ...ui.small, fontSize: 12.5, color: '#cbd5e1', marginTop: 5 }}>
               {analysis.setupStatus?.message}
             </div>
-            <div style={{ ...ui.small, fontSize: 7.5, color: '#64748b', marginTop: 4 }}>
+            <div style={{ ...ui.small, fontSize: 11, color: '#64748b', marginTop: 4 }}>
               Flags: {(analysis.setupStatus?.flags || []).join(' · ')}
             </div>
-            <div style={{ ...ui.small, fontSize: 8, color: '#fda4af', marginTop: 4 }}>
+            <div style={{ ...ui.small, fontSize: 12, color: '#fda4af', marginTop: 4 }}>
               Signal allowed: TIDAK · Auto-order: TIDAK · Strategy approved: TIDAK
             </div>
           </Section>
@@ -548,14 +548,14 @@ export default function ScalpingM1Panel({
             <summary style={{ ...ui.label, cursor: 'pointer' }}>SUMBER DATA PER METRIK</summary>
             <div style={{ display: 'grid', gap: 3, marginTop: 6 }}>
               {Object.entries(analysis.dataSources || {}).map(([key, value]) => (
-                <div key={key} style={{ ...ui.small, fontSize: 7.5 }}>
+                <div key={key} style={{ ...ui.small, fontSize: 11 }}>
                   <strong style={{ color: '#cbd5e1' }}>{key}</strong>: {value}
                 </div>
               ))}
             </div>
           </details>
 
-          <div style={{ ...ui.small, fontSize: 7.5, color: '#475569', lineHeight: 1.55 }}>
+          <div style={{ ...ui.small, fontSize: 11.5, color: '#475569', lineHeight: 1.6 }}>
             <strong style={{ color: '#64748b' }}>Batas:</strong> panel ini tidak menghasilkan sinyal BUY/SELL,
             tidak mengubah strategi, dan tidak mengirim order. Entry/SL/TP/RR adalah preview turunan zona M1;
             aturan strategi scalping belum disetujui. Sumber live hanya diakui jika OHLC berasal dari

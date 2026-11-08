@@ -4,7 +4,8 @@ import React from 'react';
  * DemoAccountBar
  * Header strip displaying virtual Demo Account status ($5,000 initial balance),
  * mode switcher (DEMO vs LIVE XM), Balance, Equity, Margin, and Floating P/L,
- * with direct access to Trading Account Center & E-Wallet Deposit (DANA, OVO, GoPay).
+ * with direct access to Trading Account Center & E-Wallet Deposit (DANA, OVO, GoPay),
+ * and direct launch to Broker Workspace for live XM MT5 operations.
  */
 export default function DemoAccountBar({
   tradingMode = 'DEMO', // 'DEMO' | 'LIVE'
@@ -12,6 +13,7 @@ export default function DemoAccountBar({
   demoState,
   onResetDemo,
   onOpenAccountCenter,
+  onOpenBrokerWorkspace,
   depositBalanceIdr = 0,
 }) {
   const isDemo = tradingMode === 'DEMO';
@@ -127,10 +129,33 @@ export default function DemoAccountBar({
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 10, color: '#cbd5e1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 10, color: '#cbd5e1', flexWrap: 'wrap' }}>
           <span>Koneksi Broker: <strong style={{ color: '#34d399' }}>XM Global MT5</strong></span>
           <span>•</span>
-          <span>Order dikirim langsung ke MT5</span>
+          <span style={{ color: '#94a3b8' }}>Eksekusi order langsung ke Desktop</span>
+          <button
+            type="button"
+            onClick={() => onOpenBrokerWorkspace?.()}
+            title="Buka Broker Workspace (Terminal Asli XM & JINI Monitor)"
+            style={{
+              padding: '4px 10px',
+              borderRadius: 5,
+              fontSize: 9.5,
+              fontWeight: 900,
+              cursor: 'pointer',
+              border: '1px solid rgba(0, 229, 255, 0.5)',
+              background: 'linear-gradient(90deg, rgba(0, 229, 255, 0.22), rgba(16, 185, 129, 0.18))',
+              color: '#38bdf8',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              boxShadow: '0 0 10px rgba(0, 229, 255, 0.15)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>🏛️</span>
+            <span>BUKA BROKER WORKSPACE</span>
+          </button>
         </div>
       )}
 
@@ -180,7 +205,7 @@ export default function DemoAccountBar({
               transition: 'all 0.15s ease',
             }}
           >
-            ↻ Reset ($5,000)
+            ↺ Reset ($5,000)
           </button>
         )}
       </div>

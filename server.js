@@ -3,6 +3,8 @@
 require('dotenv').config(); // load .env
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 // Native fetch used in Node 18+
 
 // Import the AI service
@@ -470,6 +472,22 @@ app.post('/api/magic', async (req, res) => {
     res.json({ html: mockupHtml });
   }, 2000); // Simulate pipeline generation time
 });
+
+// ---------- Desktop UI (built Vite bundle) ----------
+// The packaged Electron app loads this same local server, so it must serve the
+// SPA without any dependency on an external host. In development the Vite dev
+// server is used instead and this block is simply inert if dist is absent.
+const distDir = path.join(process.env.ULTIMATEAI_APP_ROOT || __dirname, 'dist');
+const distIndex = path.join(distDir, 'index.html');
+if (fs.existsSync(distIndex)) {
+  app.use(express.static(distDir));
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/v1')) {
+      return next();
+    }
+    res.sendFile(distIndex);
+  });
+}
 
 // ---------- Server start ----------
 const PORT = process.env.PORT || 3001;

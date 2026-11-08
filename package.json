@@ -4,15 +4,14 @@
   "type": "module",
   "description": "**Helping Researchers Build, Not Code.**",
   "main": "electron/main.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "start": "electron .",
     "dev": "npx vite",
     "dev:desktop": "node scripts/start-desktop-dev.mjs",
     "test": "jest --coverage",
     "build": "npx vite build",
+    "build:desktop": "npm run build && electron-builder --win nsis",
+    "pack:desktop": "npm run build && electron-builder --win --dir",
     "serve": "node server/local_router/LocalRouterServer.mjs",
     "test:supply-demand": "node tests/supply-demand-engine.test.mjs",
     "test:scalping-m1": "node tests/scalping-m1.test.mjs",
@@ -40,8 +39,6 @@
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
-    "electron": "^42.5.0",
-    "electron-builder": "^26.15.3",
     "express": "^5.2.1",
     "hls.js": "^1.7.3",
     "jimp": "^0.22.10",
@@ -69,6 +66,8 @@
     "@typescript-eslint/parser": "^8.62.1",
     "autoprefixer": "^10.5.1",
     "dependency-cruiser": "^17.4.3",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.6.0",
     "eslint-plugin-boundaries": "^6.0.2",
     "husky": "^9.1.7",
@@ -79,5 +78,55 @@
     "ts-jest": "^29.4.11",
     "ts-morph": "^28.0.0",
     "typescript": "^6.0.3"
+  },
+  "build": {
+    "appId": "ai.ultimateai.desktop",
+    "productName": "UltimateAI",
+    "asar": false,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "server.js",
+      "server/**/*",
+      "services/**/*",
+      "api/**/*",
+      "src/services/**/*",
+      "scripts/start-desktop-dev.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "public/logo-ultimateAI.png",
+        "to": "logo-ultimateAI.png"
+      }
+    ],
+    "protocols": [
+      {
+        "name": "UltimateAI Broker Deep Link",
+        "schemes": [
+          "ultimateai"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.finance"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Finance"
+    }
   }
 }

@@ -160,43 +160,49 @@ export default function BrokerViewport({
     <section ref={containerRef} style={panelStyle} aria-label="Terminal trading asli broker">
       {!native && (
         <div style={placeholderStyle}>
-          <div style={{ fontSize: 42 }} aria-hidden="true">▣</div>
+          <div style={{ fontSize: 44, color: '#38bdf8' }} aria-hidden="true">🏛️</div>
           <div style={{ fontSize: 17, fontWeight: 900, color: '#e2e8f0', letterSpacing: '0.04em' }}>
-            TERMINAL {broker?.name || 'BROKER'} HANYA TERSEDIA DI APLIKASI DESKTOP
+            TERMINAL {broker?.name || 'BROKER'} (MODE LIVE WEB) — OPERASI KERJA LARI KE DESKTOP
           </div>
-          <div style={{ maxWidth: 580, fontSize: 12.5, lineHeight: 1.7, color: '#94a3b8' }}>
-            Terminal XM dibuka di dalam UltimateAI Desktop memakai Electron WebContentsView,
-            bukan iframe dan bukan tab Edge baru. Halaman web ini tidak dapat menampilkan
-            terminal XM dan tidak membuka jendela browser eksternal.
+          <div style={{ maxWidth: 620, fontSize: 12.5, lineHeight: 1.7, color: '#94a3b8' }}>
+            Anda sedang membuka Broker Workspace di live web. Analisis JINI, Multi-Timeframe,
+            Supply Demand, dan Gold Order Flow aktif memantau pasar.
+            Namun untuk <strong>keamanan sesi broker, kredensial login, dan eksekusi MT5 berlatensi rendah</strong>,
+            seluruh operasi kerja terminal asli broker tetap dilimpahkan langsung ke <strong>UltimateAI Desktop</strong>{' '}
+            (Electron WebContentsView terisolasi).
           </div>
           <button
             type="button"
             onClick={handleRequestDesktopApp}
             style={{
               marginTop: 4,
-              padding: '10px 18px',
-              borderRadius: 7,
-              border: '1px solid rgba(0,229,255,0.5)',
-              background: 'linear-gradient(90deg, rgba(0,229,255,0.18), rgba(16,185,129,0.14))',
-              color: '#67e8f9',
-              fontSize: 12,
-              fontWeight: 800,
+              padding: '11px 22px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,229,255,0.6)',
+              background: 'linear-gradient(90deg, rgba(0,229,255,0.25), rgba(16,185,129,0.2))',
+              color: '#38bdf8',
+              fontSize: 12.5,
+              fontWeight: 900,
               letterSpacing: '0.05em',
               cursor: 'pointer',
+              boxShadow: '0 0 15px rgba(0,229,255,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            BUKA DI APLIKASI DESKTOP
+            <span>🖥️</span>
+            <span>BUKA DI APLIKASI DESKTOP (HANDOFF)</span>
           </button>
           {desktopNotice && (
-            <div style={{ fontSize: 10.5, color: '#67e8f9', maxWidth: 560, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: '#67e8f9', maxWidth: 580, lineHeight: 1.6, background: 'rgba(0,229,255,0.1)', padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(0,229,255,0.2)' }}>
               {desktopNotice}
             </div>
           )}
-          <div style={{ fontSize: 10.5, color: '#64748b', maxWidth: 560, lineHeight: 1.6 }}>
-            Halaman web tidak dapat mendeteksi apakah aplikasi desktop sudah terpasang atau
-            terbuka. Jika tombol di atas tidak menghasilkan respons, jalankan UltimateAI Desktop
-            lalu buka Broker Workspace dari aplikasi tersebut. Login tetap dilakukan langsung di
-            halaman resmi broker; UltimateAI tidak meminta atau menyimpan password broker.
+          <div style={{ fontSize: 10.5, color: '#64748b', maxWidth: 580, lineHeight: 1.6 }}>
+            Protokol <code style={{ color: '#fde68a' }}>ultimateai://broker/open</code> akan membuka atau memfokuskan
+            aplikasi Desktop. Jika aplikasi desktop belum berjalan, buka UltimateAI Desktop atau jalankan{' '}
+            <code style={{ color: '#93c5fd' }}>npm run dev:desktop</code> di komputer Anda.
           </div>
         </div>
       )}

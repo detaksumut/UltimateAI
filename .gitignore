@@ -14,6 +14,8 @@ dist/
 build/
 coverage/
 generated/
+release/
+release-build/
 
 # Logs and runtime databases / backups
 *.log
@@ -26,6 +28,8 @@ server_error.log
 server_output.log
 temp_error.log
 *.rawbody-backup
+data/
+server/data/gold-news-session-state.json
 server/data/conversations/
 server/data/device_*.json
 server/data/routing_performance_history.json

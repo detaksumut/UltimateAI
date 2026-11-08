@@ -323,6 +323,14 @@ export default function BrokerWorkspace() {
         >
           ← SIMULATOR
         </button>
+        <button
+          type="button"
+          onClick={() => navigate('/platform-trader')}
+          style={{ ...controlBtn, color: '#c084fc', borderColor: 'rgba(192,132,252,0.35)' }}
+          title="Kembali ke Platform Trader"
+        >
+          ← PLATFORM TRADER
+        </button>
 
         <div style={{ minWidth: 170 }}>
           <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', color: '#67e8f9' }}>
@@ -488,6 +496,27 @@ export default function BrokerWorkspace() {
           >
             OPEN BROWSER
           </button>
+          {!electronConnected && (
+            <button
+              type="button"
+              onClick={() => handleRequestDesktopApp(selectedBroker, selectedPlatform)}
+              style={{
+                ...controlBtn,
+                background: 'linear-gradient(90deg, rgba(0,229,255,0.22), rgba(16,185,129,0.18))',
+                color: '#38bdf8',
+                borderColor: 'rgba(0,229,255,0.5)',
+                boxShadow: '0 0 10px rgba(0,229,255,0.15)',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+              title="Luncurkan aplikasi UltimateAI Desktop untuk operasi terminal asli broker via ultimateai://"
+            >
+              <span>🖥️</span>
+              <span>OPERASI KE DESKTOP</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -559,18 +588,47 @@ export default function BrokerWorkspace() {
       {!electronConnected && (
         <div
           style={{
-            padding: '6px 12px',
-            fontSize: 10.5,
-            color: '#fbbf24',
-            background: 'rgba(120,53,15,0.28)',
-            borderBottom: '1px solid rgba(245,158,11,0.3)',
+            padding: '7px 14px',
+            fontSize: 11,
+            color: '#38bdf8',
+            background: 'linear-gradient(90deg, rgba(2, 28, 54, 0.88) 0%, rgba(6, 18, 38, 0.92) 100%)',
+            borderBottom: '1px solid rgba(0, 229, 255, 0.35)',
             lineHeight: 1.55,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
           }}
         >
-          <strong>ELECTRON BELUM TERHUBUNG.</strong> Terminal XM hanya dirender di aplikasi
-          desktop UltimateAI (Electron WebContentsView), bukan di browser. Klik
-          <strong> BUKA DI APLIKASI DESKTOP</strong> pada area terminal untuk handoff lewat
-          protokol <code style={{ color: '#fde68a' }}>ultimateai://</code>.
+          <div style={{ flex: '1 1 auto', minWidth: 260 }}>
+            <strong style={{ color: '#00e5ff', letterSpacing: '0.04em' }}>MODE LIVE WEB AKTIF:</strong>{' '}
+            <span style={{ color: '#cbd5e1' }}>
+              Analitik pasar & JINI AI aktif di web. <strong>Operasi kerja terminal broker resmi, login akun, dan eksekusi MT5 tetap lari ke Desktop</strong> (Electron WebContentsView) demi keamanan akun riil & latensi instan.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRequestDesktopApp(selectedBroker, selectedPlatform)}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 5,
+              border: '1px solid #00e5ff',
+              background: 'linear-gradient(90deg, rgba(0,229,255,0.25), rgba(16,185,129,0.2))',
+              color: '#f8fafc',
+              fontSize: 10,
+              fontWeight: 900,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 0 10px rgba(0,229,255,0.3)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>🖥️</span>
+            <span>BUKA DI APLIKASI DESKTOP (HANDOFF)</span>
+          </button>
         </div>
       )}
 

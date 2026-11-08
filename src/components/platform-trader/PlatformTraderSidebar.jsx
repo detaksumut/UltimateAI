@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
  * Left navigation panel matching the reference screenshot design:
  * - UltimateAI JINI logo at the top using /logo-ultimateAI.png
  * - OS Workspace category
- * - Navigation links (Beranda, Chat AI, Trading OS, Platform Trader [active], Market Intelligence, etc.)
+ * - Navigation links (Beranda, Chat AI, Trading OS, Platform Trader, Broker Workspace, Market Intelligence, etc.)
  * - Document Studio, Image Studio, Data Lab, Code Lab, Knowledge Lab
  * - Pengaturan (Settings) at the bottom
  */
@@ -35,6 +35,10 @@ export default function PlatformTraderSidebar({
       navigate('/platform-trader');
       return;
     }
+    if (item.name === 'Broker Workspace') {
+      navigate('/broker-workspace');
+      return;
+    }
     if (item.name === 'Prediction Journal') {
       if (onOpenJournal) onOpenJournal();
       return;
@@ -49,6 +53,7 @@ export default function PlatformTraderSidebar({
     { name: 'Chat AI', icon: '💬' },
     { name: 'Trading OS', icon: '🎛️' },
     { name: 'Platform Trader', icon: '📊' },
+    { name: 'Broker Workspace', icon: '🏛️', badge: 'LIVE XM' },
     { name: 'Market Intelligence', icon: '🌐' },
     { name: 'Strategy Lab', icon: '🎯' },
     { name: 'Prediction Journal', icon: '📅' },
@@ -151,6 +156,22 @@ export default function PlatformTraderSidebar({
               >
                 <span style={{ fontSize: 13, width: 18, textAlign: 'center' }}>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.name}</span>
+                {item.badge && (
+                  <span
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: '1px 5px',
+                      borderRadius: 3,
+                      background: 'rgba(0, 229, 255, 0.15)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(0, 229, 255, 0.3)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}

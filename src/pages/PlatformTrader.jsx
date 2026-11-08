@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PlatformTraderSidebar from '../components/platform-trader/PlatformTraderSidebar.jsx';
 import PlatformTraderHeader from '../components/platform-trader/PlatformTraderHeader.jsx';
 import JINIAITradingAnalystCard from '../components/platform-trader/JINIAITradingAnalystCard.jsx';
@@ -83,6 +84,7 @@ function computeOhlcTf(instrument, tf) {
 }
 
 export default function PlatformTrader() {
+  const navigate = useNavigate();
   const [instrument, setInstrument] = useState('XAUUSD');
   const [timeframe, setTimeframe] = useState('M1');
   const [chartMode, setChartMode] = useState('pro'); // 'pro' (Supply & Demand Overlay & Positions) | 'tradingview'
@@ -804,6 +806,7 @@ export default function PlatformTrader() {
             demoTradingEngineInstance.resetAccount();
           }}
           onOpenAccountCenter={() => setAccountCenterOpen(true)}
+          onOpenBrokerWorkspace={() => navigate('/broker-workspace')}
           depositBalanceIdr={depositBalanceIdr}
         />
 

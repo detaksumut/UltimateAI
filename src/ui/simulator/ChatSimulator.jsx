@@ -366,7 +366,7 @@ const closeAppModal = () => {
         <div className="hud-label">Broker Workspace</div>
         <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button type="button" onClick={() => navigate('/broker-workspace')} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(0,229,255,0.5)', background: 'linear-gradient(90deg, rgba(0,229,255,0.18), rgba(56,189,248,0.12))', color: '#67e8f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em', boxShadow: '0 0 12px rgba(0,229,255,0.14)' }}>
-            <span>◈ BROKER WORKSPACE</span><span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.18)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.3)' }}>XM</span>
+            <span>◈ BROKER WORKSPACE</span><span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.18)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.3)' }}>LIVE / DESKTOP</span>
           </button>
         </div>
       </div>
