@@ -359,7 +359,7 @@ const closeAppModal = () => {
             <span>📊 PLATFORM TRADER</span><span style={{ fontSize: 8, color: '#a78bfa', background: 'rgba(139, 92, 246, 0.2)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(139, 92, 246, 0.3)' }}>NEW</span>
           </button>
           <button type="button" onClick={() => navigate('/broker-workspace')} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(0,229,255,0.5)', background: 'linear-gradient(90deg, rgba(0,229,255,0.22), rgba(16,185,129,0.18))', color: '#67e8f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em', boxShadow: '0 0 12px rgba(0,229,255,0.15)' }}>
-            <span>🏛️ BROKER WORKSPACE</span><span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.22)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.4)', fontWeight: 900 }}>LIVE XM</span>
+            <span>🏛️ BROKER WORKSHOP</span><span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.22)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.4)', fontWeight: 900 }}>LIVE XM</span>
           </button>
         </div>
       </div>

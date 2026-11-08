@@ -334,7 +334,7 @@ export default function BrokerWorkspace() {
 
         <div style={{ minWidth: 170 }}>
           <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', color: '#67e8f9' }}>
-            BROKER WORKSPACE
+            BROKER WORKSHOP
           </div>
           <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>
             Platform trading asli broker + JINI analyst
