@@ -7,6 +7,7 @@
  */
 const PLACEHOLDER_KEYS = new Set([
   '',
+  'UNDEFINED',
   'undefined',
   'YOUR_NINEROUTER_KEY',
   'NINEROUTER_KEY_ANDA',

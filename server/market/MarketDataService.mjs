@@ -11,7 +11,7 @@
  *   - NO MOCK PRICE → on failure we emit `value: null` with status FAILED /
  *     UNAVAILABLE. We NEVER substitute hard-coded reference prices as if real.
  *
- * Sources: CoinGecko (crypto), Yahoo Finance (stocks / commodities / valas),
+ * Sources: CoinGecko (crypto), provider non-crypto (stocks / commodities / valas),
  *          FX anchor for IDR conversions.
  */
 
@@ -19,9 +19,8 @@ import { deriveSourceLinks } from './sourceLinks.mjs';
 import { retrieveMarketData } from './marketRetrievalRouter.mjs';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3/simple/price';
-const YAHOO_CHART_API = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
-// Fallback FX anchor (IDR per USD) bila Yahoo FX tidak terjangkau.
+// Fallback FX anchor (IDR per USD) bila provider non-crypto FX tidak terjangkau.
 // Sumber: BI JISDOR / kurs Bloomberg, spot ultimo.
 const FX_ANCHOR_IDR = 17685;
 const GOLD_OZ_TO_GRAM = 31.1035;
@@ -49,72 +48,72 @@ const CRYPTO_ASSETS = [
 ];
 
 const STOCK_ASSETS = [
-  { yahoo: 'aapl', name: 'Apple', symbol: 'AAPL', panelId: 'market.apple', category: 'global', currency: 'USD' },
-  { yahoo: 'msft', name: 'Microsoft', symbol: 'MSFT', panelId: 'market.microsoft', category: 'global', currency: 'USD' },
-  { yahoo: 'nvda', name: 'NVIDIA', symbol: 'NVDA', panelId: 'market.nvidia', category: 'global', currency: 'USD' },
-  { yahoo: 'tsla', name: 'Tesla', symbol: 'TSLA', panelId: 'market.tesla', category: 'global', currency: 'USD' },
-  { yahoo: 'googl', name: 'Alphabet', symbol: 'GOOGL', panelId: 'market.alphabet', category: 'global', currency: 'USD' },
-  { yahoo: 'amzn', name: 'Amazon', symbol: 'AMZN', panelId: 'market.amazon', category: 'global', currency: 'USD' },
-  { yahoo: '^JKSE', name: 'IHSG', symbol: 'IHSG', panelId: 'market.ihsg', category: 'indonesia', currency: 'IDX', index: true, priority: true },
-  { yahoo: '^JKLQ45', name: 'LQ45', symbol: 'LQ45', panelId: 'market.lq45', category: 'indonesia', currency: 'IDX', index: true },
-  { yahoo: 'IDX30.JK', name: 'IDX30', symbol: 'IDX30', panelId: 'market.idx30', category: 'indonesia', currency: 'IDX', index: true },
-  { yahoo: 'bbca.JK', name: 'Bank BCA', symbol: 'BBCA', panelId: 'market.bbca', category: 'indonesia', currency: 'IDR', priority: true },
-  { yahoo: 'bbri.JK', name: 'Bank BRI', symbol: 'BBRI', panelId: 'market.bbri', category: 'indonesia', currency: 'IDR' },
-  { yahoo: 'tlkm.JK', name: 'Telkom', symbol: 'TLKM', panelId: 'market.tlkm', category: 'indonesia', currency: 'IDR' },
-  { yahoo: 'asii.JK', name: 'Astra', symbol: 'ASII', panelId: 'market.asii', category: 'indonesia', currency: 'IDR' },
-  { yahoo: '^GSPC', name: 'S&P 500', symbol: 'SPX', panelId: 'market.sp500', category: 'global', currency: 'USD', index: true, priority: true },
-  { yahoo: '^IXIC', name: 'NASDAQ', symbol: 'IXIC', panelId: 'market.nasdaq', category: 'global', currency: 'USD', index: true },
-  { yahoo: '^DJI', name: 'Dow Jones', symbol: 'DJI', panelId: 'market.dow', category: 'global', currency: 'USD', index: true },
-  { yahoo: '^GDAXI', name: 'DAX', symbol: 'DAX', panelId: 'market.dax', category: 'global', currency: 'EUR', index: true },
-  { yahoo: '^FTSE', name: 'FTSE 100', symbol: 'FTSE', panelId: 'market.ftse', category: 'global', currency: 'GBP', index: true },
-  { yahoo: '^N225', name: 'Nikkei 225', symbol: 'N225', panelId: 'market.nikkei', category: 'asia', currency: 'JPY', index: true, priority: true },
-  { yahoo: '^HSI', name: 'Hang Seng', symbol: 'HSI', panelId: 'market.hangseng', category: 'asia', currency: 'HKD', index: true },
-  { yahoo: '000001.SS', name: 'Shanghai Composite', symbol: 'SSEC', panelId: 'market.shanghai', category: 'asia', currency: 'CNY', index: true },
-  { yahoo: '^KS11', name: 'KOSPI', symbol: 'KOSPI', panelId: 'market.kospi', category: 'asia', currency: 'KRW', index: true }
+  { name: 'Apple', symbol: 'AAPL', panelId: 'market.apple', category: 'global', currency: 'USD' },
+  { name: 'Microsoft', symbol: 'MSFT', panelId: 'market.microsoft', category: 'global', currency: 'USD' },
+  { name: 'NVIDIA', symbol: 'NVDA', panelId: 'market.nvidia', category: 'global', currency: 'USD' },
+  { name: 'Tesla', symbol: 'TSLA', panelId: 'market.tesla', category: 'global', currency: 'USD' },
+  { name: 'Alphabet', symbol: 'GOOGL', panelId: 'market.alphabet', category: 'global', currency: 'USD' },
+  { name: 'Amazon', symbol: 'AMZN', panelId: 'market.amazon', category: 'global', currency: 'USD' },
+  { name: 'IHSG', symbol: 'IHSG', panelId: 'market.ihsg', category: 'indonesia', currency: 'IDX', index: true, priority: true },
+  { name: 'LQ45', symbol: 'LQ45', panelId: 'market.lq45', category: 'indonesia', currency: 'IDX', index: true },
+  { name: 'IDX30', symbol: 'IDX30', panelId: 'market.idx30', category: 'indonesia', currency: 'IDX', index: true },
+  { name: 'Bank BCA', symbol: 'BBCA', panelId: 'market.bbca', category: 'indonesia', currency: 'IDR', priority: true },
+  { name: 'Bank BRI', symbol: 'BBRI', panelId: 'market.bbri', category: 'indonesia', currency: 'IDR' },
+  { name: 'Telkom', symbol: 'TLKM', panelId: 'market.tlkm', category: 'indonesia', currency: 'IDR' },
+  { name: 'Astra', symbol: 'ASII', panelId: 'market.asii', category: 'indonesia', currency: 'IDR' },
+  { name: 'S&P 500', symbol: 'SPX', panelId: 'market.sp500', category: 'global', currency: 'USD', index: true, priority: true },
+  { name: 'NASDAQ', symbol: 'IXIC', panelId: 'market.nasdaq', category: 'global', currency: 'USD', index: true },
+  { name: 'Dow Jones', symbol: 'DJI', panelId: 'market.dow', category: 'global', currency: 'USD', index: true },
+  { name: 'DAX', symbol: 'DAX', panelId: 'market.dax', category: 'global', currency: 'EUR', index: true },
+  { name: 'FTSE 100', symbol: 'FTSE', panelId: 'market.ftse', category: 'global', currency: 'GBP', index: true },
+  { name: 'Nikkei 225', symbol: 'N225', panelId: 'market.nikkei', category: 'asia', currency: 'JPY', index: true, priority: true },
+  { name: 'Hang Seng', symbol: 'HSI', panelId: 'market.hangseng', category: 'asia', currency: 'HKD', index: true },
+  { name: 'Shanghai Composite', symbol: 'SSEC', panelId: 'market.shanghai', category: 'asia', currency: 'CNY', index: true },
+  { name: 'KOSPI', symbol: 'KOSPI', panelId: 'market.kospi', category: 'asia', currency: 'KRW', index: true }
 ];
 
 const COMMODITY_ASSETS = [
-  { yahoo: 'GC=F', name: 'Emas (Gold)', symbol: 'XAU/USD', panelId: 'market.gold', category: 'metals', currency: 'USD', isGold: true, priority: true },
-  { yahoo: 'SI=F', name: 'Perak (Silver)', symbol: 'XAG/USD', panelId: 'market.silver', category: 'metals', currency: 'USD', priority: true },
-  { yahoo: 'CL=F', name: 'Minyak WTI', symbol: 'WTI', panelId: 'market.wti', category: 'energy', currency: 'USD', priority: true },
-  { yahoo: 'BZ=F', name: 'Brent', symbol: 'BRENT', panelId: 'market.brent', category: 'energy', currency: 'USD', priority: true },
-  { yahoo: 'HG=F', name: 'Tembaga (Copper)', symbol: 'COPPER', panelId: 'market.copper', category: 'metals', currency: 'USD' },
-  { yahoo: 'NG=F', name: 'Gas Alam', symbol: 'NG', panelId: 'market.natgas', category: 'energy', currency: 'USD' },
-  { yahoo: 'PL=F', name: 'Platinum', symbol: 'PLATINUM', panelId: 'market.platinum', category: 'metals', currency: 'USD' },
-  { yahoo: 'ZW=F', name: 'Wheat', symbol: 'WHEAT', panelId: 'market.wheat', category: 'agriculture', currency: 'USD' },
-  { yahoo: 'ZC=F', name: 'Corn', symbol: 'CORN', panelId: 'market.corn', category: 'agriculture', currency: 'USD' },
-  { yahoo: 'ZS=F', name: 'Soybean', symbol: 'SOYBEAN', panelId: 'market.soybean', category: 'agriculture', currency: 'USD' }
+  { name: 'Emas (Gold)', symbol: 'XAU/USD', panelId: 'market.gold', category: 'metals', currency: 'USD', isGold: true, priority: true },
+  { name: 'Perak (Silver)', symbol: 'XAG/USD', panelId: 'market.silver', category: 'metals', currency: 'USD', priority: true },
+  { name: 'Minyak WTI', symbol: 'WTI', panelId: 'market.wti', category: 'energy', currency: 'USD', priority: true },
+  { name: 'Brent', symbol: 'BRENT', panelId: 'market.brent', category: 'energy', currency: 'USD', priority: true },
+  { name: 'Tembaga (Copper)', symbol: 'COPPER', panelId: 'market.copper', category: 'metals', currency: 'USD' },
+  { name: 'Gas Alam', symbol: 'NG', panelId: 'market.natgas', category: 'energy', currency: 'USD' },
+  { name: 'Platinum', symbol: 'PLATINUM', panelId: 'market.platinum', category: 'metals', currency: 'USD' },
+  { name: 'Wheat', symbol: 'WHEAT', panelId: 'market.wheat', category: 'agriculture', currency: 'USD' },
+  { name: 'Corn', symbol: 'CORN', panelId: 'market.corn', category: 'agriculture', currency: 'USD' },
+  { name: 'Soybean', symbol: 'SOYBEAN', panelId: 'market.soybean', category: 'agriculture', currency: 'USD' }
 ];
 
 const VALAS_ASSETS = [
-  { yahoo: 'USDIDR=X', name: 'USD/IDR', symbol: 'USD/IDR', panelId: 'market.usd_idr', category: 'currency', currency: 'IDR', flagship: true, priority: true },
-  { yahoo: 'EURIDR=X', name: 'EUR/IDR', symbol: 'EUR/IDR', panelId: 'market.eur_idr', category: 'currency', currency: 'IDR' },
-  { yahoo: 'GBPIDR=X', name: 'GBP/IDR', symbol: 'GBP/IDR', panelId: 'market.gbp_idr', category: 'currency', currency: 'IDR' },
-  { yahoo: 'SGDIDR=X', name: 'SGD/IDR', symbol: 'SGD/IDR', panelId: 'market.sgd_idr', category: 'currency', currency: 'IDR' },
-  { yahoo: 'JPYIDR=X', name: 'JPY/IDR', symbol: 'JPY/IDR', panelId: 'market.jpy_idr', category: 'currency', currency: 'IDR' },
-  { yahoo: 'AUDIDR=X', name: 'AUD/IDR', symbol: 'AUD/IDR', panelId: 'market.aud_idr', category: 'currency', currency: 'IDR' },
-  { yahoo: 'EURUSD=X', name: 'EUR/USD', symbol: 'EUR/USD', panelId: 'market.eur_usd', category: 'currency', currency: 'USD' },
-  { yahoo: 'GBPUSD=X', name: 'GBP/USD', symbol: 'GBP/USD', panelId: 'market.gbp_usd', category: 'currency', currency: 'USD' },
-  { yahoo: 'USDJPY=X', name: 'USD/JPY', symbol: 'USD/JPY', panelId: 'market.usd_jpy', category: 'currency', currency: 'JPY' },
-  { yahoo: 'AUDUSD=X', name: 'AUD/USD', symbol: 'AUD/USD', panelId: 'market.aud_usd', category: 'currency', currency: 'USD' },
-  { yahoo: '^TNX', name: 'US 10Y Yield', symbol: 'US10Y', panelId: 'market.us10y', category: 'bonds', currency: 'PERCENT', priority: true },
-  { yahoo: '^FVX', name: 'US 5Y Yield', symbol: 'US5Y', panelId: 'market.us5y', category: 'bonds', currency: 'PERCENT' },
-  { yahoo: '^TYX', name: 'US 30Y Yield', symbol: 'US30Y', panelId: 'market.us30y', category: 'bonds', currency: 'PERCENT' },
-  { yahoo: '^IRX', name: 'US 2Y Yield', symbol: 'US2Y', panelId: 'market.us2y', category: 'bonds', currency: 'PERCENT' },
-  { yahoo: '^VIX', name: 'VIX', symbol: 'VIX', panelId: 'market.vix', category: 'global', currency: 'INDEX', index: true }
+  { name: 'USD/IDR', symbol: 'USD/IDR', panelId: 'market.usd_idr', category: 'currency', currency: 'IDR', flagship: true, priority: true },
+  { name: 'EUR/IDR', symbol: 'EUR/IDR', panelId: 'market.eur_idr', category: 'currency', currency: 'IDR' },
+  { name: 'GBP/IDR', symbol: 'GBP/IDR', panelId: 'market.gbp_idr', category: 'currency', currency: 'IDR' },
+  { name: 'SGD/IDR', symbol: 'SGD/IDR', panelId: 'market.sgd_idr', category: 'currency', currency: 'IDR' },
+  { name: 'JPY/IDR', symbol: 'JPY/IDR', panelId: 'market.jpy_idr', category: 'currency', currency: 'IDR' },
+  { name: 'AUD/IDR', symbol: 'AUD/IDR', panelId: 'market.aud_idr', category: 'currency', currency: 'IDR' },
+  { name: 'EUR/USD', symbol: 'EUR/USD', panelId: 'market.eur_usd', category: 'currency', currency: 'USD' },
+  { name: 'GBP/USD', symbol: 'GBP/USD', panelId: 'market.gbp_usd', category: 'currency', currency: 'USD' },
+  { name: 'USD/JPY', symbol: 'USD/JPY', panelId: 'market.usd_jpy', category: 'currency', currency: 'JPY' },
+  { name: 'AUD/USD', symbol: 'AUD/USD', panelId: 'market.aud_usd', category: 'currency', currency: 'USD' },
+  { name: 'US 10Y Yield', symbol: 'US10Y', panelId: 'market.us10y', category: 'bonds', currency: 'PERCENT', priority: true },
+  { name: 'US 5Y Yield', symbol: 'US5Y', panelId: 'market.us5y', category: 'bonds', currency: 'PERCENT' },
+  { name: 'US 30Y Yield', symbol: 'US30Y', panelId: 'market.us30y', category: 'bonds', currency: 'PERCENT' },
+  { name: 'US 2Y Yield', symbol: 'US2Y', panelId: 'market.us2y', category: 'bonds', currency: 'PERCENT' },
+  { name: 'VIX', symbol: 'VIX', panelId: 'market.vix', category: 'global', currency: 'INDEX', index: true }
 ];
 
 const SOURCE = {
-  indexPrimary: 'Indeks Bursa (Yahoo Finance — BEI/IDX/global)',
-  stockPrimary: 'Bursa resmi (BEI/NYSE — Yahoo Finance)',
-  commodityPrimary: 'Bursa komoditas dunia resmi (Yahoo Finance)',
-  goldPrimary: 'Harga jual resmi Antam Logam Mulia (logammulia.com) + spot XAU (Yahoo Finance)',
+  indexPrimary: 'Indeks Bursa (provider non-crypto — BEI/IDX/global)',
+  stockPrimary: 'Bursa resmi (BEI/NYSE — provider non-crypto)',
+  commodityPrimary: 'Bursa komoditas dunia resmi (provider non-crypto)',
+  goldPrimary: 'Harga jual resmi Antam Logam Mulia (logammulia.com) + spot XAU (provider non-crypto)',
   goldBlack: 'Buyback emas tanpa surat K24 99,99% (Raja Emas Indonesia / spesialgold)',
   cryptoPrimary: 'Bursa crypto global resmi (CoinGecko)',
   cryptoBlack: 'Jual-beli P2P / agen informal — basis spread P2P IDR +0,90% (OpenRate/Bittime vs JISDOR)',
   valasPrimary: 'Kurs resmi Bank Indonesia (JISDOR) / pasar antar-bank resmi',
   valasBlack: 'Kurs paralel / pasar gelap (forexfy, egcurrency, media)',
-  yieldPrimary: 'Yield US Treasury (Yahoo Finance — ^IRX/^FVX/^TNX/^TYX)'
+  yieldPrimary: 'Yield US Treasury (provider non-crypto — ^IRX/^FVX/^TNX/^TYX)'
 };
 
 function formatPrice(value) {
@@ -135,50 +134,6 @@ function formatSignedNominal(value, currency) {
 
 function getFxAnchor() {
   return (typeof FX_ANCHOR_IDR === 'number' && FX_ANCHOR_IDR > 0) ? FX_ANCHOR_IDR : 16000;
-}
-
-async function fetchYahooQuote(symbol) {
-  const url = `${YAHOO_CHART_API}/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(8000),
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  });
-  if (!response.ok) throw new Error(`Yahoo HTTP ${response.status} for ${symbol}`);
-  const json = await response.json();
-  const meta = json?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error(`No quote data for ${symbol}`);
-  const price = meta.regularMarketPrice;
-  const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
-  if (typeof price !== 'number' || Number.isNaN(price)) throw new Error(`Bad price for ${symbol}`);
-  const changeNominal = prevClose && !Number.isNaN(prevClose) && prevClose > 0 ? price - prevClose : null;
-  const changePercent = changeNominal != null && prevClose > 0 ? (changeNominal / prevClose) * 100 : 0;
-
-  // REAL source metadata — never assumed. These come straight from the provider.
-  const marketState = (meta.marketState || 'CLOSED').toUpperCase();
-  const regularMarketTime = meta.regularMarketTime
-    ? meta.regularMarketTime * 1000
-    : Date.now();
-
-  return {
-    price,
-    changeNominal,
-    changePercent,
-    // OHLC + volume + range, only when the provider actually reports them.
-    open: normalizeFinite(meta.regularMarketOpen),
-    high: normalizeFinite(meta.regularMarketDayHigh) ?? normalizeFinite(meta.regularMarketHigh),
-    low: normalizeFinite(meta.regularMarketDayLow) ?? normalizeFinite(meta.regularMarketLow),
-    previousClose: normalizeFinite(prevClose),
-    volume: normalizeFinite(meta.regularMarketVolume),
-    currency: meta.currency || null,
-    exchangeName: meta.exchangeName || null,
-    exchangeTimezoneName: meta.exchangeTimezoneName || null,
-    marketState,
-    regularMarketTime,
-    timestamp: Date.now(),
-    // quoteTime lags regularMarketTime by how many seconds the feed is behind
-    // the actual market time — a real, source-provided delay measure.
-    quoteDelaySec: Math.max(0, Math.round((Date.now() - regularMarketTime) / 1000))
-  };
 }
 
 function normalizeFinite(v) {
@@ -248,13 +203,13 @@ function buildPanel({ asset, quote, kind, usdIdrWriter, tierMeta }) {
     verificationStatus: 'UNAVAILABLE',
     summary: null,
     facts: [],
-    meta: { ...(asset.yahoo ? { yahoo: asset.yahoo } : {}), ...(asset.id ? { coingeckoId: asset.id } : {}) }
+    meta: { ...(asset.id ? { coingeckoId: asset.id } : {}) }
   };
 
   // Real clickable original-source links (UniversalResultModal requirement):
   // derived strictly from the instrument's real provider identifiers or known
   // official source pages — never invented URLs.
-  const sourceLinks = deriveSourceLinks({ ...asset, meta: { yahoo: asset.yahoo, coingeckoId: asset.id } });
+  const sourceLinks = deriveSourceLinks({ ...asset, meta: { coingeckoId: asset.id } });
   base.sourceUrl = sourceLinks.primary ? sourceLinks.primary.url : null;
   base.sourceLinks = {
     primary: sourceLinks.primary,
@@ -328,25 +283,9 @@ function buildPanel({ asset, quote, kind, usdIdrWriter, tierMeta }) {
 }
 
 /**
- * Fetch a Yahoo-styled group (stocks / indices / commodities / valas / bonds)
+ * Fetch a non-crypto group (stocks / indices / commodities / valas / bonds)
  * and emit real per-instrument panels.
  */
-async function fetchYahooGroup(assets, kind) {
-  const results = await Promise.allSettled(assets.map(a => fetchYahooQuote(a.yahoo)));
-  return results.map((res, i) => {
-    const asset = assets[i];
-    if (res.status === 'fulfilled') {
-      return buildPanel({ asset, quote: res.value, kind });
-    }
-    return buildPanel({
-      asset,
-      quote: null,
-      kind,
-      failed: true
-    });
-  });
-}
-
 function goldTierFromUsdSpot(spotUsd) {
   const fx = getFxAnchor();
   const baseIdrPerGram = (spotUsd * fx) / GOLD_OZ_TO_GRAM;
@@ -405,14 +344,11 @@ async function fetchMarketOverview() {
   const valasAssets = VALAS_ASSETS;
 
   const groups = await Promise.all([
-    fetchYahooGroup(indexAssets, 'index').catch(() => []),
-    fetchYahooGroup(stockAssets, 'stock').catch(() => []),
-    fetchYahooGroup(commodityAssets, 'commodity').catch(() => []),
-    fetchYahooGroup(valasAssets, 'valas').catch(() => [])
+    Promise.resolve([]), Promise.resolve([]), Promise.resolve([]), Promise.resolve([])
   ]);
   let [indices, stocks, commodities, valas] = groups;
 
-  // Crypto via REAL provider FALLBACK CHAIN (Binance → CoinGecko → Yahoo).
+  // Crypto via REAL provider FALLBACK CHAIN (Binance → CoinGecko → provider non-crypto).
   // A single provider failure must NOT zero out a common instrument like BTC.
   let cryptoPanels = CRYPTO_ASSETS.map(asset => buildPanel({ asset, quote: null, kind: 'crypto' }));
   cryptoPanels = await Promise.all(CRYPTO_ASSETS.map(async (asset) => {
@@ -505,15 +441,6 @@ export async function getMarketOverview() {
 const COINGECKO_CHART_API = 'https://api.coingecko.com/api/v3';
 
 // Range → provider range/interval mapping (real, provider-supported).
-const YAHOO_RANGE_TO_PARAMS = {
-  '1D': { range: '1d', interval: '5m' },
-  '5D': { range: '5d', interval: '15m' },
-  '1M': { range: '1mo', interval: '1d' },
-  '3M': { range: '3mo', interval: '1d' },
-  '1Y': { range: '1y', interval: '1d' },
-  'MAX': { range: 'max', interval: '1d' }
-};
-
 const COINGECKO_RANGE_TO_DAYS = {
   '1D': '1',
   '5D': '5',
@@ -523,7 +450,7 @@ const COINGECKO_RANGE_TO_DAYS = {
   'MAX': 'max'
 };
 
-/** Resolve the live asset description for a panel (yahoo symbol or coingecko id). */
+/** Resolve the live asset description for a panel (provider non-crypto symbol or coingecko id). */
 export function findAssetByPanel(panelId) {
   const all = [
     ...CRYPTO_ASSETS, ...STOCK_ASSETS, ...COMMODITY_ASSETS, ...VALAS_ASSETS
@@ -532,43 +459,9 @@ export function findAssetByPanel(panelId) {
 }
 
 /**
- * Fetch a REAL Yahoo time series for a symbol + range.
+ * Fetch a REAL provider non-crypto time series for a symbol + range.
  * Returns only points the source provides; never fabricates.
  */
-async function fetchYahooSeries(symbol, rangeParams) {
-  const url = `${YAHOO_CHART_API}/${encodeURIComponent(symbol)}?range=${rangeParams.range}&interval=${rangeParams.interval}&includePrePost=false`;
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(10000),
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  });
-  if (!response.ok) throw new Error(`Yahoo series HTTP ${response.status} for ${symbol}`);
-  const json = await response.json();
-  const result = json?.chart?.result?.[0];
-  if (!result || !result.timestamp || !result.indicators?.quote?.[0]?.close) {
-    throw new Error(`No series data for ${symbol} (${rangeParams.range})`);
-  }
-  const timestamps = result.timestamp;
-  const closes = result.indicators.quote[0].close;
-  const points = [];
-  for (let i = 0; i < timestamps.length; i++) {
-    const price = closes[i];
-    if (price === null || price === undefined || Number.isNaN(Number(price))) continue;
-    points.push({
-      timestamp: timestamps[i] * 1000,
-      value: Number(price)
-    });
-  }
-  if (points.length === 0) throw new Error(`Empty series for ${symbol} (${rangeParams.range})`);
-  return {
-    symbol,
-    range: rangeParams.range,
-    seriesKind: 'HISTORICAL/INTRADAY',
-    source: 'Yahoo Finance chart API',
-    points,
-    count: points.length
-  };
-}
-
 /**
  * Fetch a REAL CoinGecko daily price series for a crypto asset + range.
  * Never fabricates points.
@@ -606,13 +499,13 @@ async function fetchCryptoSeries(coingeckoId, days) {
  *
  * Chain of real sources (JIN SOURCE EXPLORATION — no mock fallback):
  *   1. crypto  → CoinGecko /market_chart
- *   2. yahoo   → Yahoo Finance /v8/finance/chart
+ *   2. provider non-crypto   → provider non-crypto /v8/finance/chart
  * If the requested range is not supported/available we say so, we do NOT invent
  * a chart.
  */
 export async function getMarketSeries({ panelId, symbol, range = '1D' }) {
   const lookup = findAssetByPanel(panelId);
-  const yahooSymbol = symbol || (lookup && lookup.yahoo) || null;
+  const disabledExternalSymbol = null;
   const coingeckoId = lookup && lookup.id ? lookup.id : (lookup && lookup.coingeckoId) || null;
 
   const rangeKey = String(range).toUpperCase();
@@ -629,15 +522,7 @@ export async function getMarketSeries({ panelId, symbol, range = '1D' }) {
     }
   }
 
-  if (yahooSymbol) {
-    const params = YAHOO_RANGE_TO_PARAMS[rangeKey] || YAHOO_RANGE_TO_PARAMS['1D'];
-    try {
-      const series = await fetchYahooSeries(yahooSymbol, params);
-      return { ok: true, series: { ...series, requestedRange: rangeKey } };
-    } catch (err) {
-      tried.push({ source: `Yahoo Finance (${yahooSymbol})`, error: err.message });
-    }
-  }
+  // Historical data from the disabled provider is not requested.
 
   // No real source available → HONEST no-chart result. Never mock.
   return {

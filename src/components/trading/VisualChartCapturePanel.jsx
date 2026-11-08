@@ -33,6 +33,18 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
   };
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const formatError = (value) => {
+    if (value instanceof Error) return value.message || value.name || 'Unknown error';
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') {
+      const message = value.message || value.error?.message ||
+        value.details || value.error_description;
+      if (typeof message === 'string') return message;
+      try { return JSON.stringify(value); }
+      catch { return 'Error tidak dapat dibaca.'; }
+    }
+    return String(value ?? 'Error tidak diketahui.');
+  };
 
   const captureAndAnalyze = async (targetTimeframe = timeframe, manageBusy = true) => {
     window.dispatchEvent(new CustomEvent('jin:signal-clear'));
@@ -58,7 +70,9 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
           image: frame.dataUrl,
           schema: 'chart-ohlc-v1'
         }),
-        signal: AbortSignal.timeout(60000),
+        // 90s timeout: LocalRouter dapat menghabiskan hingga 3 model × 20s = 60s untuk fallback.
+        // Vercel serverless jauh lebih cepat (biasanya selesai <10s), jadi 90s aman untuk keduanya.
+        signal: AbortSignal.timeout(90000),
         cache: 'no-store'
       });
       const contentType = response.headers.get('content-type') || '';
@@ -102,7 +116,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       setStatus(data.dataStatus === 'VISUAL_READY' ? 'DATA MASUK KE AI ANALYST' : data.dataStatus === 'VISUAL_POOR' ? 'GAMBAR TIDAK JELAS' : data.dataStatus === 'VISUAL_MISMATCH' ? 'INSTRUMEN/TIMEFRAME TIDAK COCOK' : 'CANDLE VISUAL < 50');
       return data;
     } catch (e) {
-      setStatus('ANALISIS GAGAL'); setError(e?.message || 'Gagal membaca chart.');
+      setStatus('ANALISIS GAGAL'); setError(formatError(e) || 'Gagal membaca chart.');
       throw e;
     } finally { if (manageBusy) setBusy(false); }
   };
@@ -175,7 +189,7 @@ export default function VisualChartCapturePanel({ instrument, timeframe, onTimef
       window.dispatchEvent(new CustomEvent('jin:signal-ready', { detail: signal }));
       setStatus('SELESAI ' + batch.length + '/4 TIMEFRAME · SINYAL ' + signal.side);
     } catch (e) {
-      setError(e?.message || 'Perekaman multi-timeframe gagal.');
+      setError(formatError(e) || 'Perekaman multi-timeframe gagal.');
       setStatus('BATCH TERHENTI');
     } finally { setBusy(false); }
   };

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { marketDataServiceInstance } from '../../services/trading/MarketDataService.js';
+import { getChartCandles } from '../../services/trading/ChartReader.js';
 
 const ASSETS = [
   { symbol: 'XAUUSD', label: 'GOLD · XAUUSD', group: 'ACUAN UTAMA' },
@@ -15,170 +16,91 @@ const ASSETS = [
   { symbol: 'SPX500', label: 'S&P 500', group: 'RISK SENTIMENT' },
   { symbol: 'BTCUSDT', label: 'Bitcoin · BTCUSDT', group: 'RISK SENTIMENT' },
 ];
-const fmtPrice = v => Number.isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—';
-const emptyReading = symbol => ({ symbol, trend: 'MEMUAT DATA…', price: null, date: null, source: null, error: null });
-
-function summarizeCandles(symbol, input) {
-  const valid = (Array.isArray(input) ? input : []).filter(c =>
-    c && [Number(c.open), Number(c.high), Number(c.low), Number(c.close)].every(Number.isFinite) &&
-    Number(c.high) >= Math.max(Number(c.open), Number(c.close), Number(c.low)) &&
-    Number(c.low) <= Math.min(Number(c.open), Number(c.close), Number(c.high)) &&
-    c.isSimulated !== true
-  ).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
-  if (valid.length < 20) return {
-    symbol, trend: 'DATA BELUM CUKUP', price: valid.length ? Number(valid.at(-1).close) : null,
-    date: valid.at(-1)?.timestamp || null, source: valid.at(-1)?.source || null,
-    error: `Hanya ${valid.length} candle D1 valid; diperlukan minimal 20.`
-  };
-  const closes = valid.map(c => Number(c.close));
-  const recent = closes.slice(-5).reduce((s, v) => s + v, 0) / 5;
-  const prior = closes.slice(-20, -5).reduce((s, v) => s + v, 0) / 15;
-  return {
-    symbol,
-    trend: recent > prior * 1.001 ? 'BULLISH' : recent < prior * 0.999 ? 'BEARISH' : 'SIDEWAYS',
-    price: closes.at(-1), date: valid.at(-1)?.timestamp || null,
-    source: valid.at(-1)?.source || null, error: null,
-  };
+const TF = ['D1', 'H4'];
+const fmt = v => Number.isFinite(v) ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
+const pearson = (a,b) => {
+  const n=Math.min(a.length,b.length); if(n<10)return null;
+  const x=a.slice(-n),y=b.slice(-n),mx=x.reduce((s,v)=>s+v,0)/n,my=y.reduce((s,v)=>s+v,0)/n;
+  let num=0,dx=0,dy=0;for(let i=0;i<n;i++){const vx=x[i]-mx,vy=y[i]-my;num+=vx*vy;dx+=vx*vx;dy+=vy*vy;}
+  return dx&&dy?num/Math.sqrt(dx*dy):null;
+};
+function summarize(symbol, tf) {
+  const result=getChartCandles(symbol,tf,200), candles=result.candles||[];
+  if(candles.length<20)return {symbol,tf,status:result.status||'NO_DATA',count:candles.length,freshness:result.freshness||'NO_DATA',trend:'DATA BELUM CUKUP',change:null,returns:[]};
+  const closes=candles.map(c=>c.close),last=closes.at(-1),base=closes.at(-6);
+  const recent=closes.slice(-5).reduce((s,v)=>s+v,0)/5,prior=closes.slice(-20,-5).reduce((s,v)=>s+v,0)/15;
+  const returns=[];for(let i=1;i<closes.length;i++){if(closes[i-1]!==0)returns.push((closes[i]-closes[i-1])/closes[i-1]);}
+  return {symbol,tf,status:result.status,count:candles.length,freshness:result.freshness,price:last,change:base?((last-base)/base)*100:null,trend:recent>prior*1.001?'BULLISH':recent<prior*.999?'BEARISH':'SIDEWAYS',returns};
 }
-
-async function fetchDaily(symbol) {
-  const response = await fetch(`/api/trading/ohlc?symbol=${encodeURIComponent(symbol)}&timeframe=D1&limit=60`, { cache: 'no-store' });
-  const data = await response.json();
-  if (!response.ok || !data?.ok || !Array.isArray(data.candles)) {
-    throw new Error(data?.error || data?.message || `OHLC HTTP ${response.status}`);
-  }
-  const candles = data.candles.map(c => ({
-    ...c,
-    open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close),
-    timestamp: c.timestamp || c.time || c.date || c.datetime,
-    source: c.source || data.source || 'UNKNOWN',
-    isSimulated: c.isSimulated ?? data.isSimulated ?? false,
-  }));
-  return { data, candles, reading: summarizeCandles(symbol, candles) };
-}
-
-export default function CrossAssetMonitor() {
+export default function CrossAssetMonitor(){
   const [revision, setRevision] = useState(0);
-  const [readings, setReadings] = useState(() => Object.fromEntries(ASSETS.map(a => [a.symbol, emptyReading(a.symbol)])));
-  const [errors, setErrors] = useState({});
-  const [updatedAt, setUpdatedAt] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [fundamentals, setFundamentals] = useState({});
-  const [fundamentalError, setFundamentalError] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const refreshAll = async () => {
-    setLoading(true);
-    const [results, newsResult] = await Promise.all([
-      Promise.allSettled(ASSETS.map(asset => fetchDaily(asset.symbol))),
-      fetch('/api/trading/fundamental-analysis', { cache: 'no-store' })
-        .then(async response => {
-          const data = await response.json();
-          if (!response.ok || !data?.ok) throw new Error(data?.error || `News HTTP ${response.status}`);
-          return data;
-        })
-        .catch(error => ({ ok: false, error: String(error?.message || error) })),
-    ]);
-    if (newsResult.ok) {
-      setFundamentals(newsResult.analyses || {});
-      setFundamentalError('');
-    } else {
-      setFundamentals({});
-      setFundamentalError(newsResult.error || 'Berita fundamental tidak tersedia.');
-    }
-    const nextReadings = {};
-    const nextErrors = {};
-    const allCandles = [];
-    results.forEach((result, index) => {
-      const symbol = ASSETS[index].symbol;
-      if (result.status === 'fulfilled') {
-        const { reading, candles, data } = result.value;
-        nextReadings[symbol] = reading;
-        if (reading.error) nextErrors[symbol] = reading.error;
-        allCandles.push(...candles.map(c => ({ ...c, symbol, timeframe: 'D1' })));
-        if (reading.trend === 'DATA BELUM CUKUP') nextErrors[symbol] = reading.error;
-      } else {
-        const message = String(result.reason?.message || result.reason || 'Data tidak tersedia');
-        nextReadings[symbol] = { ...emptyReading(symbol), trend: 'DATA TIDAK TERSEDIA', error: message };
-        nextErrors[symbol] = message;
+  const fetchCrossAssets = async () => {
+    setIsRefreshing(true);
+    try {
+      const requests = [];
+      for (const asset of ASSETS) {
+        for (const tf of TF) {
+          requests.push(
+            fetch("http://127.0.0.1:20200/trading/ohlc?symbol=" + encodeURIComponent(asset.symbol) + "&timeframe=" + tf + "&limit=60")
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data?.ok && Array.isArray(data.candles) && data.candles.length > 0) {
+                  marketDataServiceInstance.addBatchCandles(data.candles.map(c => ({
+                    ...c,
+                    symbol: asset.symbol,
+                    timeframe: tf,
+                    isSimulated: false
+                  })));
+                }
+              })
+              .catch(() => {})
+          );
+        }
       }
-    });
-    setReadings(current => ({ ...current, ...nextReadings }));
-    setErrors(nextErrors);
-    setUpdatedAt(new Date().toISOString());
-    if (allCandles.length) {
-      marketDataServiceInstance.addBatchCandles(allCandles);
-      marketDataServiceInstance.setStatus('CONNECTED', { source: 'YAHOO_FINANCE', isSimulated: false });
+      await Promise.all(requests);
+      setRevision(v => v + 1);
+    } finally {
+      setIsRefreshing(false);
     }
-    setRevision(v => v + 1);
-    setLoading(false);
   };
 
   useEffect(() => {
-    let alive = true;
-    const run = async () => { if (alive) await refreshAll(); };
-    run();
-    // D1/news refresh only on page entry or manual button click; no polling timer.
-    return () => { alive = false; };
+    fetchCrossAssets();
+    const interval = setInterval(fetchCrossAssets, 25000);
+    const unsub = marketDataServiceInstance.subscribe(() => setRevision(v => v + 1));
+    return () => {
+      clearInterval(interval);
+      if (typeof unsub === "function") unsub();
+    };
   }, []);
-
-  const rows = useMemo(() => ASSETS.map(asset => ({
-    ...asset, reading: readings[asset.symbol] || emptyReading(asset.symbol),
-  })), [readings, revision]);
-
-  const pill = value => ({
-    display: 'inline-block', padding: '4px 7px', borderRadius: 4, fontSize: 9, fontWeight: 900,
-    border: '1px solid ' + (value === 'BULLISH' ? '#166534' : value === 'BEARISH' ? '#9f1239' : '#334155'),
-    color: value === 'BULLISH' ? '#4ade80' : value === 'BEARISH' ? '#fb7185' : '#cbd5e1',
-    background: value === 'BULLISH' ? '#052e16' : value === 'BEARISH' ? '#4c0519' : '#0f172a',
-  });
-
-  return <section style={{ marginTop: 12, padding: 12, border: '1px solid #164e63', borderRadius: 8, background: '#06101d', color: '#dbeafe', fontFamily: 'Inter,system-ui,sans-serif' }}>
-    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      <div>
-        <h2 style={{ margin: 0, color: '#67e8f9', fontSize: 14, letterSpacing: '.06em' }}>JIN CROSS-ASSET GOLD MONITOR</h2>
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 5 }}>Tren harian D1 · diperbarui saat sesi dibuka atau tombol refresh ditekan · data publik dapat tertunda</div>
-      </div>
-      <button onClick={refreshAll} disabled={loading} style={{ padding: '7px 10px', background: '#082f49', border: '1px solid #0e7490', borderRadius: 5, color: '#67e8f9', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'MEMUAT DATA…' : '↻ REFRESH DATA'}</button>
-    </header>
-    {Object.keys(errors).length > 0 && <div role="status" style={{ marginTop: 8, color: '#fbbf24', fontSize: 10 }}>{Object.keys(errors).length} instrumen bermasalah atau belum memiliki 20 candle D1 valid. Rincian tersedia saat mengarahkan kursor ke status instrumen.</div>}
-    <div style={{ marginTop: 10, overflowX: 'auto' }}>
-      <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 10 }}>
-        <thead><tr>{['INSTRUMEN', 'D1 TREND', 'ANALISA FUNDAMENTAL'].map(h => <th key={h} style={{ padding: 8, textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #164e63', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
-        <tbody>{rows.map(asset => <tr key={asset.symbol}>
-          <td style={{ padding: 8, borderBottom: '1px solid #12283a', fontWeight: 800, color: asset.symbol === 'XAUUSD' ? '#67e8f9' : '#e2e8f0' }}>
-            {asset.label}<div style={{ fontSize: 8, color: '#64748b', marginTop: 3 }}>{asset.group}</div>
-          </td>
-          <td style={{ padding: 8, borderBottom: '1px solid #12283a', whiteSpace: 'nowrap' }} title={errors[asset.symbol] || asset.reading.error || `Sumber: ${asset.reading.source || 'menunggu data'}`}>
-            <span style={pill(asset.reading.trend)}>{asset.reading.trend}</span>
-            {asset.reading.price != null && <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 4 }}>{fmtPrice(asset.reading.price)}{asset.reading.date ? ` · ${new Date(asset.reading.date).toLocaleDateString()}` : ''}</div>}
-          </td>
-          <td style={{ padding: 8, borderBottom: '1px solid #12283a', minWidth: 260, maxWidth: 430, whiteSpace: 'normal', lineHeight: 1.45 }}>
-            {(() => {
-              const context = fundamentals[asset.symbol];
-              const headline = context?.headlines?.[0];
-              const headlines = context?.headlines || [];
-              const joined = headlines.map(item => item.title).join(' ').toLowerCase();
-              const bearishTerms = ['hawkish', 'rate hike', 'higher rates', 'strong dollar', 'yields rise', 'inflation rises', 'selloff', 'falls', 'fall', 'drop', 'decline', 'plunge', 'weak demand', 'oversupply'];
-              const bullishTerms = ['rate cut', 'dovish', 'yields fall', 'dollar weakens', 'safe haven', 'rally', 'surge', 'rises', 'rise', 'strong demand', 'supply disruption'];
-              const bearish = bearishTerms.filter(term => joined.includes(term)).length;
-              const bullish = bullishTerms.filter(term => joined.includes(term)).length;
-              const signal = headlines.length === 0 ? 'BERITA BELUM TERSEDIA'
-                : bullish > bearish ? 'BERITA CENDERUNG POSITIF'
-                : bearish > bullish ? 'BERITA CENDERUNG NEGATIF'
-                : 'BERITA CAMPURAN / NETRAL';
-              return <div title={context?.error || context?.theme || fundamentalError}>
-                <div style={{ color: signal.includes('POSITIF') ? '#4ade80' : signal.includes('NEGATIF') ? '#fb7185' : '#cbd5e1', fontWeight: 800, fontSize: 9 }}>{signal}</div>
-                {headline ? <a href={headline.link || undefined} target="_blank" rel="noreferrer" style={{ display: 'block', color: '#cbd5e1', marginTop: 4, fontSize: 9, textDecoration: 'underline' }}>{headline.title}</a> : <div style={{ color: '#94a3b8', fontSize: 9, marginTop: 4 }}>{fundamentalError || context?.error || 'Belum ada headline relevan dari penyedia berita.'}</div>}
-                {headline?.publisher && <div style={{ color: '#64748b', fontSize: 8, marginTop: 3 }}>{headline.publisher}{headline.publishedAt ? ` · ${new Date(headline.publishedAt).toLocaleString()}` : ''}</div>}
-                <div style={{ color: '#94a3b8', fontSize: 8, marginTop: 4 }}>Konteks berita otomatis; perlu dikonfirmasi terhadap D1 dan kalender ekonomi.</div>
-              </div>;
-            })()}
-          </td>
-        </tr>)}</tbody>
-      </table>
-    </div>
-    <div style={{ marginTop: 8, fontSize: 9, color: '#64748b' }}>
-      {updatedAt ? `Pembaruan terakhir: ${new Date(updatedAt).toLocaleTimeString()} · ` : ''}Sumber harga dan headline: Yahoo Finance (dapat tertunda). XAUUSD memakai proksi futures GC=F, bukan kuotasi spot MT5. Analisa berita memakai pencocokan kata sederhana; bukan analisa AI penuh atau rekomendasi transaksi.
-    </div>
-  </section>;
+ const rows=useMemo(()=>ASSETS.map(a=>({...a,readings:TF.map(tf=>summarize(a.symbol,tf))})),[revision]);
+ const gold=rows.find(r=>r.symbol==='XAUUSD');
+ const correlations=useMemo(()=>Object.fromEntries(rows.filter(r=>r.symbol!=='XAUUSD').map(r=>{const daily=r.readings[0];const corr=gold?pearson(gold.readings[0].returns,daily.returns):null;return[r.symbol,corr]})),[rows]);
+ const pill=(value)=>({display:'inline-block',padding:'3px 6px',borderRadius:4,fontSize:9,fontWeight:900,border:'1px solid '+(value==='BULLISH'?'#166534':value==='BEARISH'?'#9f1239':'#334155'),color:value==='BULLISH'?'#4ade80':value==='BEARISH'?'#fb7185':'#cbd5e1',background:value==='BULLISH'?'#052e16':value==='BEARISH'?'#4c0519':'#0f172a'});
+ const correlationLabel=v=>!Number.isFinite(v)?'BELUM ADA DATA':v<=-.65?'KUAT BERLAWANAN':v>=.65?'KUAT SEARAH':v<=-.35?'CENDERUNG BERLAWANAN':v>=.35?'CENDERUNG SEARAH':'LEMAH / CAMPURAN';
+ return <section style={{marginTop:12,padding:12,border:'1px solid #164e63',borderRadius:8,background:'#06101d',color:'#dbeafe',fontFamily:'Inter,system-ui,sans-serif'}}>
+  <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+   <div><h2 style={{margin:0,color:'#67e8f9',fontSize:14,letterSpacing:'.06em'}}>JIN CROSS-ASSET GOLD MONITOR</h2><div style={{fontSize:10,color:'#94a3b8',marginTop:5}}>Pembacaan otomatis D1 + H4 · pembaruan saat data pasar masuk dan tiap 30 detik</div></div>
+   <button onClick={()=>setRevision(v=>v+1)} style={{padding:'7px 10px',background:'#082f49',border:'1px solid #0e7490',borderRadius:5,color:'#67e8f9',fontWeight:800,cursor:'pointer'}}>↻ REFRESH DATA</button>
+  </header>
+  <div style={{marginTop:10,overflowX:'auto'}}>
+   <table style={{width:'100%',minWidth:900,borderCollapse:'collapse',fontSize:10}}>
+    <thead><tr>{['INSTRUMEN','D1 TREND','D1 Δ 5 BAR','KORELASI D1 vs GOLD','H4 TREND','H4 Δ 5 BAR','DATA D1 / H4'].map(h=><th key={h} style={{padding:8,textAlign:'left',color:'#94a3b8',borderBottom:'1px solid #164e63',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+    <tbody>{rows.map(asset=>{const d=asset.readings[0],h=asset.readings[1],corr=correlations[asset.symbol];return <tr key={asset.symbol}>
+     <td style={{padding:8,borderBottom:'1px solid #12283a',fontWeight:800,color:asset.symbol==='XAUUSD'?'#67e8f9':'#e2e8f0'}}>{asset.label}<div style={{fontSize:8,color:'#64748b',marginTop:3}}>{asset.group}</div></td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a'}}><span style={pill(d.trend)}>{d.trend}</span></td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a',color:(d.change||0)>0?'#4ade80':(d.change||0)<0?'#fb7185':'#cbd5e1'}}>{fmt(d.change)}</td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a'}}><div style={{fontWeight:800,color:Number.isFinite(corr)?corr<=-.35?'#4ade80':corr>=.35?'#fb7185':'#cbd5e1':'#fbbf24'}}>{Number.isFinite(corr)?corr.toFixed(2):'—'}</div><div style={{fontSize:8,color:'#94a3b8',marginTop:3}}>{correlationLabel(corr)}</div></td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a'}}><span style={pill(h.trend)}>{h.trend}</span></td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a',color:(h.change||0)>0?'#4ade80':(h.change||0)<0?'#fb7185':'#cbd5e1'}}>{fmt(h.change)}</td>
+     <td style={{padding:8,borderBottom:'1px solid #12283a',color:d.count>=50&&h.count>=50?'#4ade80':'#fbbf24'}}>{d.count} / {h.count} candle · {d.freshness} / {h.freshness}</td>
+    </tr>})}</tbody>
+   </table>
+  </div>
+  <div style={{marginTop:10,padding:9,border:'1px solid #854d0e',borderRadius:5,background:'#211608',fontSize:10,lineHeight:1.6,color:'#fcd34d'}}>
+   Kualitas data: monitor hanya menghitung tren/korelasi dari candle OHLC yang tersedia di MarketDataService. Jika tertulis DATA BELUM CUKUP atau korelasi “BELUM ADA DATA”, JIN belum menerima riwayat yang memadai untuk instrumen/timeframe itu—bukan berarti instrumen tidak berpengaruh. Korelasi D1 dihitung dari return harian yang tersedia, minimal 10 pasangan; korelasi historis bukan jaminan hubungan masa depan.
+  </div>
+ </section>;
 }

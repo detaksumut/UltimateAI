@@ -5,7 +5,6 @@
  * Each adapter knows its own identifier for an instrument:
  *   Binance   → "BTCUSDT"   (meta.binance)
  *   CoinGecko → "bitcoin"   (meta.coingeckoId)
- *   Yahoo     → "BTC-USD"   (meta.yahoo)
  *
  * Every adapter:
  *   - calls the real public endpoint (host-fallback where available),
@@ -25,11 +24,6 @@ const BINANCE_TICKER_HOSTS = [
   'https://data-api.binance.vision',
   'https://api.binance.com',
   'https://api1.binance.com'
-];
-
-const YAHOO_CHART_HOSTS = [
-  'https://query1.finance.yahoo.com/v8/finance/chart',
-  'https://query2.finance.yahoo.com/v8/finance/chart'
 ];
 
 const FETCH_TIMEOUT_MS = 10000;
@@ -121,67 +115,10 @@ export async function coingeckoQuote(canonical, diagnostics) {
   };
 }
 
-// ── Yahoo adapter (all non-crypto + crypto cross-check) ──────────────────────
-export async function yahooQuote(canonical, diagnostics) {
-  const ysymbol = canonical.meta && canonical.meta.yahoo;
-  if (!ysymbol) throw new Error('Tidak ada identitas Yahoo untuk instrumen ini.');
-  let lastErr = null;
-  for (const host of YAHOO_CHART_HOSTS) {
-    const url = `${host}/${encodeURIComponent(ysymbol)}?range=1d&interval=5m`;
-    diagnostics.push({ provider: 'yahoo', endpoint: host.split('/')[2] + '/v8/finance/chart', symbol: ysymbol, status: 'ATTEMPTED' });
-    try {
-      const res = await httpJson(url);
-      if (!res.ok) {
-        diagnostics[diagnostics.length - 1].status = `FAILED HTTP ${res.status}`;
-        lastErr = new Error(`Yahoo HTTP ${res.status}`);
-        continue;
-      }
-      const json = await res.json();
-      const result = json && json.chart && json.chart.result && json.chart.result[0];
-      if (!result || !result.meta) throw new Error('Yahoo meta kosong.');
-      const meta = result.meta;
-      const regularPrice = meta.regularMarketPrice;
-      const prev = meta.chartPreviousClose || meta.previousClose;
-      const price = Number(regularPrice);
-      if (!Number.isFinite(price) || price <= 0) throw new Error('Yahoo regularMarketPrice tidak valid.');
-      const change = prev != null && Number(prev) > 0 ? ((price - Number(prev)) / Number(prev)) * 100 : null;
-
-      let high = null; let low = null; let volume = null;
-      if (result.indicators && result.indicators.quote && result.indicators.quote[0]) {
-        const q = result.indicators.quote[0];
-        const highs = (q.high || []).filter((v) => Number.isFinite(v));
-        const lows = (q.low || []).filter((v) => Number.isFinite(v));
-        const vols = (q.volume || []).filter((v) => Number.isFinite(v));
-        if (highs.length) high = Math.max(...highs);
-        if (lows.length) low = Math.min(...lows);
-        if (vols.length) volume = vols[vols.length - 1];
-      }
-      diagnostics[diagnostics.length - 1].status = 'OK';
-      return {
-        asset: canonical.asset,
-        symbol: canonical.symbol,
-        price,
-        currency: meta.currency || canonical.currency || 'USD',
-        change24h: change,
-        high24h: high,
-        low24h: low,
-        volume24h: volume,
-        source: 'Yahoo Finance',
-        sourceUrl: `https://finance.yahoo.com/quote/${encodeURIComponent(ysymbol)}`,
-        retrievedAt: Date.now(),
-        verificationStatus: 'VERIFIED'
-      };
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr || new Error(`Yahoo unreachable untuk ${ysymbol}`);
-}
-
 export function classifyRouterError(err, status) {
   return classifyError(err, status);
 }
 
 export { FAILURE_TYPES };
 
-export default { binanceQuote, coingeckoQuote, yahooQuote, classifyRouterError };
+export default { binanceQuote, coingeckoQuote, classifyRouterError };

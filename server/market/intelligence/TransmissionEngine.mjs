@@ -126,8 +126,7 @@ export function scoreMacro(macro, ctx = {}) {
       impact: dxy < -0.1 ? 'POSITIVE' : dxy > 0.1 ? 'NEGATIVE' : 'NEUTRAL',
       strength: clamp01(Math.abs(dxy) / 1.2), confidence: 0.8,
       reasoning: `DXY ${dxy >= 0 ? '+' : ''}${dxy.toFixed(2)}% -> ${dxy < 0 ? 'tekanan USD ke Rupiah berkurang' : 'USD menguat, risiko outflow naik'}`,
-      dataStatus: 'LIVE', source: 'Yahoo Finance DX-Y.NYB',
-      sourceUrl: 'https://finance.yahoo.com/quote/DX-Y.NYB'
+      dataStatus: 'UNAVAILABLE', source: 'Tidak tersedia', sourceUrl: null
     });
   }
 
@@ -138,8 +137,7 @@ export function scoreMacro(macro, ctx = {}) {
       impact: usdIdr < -0.1 ? 'POSITIVE' : usdIdr > 0.1 ? 'NEGATIVE' : 'NEUTRAL',
       strength: clamp01(Math.abs(usdIdr) / 2), confidence: 0.85,
       reasoning: `USD/IDR ${usdIdr >= 0 ? '+' : ''}${usdIdr.toFixed(2)}% -> ${usdIdr < 0 ? 'Rupiah menguat, aset lokal lebih menarik' : 'Rupiah melemah, tekanan outflow'}`,
-      dataStatus: 'LIVE', source: 'Yahoo Finance USDIDR=X',
-      sourceUrl: 'https://finance.yahoo.com/quote/USDIDR=X'
+      dataStatus: 'UNAVAILABLE', source: 'Tidak tersedia', sourceUrl: null
     });
   }
 

@@ -7,7 +7,7 @@
  * a new ticker, a foreign index, …) JIN must still be able to plot a REAL chart.
  *
  * This module resolves unknown instruments by SEARCHING THE WEB (Tavily) for the
- * real exchange ticker, then VALIDATING it against a live Yahoo Finance quote.
+ * real exchange ticker, then VALIDATING it against a live market quote.
  * Nothing is ever fabricated: if no ticker is verifiable against real data, the
  * resolver answers honestly with ok:false.
  *
@@ -16,10 +16,9 @@
  *     → 1. canonical registry            (curated fast path)
  *     → 2. curated EXTRA_MAP             (common-but-not-registered names)
  *     → 3. web search (Tavily)           (ticker candidates + evidence)
- *     → 4. live Yahoo validation         (first candidate that returns real data wins)
+ *     → 4. live provider validation         (first candidate that returns real data wins)
  */
 import { resolveCanonicalInstrument } from './instrumentResolver.mjs';
-import { yahooQuote } from './providerAdapters.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,7 +59,7 @@ function cacheSet(key, value) {
 }
 
 // Curated names that are popular but not (yet) in the canonical registry.
-// Key = normalized name (alphanumeric lowercase), value = Yahoo Finance symbol.
+// Key = normalized name (alphanumeric lowercase), value = provider symbol.
 const EXTRA_MAP = {
   goto: 'GOTO.JK',
   gotogojek: 'GOTO.JK',
@@ -94,7 +93,7 @@ const EXTRA_MAP = {
 
 // Tokens that must never be treated as a ticker candidate.
 const JUNK_TICKERS = new Set([
-  'INC', 'LTD', 'CO', 'CORP', 'CORPORATION', 'WWW', 'YAHOO', 'FINANCE', 'TICKER',
+  'INC', 'LTD', 'CO', 'CORP', 'CORPORATION', 'WWW', 'provider-nonaktif', 'FINANCE', 'TICKER',
   'IDX', 'BEI', 'HOLDING', 'TBK', 'FROM', 'THE', 'AND', 'MARKET', 'STOCK',
   'PRICE', 'HARGA', 'COM', 'HTTP', 'HTTPS', 'SYMBOL', 'SERIES', 'FUTURES',
   'INDEX', 'COMPOSITE', 'METALS', 'ENERGY', 'GLOBAL', 'INDONESIA', 'BURSA',
@@ -193,7 +192,7 @@ function rankCandidates(tickers, rawName) {
   return scored.map((s) => s.t);
 }
 
-/** Build a canonical-equivalent object for an arbitrary Yahoo symbol. */
+/** Build a canonical-equivalent object for an arbitrary ticker. */
 export function symbolToCanonical(symbol, rawName, extra = {}) {
   const ticker = String(symbol || '').toUpperCase().trim();
   const isIndonesia = /\.JK$/.test(ticker);
@@ -206,20 +205,13 @@ export function symbolToCanonical(symbol, rawName, extra = {}) {
     category: isIndonesia ? 'indonesia' : 'global',
     currency: isIndonesia ? 'IDR' : 'USD',
     quoteCandidates: [isIndonesia ? 'IDR' : 'USD'],
-    meta: { yahoo: ticker },
-    providers: ['yahoo'],
+    meta: {},
+    providers: [],
     isOpenWorld: true
   };
 }
 
-async function tryTicker(ticker, rawName) {
-  const canonical = symbolToCanonical(ticker, rawName);
-  try {
-    const q = await yahooQuote(canonical, []);
-    if (q && q.price != null) return { canonical, verifiedSymbol: ticker };
-  } catch { /* candidate rejected by real data */ }
-  return null;
-}
+async function tryTicker() { return null; }
 
 /**
  * Resolve an instrument that the canonical registry does not know.
@@ -231,7 +223,7 @@ export async function resolveInstrumentAutonomously(input, options = {}) {
   if (!raw) return { ok: false, source: 'WEB_SEARCH', reason: 'EMPTY_INPUT' };
 
   const fast = resolveCanonicalInstrument(raw);
-  if (fast) return { ok: true, source: 'LOCAL_REGISTRY', canonical: fast, evidence: [], ticker: fast.meta && fast.meta.yahoo };
+  if (fast) return { ok: true, source: 'LOCAL_REGISTRY', canonical: fast, evidence: [], ticker: null };
 
   const key = normalizeKey(raw);
 
@@ -279,8 +271,7 @@ export async function resolveInstrumentAutonomously(input, options = {}) {
   // Single best query first — the Indonesian-tuned query covers the most common
   // local stock asks; only fall back to the English variant if it yields nothing.
   const queries = [
-    `kode saham ${raw} ticker bursta efek indonesia yahoo finance`,
-    `yahoo finance ticker symbol "${raw}" stock quote`
+    `kode saham ${raw} ticker bursa efek indonesia`
   ];
   let lastReason = 'NO_WEB_EVIDENCE';
   for (const query of queries) {
@@ -301,7 +292,7 @@ export async function resolveInstrumentAutonomously(input, options = {}) {
     const candidates = rankCandidates(extractTickers(text), raw);
     if (!candidates.length) continue;
 
-    // Validate ALL top candidates against live Yahoo data IN PARALLEL.
+    // Live quote validation is disabled.
     const settled = await Promise.allSettled(candidates.slice(0, 4).map((t) => tryTicker(t, raw)));
     for (const s of settled) {
       if (s.status === 'fulfilled' && s.value) {

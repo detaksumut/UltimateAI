@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './simulator.css';
 import UniverseCosmosBackground from './components/UniverseCosmosBackground.jsx';
 import MarketIntelligenceView from './components/MarketIntelligenceView.jsx';
@@ -52,6 +53,7 @@ class JINErrorBoundary extends React.Component {
 }
 
 export default function ChatSimulator() {
+  const navigate = useNavigate();
   const [leftTab, setLeftTab] = useState('JIN');
   // MIE popup modal: dibuka lewat tombol panel kiri ATAU voice "Mama Jin, analisis IHSG"
   const [mieModal, setMieModal] = useState({ open: false, symbol: 'IHSG' });
@@ -346,12 +348,18 @@ const closeAppModal = () => {
         </div>
       </div>
 
-      {/* TRADING STUDIO — opens inside the active JIN simulator */}
+      {/* TRADING INTELLIGENCE — TRADING STUDIO, PLATFORM TRADER, & BROKER WORKSPACE */}
       <div className="hud-panel" style={{ margin: '6px 6px 0', flexShrink: 0 }}>
         <div className="hud-label">Trading Intelligence</div>
-        <div style={{ padding: '6px 10px' }}>
+        <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button type="button" onClick={() => setTradingStudioOpen(true)} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(0,229,255,0.4)', background: 'linear-gradient(90deg, rgba(0,229,255,0.15), rgba(16,185,129,0.12))', color: '#00e5ff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em' }}>
             <span>📈 TRADING STUDIO</span><span style={{ fontSize: 8, color: '#34d399' }}>OPEN</span>
+          </button>
+          <button type="button" onClick={() => navigate('/platform-trader')} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(139, 92, 246, 0.5)', background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.15))', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em', boxShadow: '0 0 10px rgba(139, 92, 246, 0.15)' }}>
+            <span>📊 PLATFORM TRADER</span><span style={{ fontSize: 8, color: '#a78bfa', background: 'rgba(139, 92, 246, 0.2)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(139, 92, 246, 0.3)' }}>NEW</span>
+          </button>
+          <button type="button" onClick={() => navigate('/broker-workspace')} style={{ width: '100%', fontSize: 10, fontWeight: 800, padding: '7px 8px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(0,229,255,0.5)', background: 'linear-gradient(90deg, rgba(0,229,255,0.22), rgba(16,185,129,0.18))', color: '#67e8f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', letterSpacing: '0.04em', boxShadow: '0 0 12px rgba(0,229,255,0.15)' }}>
+            <span>🏛️ BROKER WORKSHOP</span><span style={{ fontSize: 8, color: '#34d399', background: 'rgba(16,185,129,0.22)', padding: '1px 5px', borderRadius: 3, border: '1px solid rgba(16,185,129,0.4)', fontWeight: 900 }}>LIVE XM</span>
           </button>
         </div>
       </div>

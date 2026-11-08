@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import ChatSimulator from './ui/simulator/ChatSimulator';
 
 const MyProjects = lazy(() => import('./pages/MyProjects'));
 const GeneratedApps = lazy(() => import('./pages/GeneratedApps'));
 const ResearchBuilder = lazy(() => import('./pages/ResearchBuilder'));
 const TradingStudioModal = lazy(() => import('./components/trading/TradingStudioModal.jsx'));
+const PlatformTrader = lazy(() => import('./pages/PlatformTrader.jsx'));
+const BrokerWorkspace = lazy(() => import('./pages/BrokerWorkspace.jsx'));
 
 function BackgroundMusic() {
   const audioRef = useRef(null);
@@ -44,14 +46,51 @@ function BackgroundMusic() {
   </>;
 }
 
+function DesktopDeepLinkBridge() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const bridge = window.ultimateAI?.app;
+    if (!bridge) return undefined;
+
+    const handleLink = (payload) => {
+      if (!payload || payload.ok === false) return;
+      const brokerId = payload.brokerId || 'xm';
+      const platformId = payload.platformId || 'xm-web';
+      const params = new URLSearchParams({ broker: brokerId, platform: platformId });
+      navigate(`/broker-workspace?${params.toString()}`);
+    };
+
+    const unsubscribe = typeof bridge.onDeepLink === 'function'
+      ? bridge.onDeepLink(handleLink)
+      : undefined;
+
+    if (typeof bridge.getPendingDeepLink === 'function') {
+      bridge.getPendingDeepLink()
+        .then((pending) => {
+          if (pending) handleLink(pending);
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   return <Router>
     <BackgroundMusic />
+    <DesktopDeepLinkBridge />
     <Suspense fallback={<div className="min-h-screen bg-slate-900 text-slate-400 flex items-center justify-center font-mono text-sm">Memuat modul...</div>}>
       <Routes>
         <Route path="/" element={<Navigate to="/simulator" replace />} />
         <Route path="/simulator" element={<ChatSimulator />} />
         <Route path="/trading" element={<TradingStudioModal />} />
+        <Route path="/platform-trader" element={<PlatformTrader />} />
+        <Route path="/broker-workspace" element={<BrokerWorkspace />} />
         <Route path="/my-projects" element={<MyProjects />} />
         <Route path="/generated-apps" element={<GeneratedApps />} />
         <Route path="/research-builder" element={<ResearchBuilder />} />

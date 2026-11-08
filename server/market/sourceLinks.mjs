@@ -5,16 +5,16 @@
  * The UniversalResultModal rule is: NO RESULT WITHOUT SOURCE; every result must
  * show where it came from with a real clickable link. Panel `source` is a
  * descriptive string, so this module turns the instrument + provider metadata
- * into genuine URLs (Yahoo Finance, CoinGecko, Binance, Investing, gold.org).
+ * into genuine URLs (CoinGecko, Binance, Investing, gold.org).
  *
  * It never invents links: it only builds URLs from the real provider identifiers
- * carried on the asset (meta.yahoo / meta.coingeckoId) or from hard-known
+ * carried on the asset (meta.coingeckoId) or from hard-known
  * official source pages. When no real URL can be built, it returns [].
  */
 
 /**
  * Build primary + cross-check source links for an asset/panel.
- * @param {object} asset - asset object with { symbol, category, isGold, panelId, meta:{yahoo, coingeckoId}, source? }
+ * @param {object} asset - asset object with { symbol, category, isGold, panelId, meta:{coingeckoId}, source? }
  * @returns { { primary: {name,url}|null, crosscheck: [{name,url}] } }
  */
 export function deriveSourceLinks(asset) {
@@ -62,13 +62,7 @@ export function deriveSourceLinks(asset) {
     return links;
   }
 
-  // Yahoo-sourced instruments (stocks / indices / commodities / valas / bonds): Yahoo Finance.
-  if (meta.yahoo) {
-    const yahooSymbol = String(meta.yahoo).trim();
-    if (yahooSymbol) {
-      links.primary = { name: name, url: `https://finance.yahoo.com/quote/${encodeURIComponent(yahooSymbol)}`, type: category.toUpperCase() };
-    }
-  }
+  // No provider URL is emitted without a verified source.
 
   return links;
 }

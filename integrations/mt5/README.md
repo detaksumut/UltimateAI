@@ -6,7 +6,7 @@ This bridge is the numeric candle source for JIN Trading Studio. The TradingView
 1. Start UltimateAI LocalRouterServer on the same Windows PC: `npm run serve` from the repository.
 2. Open MetaTrader 5 > Tools > Options > Expert Advisors. Enable WebRequest for the listed URL and add exactly: `http://127.0.0.1:20200`.
 3. Open MetaEditor, copy `integrations/mt5/JIN_OHLC_Bridge.mq5` into `MQL5/Experts/`, compile it, then attach the EA to the broker's XAUUSD chart. If the broker symbol has a suffix, set `InpBrokerSymbol` to the exact Market Watch symbol; otherwise leave it empty.
-4. Enable Algo Trading and ensure MT5 has loaded chart history for H4, H1, M15, M5 and D1. The EA publishes up to 300 bars per timeframe every 5 seconds.
+4. Enable Algo Trading and ensure MT5 has loaded chart history for D1, H4, H1, M15, M5, and M1. The EA publishes up to 300 bars per timeframe every second (`InpPublishSeconds`, default 1).
 5. Keep MT5 and LocalRouterServer running. Open JIN Trading Studio. The analyst polls the local API and loads real, non-simulated broker candles into MarketDataService.
 
 ## Verify

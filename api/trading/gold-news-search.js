@@ -26,8 +26,11 @@ export default async function handler(req, res) {
     }
 
     const query = [
-      'gold XAUUSD news article with publication date in the last 7 days',
-      'Federal Reserve rate decision speeches, US CPI PCE inflation, NFP jobs, Treasury real yields, DXY US dollar and central-bank gold demand',
+      'gold XAUUSD latest fundamental news article with explicit publication date in the last 7 days',
+      'crude oil Brent WTI price change latest news OPEC supply inventory geopolitical risk inflation impact on gold',
+      'US Dollar Index DXY latest change and US Treasury 10 year nominal real yields latest move impact on gold',
+      'Federal Reserve rate expectations US CPI PCE inflation NFP jobs Treasury yields and central-bank gold demand',
+      'silver XAGUSD copper industrial metals US equity risk sentiment and safe haven flows latest market news',
       'official economic releases and scheduled events affecting spot gold',
       session === 'all' ? '' : 'current trading session ' + session
     ].filter(Boolean).join('; ');
