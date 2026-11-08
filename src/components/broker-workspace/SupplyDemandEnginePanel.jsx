@@ -8,11 +8,15 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  SD_LIFECYCLE,
   SD_SIDE,
   SD_TIMEFRAMES,
 } from '../../services/trading/supplyDemand/constants.js';
 import { analyzeSupplyDemand } from '../../services/trading/supplyDemand/SupplyDemandEngine.js';
+import {
+  buildConfluenceClusters,
+  pickNearestZone,
+  pickStrongestZone,
+} from '../../services/trading/supplyDemand/confluence.js';
 import { fetchXmOhlcMulti } from '../../services/trading/supplyDemand/xmOhlcClient.js';
 import SupplyDemandOverlayChart from './SupplyDemandOverlayChart.jsx';
 
@@ -206,15 +210,15 @@ function StrongestCard({ zone }) {
   if (!zone) {
     return (
       <div style={ui.card}>
-        <div style={ui.label}>STRONGEST ZONE</div>
-        <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Belum ada zona aktif.</div>
+        <div style={ui.label}>STRONGEST TESTED ZONE</div>
+        <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Belum ada zona TESTED.</div>
       </div>
     );
   }
   return (
     <div style={{ ...ui.card, borderColor: `${sideColor(zone.side)}55` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={ui.label}>STRONGEST ZONE</div>
+        <div style={ui.label}>STRONGEST TESTED ZONE</div>
         <span style={{ flex: 1 }} />
         <LifecyclePill lifecycle={zone.lifecycle} />
       </div>
@@ -391,25 +395,43 @@ export default function SupplyDemandEnginePanel({
     (analysis?.activeZones || []).filter((zone) => visibleTimeframes[zone.timeframe])
   ), [analysis, visibleTimeframes]);
 
-  const supplyZones = useMemo(() => (
-    activeZones.filter((zone) => zone.side === SD_SIDE.SUPPLY).sort((a, b) => b.score - a.score)
-  ), [activeZones]);
-  const demandZones = useMemo(() => (
-    activeZones.filter((zone) => zone.side === SD_SIDE.DEMAND).sort((a, b) => b.score - a.score)
+  const testedZones = useMemo(() => (
+    activeZones.filter((zone) => zone.lifecycle === 'TESTED').sort((a, b) => b.score - a.score)
   ), [activeZones]);
 
+  const supplyZones = useMemo(() => (
+    testedZones.filter((zone) => zone.side === SD_SIDE.SUPPLY)
+  ), [testedZones]);
+  const demandZones = useMemo(() => (
+    testedZones.filter((zone) => zone.side === SD_SIDE.DEMAND)
+  ), [testedZones]);
+
+  const testedConfluence = useMemo(() => (
+    analysis?.config
+      ? buildConfluenceClusters(testedZones, analysis.config, analysis?.currentPrice)
+      : []
+  ), [testedZones, analysis?.config, analysis?.currentPrice]);
+
   const visibleClusters = useMemo(() => (
-    (analysis?.confluence || []).filter((cluster) => (
+    testedConfluence.filter((cluster) => (
       cluster.members.some((member) => visibleTimeframes[member.timeframe])
     ))
-  ), [analysis, visibleTimeframes]);
+  ), [testedConfluence, visibleTimeframes]);
+
+  const testedStrongest = useMemo(() => pickStrongestZone(testedZones), [testedZones]);
+  const testedNearestSupply = useMemo(() => (
+    pickNearestZone(testedZones, SD_SIDE.SUPPLY, analysis?.currentPrice)
+  ), [testedZones, analysis?.currentPrice]);
+  const testedNearestDemand = useMemo(() => (
+    pickNearestZone(testedZones, SD_SIDE.DEMAND, analysis?.currentPrice)
+  ), [testedZones, analysis?.currentPrice]);
 
   const chartCandles = state.payloads?.[chartTimeframe]?.candles || [];
   const chartZones = useMemo(() => (
-    (analysis?.activeZones || []).filter((zone) => (
+    testedZones.filter((zone) => (
       zone.timeframe === chartTimeframe && visibleTimeframes[chartTimeframe]
     ))
-  ), [analysis, chartTimeframe, visibleTimeframes]);
+  ), [testedZones, chartTimeframe, visibleTimeframes]);
 
   const toggleTimeframe = (timeframe) => {
     setVisibleTimeframes((prev) => ({ ...prev, [timeframe]: !prev[timeframe] }));
@@ -532,7 +554,7 @@ export default function SupplyDemandEnginePanel({
           {SD_TIMEFRAMES.map((timeframe) => {
             const entry = analysis?.timeframes?.[timeframe];
             const ready = entry?.ok === true;
-            const count = entry?.activeZones?.length || 0;
+            const count = (entry?.activeZones || []).filter((zone) => zone.lifecycle === 'TESTED').length;
             const active = visibleTimeframes[timeframe];
             return (
               <button
@@ -540,7 +562,7 @@ export default function SupplyDemandEnginePanel({
                 type="button"
                 onClick={() => toggleTimeframe(timeframe)}
                 disabled={!ready}
-                title={ready ? `${count} zona aktif` : (entry?.message || 'Data belum tersedia')}
+                title={ready ? `${count} zona TESTED` : (entry?.message || 'Data belum tersedia')}
                 style={{
                   ...(active ? ui.btnActive : ui.btn),
                   opacity: ready ? 1 : 0.35,
@@ -626,29 +648,29 @@ export default function SupplyDemandEnginePanel({
             )}
           </div>
 
-          <StrongestCard zone={analysis.strongest} />
+          <StrongestCard zone={testedStrongest} />
 
           <div style={{ display: 'flex', gap: 6 }}>
             <NearestCard
-              title="NEAREST SUPPLY"
-              zone={analysis.nearestSupply}
-              emptyText="Tidak ada zona supply aktif."
+              title="NEAREST TESTED SUPPLY"
+              zone={testedNearestSupply}
+              emptyText="Tidak ada zona supply TESTED."
             />
             <NearestCard
-              title="NEAREST DEMAND"
-              zone={analysis.nearestDemand}
-              emptyText="Tidak ada zona demand aktif."
+              title="NEAREST TESTED DEMAND"
+              zone={testedNearestDemand}
+              emptyText="Tidak ada zona demand TESTED."
             />
           </div>
 
           <div style={ui.card}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={ui.label}>ACTIVE SUPPLY ZONES</div>
+              <div style={ui.label}>TESTED SUPPLY ZONES</div>
               <span style={{ flex: 1 }} />
               <span style={{ ...ui.small, fontSize: 8, color: '#fb7185' }}>{supplyZones.length} zona</span>
             </div>
             {supplyZones.length === 0 ? (
-              <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Tidak ada zona supply aktif pada TF terpilih.</div>
+              <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Tidak ada zona supply TESTED pada TF terpilih.</div>
             ) : supplyZones.slice(0, 8).map((zone) => (
               <ZoneRow
                 key={zone.id}
@@ -661,12 +683,12 @@ export default function SupplyDemandEnginePanel({
 
           <div style={ui.card}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={ui.label}>ACTIVE DEMAND ZONES</div>
+              <div style={ui.label}>TESTED DEMAND ZONES</div>
               <span style={{ flex: 1 }} />
               <span style={{ ...ui.small, fontSize: 8, color: '#34d399' }}>{demandZones.length} zona</span>
             </div>
             {demandZones.length === 0 ? (
-              <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Tidak ada zona demand aktif pada TF terpilih.</div>
+              <div style={{ ...ui.small, fontSize: 9, color: '#64748b' }}>Tidak ada zona demand TESTED pada TF terpilih.</div>
             ) : demandZones.slice(0, 8).map((zone) => (
               <ZoneRow
                 key={zone.id}
@@ -681,30 +703,24 @@ export default function SupplyDemandEnginePanel({
 
           <div style={ui.card}>
             <div style={ui.label}>ZONE LIFECYCLE</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-              {Object.values(SD_LIFECYCLE).map((lifecycle) => {
-                const count = analysis.lifecycleCounts?.[lifecycle] || 0;
-                const color = LIFECYCLE_COLOR[lifecycle] || '#94a3b8';
-                return (
-                  <div
-                    key={lifecycle}
-                    style={{
-                      border: `1px solid ${color}33`,
-                      borderRadius: 5,
-                      background: `${color}0f`,
-                      padding: '5px 4px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 900, color }}>{count}</div>
-                    <div style={{ fontSize: 7.5, fontWeight: 800, color: '#94a3b8' }}>{lifecycle}</div>
-                  </div>
-                );
-              })}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 4 }}>
+              <div
+                style={{
+                  border: '1px solid #34d39933',
+                  borderRadius: 5,
+                  background: '#34d3990f',
+                  padding: '5px 4px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, color: '#34d399' }}>
+                  {testedZones.length}
+                </div>
+                <div style={{ fontSize: 7.5, fontWeight: 800, color: '#94a3b8' }}>TESTED</div>
+              </div>
             </div>
             <div style={{ ...ui.small, fontSize: 8, color: '#64748b', marginTop: 5, lineHeight: 1.45 }}>
-              FRESH = belum dites. TESTED = 1 retest valid. WEAKENED = retest berulang / wick menembus distal.
-              INVALID = close di luar distal (configurable candle-close) dan langsung dihapus dari zona aktif.
+              TESTED = 1 retest valid. Hanya zona TESTED yang ditampilkan di daftar atas.
             </div>
           </div>
 

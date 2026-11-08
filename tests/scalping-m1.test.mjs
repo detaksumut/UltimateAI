@@ -408,4 +408,25 @@ check('skips unavailable or invalid chart preview levels', () => {
   assert.equal(levels[0].price, 101);
 });
 
+check('rejects stale M1 candles and produces no scalping setup', () => {
+  const staleM1 = makeDemandSeries({ timeframe: 'M1', intervalMs: 60_000 }).map((candle) => ({
+    ...candle,
+    timestamp: new Date(Date.parse(candle.timestamp) - (30 * 60_000)).toISOString(),
+  }));
+
+  const result = buildScalpingM1Analysis({
+    symbol: SYMBOL,
+    payloads: { M1: payload(staleM1) },
+    now: Date.now(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.dataAvailable, false);
+  assert.equal(result.code, SD_DATA_STATUS.STALE);
+  assert.equal(result.failures.M1.code, SD_DATA_STATUS.STALE);
+  assert.equal(result.scenarios.demand.available, false);
+  assert.equal(result.scenarios.demand.isSignal, false);
+  assert.equal(result.setupStatus.signalAllowed, false);
+});
+
 console.log(`\nJIN SCALPING - M1 tests passed: ${passed} checks.`);

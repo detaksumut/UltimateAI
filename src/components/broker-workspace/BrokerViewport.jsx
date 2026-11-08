@@ -32,28 +32,13 @@ const placeholderStyle = {
     'radial-gradient(circle at 50% 20%, rgba(0,229,255,0.08), transparent 45%), #050b16',
 };
 
-function rectFromElement(el, clipEl = null) {
+function rectFromElement(el) {
   const rect = el.getBoundingClientRect();
-  let left = rect.left;
-  let top = rect.top;
-  let right = rect.right;
-  let bottom = rect.bottom;
-
-  if (clipEl) {
-    const clip = clipEl.getBoundingClientRect();
-    left = Math.max(left, clip.left);
-    top = Math.max(top, clip.top);
-    right = Math.min(right, clip.right);
-    bottom = Math.min(bottom, clip.bottom);
-  }
-
-  const width = Math.max(0, Math.round(right - left));
-  const height = Math.max(0, Math.round(bottom - top));
   return {
-    x: Math.round(left),
-    y: Math.round(top),
-    width,
-    height,
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+    width: Math.max(0, Math.round(rect.width)),
+    height: Math.max(0, Math.round(rect.height)),
   };
 }
 
@@ -63,7 +48,6 @@ export default function BrokerViewport({
   status,
   suspended = false,
   loginRequestId = 0,
-  clipRef = null,
   onNativeAvailability,
   onRequestDesktopApp,
   onViewportError,
@@ -119,7 +103,7 @@ export default function BrokerViewport({
         return;
       }
       if (el.getBoundingClientRect().width <= 2) return;
-      setBrokerBounds(rectFromElement(el, clipRef?.current)).catch(() => {});
+      setBrokerBounds(rectFromElement(el)).catch(() => {});
     };
 
     const start = async () => {
@@ -154,7 +138,7 @@ export default function BrokerViewport({
       window.removeEventListener('scroll', syncBounds, true);
       hideBroker().catch(() => {});
     };
-  }, [native, broker?.id, platform?.id, clipRef, onViewportError, openAttempt]);
+  }, [native, broker?.id, platform?.id, onViewportError, openAttempt]);
 
   useEffect(() => {
     suspendedRef.current = suspended;
@@ -167,10 +151,10 @@ export default function BrokerViewport({
       const el = containerRef.current;
       if (!el) return;
       if (el.getBoundingClientRect().width <= 2) return;
-      setBrokerBounds(rectFromElement(el, clipRef?.current)).catch(() => {});
+      setBrokerBounds(rectFromElement(el)).catch(() => {});
     });
     return () => cancelAnimationFrame(frame);
-  }, [suspended, native, clipRef]);
+  }, [suspended, native]);
 
   return (
     <section ref={containerRef} style={panelStyle} aria-label="Terminal trading asli broker">

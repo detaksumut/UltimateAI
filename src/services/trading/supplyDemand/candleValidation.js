@@ -16,6 +16,7 @@ import {
   SD_TIMEFRAME_MS,
   SD_XM_SOURCE,
 } from './constants.js';
+import { resolveMarketAwareFreshness } from '../marketSession.js';
 
 const TF_ALIASES = {
   '1': 'M1', '1M': 'M1', 'M1': 'M1', '1MIN': 'M1', '1MINUTE': 'M1',
@@ -315,24 +316,54 @@ export function validateCandleSeries({
   }
 
   const tickTime = parseTimestamp(tick?.timestamp);
-  const referenceTime = Number.isFinite(tickTime) ? tickTime : now;
-  const ageMs = referenceTime - last.time;
-  const brokerClockOffsetMs = referenceTime - now;
-  const interval = intervalMs;
-  const freshness = ageMs <= interval * (Number(config.freshnessIntervals) || 3)
-    ? 'FRESH'
-    : 'STALE';
+  const brokerClockOffsetMs = Number.isFinite(tickTime) ? tickTime - now : null;
+  const maxAgeMs = intervalMs * (Number(config.freshnessIntervals) || 3);
+  const ageMs = now - last.time;
+  const freshnessInfo = resolveMarketAwareFreshness({
+    ageMs,
+    maxAgeMs,
+    lastCandleAt: last.time,
+    now,
+  });
+  const freshness = freshnessInfo.status;
+  const marketClosed = freshnessInfo.marketClosed === true;
 
-  if (Math.abs(brokerClockOffsetMs) > 5 * 60_000) {
+  if (brokerClockOffsetMs != null && Math.abs(brokerClockOffsetMs) > 5 * 60_000) {
     warnings.push(
-      `Jam broker bergeser ${Math.round(brokerClockOffsetMs / 60_000)} menit dari jam lokal; freshness dihitung terhadap waktu tick broker.`,
+      `Jam broker bergeser ${Math.round(brokerClockOffsetMs / 60_000)} menit dari jam lokal; freshness dihitung terhadap jam sistem.`,
     );
   }
-  if (last.time > referenceTime + interval) {
-    warnings.push('Timestamp candle terakhir berada di masa depan relatif terhadap tick broker.');
+  if (last.time > now + intervalMs) {
+    warnings.push('Timestamp candle terakhir berada di masa depan relatif terhadap jam sistem.');
+  }
+  if (marketClosed && freshnessInfo.sessionNote) {
+    warnings.push(freshnessInfo.sessionNote);
   }
   if (freshness === 'STALE') {
     warnings.push(`Candle terakhir ${Math.round(Math.max(0, ageMs) / 1000)}s lebih lama dari batas ${expectedTimeframe}.`);
+    return {
+      ok: false,
+      code: SD_DATA_STATUS.STALE,
+      message: `Candle XM ${expectedTimeframe} sudah kedaluwarsa (${Math.round(Math.max(0, ageMs) / 1000)}s). Data STALE tidak dipakai untuk analisis baru.`,
+      source: payloadSource || null,
+      isXmValidated,
+      symbol: expectedSymbol,
+      timeframe: expectedTimeframe,
+      count: sorted.length,
+      freshness,
+      marketClosed,
+      marketClosedAt: freshnessInfo.marketClosedAt || null,
+      sessionNote: freshnessInfo.sessionNote || null,
+      ageMs,
+      expectedBars,
+      missingBars,
+      gapRatio,
+      completeness,
+      duplicates,
+      warnings,
+      errors: [`Stale candles: last=${last.timestamp}`],
+      candles: [],
+    };
   }
 
   const freshnessScore = freshness === 'FRESH' ? 30 : 10;
@@ -354,6 +385,9 @@ export function validateCandleSeries({
     firstTime: first.timestamp,
     lastTime: last.timestamp,
     freshness,
+    marketClosed,
+    marketClosedAt: freshnessInfo.marketClosedAt || null,
+    sessionNote: freshnessInfo.sessionNote || null,
     ageMs,
     brokerClockOffsetMs,
     expectedBars,

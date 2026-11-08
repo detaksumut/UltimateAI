@@ -135,6 +135,26 @@ export async function fetchXmOhlc({
       };
     }
 
+    const freshness = String(payload.freshness || 'NO_DATA').toUpperCase();
+    if (freshness !== 'FRESH') {
+      return {
+        ok: false,
+        code: freshness === 'STALE' ? SD_DATA_STATUS.STALE : SD_DATA_STATUS.DATA_UNAVAILABLE,
+        source,
+        freshness,
+        lastUpdate: payload.lastUpdate || null,
+        lastCandleAt: payload.lastCandleAt || null,
+        lastTickAt: payload.lastTickAt || null,
+        lastReceivedAt: payload.lastReceivedAt || null,
+        message: freshness === 'STALE'
+          ? 'Candle XM sudah kedaluwarsa (STALE). Data tidak dipakai untuk analisis baru.'
+          : 'Candle XM belum tersedia untuk timeframe ini.',
+        endpoint: base,
+        url,
+        raw: payload,
+      };
+    }
+
     const candles = Array.isArray(payload.candles) ? payload.candles : [];
     return {
       ok: true,
@@ -143,11 +163,14 @@ export async function fetchXmOhlc({
       timeframe: normalizedTimeframe,
       source,
       isXmValidated: source === SD_XM_SOURCE,
-      freshness: payload.freshness || 'NO_DATA',
+      freshness,
       tick: payload.tick || null,
       count: candles.length,
       candles,
       lastUpdate: payload.lastUpdate || null,
+      lastCandleAt: payload.lastCandleAt || null,
+      lastTickAt: payload.lastTickAt || null,
+      lastReceivedAt: payload.lastReceivedAt || null,
       endpoint: base,
       url,
       raw: payload,
@@ -231,7 +254,7 @@ export async function fetchXmBridgeStatus({
     const payload = await fetchJson(url, { timeoutMs, fetchImpl, signal });
     const timeframes = payload?.timeframes || {};
     const online = Object.values(timeframes).some(
-      (entry) => Number(entry?.count) > 0 && entry?.freshness !== 'NO_DATA',
+      (entry) => Number(entry?.count) > 0 && String(entry?.freshness || '').toUpperCase() === 'FRESH',
     );
     return {
       ok: payload?.ok === true,

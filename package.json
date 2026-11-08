@@ -17,6 +17,7 @@
     "test:supply-demand": "node tests/supply-demand-engine.test.mjs",
     "test:scalping-m1": "node tests/scalping-m1.test.mjs",
     "test:trading-symbols": "node tests/trading-symbols.test.mjs",
+    "test:gold-factors": "node tests/gold-intermarket-factors.test.mjs",
     "backtest:supply-demand": "node scripts/backtest-supply-demand.mjs",
     "certify:runtime": "node server/telemetry/RuntimeCertificationHarness.mjs",
     "test:adversarial": "node tests/adversarial_test_suite.mjs",

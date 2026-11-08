@@ -448,4 +448,65 @@ await checkAsync('client gates non-XM fallback and accepts MT5 bridge payload', 
   assert.ok(analysis.demandZones.length > 0);
 });
 
+check('rejects stale XM candles instead of building live zones', () => {
+  const staleCandles = makeDemandSeries().map((candle) => ({
+    ...candle,
+    timestamp: new Date(Date.parse(candle.timestamp) - (30 * 60_000)).toISOString(),
+  }));
+  const result = validateCandleSeries({
+    candles: staleCandles,
+    symbol: SYMBOL,
+    timeframe: 'M1',
+    source: 'MT5_LOCAL_BRIDGE',
+    now: Date.now(),
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, SD_DATA_STATUS.STALE);
+  assert.equal(result.freshness, 'STALE');
+  assert.equal(result.candles.length, 0);
+});
+
+check('stale S&D payload produces no analysis zones', () => {
+  const staleCandles = makeDemandSeries().map((candle) => ({
+    ...candle,
+    timestamp: new Date(Date.parse(candle.timestamp) - (30 * 60_000)).toISOString(),
+  }));
+  const analysis = analyzeSupplyDemand({
+    symbol: SYMBOL,
+    timeframes: ['M1'],
+    payloads: { M1: payload(staleCandles) },
+    now: Date.now(),
+  });
+  assert.equal(analysis.ok, false);
+  assert.equal(analysis.dataAvailable, false);
+  assert.equal(analysis.timeframes.M1.status, SD_DATA_STATUS.STALE);
+  assert.equal(analysis.activeZones.length, 0);
+});
+
+await checkAsync('client rejects stale MT5 bridge payloads', async () => {
+  const candles = makeDemandSeries();
+  const fakeFetch = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      symbol: SYMBOL,
+      timeframe: 'M1',
+      source: 'MT5_LOCAL_BRIDGE',
+      freshness: 'STALE',
+      candles,
+      tick: { bid: 100, ask: 100.5, timestamp: new Date().toISOString() },
+    }),
+  });
+
+  const result = await fetchXmOhlc({
+    symbol: SYMBOL,
+    timeframe: 'M1',
+    endpoint: 'http://fake',
+    fetchImpl: fakeFetch,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, SD_DATA_STATUS.STALE);
+  assert.equal(result.freshness, 'STALE');
+});
+
 console.log(`\nSupply & Demand engine tests passed: ${passed} checks.`);

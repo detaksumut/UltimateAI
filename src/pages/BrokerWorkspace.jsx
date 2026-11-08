@@ -3,7 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import BrokerViewport from '../components/broker-workspace/BrokerViewport.jsx';
 import JiniMonitorPanel from '../components/broker-workspace/JiniMonitorPanel.jsx';
 import M1LevelPreviewPanel from '../components/broker-workspace/M1LevelPreviewPanel.jsx';
+import M1LevelLegend from '../components/broker-workspace/M1LevelLegend.jsx';
 import SupplyDemandEnginePanel from '../components/broker-workspace/SupplyDemandEnginePanel.jsx';
+import FaktorUpDownGoldPanel from '../components/broker-workspace/FaktorUpDownGoldPanel.jsx';
+import JinGoldOrderFlowPanel from '../components/broker-workspace/JinGoldOrderFlowPanel.jsx';
 import ScalpingM1Panel from '../components/trading/ScalpingM1Panel.jsx';
 import {
   brokerConnectionLabel,
@@ -297,7 +300,8 @@ export default function BrokerWorkspace() {
         background: '#030814',
         color: '#e2e8f0',
         fontFamily: 'Inter, system-ui, sans-serif',
-        overflow: 'hidden',
+        overflowY: 'auto',
+        overflowX: 'hidden',
       }}
     >
       <header
@@ -580,8 +584,7 @@ export default function BrokerWorkspace() {
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflowY: 'auto',
-            overflowX: 'hidden',
+            overflow: 'visible',
           }}
         >
           <div
@@ -598,7 +601,6 @@ export default function BrokerWorkspace() {
               platform={selectedPlatform}
               status={status}
               suspended={resizing || Boolean(status?.fatalError)}
-              clipRef={chartColumnRef}
               onNativeAvailability={setNativeAvailable}
               onOpenExternal={handleOpenExternal}
               onRequestDesktopApp={handleRequestDesktopApp}
@@ -637,7 +639,7 @@ export default function BrokerWorkspace() {
             flexDirection: 'column',
           }}
         >
-          <div style={{ display: 'flex', gap: 4, padding: '8px 10px 0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, padding: '8px 10px 0', flexShrink: 0, flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setPanelTab('monitor')}
@@ -679,6 +681,34 @@ export default function BrokerWorkspace() {
               }}
             >
               SCALPING M1
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelTab('goldFactors')}
+              style={{
+                ...controlBtn,
+                flex: '1 1 100%',
+                textAlign: 'center',
+                color: panelTab === 'goldFactors' ? '#67e8f9' : '#94a3b8',
+                borderColor: panelTab === 'goldFactors' ? 'rgba(0,229,255,0.5)' : 'rgba(148,163,184,0.2)',
+                background: panelTab === 'goldFactors' ? 'rgba(0,229,255,0.12)' : 'rgba(15,23,42,0.75)',
+              }}
+            >
+              FAKTOR UP/DOWN GOLD
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelTab('orderFlow')}
+              style={{
+                ...controlBtn,
+                flex: '1 1 100%',
+                textAlign: 'center',
+                color: panelTab === 'orderFlow' ? '#67e8f9' : '#94a3b8',
+                borderColor: panelTab === 'orderFlow' ? 'rgba(0,229,255,0.5)' : 'rgba(148,163,184,0.2)',
+                background: panelTab === 'orderFlow' ? 'rgba(0,229,255,0.12)' : 'rgba(15,23,42,0.75)',
+              }}
+            >
+              GOLD ORDER FLOW
             </button>
           </div>
 
@@ -724,6 +754,32 @@ export default function BrokerWorkspace() {
               onPreviewChange={handleM1PreviewChange}
             />
           </div>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: panelTab === 'goldFactors' ? 'flex' : 'none',
+              flexDirection: 'column',
+              overflowY: 'auto',
+            }}
+          >
+            <FaktorUpDownGoldPanel enabled={panelTab === 'goldFactors'} />
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: panelTab === 'orderFlow' ? 'flex' : 'none',
+              flexDirection: 'column',
+              overflowY: 'auto',
+            }}
+          >
+            <JinGoldOrderFlowPanel enabled={panelTab === 'orderFlow'} />
+          </div>
+
+          <M1LevelLegend data={m1Preview} />
         </aside>
       </div>
 

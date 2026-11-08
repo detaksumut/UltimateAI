@@ -44,27 +44,7 @@ const ui = {
     letterSpacing: '0.04em',
     whiteSpace: 'nowrap',
   },
-  legend: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: '3px 14px',
-    padding: '4px 8px',
-    borderTop: '1px solid rgba(148,163,184,0.1)',
-  },
-  note: {
-    padding: '3px 8px 5px',
-    fontSize: 7.5,
-    color: '#475569',
-    lineHeight: 1.45,
-  },
 };
-
-function fmtPrice(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return '—';
-  return Math.abs(num) >= 100 ? num.toFixed(2) : num.toFixed(4);
-}
 
 export default function M1LevelPreviewPanel({ data }) {
   const chartHeight = PREVIEW_HEIGHT;
@@ -152,60 +132,6 @@ export default function M1LevelPreviewPanel({ data }) {
         )}
       </div>
 
-      {levels.length > 0 && (
-        <div style={ui.legend}>
-          <span
-            style={{
-              ...ui.pill,
-              color: '#fb7185',
-              border: '1px solid rgba(251,113,133,0.35)',
-              background: 'rgba(251,113,133,0.08)',
-            }}
-          >
-            SUPPLY
-          </span>
-          <span
-            style={{
-              ...ui.pill,
-              color: '#34d399',
-              border: '1px solid rgba(52,211,153,0.35)',
-              background: 'rgba(52,211,153,0.08)',
-            }}
-          >
-            DEMAND
-          </span>
-          {levels.map((level) => (
-            <span
-              key={`${level.label}-${level.price}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 7.5 }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 2,
-                  background: level.color,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ color: '#94a3b8' }}>{level.label}</span>
-              <span
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                  color: '#e2e8f0',
-                }}
-              >
-                {fmtPrice(level.price)}
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div style={ui.note}>
-        ENTRY solid, SL dashed, TP dotted. Level ini preview dari zona M1 XM, bukan order.
-        Chart JIN memakai OHLC XM tervalidasi; chart native XM tidak diinjeksi.
-      </div>
     </section>
   );
 }

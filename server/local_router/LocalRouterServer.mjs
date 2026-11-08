@@ -26,12 +26,18 @@ import { webSearchToolInstance } from '../tools/WebSearchTool.mjs';
 import { capabilityRegistryInstance } from '../grounding/CapabilityRegistry.mjs';
 import visualChartAnalysisHandler from '../../api/trading/visual-chart-analysis.js';
 import intermarketQuotesHandler from '../../api/trading/intermarket-quotes.js';
+import goldIntermarketFactorsHandler from '../../api/trading/gold-intermarket-factors.js';
+import goldOrderFlowHandler from '../../api/trading/gold-order-flow.js';
 import { paymentGatewayServiceInstance } from '../payment/PaymentGatewayService.mjs';
 import { paymentLedgerInstance } from '../payment/PaymentLedger.mjs';
 import {
   JIN_TRADING_ALLOWED_SYMBOLS,
   canonicalTradingSymbol,
 } from './TradingSymbols.mjs';
+import {
+  JIN_TRADING_TF_MS,
+  resolveCandleFreshness,
+} from './tradingFreshness.mjs';
 
 function verifyImageArtifactCompliance(artifact, isRevision = false) {
   if (!artifact || !artifact.renderable) return false;
@@ -165,6 +171,7 @@ export function enrichContextualImagePrompt(rawPrompt, messages = []) {
 // Data is intentionally volatile: a server restart requires the MT5 bridge to publish again.
 const JIN_TRADING_CANDLES = new Map();
 const JIN_TRADING_TICKS = new Map();
+const JIN_TRADING_LAST_RECEIVED = new Map();
 const JIN_PENDING_ORDERS = new Map();
 const JIN_ORDER_RESULTS = new Map();
 const JIN_IDEMPOTENCY_MAP = new Map();
@@ -185,14 +192,13 @@ function recordOrderAudit(orderId, event, details = {}) {
   console.log('[ORDER AUDIT] [' + item.timestamp + '] [' + orderId + '] ' + event + ':', typeof details === 'object' ? JSON.stringify(details) : details);
 }
 let JIN_LAST_BRIDGE_HEARTBEAT = 0;
-const JIN_TRADING_TF_MS = { M1: 60000, M5: 300000, M15: 900000, H1: 3600000, H4: 14400000, D1: 86400000 };
 function jinTradingKey(symbol, timeframe) { return `${symbol}|${timeframe}`; }
 function jinTradingValidCandle(c) {
   if (!c || typeof c !== 'object' || !JIN_TRADING_ALLOWED_SYMBOLS.includes(canonicalTradingSymbol(c.symbol))) return false;
   if (!Object.hasOwn(JIN_TRADING_TF_MS, String(c.timeframe || '').toUpperCase())) return false;
   const nums = [c.open,c.high,c.low,c.close,c.volume];
   const time = typeof c.timestamp === 'string' ? Date.parse(c.timestamp) : Number(c.timestamp);
-  return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) &&
+  return nums.every(Number.isFinite) && nums.every(v => v >= 0) && Number.isFinite(time) && time > 0 &&
     c.high >= Math.max(c.open,c.close,c.low) && c.low <= Math.min(c.open,c.close,c.high);
 }
 // Yahoo Finance fallback helper for market instruments when MT5 bridge is offline
@@ -1047,10 +1053,12 @@ Requirements:
           return;
         }
         const payload = await readJsonBody();
+        const receivedAt = new Date().toISOString();
         const incoming = Array.isArray(payload.candles) ? payload.candles.slice(0, 2500) : [];
         let accepted = 0, rejected = 0;
-        // Note: reference time for freshness is the MT5 tick timestamp (broker time),
-        // not the server clock, which may be skewed vs the MT5 terminal server time.
+        // Freshness is measured from the newest candle timestamp against the
+        // server clock. Tick time is kept separately for display only, so a
+        // frozen bridge cannot keep stale candles looking fresh.
         // jinTradingValidCandle already enforces OHLC integrity and finite values.
         for (const raw of incoming) {
           const candle = { ...raw, symbol: canonicalTradingSymbol(raw.symbol), timeframe: String(raw.timeframe || '').toUpperCase(),
@@ -1062,6 +1070,7 @@ Requirements:
           rows.set(candle.timestamp, candle);
           const sorted = [...rows.entries()].sort((a,b)=>Date.parse(a[0])-Date.parse(b[0])).slice(-500);
           JIN_TRADING_CANDLES.set(key, new Map(sorted));
+          JIN_TRADING_LAST_RECEIVED.set(key, receivedAt);
           accepted++;
         }
         const ticks = Array.isArray(payload.ticks) ? payload.ticks.slice(0, 20) : [];
@@ -1071,6 +1080,7 @@ Requirements:
               Number.isFinite(t.bid) && Number.isFinite(t.ask) && t.ask >= t.bid) {
             JIN_TRADING_TICKS.set(symbol, { symbol, bid: t.bid, ask: t.ask, spread: t.ask-t.bid,
               timestamp: t.timestamp || new Date().toISOString(), source: t.source || 'MT5_LOCAL_BRIDGE' });
+            JIN_TRADING_LAST_RECEIVED.set(symbol, receivedAt);
           }
         }
         JIN_LAST_BRIDGE_HEARTBEAT = Date.now();
@@ -1131,9 +1141,14 @@ Requirements:
       }
 
       const latest = rows.at(-1) || null;
-      const refTime = tick ? Date.parse(tick.timestamp) : Date.now();
-      const ageMs = latest ? refTime - Date.parse(latest.timestamp) : null;
-      const freshness = !latest ? 'NO_DATA' : ageMs < (JIN_TRADING_TF_MS[timeframe] || 3600000)*3 ? 'FRESH' : 'STALE';
+      const candleKey = jinTradingKey(symbol, timeframe);
+      const freshnessInfo = resolveCandleFreshness({
+        lastCandleAt: latest?.timestamp || null,
+        timeframe,
+        now: Date.now(),
+      });
+      const freshness = freshnessInfo.status;
+      const ageMs = freshnessInfo.ageMs;
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({
         ok: true,
@@ -1145,6 +1160,16 @@ Requirements:
         count: rows.length,
         freshness,
         lastUpdate: latest?.timestamp || null,
+        lastCandleAt: freshnessInfo.lastCandleAt,
+        lastTickAt: tick?.timestamp || null,
+        lastReceivedAt: JIN_TRADING_LAST_RECEIVED.get(candleKey)
+          || JIN_TRADING_LAST_RECEIVED.get(symbol)
+          || null,
+        maxAgeMs: freshnessInfo.maxAgeMs,
+        invalidTimestamp: freshnessInfo.invalidTimestamp,
+        marketClosed: freshnessInfo.marketClosed === true,
+        marketClosedAt: freshnessInfo.marketClosedAt || null,
+        sessionNote: freshnessInfo.sessionNote || null,
         lastCandle: latest ? {
           timestamp: latest.timestamp,
           open: Number(latest.open),
@@ -1163,13 +1188,32 @@ Requirements:
       const sets = {};
       const symbol = canonicalTradingSymbol(url.searchParams.get('symbol') || 'XAUUSD') || 'XAUUSD';
       const tick = JIN_TRADING_TICKS.get(symbol) || null;
-      const refTime = tick ? Date.parse(tick.timestamp) : Date.now();
+      const now = Date.now();
       for (const tf of Object.keys(JIN_TRADING_TF_MS)) {
-        const rows = [...(JIN_TRADING_CANDLES.get(jinTradingKey(symbol,tf))?.values() || [])];
+        const key = jinTradingKey(symbol, tf);
+        const rows = [...(JIN_TRADING_CANDLES.get(key)?.values() || [])];
         const latest = rows.at(-1) || null;
-        const ageMs = latest ? refTime - Date.parse(latest.timestamp) : null;
-        sets[tf] = { count: rows.length, lastUpdate: latest?.timestamp || null,
-          freshness: !latest ? 'NO_DATA' : ageMs < JIN_TRADING_TF_MS[tf]*2 ? 'FRESH' : 'STALE' };
+        const freshnessInfo = resolveCandleFreshness({
+          lastCandleAt: latest?.timestamp || null,
+          timeframe: tf,
+          now,
+        });
+        sets[tf] = {
+          count: rows.length,
+          lastUpdate: latest?.timestamp || null,
+          lastCandleAt: freshnessInfo.lastCandleAt,
+          lastTickAt: tick?.timestamp || null,
+          lastReceivedAt: JIN_TRADING_LAST_RECEIVED.get(key)
+            || JIN_TRADING_LAST_RECEIVED.get(symbol)
+            || null,
+          freshness: freshnessInfo.status,
+          ageMs: freshnessInfo.ageMs,
+          maxAgeMs: freshnessInfo.maxAgeMs,
+          invalidTimestamp: freshnessInfo.invalidTimestamp,
+          marketClosed: freshnessInfo.marketClosed === true,
+          marketClosedAt: freshnessInfo.marketClosedAt || null,
+          sessionNote: freshnessInfo.sessionNote || null,
+        };
       }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ ok: true, symbol,
@@ -4976,6 +5020,82 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
         if (!res.writableEnded) {
           res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ success: false, error: error?.message || 'Intermarket quote request failed' }));
+        }
+      }
+      return;
+    }
+
+    // FAKTOR UP/DOWN GOLD — real intermarket factors for the Broker Workspace tab.
+    if ((pathname === '/trading/gold-intermarket-factors' || pathname === '/api/trading/gold-intermarket-factors') && (req.method === 'GET' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      let statusCode = 200;
+      const headers = {};
+      const adaptedReq = { method: req.method, url: req.url };
+      const adaptedRes = {
+        setHeader(name, value) { headers[name] = value; },
+        status(code) {
+          statusCode = code;
+          return {
+            json(payload) {
+              if (!res.writableEnded) {
+                res.writeHead(statusCode, headers);
+                res.end(statusCode === 204 ? '' : JSON.stringify(payload));
+              }
+              return res;
+            }
+          };
+        }
+      };
+
+      try {
+        await goldIntermarketFactorsHandler(adaptedReq, adaptedRes);
+      } catch (error) {
+        if (!res.writableEnded) {
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: error?.message || 'Gold intermarket factors request failed.' }));
+        }
+      }
+      return;
+    }
+
+    // JIN GOLD ORDER FLOW — PAXG/USDT aggressor tape (COMEX GC remains UNAVAILABLE).
+    if ((pathname === '/trading/gold-order-flow' || pathname === '/api/trading/gold-order-flow') && (req.method === 'GET' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      let statusCode = 200;
+      const headers = {};
+      const adaptedReq = { method: req.method, url: req.url };
+      const adaptedRes = {
+        setHeader(name, value) { headers[name] = value; },
+        status(code) {
+          statusCode = code;
+          return {
+            json(payload) {
+              if (!res.writableEnded) {
+                res.writeHead(statusCode, headers);
+                res.end(statusCode === 204 ? '' : JSON.stringify(payload));
+              }
+              return res;
+            }
+          };
+        }
+      };
+
+      try {
+        await goldOrderFlowHandler(adaptedReq, adaptedRes);
+      } catch (error) {
+        if (!res.writableEnded) {
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, status: 'UNAVAILABLE', error: error?.message || 'Gold order flow request failed.' }));
         }
       }
       return;
