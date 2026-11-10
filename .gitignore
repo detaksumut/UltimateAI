@@ -61,3 +61,5 @@ server/market/.resolution-cache.json
 server/market/intelligence/macro.snapshot.json
 server/local_router/storage/
 d:/
+.vercel
+.env*
