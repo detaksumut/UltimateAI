@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import PlatformTraderSidebar from '../components/platform-trader/PlatformTraderSidebar.jsx';
 import PlatformTraderHeader from '../components/platform-trader/PlatformTraderHeader.jsx';
-import JINIAITradingAnalystCard from '../components/platform-trader/JINIAITradingAnalystCard.jsx';
 import MultiTimeframePanel from '../components/platform-trader/MultiTimeframePanel.jsx';
 import SignalPlanCard from '../components/platform-trader/SignalPlanCard.jsx';
 import AnalysisSummaryCard from '../components/platform-trader/AnalysisSummaryCard.jsx';
@@ -33,7 +32,6 @@ import { detectSupplyDemandZones } from '../services/trading/SupplyDemandDetecto
 import { demoTradingEngineInstance } from '../services/trading/DemoTradingEngine.js';
 import DemoAccountBar from '../components/platform-trader/DemoAccountBar.jsx';
 import TradingAccountCenterModal from '../components/platform-trader/TradingAccountCenterModal.jsx';
-import DemoPositionsPanel from '../components/platform-trader/DemoPositionsPanel.jsx';
 
 // Helper to compute OHLC indicators per timeframe
 function computeOhlcTf(instrument, tf) {
@@ -908,12 +906,6 @@ export default function PlatformTrader() {
               />
             )}
 
-            {/* ── Virtual Demo Positions & Trade History Panel ── */}
-            <DemoPositionsPanel
-              demoState={demoState}
-              onClosePosition={handleCloseDemoPosition}
-            />
-
             {/* Analysis Category Tabs Bar */}
             <div
               style={{
@@ -993,15 +985,9 @@ export default function PlatformTrader() {
             )}
           </div>
 
-          {/* Right Column: JINI AI Analyst, Multi-Timeframe, Sinyal & Rencana */}
+          {/* Right Column: Multi-Timeframe, Sinyal & Rencana */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* 1. JINI AI Profile */}
-            <JINIAITradingAnalystCard
-              status={isLive ? 'ONLINE · LIVE' : 'ONLINE · STANDBY'}
-              onAskJINI={() => alert('JINI AI siap menganalisis struktur chart terkini.')}
-            />
-
-            {/* 2. Scalping Supply & Demand Zones (M1 & M5) */}
+            {/* 1. Scalping Supply & Demand Zones (M1 & M5) */}
             <SupplyDemandScalpPanel
               m1Zones={m1Zones}
               m5Zones={m5Zones}
