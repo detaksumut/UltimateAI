@@ -7,7 +7,9 @@ import M1LevelLegend from '../components/broker-workspace/M1LevelLegend.jsx';
 import SupplyDemandEnginePanel from '../components/broker-workspace/SupplyDemandEnginePanel.jsx';
 import FaktorUpDownGoldPanel from '../components/broker-workspace/FaktorUpDownGoldPanel.jsx';
 import JinGoldOrderFlowPanel from '../components/broker-workspace/JinGoldOrderFlowPanel.jsx';
+import JiniDecisionEnginePanel from '../components/broker-workspace/JiniDecisionEnginePanel.jsx';
 import ScalpingM1Panel from '../components/trading/ScalpingM1Panel.jsx';
+import { SdDataProvider } from '../services/trading/supplyDemand/SdDataContext.jsx';
 import {
   brokerConnectionLabel,
   brokerErrorHint,
@@ -768,6 +770,20 @@ export default function BrokerWorkspace() {
             >
               GOLD ORDER FLOW
             </button>
+            <button
+              type="button"
+              onClick={() => setPanelTab('decision')}
+              style={{
+                ...controlBtn,
+                flex: '1 1 100%',
+                textAlign: 'center',
+                color: panelTab === 'decision' ? '#67e8f9' : '#94a3b8',
+                borderColor: panelTab === 'decision' ? 'rgba(0,229,255,0.5)' : 'rgba(148,163,184,0.2)',
+                background: panelTab === 'decision' ? 'rgba(0,229,255,0.12)' : 'rgba(15,23,42,0.75)',
+              }}
+            >
+              DECISION ENGINE
+            </button>
           </div>
 
           <div
@@ -786,32 +802,34 @@ export default function BrokerWorkspace() {
             />
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: panelTab === 'supplyDemand' ? 'flex' : 'none',
-              flexDirection: 'column',
-            }}
-          >
-            <SupplyDemandEnginePanel symbol="XAUUSD" />
-          </div>
+          <SdDataProvider>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: panelTab === 'supplyDemand' ? 'flex' : 'none',
+                flexDirection: 'column',
+              }}
+            >
+              <SupplyDemandEnginePanel symbol="XAUUSD" />
+            </div>
 
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: panelTab === 'scalping' ? 'flex' : 'none',
-              flexDirection: 'column',
-              overflowY: 'auto',
-            }}
-          >
-            <ScalpingM1Panel
-              symbol="XAUUSD"
-              showPreview={false}
-              onPreviewChange={handleM1PreviewChange}
-            />
-          </div>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: panelTab === 'scalping' ? 'flex' : 'none',
+                flexDirection: 'column',
+                overflowY: 'auto',
+              }}
+            >
+              <ScalpingM1Panel
+                symbol="XAUUSD"
+                showPreview={false}
+                onPreviewChange={handleM1PreviewChange}
+              />
+            </div>
+          </SdDataProvider>
 
           <div
             style={{
@@ -835,6 +853,18 @@ export default function BrokerWorkspace() {
             }}
           >
             <JinGoldOrderFlowPanel enabled={panelTab === 'orderFlow'} />
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: panelTab === 'decision' ? 'flex' : 'none',
+              flexDirection: 'column',
+              overflowY: 'auto',
+            }}
+          >
+            <JiniDecisionEnginePanel enabled={panelTab === 'decision'} symbol="XAUUSD" />
           </div>
 
           <M1LevelLegend data={m1Preview} />

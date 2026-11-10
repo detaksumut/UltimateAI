@@ -5,6 +5,16 @@ color 0F
 
 cd /d D:\Users\ultimateai
 
+:: ================= KONFIGURASI JIN_OHLC_BRIDGE =================
+:: Ubah XM_MT5_PATH jika XM MT5 terinstall di lokasi lain
+set "XM_MT5_PATH=C:\Program Files\XM Global MT5\terminal64.exe"
+set "XM_MT5_SYMBOL=GOLD"
+set "ULTIMATEAI_ROUTER_URL=http://127.0.0.1:20200"
+set "XM_MT5_POLL_SECONDS=1.0"
+set "XM_MT5_HISTORY_BARS=300"
+set "XM_MT5_DRY_RUN=1"
+:: ===============================================================
+
 rem ============================================================
 rem ============================================================
 rem
@@ -172,5 +182,16 @@ rem OPEN ULTIMATEAI SIMULATOR
 rem ============================================================
 
 start "" "http://localhost:5177/simulator"
+
+
+rem ============================================================
+rem [EXTRA] JIN OHLC BRIDGE (XM MT5 -> OHLC ingest :20200)
+rem ============================================================
+
+echo [EXTRA] Membuka JIN_OHLC_Bridge (XM MT5 -> OHLC ingest :20200)...
+
+start "JIN [OHLC BRIDGE] - XM MT5 -> :20200" ^
+cmd.exe /k "py D:\Users\ultimateai\scripts\xm_mt5_jin_bridge.py"
+
 
 pause

@@ -18,6 +18,7 @@ import {
   pickStrongestZone,
 } from '../../services/trading/supplyDemand/confluence.js';
 import { fetchXmOhlcMulti } from '../../services/trading/supplyDemand/xmOhlcClient.js';
+import { useSdData } from '../../services/trading/supplyDemand/SdDataContext.jsx';
 import SupplyDemandOverlayChart from './SupplyDemandOverlayChart.jsx';
 
 const ui = {
@@ -329,6 +330,7 @@ export default function SupplyDemandEnginePanel({
   const [showMap, setShowMap] = useState(true);
   const [chartTimeframe, setChartTimeframe] = useState('M5');
   const abortRef = useRef(null);
+  const { updateSdData } = useSdData();
 
   const runAnalysis = useCallback(async () => {
     abortRef.current?.abort();
@@ -362,6 +364,7 @@ export default function SupplyDemandEnginePanel({
         endpoint: data.endpoint,
       });
       setLastRunAt(new Date());
+      updateSdData({ analysis, payloads: data.payloads });
 
       const ready = analysis.readyTimeframes || [];
       if (ready.length > 0) {

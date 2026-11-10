@@ -68,7 +68,7 @@ export default function TavilyDriveFMonitor() {
       driveF: {
         isAvailable: true,
         freeGb: '118.3',
-        targetDirectory: 'F:\\UltimateAI_Memory\\02_Documentation',
+        targetDirectory: 'D:\\UltimateAI_Memory\\02_Documentation',
         totalArchivedDocs: 0,
         mountStatus: 'MOUNTED_ONLINE'
       }
@@ -383,12 +383,12 @@ export default function TavilyDriveFMonitor() {
           <div className="h-px bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent flex-1" />
         </div>
 
-        {/* Drive F: Ingestion & SQLite Commit Card (Tightly connected, high legibility) */}
+        {/* Drive D: Ingestion & SQLite Commit Card (Tightly connected, high legibility) */}
         <div className="p-2 rounded bg-gradient-to-br from-slate-950 to-cyan-950/30 border border-cyan-500/25 relative overflow-hidden shrink-0 mt-0.5">
           <div className="flex items-center justify-between text-[10px] font-mono mb-1">
             <span className="flex items-center gap-1.5 text-cyan-300 font-bold uppercase">
               <FileText className="w-3 h-3 text-cyan-400" />
-              <span>Drive F: File Committed</span>
+              <span>Drive D: File Committed</span>
             </span>
             <span className="text-[9px] text-slate-300 font-mono font-medium">
               {data.lastSavedFile?.timestamp ? new Date(data.lastSavedFile.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : lastSyncTime}

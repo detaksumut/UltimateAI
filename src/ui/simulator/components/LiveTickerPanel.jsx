@@ -23,12 +23,12 @@ function buildRealTickerEntries(t) {
     });
   }
 
-  // 3. Drive F: Storage
+  // 3. Drive D: Storage
   if (t.driveF) {
     entries.push({
       tag: 'DRV',
       color: '#00e5ff',
-      text: `Drive F:\\ Fisik Terpasang — Ruang Bebas: ${t.driveF.freeGb} GB / ${t.driveF.totalGb} GB — Total Berkas Intelijen: ${t.driveF.archivedDocsCount} Dokumen.`
+      text: `Drive D:\\ Fisik Terpasang — Ruang Bebas: ${t.driveF.freeGb} GB / ${t.driveF.totalGb} GB — Total Berkas Intelijen: ${t.driveF.archivedDocsCount} Dokumen.`
     });
   }
 
@@ -46,7 +46,7 @@ function buildRealTickerEntries(t) {
   entries.push({
     tag: 'HAR',
     color: '#10b981',
-    text: `Tavily Deep Harvester Aktif — Perayap Live Internet terhubung langsung ke pipeline penyimpanan Drive F:\\.`
+    text: `Tavily Deep Harvester Aktif — Perayap Live Internet terhubung langsung ke pipeline penyimpanan Drive D:\\.`
   });
 
   // 6. Router & Cloud Engine
@@ -62,7 +62,7 @@ function buildRealTickerEntries(t) {
   entries.push({
     tag: 'SCH',
     color: '#eab308',
-    text: `Autonomous Cron 07:00 WIB [AKTIF] — Fokus: Politik, Ekonomi, Saham, Komoditas, Crypto — Target: Drive F:\\.`
+    text: `Autonomous Cron 07:00 WIB [AKTIF] — Fokus: Politik, Ekonomi, Saham, Komoditas, Crypto — Target: Drive D:\\.`
   });
 
   // 7. Host Operating System
@@ -81,7 +81,7 @@ export default function LiveTickerPanel() {
   const [telemetry, setTelemetry] = useState(null);
   const [tickerItems, setTickerItems] = useState(() => [
     { tag: 'SYS', color: '#00e5ff', text: 'Menginisialisasi sensor telemetri perangkat keras...' },
-    { tag: 'DRV', color: '#06b6d4', text: 'Memeriksa kapasitas fisik Drive F:\\ dan indeks dokumen...' }
+    { tag: 'DRV', color: '#06b6d4', text: 'Memeriksa kapasitas fisik Drive D:\\ dan indeks dokumen...' }
   ]);
   const [completedEntries, setCompletedEntries] = useState([]);
   const [currentEntry, setCurrentEntry] = useState(null);
@@ -159,7 +159,7 @@ export default function LiveTickerPanel() {
 
   return (
     <div className="ticker-panel">
-      {/* ═══ TOP HALF: TAVILY WEB HARVEST & DRIVE F: PIPELINE MONITOR ═══ */}
+      {/* ═══ TOP HALF: TAVILY WEB HARVEST & Drive D: PIPELINE MONITOR ═══ */}
       <div className="ticker-panel-top">
         <TavilyDriveFMonitor />
       </div>
@@ -203,7 +203,7 @@ export default function LiveTickerPanel() {
         <div className="ticker-footer">
           <span className="ticker-footer-line" />
           <span className="text-[7.5px] font-mono tracking-wider text-emerald-400/90 font-semibold">
-            {telemetry?.cpu?.model ? `${telemetry.cpu.model.split(' ')[0]} ${telemetry.cpu.model.split(' ')[2] || ''} | RAM ${telemetry.memory?.usedPercent}% | DRIVE F: ${telemetry.driveF?.freeGb} GB` : 'SYS::LIVE TELEMETRY ACTIVE'}
+            {telemetry?.cpu?.model ? `${telemetry.cpu.model.split(' ')[0]} ${telemetry.cpu.model.split(' ')[2] || ''} | RAM ${telemetry.memory?.usedPercent}% | DRIVE D: ${telemetry.driveF?.freeGb} GB` : 'SYS::LIVE TELEMETRY ACTIVE'}
           </span>
           <span className="ticker-footer-line" />
         </div>

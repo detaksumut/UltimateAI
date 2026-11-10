@@ -255,24 +255,6 @@ export default function SupplyDemandScalpPanel({
         )}
       </div>
 
-      {/* Guide: Cara Gambar & Eksekusi Kotak S&D di TradingView */}
-      <div style={{
-        marginTop: 4,
-        padding: '8px 10px',
-        borderRadius: 7,
-        background: 'rgba(2, 6, 23, 0.65)',
-        border: '1px dashed rgba(0, 229, 255, 0.25)',
-        fontSize: 8.5,
-        color: '#94a3b8',
-        lineHeight: 1.55
-      }}>
-        <div style={{ color: '#38bdf8', fontWeight: 800, marginBottom: 3 }}>
-          💡 CARA TRADING ZONA S&D SEPERTI GAMBAR:
-        </div>
-        <div>1. <strong>SUPPLY ZONE (Merah/Pink)</strong>: Pasang limit Sell saat harga re-test ke kotak supply ({activeData?.nearestSupply ? '$' + activeData.nearestSupply.low.toFixed(1) : 'menunggu'}). SL di atas kotak.</div>
-        <div>2. <strong>DEMAND ZONE (Hijau Mint)</strong>: Pasang limit Buy saat harga menyentuh lantai demand ({activeData?.nearestDemand ? '$' + activeData.nearestDemand.high.toFixed(1) : 'menunggu'}). SL di bawah kotak.</div>
-        <div>3. <strong>SUPPLY BECOME DEMAND</strong>: Saat Supply ditembus ke atas oleh candle Marubozu panjang, zona tersebut berubah fungsi menjadi Demand baru untuk retest pantulan naik.</div>
-      </div>
     </div>
   );
 }

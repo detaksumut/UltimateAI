@@ -8,12 +8,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SD_SIDE } from '../../services/trading/supplyDemand/constants.js';
-import { fetchXmOhlcMulti } from '../../services/trading/supplyDemand/xmOhlcClient.js';
-import {
-  SCALPING_M1_TIMEFRAMES,
-  buildScalpingM1Analysis,
-} from '../../services/trading/scalping/scalpingM1.js';
+import { fetchXmOhlc } from '../../services/trading/supplyDemand/xmOhlcClient.js';
+import { buildScalpingM1Analysis } from '../../services/trading/scalping/scalpingM1.js';
 import { buildPreviewLevels } from '../../services/trading/scalping/previewLevels.js';
+import { useSdData } from '../../services/trading/supplyDemand/SdDataContext.jsx';
 import SupplyDemandOverlayChart from '../broker-workspace/SupplyDemandOverlayChart.jsx';
 
 const ui = {
@@ -225,9 +223,11 @@ export default function ScalpingM1Panel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastRunAt, setLastRunAt] = useState(null);
+
+  const { m1Payload: contextM1Payload, updateSdData } = useSdData();
   const abortRef = useRef(null);
 
-  const runAnalysis = useCallback(async () => {
+  const runAnalysis = useCallback(async (payload) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -235,41 +235,80 @@ export default function ScalpingM1Panel({
     setError(null);
 
     try {
-      const data = await fetchXmOhlcMulti({
-        symbol,
-        timeframes: SCALPING_M1_TIMEFRAMES,
-        limit: 500,
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-
       const analysis = buildScalpingM1Analysis({
         symbol,
-        payloads: data.payloads,
+        payloads: { M1: payload },
         now: Date.now(),
       });
-      setState({ analysis, failures: data.failures || {}, payloads: data.payloads || {} });
+      if (controller.signal.aborted) return;
+      setState({
+        analysis,
+        failures: analysis?.failures || {},
+        payloads: { M1: payload },
+      });
       setLastRunAt(new Date());
+      // Populasi shared context agar panel lain juga bisa reuse data M1 ini.
+      updateSdData({ analysis, payloads: { M1: payload } });
     } catch (err) {
       if (controller.signal.aborted) return;
-      setError(err?.message || 'Gagal membaca OHLC XM.');
+      setError(err?.message || 'Gagal membangun analisis Scalping M1.');
       setState({ analysis: null, failures: {}, payloads: {} });
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [symbol]);
+  }, [symbol, updateSdData]);
 
+  // Prioritas 1: ambil M1 dari shared context (S&D Engine).
+  // Prioritas 2: fallback fetch sendiri jika context masih kosong.
   useEffect(() => {
     if (!enabled) return undefined;
-    runAnalysis();
-    return () => abortRef.current?.abort();
-  }, [enabled, runAnalysis]);
+    const payload = contextM1Payload;
+    if (payload) {
+      runAnalysis(payload);
+      return undefined;
+    }
+    // Fallback: fetch M1 langsung dari bridge agar panel tetap mandiri.
+    const fetchOwn = async () => {
+      try {
+        const result = await fetchXmOhlc({
+          symbol,
+          timeframe: 'M1',
+          limit: 500,
+        });
+        if (result.ok && result.candles?.length) {
+          runAnalysis(result);
+        } else {
+          setError(result?.message || 'OHLC XM M1 tidak tersedia.');
+          setLoading(false);
+        }
+      } catch (err) {
+        setError(err?.message || 'Gagal mengambil OHLC XM M1.');
+        setLoading(false);
+      }
+    };
+    fetchOwn();
+    return undefined;
+  }, [enabled, contextM1Payload, symbol, runAnalysis]);
 
+  // Polling otomatis: refetch M1 dari bridge setiap pollMs agar data segar.
   useEffect(() => {
     if (!enabled || pollMs <= 0) return undefined;
-    const timer = setInterval(() => runAnalysis(), pollMs);
+    const timer = setInterval(async () => {
+      try {
+        const result = await fetchXmOhlc({
+          symbol,
+          timeframe: 'M1',
+          limit: 500,
+        });
+        if (result.ok && result.candles?.length) {
+          runAnalysis(result);
+        }
+      } catch (_) {
+        // Swallow polling errors; jangan ganggu UI.
+      }
+    }, pollMs);
     return () => clearInterval(timer);
-  }, [enabled, pollMs, runAnalysis]);
+  }, [enabled, pollMs, symbol, runAnalysis]);
 
   const analysis = state.analysis;
   const failures = state.failures || {};
@@ -319,8 +358,8 @@ export default function ScalpingM1Panel({
             Khusus M1 · preview level · bukan sinyal · eksekusi manual
           </div>
         </div>
-        <button type="button" onClick={runAnalysis} disabled={loading} style={{ ...ui.btn, opacity: loading ? 0.5 : 1 }}>
-          {loading ? 'MEMUAT.' : 'REFRESH'}
+        <button type="button" disabled={loading} style={{ ...ui.btn, opacity: loading ? 0.5 : 1 }}>
+          {loading ? 'MEMUAT' : 'SIAP'}
         </button>
       </div>
 
