@@ -28,6 +28,7 @@ import visualChartAnalysisHandler from '../../api/trading/visual-chart-analysis.
 import intermarketQuotesHandler from '../../api/trading/intermarket-quotes.js';
 import goldIntermarketFactorsHandler from '../../api/trading/gold-intermarket-factors.js';
 import goldOrderFlowHandler from '../../api/trading/gold-order-flow.js';
+import jiniDecisionHandler from '../../api/trading/jini-decision.js';
 import { paymentGatewayServiceInstance } from '../payment/PaymentGatewayService.mjs';
 import { paymentLedgerInstance } from '../payment/PaymentLedger.mjs';
 import {
@@ -5100,6 +5101,44 @@ ${sources.length > 0 ? '\nSumber pencarian tersedia:\n' + sources.map(s => `- ${
       }
       return;
     }
+    // JINI DECISION ENGINE — live snapshot + decision (analysis only, no execution).
+    if ((pathname === '/trading/jini-decision' || pathname === '/api/trading/jini-decision') && (req.method === 'GET' || req.method === 'OPTIONS')) {
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      let statusCode = 200;
+      const headers = {};
+      const adaptedReq = { method: req.method, url: req.url };
+      const adaptedRes = {
+        setHeader(name, value) { headers[name] = value; },
+        status(code) {
+          statusCode = code;
+          return {
+            json(payload) {
+              if (!res.writableEnded) {
+                res.writeHead(statusCode, headers);
+                res.end(statusCode === 204 ? '' : JSON.stringify(payload));
+              }
+              return res;
+            }
+          };
+        }
+      };
+
+      try {
+        await jiniDecisionHandler(adaptedReq, adaptedRes);
+      } catch (error) {
+        if (!res.writableEnded) {
+          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, status: 'UNAVAILABLE', error: error?.message || 'JINI decision request failed.', entryPermission: false }));
+        }
+      }
+      return;
+    }
+
     // ── Payment Gateway & E-Wallet Deposit Routes (DANA, OVO, GoPay) ──
     if (pathname === '/api/payment/config' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });

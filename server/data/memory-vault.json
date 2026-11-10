@@ -2537,5 +2537,38 @@
     "createdAt": "2026-11-07T21:30:51.132Z",
     "lastAccessedAt": "2026-11-07T21:30:51.132Z",
     "accessCount": 1
+  },
+  {
+    "id": "MEM-1794187303036-CMCA",
+    "key": "cari lagu my way dari frank sinatra",
+    "content": "Lagu **\"My Way\"** (kanal: Frank Sinatra - Topic) telah ditemukan di YouTube dan langsung diputar di",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-09T01:21:43.036Z",
+    "lastAccessedAt": "2026-11-09T01:21:43.036Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794187489828-FNL4",
+    "key": "Perkembangan berita penyadapan Prabowo b",
+    "content": "This version of Antigravity is no longer supported. Please download and install the latest version a",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-09T01:24:49.828Z",
+    "lastAccessedAt": "2026-11-09T01:24:49.828Z",
+    "accessCount": 1
+  },
+  {
+    "id": "MEM-1794187528196-3LQE",
+    "key": "cari lagu my way dari frank sinatra",
+    "content": "Lagu **\"My Way\"** (kanal: Frank Sinatra - Topic) telah ditemukan di YouTube dan langsung diputar di",
+    "tier": "USER",
+    "confidence": 0.95,
+    "provenance": "USER_EXPLICIT_STORE",
+    "createdAt": "2026-11-09T01:25:28.196Z",
+    "lastAccessedAt": "2026-11-09T01:25:28.196Z",
+    "accessCount": 1
   }
 ]

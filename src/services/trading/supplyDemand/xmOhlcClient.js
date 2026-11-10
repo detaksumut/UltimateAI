@@ -17,6 +17,11 @@ import {
 } from './constants.js';
 import { normalizeSymbol, normalizeTimeframe } from './candleValidation.js';
 
+// Snapshot integration needs D1 for daily trend control even though the S&D
+// engine itself only analyses M1..H4. This is opt-in and does not change the
+// default behaviour of the existing S&D / scalping clients.
+export const SNAPSHOT_TIMEFRAMES = [...SD_TIMEFRAMES, 'D1'];
+
 export function resolveEndpoint(endpoint) {
   return String(endpoint || RouterConfig.getEndpoint() || 'http://127.0.0.1:20200')
     .replace(/\/+$/, '');
@@ -69,13 +74,15 @@ export async function fetchXmOhlc({
   endpoint = null,
   timeoutMs = 8000,
   allowNonXmSource = false,
+  allowDaily = false,
   fetchImpl = globalThis.fetch,
   signal = null,
 } = {}) {
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedTimeframe = normalizeTimeframe(timeframe);
+  const supportedTimeframes = allowDaily ? SNAPSHOT_TIMEFRAMES : SD_TIMEFRAMES;
 
-  if (!SD_TIMEFRAMES.includes(normalizedTimeframe)) {
+  if (!supportedTimeframes.includes(normalizedTimeframe)) {
     return {
       ok: false,
       code: SD_DATA_STATUS.TIMEFRAME_MISMATCH,
@@ -193,11 +200,14 @@ export async function fetchXmOhlcMulti({
   endpoint = null,
   timeoutMs = 8000,
   allowNonXmSource = false,
+  includeDaily = false,
   fetchImpl = globalThis.fetch,
   signal = null,
 } = {}) {
-  const requested = [...new Set((timeframes || []).map((tf) => normalizeTimeframe(tf)))]
-    .filter((tf) => SD_TIMEFRAMES.includes(tf));
+  const supported = includeDaily ? SNAPSHOT_TIMEFRAMES : SD_TIMEFRAMES;
+  const requestedBase = (timeframes || []).map((tf) => normalizeTimeframe(tf));
+  if (includeDaily) requestedBase.push('D1');
+  const requested = [...new Set(requestedBase)].filter((tf) => supported.includes(tf));
 
   const results = await Promise.all(requested.map(async (timeframe) => [
     timeframe,
@@ -208,6 +218,7 @@ export async function fetchXmOhlcMulti({
       endpoint,
       timeoutMs,
       allowNonXmSource,
+      allowDaily: includeDaily,
       fetchImpl,
       signal,
     }),

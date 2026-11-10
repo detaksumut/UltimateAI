@@ -145,6 +145,16 @@ export default function PlatformTrader() {
     return getChartCandles(instrument, 'M5', 100)?.candles || [];
   }, [instrument, revision]);
 
+  // Wider history for the chart viewport only (kept separate from the 100-bar
+  // S&D window) so the user can zoom out and inspect older candles.
+  const chartM1Candles = useMemo(() => {
+    return getChartCandles(instrument, 'M1', 400)?.candles || [];
+  }, [instrument, revision]);
+
+  const chartM5Candles = useMemo(() => {
+    return getChartCandles(instrument, 'M5', 400)?.candles || [];
+  }, [instrument, revision]);
+
   const m1Zones = useMemo(() => {
     return detectSupplyDemandZones(m1Candles, 'M1');
   }, [m1Candles]);
@@ -872,7 +882,7 @@ export default function PlatformTrader() {
                 onTimeframeChange={setTimeframe}
                 currentPrice={currentPrice}
                 spread={spread}
-                candles={timeframe === 'M1' ? m1Candles : timeframe === 'M5' ? m5Candles : (getChartCandles(instrument, timeframe, 100)?.candles || [])}
+                candles={timeframe === 'M1' ? chartM1Candles : timeframe === 'M5' ? chartM5Candles : (getChartCandles(instrument, timeframe, 300)?.candles || [])}
                 dataStatus={statusLabel}
                 source={source}
                 signal={signal}
