@@ -99,9 +99,25 @@ export default async function handler(req, res) {
     const candles = aggregateCandles(rawCandles, tf.aggregate).slice(-limit);
 
     if (!candles.length) throw new Error('Provider returned zero valid ' + timeframe + ' candles');
+
+    // The chart's "LIVE BID" otherwise falls back to the last (often still
+    // forming and flat) candle close. Publish the provider quote explicitly.
+    const meta = result.meta || {};
+    const marketPrice = Number(meta.regularMarketPrice);
+    const marketTime = Number(meta.regularMarketTime);
+    const spread = symbol === 'XAUUSD' ? 0.35 : 0.01;
+    const tick = Number.isFinite(marketPrice) ? {
+      symbol,
+      bid: marketPrice,
+      ask: marketPrice + spread,
+      spread,
+      timestamp: Number.isFinite(marketTime) ? new Date(marketTime * 1000).toISOString() : new Date().toISOString(),
+      source: 'YAHOO_FINANCE',
+    } : null;
+
     return send(res, 200, {
       ok: true, symbol, timeframe, source: 'YAHOO_FINANCE', isSimulated: false,
-      delayed: true, fetchedAt: new Date().toISOString(), candles,
+      delayed: true, fetchedAt: new Date().toISOString(), tick, candles,
       note: symbol === 'XAUUSD'
         ? 'GC=F is a public gold-futures proxy; it is not a guaranteed real-time XAUUSD spot feed. Data may be delayed.'
         : 'Public Yahoo Finance market data may be delayed.',

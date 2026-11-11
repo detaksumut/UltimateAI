@@ -17,6 +17,7 @@
     "test:scalping-m1": "node tests/scalping-m1.test.mjs",
     "test:trading-symbols": "node tests/trading-symbols.test.mjs",
     "test:gold-factors": "node tests/gold-intermarket-factors.test.mjs",
+    "test:market-data": "node tests/market-data-candle-bucketing.test.mjs",
     "test:decision-engine": "node tests/jini-decision-engine-tahap1.test.mjs && node tests/jini-decision-engine-tahap2.test.mjs && node tests/jini-decision-engine-tahap3.test.mjs && node tests/jini-decision-engine-tahap4.test.mjs && node tests/jini-decision-engine-tahap5.test.mjs && node tests/jini-decision-engine-tahap6.test.mjs && node tests/jini-decision-engine-tahap7.test.mjs",
     "backtest:jini-decision": "node scripts/backtest-jini-decision.mjs",
     "backtest:supply-demand": "node scripts/backtest-supply-demand.mjs",

@@ -66,6 +66,7 @@ class RouteErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const chunkError = isChunkLoadError(this.state.error);
     return (
       <div
         style={{
@@ -82,10 +83,13 @@ class RouteErrorBoundary extends React.Component {
           textAlign: 'center'
         }}
       >
-        <strong style={{ fontSize: 16, color: '#f87171' }}>Halaman gagal dimuat</strong>
+        <strong style={{ fontSize: 16, color: '#f87171' }}>
+          {chunkError ? 'Halaman gagal dimuat' : 'Terjadi kesalahan pada halaman'}
+        </strong>
         <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', maxWidth: 560, lineHeight: 1.6 }}>
-          Modul halaman tidak berhasil diambil (biasanya karena dev server baru restart atau
-          sedang re-optimasi dependency). Muat ulang halaman untuk mencoba lagi.
+          {chunkError
+            ? 'Modul halaman tidak berhasil diambil (biasanya karena dev server baru restart atau sedang re-optimasi dependency). Muat ulang halaman untuk mencoba lagi.'
+            : 'Komponen halaman berhenti karena error runtime (bukan masalah koneksi modul). Muat ulang halaman; bila memakai OBS, arahkan Browser Source ke build produksi, bukan ke dev server Vite.'}
         </p>
         <code style={{ fontSize: 11, color: '#64748b', maxWidth: 560, wordBreak: 'break-word' }}>
           {String(this.state.error?.message || this.state.error)}

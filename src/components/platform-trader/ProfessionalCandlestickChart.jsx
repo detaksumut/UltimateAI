@@ -63,6 +63,11 @@ import DrawingToolsOverlay from './chart/DrawingToolsOverlay.jsx';
 
 const TIMEFRAMES = ['M1', 'M5', 'M15', 'H1', 'H4', 'D1'];
 
+const TIMEFRAME_MS = {
+  M1: 60000, M5: 300000, M15: 900000, M30: 1800000,
+  H1: 3600000, H4: 14400000, D1: 86400000, W1: 604800000,
+};
+
 const CHART_MIN_HEIGHT = 320;
 const CHART_DEFAULT_HEIGHT = 680;
 const CHART_HEIGHT_STORAGE_KEY = 'ultimateai.platformTrader.chartHeight';
@@ -81,8 +86,9 @@ function readStoredChartHeight() {
  * Sanitizes and pre-processes candles into strictly monotonically increasing time array
  * for Lightweight Charts v5.
  */
-function prepareLwcCandles(rawCandles) {
+function prepareLwcCandles(rawCandles, timeframe) {
   if (!Array.isArray(rawCandles) || rawCandles.length === 0) return [];
+  const bucketMs = TIMEFRAME_MS[String(timeframe || '').toUpperCase()] || null;
 
   // Filter out any invalid geometry
   const valid = rawCandles.filter(c => {
@@ -106,20 +112,19 @@ function prepareLwcCandles(rawCandles) {
     return ta - tb;
   });
 
-  // Ensure unique, strictly increasing timestamps in seconds
+  // Snap to the timeframe boundary so sub-period partial updates from a
+  // provider (Yahoo timestamps the still-forming bar with the latest tick
+  // time) collapse into one candle instead of spawning a flat bar each poll.
   const result = [];
   let lastTime = -Infinity;
 
   for (const c of valid) {
-    let t = Math.floor(new Date(c.timestamp || c.time || 0).getTime() / 1000);
+    const rawMs = new Date(c.timestamp || c.time || 0).getTime();
+    let t = Math.floor(rawMs / 1000);
     if (!Number.isFinite(t) || t <= 0) continue;
+    if (bucketMs) t = Math.floor(rawMs / bucketMs) * (bucketMs / 1000);
 
-    if (t <= lastTime) {
-      t = lastTime + 1; // eliminate duplicate timestamp collision
-    }
-    lastTime = t;
-
-    result.push({
+    const candle = {
       time: t,
       open: Number(c.open),
       high: Number(c.high),
@@ -127,7 +132,21 @@ function prepareLwcCandles(rawCandles) {
       close: Number(c.close),
       volume: Math.max(0, Number(c.volume || 0)),
       originalTimestamp: c.timestamp,
-    });
+    };
+
+    if (t === lastTime && result.length > 0) {
+      const previous = result[result.length - 1];
+      previous.high = Math.max(previous.high, candle.high);
+      previous.low = Math.min(previous.low, candle.low);
+      previous.close = candle.close;
+      previous.volume = Math.max(previous.volume, candle.volume);
+      previous.originalTimestamp = candle.originalTimestamp;
+      continue;
+    }
+    if (t < lastTime) continue;
+
+    lastTime = t;
+    result.push(candle);
   }
 
   return result;
@@ -247,6 +266,10 @@ export default function ProfessionalCandlestickChart({
   const priceLineRefs = useRef({});
   const resizeObserverRef = useRef(null);
   const initialFitDoneRef = useRef(false);
+  // Last bar time actually pushed into the lightweight-charts series. Live
+  // ticks update the series outside React state, so this ref is the only
+  // reliable guard against feeding an older bar back into the series.
+  const lastSeriesTimeRef = useRef(0);
 
   // ── Chart Engine Live Instance State ──
   const [chartInstance, setChartInstance] = useState(null);
@@ -292,7 +315,7 @@ export default function ProfessionalCandlestickChart({
   // ── Synchronize incoming candles prop ──
   useEffect(() => {
     if (!candles || candles.length === 0) return;
-    const processed = prepareLwcCandles(candles);
+    const processed = prepareLwcCandles(candles, timeframe);
     if (processed.length === 0) return;
 
     setLwcCandles(prev => {
@@ -302,52 +325,66 @@ export default function ProfessionalCandlestickChart({
       const lastIncoming = processed[processed.length - 1];
       const lastExisting = prev[prev.length - 1];
       const sameSeries = firstIncoming && prev[0] && firstIncoming.time === prev[0].time;
+      // Live ticks write to the series directly, so it can be ahead of React
+      // state. Feeding an older bar makes lightweight-charts throw
+      // "cannot update oldest data", which the route error boundary then
+      // reported as a page load failure (frequent in throttled OBS sources).
+      const seriesLastTime = lastSeriesTimeRef.current;
 
-      // Only use the incremental fast-path when it is the same history window.
-      // A different timeframe (or a wider history window) must fully replace.
-      if (sameSeries && lastExisting && lastIncoming) {
+      // Only use the incremental fast-path when it is the same history window
+      // and the incoming bar is not older than what the series already holds.
+      if (sameSeries && lastExisting && lastIncoming && lastIncoming.time >= seriesLastTime) {
         if (lastIncoming.time === lastExisting.time) {
           // In-place live update of the final candle
-          if (seriesRef.current.candle) {
-            seriesRef.current.candle.update({
-              time: lastIncoming.time,
-              open: lastIncoming.open,
-              high: lastIncoming.high,
-              low: lastIncoming.low,
-              close: lastIncoming.close,
-            });
+          try {
+            if (seriesRef.current.candle) {
+              seriesRef.current.candle.update({
+                time: lastIncoming.time,
+                open: lastIncoming.open,
+                high: lastIncoming.high,
+                low: lastIncoming.low,
+                close: lastIncoming.close,
+              });
+            }
+            if (seriesRef.current.volume && showVolume) {
+              seriesRef.current.volume.update({
+                time: lastIncoming.time,
+                value: lastIncoming.volume,
+                color: lastIncoming.close >= lastIncoming.open ? 'rgba(8, 153, 129, 0.4)' : 'rgba(242, 54, 69, 0.4)',
+              });
+            }
+            lastSeriesTimeRef.current = lastIncoming.time;
+            const updated = [...prev];
+            updated[updated.length - 1] = lastIncoming;
+            return updated;
+          } catch (_) {
+            // Series and state diverged; fall through to a full resync.
           }
-          if (seriesRef.current.volume && showVolume) {
-            seriesRef.current.volume.update({
-              time: lastIncoming.time,
-              value: lastIncoming.volume,
-              color: lastIncoming.close >= lastIncoming.open ? 'rgba(8, 153, 129, 0.4)' : 'rgba(242, 54, 69, 0.4)',
-            });
-          }
-          const updated = [...prev];
-          updated[updated.length - 1] = lastIncoming;
-          return updated;
-        }
-
-        if (lastIncoming.time > lastExisting.time && processed.length > prev.length) {
+        } else if (lastIncoming.time > lastExisting.time && processed.length > prev.length) {
           // New candle(s) appended to the right
-          if (seriesRef.current.candle) {
-            seriesRef.current.candle.update({
-              time: lastIncoming.time,
-              open: lastIncoming.open,
-              high: lastIncoming.high,
-              low: lastIncoming.low,
-              close: lastIncoming.close,
-            });
+          try {
+            if (seriesRef.current.candle) {
+              seriesRef.current.candle.update({
+                time: lastIncoming.time,
+                open: lastIncoming.open,
+                high: lastIncoming.high,
+                low: lastIncoming.low,
+                close: lastIncoming.close,
+              });
+            }
+            lastSeriesTimeRef.current = lastIncoming.time;
+            return processed;
+          } catch (_) {
+            // Series and state diverged; fall through to a full resync.
           }
-          return processed;
         }
       }
 
-      // Full array change (timeframe switch, older history added, batch reload)
+      // Full array change (timeframe switch, older history added, batch reload,
+      // or an out-of-order feed). setData rewrites every series from scratch.
       return processed;
     });
-  }, [candles, showVolume]);
+  }, [candles, showVolume, timeframe]);
 
   // ── Subscribe to MarketDataService for Live Ticks ──
   useEffect(() => {
@@ -361,9 +398,11 @@ export default function ProfessionalCandlestickChart({
         setLocalPrice(tick.bid);
       }
 
-      // Update current candle if available
-      const latestCandle = snapshot.candles?.[snapshot.candles?.length - 1];
-      if (latestCandle && seriesRef.current.candle && latestCandle.symbol === instrument && latestCandle.timeframe === timeframe) {
+      // Update current candle if available. Look it up by symbol/timeframe
+      // instead of trusting the last snapshot entry (the service also stores
+      // candles for every other instrument and timeframe).
+      const latestCandle = marketDataServiceInstance.getLatestCandle?.(instrument, timeframe);
+      if (latestCandle && seriesRef.current.candle) {
         const t = Math.floor(new Date(latestCandle.timestamp).getTime() / 1000);
         if (t > 0) {
           try {
@@ -374,6 +413,7 @@ export default function ProfessionalCandlestickChart({
               low: Number(latestCandle.low),
               close: Number(latestCandle.close),
             });
+            lastSeriesTimeRef.current = Math.max(lastSeriesTimeRef.current, t);
           } catch (_) {}
         }
       }
@@ -639,6 +679,7 @@ export default function ProfessionalCandlestickChart({
 
     // Set Candlesticks
     s.candle.setData(lwcCandles);
+    lastSeriesTimeRef.current = lwcCandles[lwcCandles.length - 1].time;
 
     // Set Volume
     if (showVolume) {
