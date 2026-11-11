@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PlatformTraderSidebar from '../components/platform-trader/PlatformTraderSidebar.jsx';
 import PlatformTraderHeader from '../components/platform-trader/PlatformTraderHeader.jsx';
 import MultiTimeframePanel from '../components/platform-trader/MultiTimeframePanel.jsx';
@@ -81,12 +81,87 @@ function computeOhlcTf(instrument, tf) {
   };
 }
 
+const SUMMARY_TABS = [
+  { id: 'M1', label: 'TF1' },
+  { id: 'M5', label: 'TF5' },
+  { id: 'M15', label: 'TF15' },
+  { id: 'H1', label: 'TF1H' },
+  { id: 'H4', label: 'TF4H' }
+];
+
+function buildTfSummary(instrument, tf) {
+  const res = getChartCandles(instrument, tf, 200);
+  const candles = res.candles || [];
+  const base = {
+    timeframe: tf,
+    bullets: [],
+    resistance: null,
+    support: null,
+    trend: 'UNKNOWN',
+    sentiment: 'BELUM TERSEDIA',
+    confidence: null,
+    lastPrice: null,
+    count: candles.length
+  };
+
+  if (candles.length < 20) return base;
+
+  const recent = candles.slice(-20);
+  const calcRes = Math.max(...recent.map(c => c.high));
+  const calcSup = Math.min(...recent.map(c => c.low));
+  const lastPrice = candles[candles.length - 1].close;
+  const ind = calculateIndicators(candles);
+
+  if (!ind || ind.error) {
+    return {
+      ...base,
+      resistance: calcRes,
+      support: calcSup,
+      lastPrice,
+      bullets: [
+        `Struktur ${tf}: indikator belum dapat dihitung dari ${candles.length} candle.`,
+        `Level Swing 20-bar: Resistance ${calcRes.toFixed(2)}, Support ${calcSup.toFixed(2)}.`,
+        'Ringkasan lengkap akan muncul setelah data indikator valid.'
+      ]
+    };
+  }
+
+  const { ema = {}, rsi, atr } = ind;
+  const ema9 = ema[9], ema20 = ema[20], ema50 = ema[50];
+  const isBull = lastPrice > ema20 && ema9 > ema20 && (ema50 ? ema20 > ema50 : true);
+  const isBear = lastPrice < ema20 && ema9 < ema20 && (ema50 ? ema20 < ema50 : true);
+  const currentTrend = isBull ? 'BULLISH' : isBear ? 'BEARISH' : 'KONSOLIDASI';
+  const momentum = !Number.isFinite(rsi) ? 'NETRAL' : rsi >= 55 ? 'BULLISH' : rsi <= 45 ? 'BEARISH' : 'NETRAL';
+
+  let trendScore = isBull ? 2 : isBear ? -2 : 0;
+  let rsiScore = !Number.isFinite(rsi) ? 0 : rsi >= 65 ? 2 : rsi >= 55 ? 1 : rsi <= 35 ? -2 : rsi <= 45 ? -1 : 0;
+  let compositePct = Math.round(50 + ((trendScore + rsiScore) / 4) * 45);
+  compositePct = Math.max(10, Math.min(90, compositePct));
+
+  return {
+    ...base,
+    resistance: calcRes,
+    support: calcSup,
+    lastPrice,
+    trend: currentTrend,
+    sentiment: currentTrend === 'BULLISH' ? 'Bullish' : currentTrend === 'BEARISH' ? 'Bearish' : 'Neutral',
+    confidence: compositePct,
+    bullets: [
+      `Struktur ${tf}: Tren terhitung ${currentTrend}, momentum ${momentum}, RSI(14) bernilai ${Number.isFinite(rsi) ? rsi.toFixed(1) : '—'}.`,
+      `Level Swing 20-bar: Resistance terdekat di ${calcRes.toFixed(2)}, Support di ${calcSup.toFixed(2)}.`,
+      `Volatilitas ATR(14): ${Number.isFinite(atr) ? atr.toFixed(2) : '—'}. Pertahankan bias ${currentTrend.toLowerCase()} selama harga bertahan dalam batas level validasi.`
+    ]
+  };
+}
+
 export default function PlatformTrader() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [instrument, setInstrument] = useState('XAUUSD');
   const [timeframe, setTimeframe] = useState('M1');
   const [chartMode, setChartMode] = useState('pro'); // 'pro' (Supply & Demand Overlay & Positions) | 'tradingview'
   const [activeTab, setActiveTab] = useState('Teknikal'); // 'Teknikal' | 'Fundamental' | 'Cross-Asset' | 'Kalender Ekonomi'
+  const [summaryTf, setSummaryTf] = useState('M1');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // ── Demo Trading Account State ──
@@ -98,6 +173,15 @@ export default function PlatformTrader() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [tradingStudioOpen, setTradingStudioOpen] = useState(false);
   const [orderModal, setOrderModal] = useState({ open: false, side: 'BUY' });
+
+  // Deep link: /platform-trader?journal=1 opens the Prediction Journal directly.
+  useEffect(() => {
+    if (searchParams.get('journal') !== '1') return;
+    setJournalOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('journal');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // ── Trading Account Center & E-Wallet Deposit State ──
   const [accountCenterOpen, setAccountCenterOpen] = useState(false);
@@ -153,6 +237,11 @@ export default function PlatformTrader() {
     return getChartCandles(instrument, 'M5', 400)?.candles || [];
   }, [instrument, revision]);
 
+  const tfSummary = useMemo(
+    () => buildTfSummary(instrument, summaryTf),
+    [instrument, summaryTf, revision]
+  );
+
   const m1Zones = useMemo(() => {
     return detectSupplyDemandZones(m1Candles, 'M1');
   }, [m1Candles]);
@@ -206,15 +295,6 @@ export default function PlatformTrader() {
     confidence: null,
     reason: 'Menunggu koneksi dan verifikasi candle MT5.'
   });
-
-  // Sentiment State
-  const [sentiment, setSentiment] = useState('BELUM TERSEDIA');
-  const [confidence, setConfidence] = useState(null);
-
-  // Calculated Support / Resistance
-  const [resistance, setResistance] = useState(null);
-  const [support, setSupport] = useState(null);
-  const [summaryBullets, setSummaryBullets] = useState([]);
 
   // Subscribe to market data updates
   useEffect(() => {
@@ -318,40 +398,6 @@ export default function PlatformTrader() {
           }
         }
 
-        if (candles.length >= 20) {
-          const recent = candles.slice(-20);
-          const calcRes = Math.max(...recent.map(c => c.high));
-          const calcSup = Math.min(...recent.map(c => c.low));
-          setResistance(calcRes);
-          setSupport(calcSup);
-
-          const ind = calculateIndicators(candles);
-          if (ind && !ind.error) {
-            const { ema = {}, rsi, atr } = ind;
-            const ema9 = ema[9], ema20 = ema[20], ema50 = ema[50];
-            const price = activeTick?.bid || candles[candles.length - 1].close;
-
-            const isBull = price > ema20 && ema9 > ema20 && (ema50 ? ema20 > ema50 : true);
-            const isBear = price < ema20 && ema9 < ema20 && (ema50 ? ema20 < ema50 : true);
-            const currentTrend = isBull ? 'BULLISH' : isBear ? 'BEARISH' : 'KONSOLIDASI';
-            const momentum = !Number.isFinite(rsi) ? 'NETRAL' : rsi >= 55 ? 'BULLISH' : rsi <= 45 ? 'BEARISH' : 'NETRAL';
-
-            let trendScore = isBull ? 2 : isBear ? -2 : 0;
-            let rsiScore = !Number.isFinite(rsi) ? 0 : rsi >= 65 ? 2 : rsi >= 55 ? 1 : rsi <= 35 ? -2 : rsi <= 45 ? -1 : 0;
-            let totalScore = trendScore + rsiScore;
-            let compositePct = Math.round(50 + (totalScore / 4) * 45);
-            compositePct = Math.max(10, Math.min(90, compositePct));
-
-            setSentiment(currentTrend === 'BULLISH' ? 'Bullish' : currentTrend === 'BEARISH' ? 'Bearish' : 'Neutral');
-            setConfidence(compositePct);
-
-            setSummaryBullets([
-              `Struktur ${timeframe}: Tren terhitung ${currentTrend}, momentum ${momentum}, RSI(14) bernilai ${Number.isFinite(rsi) ? rsi.toFixed(1) : '—'}.`,
-              `Level Swing 20-bar: Resistance terdekat di ${calcRes.toFixed(2)}, Support di ${calcSup.toFixed(2)}.`,
-              `Volatilitas ATR(14): ${Number.isFinite(atr) ? atr.toFixed(2) : '—'}. Pertahankan bias ${currentTrend.toLowerCase()} selama harga bertahan dalam batas level validasi.`
-            ]);
-          }
-        }
       } catch (err) {
         if (!cancelled) {}
       }
@@ -774,6 +820,15 @@ export default function PlatformTrader() {
           activeMenu="Platform Trader"
           onOpenJournal={() => setJournalOpen(true)}
           onOpenTradingStudio={() => setTradingStudioOpen(true)}
+          signalCardProps={{
+            signal,
+            instrument,
+            tradingMode,
+            demoAutoMode,
+            onToggleAutoMode: setDemoAutoMode,
+            onExecuteDemo: handleExecuteDemoSignal,
+            onLogJournal: handleLogToJournal,
+          }}
         />
       )}
 
@@ -803,19 +858,20 @@ export default function PlatformTrader() {
           statusLabel={statusLabel}
           lastUpdated={lastUpdated}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
-
-        {/* ── Demo Account Status Bar ($5,000) & Mode Switcher ── */}
-        <DemoAccountBar
-          tradingMode={tradingMode}
-          onToggleMode={setTradingMode}
-          demoState={demoState}
-          onResetDemo={() => {
-            demoTradingEngineInstance.resetAccount();
-          }}
-          onOpenAccountCenter={() => setAccountCenterOpen(true)}
-          onOpenBrokerWorkspace={() => navigate('/broker-workspace')}
-          depositBalanceIdr={depositBalanceIdr}
+          accountBar={
+            <DemoAccountBar
+              embedded
+              tradingMode={tradingMode}
+              onToggleMode={setTradingMode}
+              demoState={demoState}
+              onResetDemo={() => {
+                demoTradingEngineInstance.resetAccount();
+              }}
+              onOpenAccountCenter={() => setAccountCenterOpen(true)}
+              onOpenBrokerWorkspace={() => navigate('/broker-workspace')}
+              depositBalanceIdr={depositBalanceIdr}
+            />
+          }
         />
 
         {/* Workspace Body Grid: Left (Chart + Tabs + Panels) / Right (AI Analyst & Signals) */}
@@ -906,6 +962,55 @@ export default function PlatformTrader() {
               />
             )}
 
+            {/* Ringkasan Multi-Timeframe (selalu tampil di atas bar tab) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {SUMMARY_TABS.map(({ id, label }) => {
+                  const isActive = summaryTf === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setSummaryTf(id)}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: '5px 12px',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        border: isActive
+                          ? '1px solid #38bdf8'
+                          : '1px solid rgba(56, 189, 248, 0.25)',
+                        background: isActive
+                          ? 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)'
+                          : 'transparent',
+                        color: isActive ? '#ffffff' : '#94a3b8',
+                        boxShadow: isActive ? '0 0 10px rgba(59, 130, 246, 0.4)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      Ringkasan {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <AnalysisSummaryCard
+                  instrument={instrument}
+                  timeframe={summaryTf}
+                  summaryBullets={tfSummary.bullets}
+                  resistance={tfSummary.resistance}
+                  support={tfSummary.support}
+                  trend={tfSummary.trend}
+                  lastPrice={tfSummary.lastPrice}
+                  dataStatus={statusLabel}
+                />
+                <MarketSentimentGauge
+                  sentiment={tfSummary.sentiment}
+                  confidence={tfSummary.confidence}
+                />
+              </div>
+            </div>
+
             {/* Analysis Category Tabs Bar */}
             <div
               style={{
@@ -950,21 +1055,8 @@ export default function PlatformTrader() {
 
             {/* Sub-panels based on selected tab */}
             {activeTab === 'Teknikal' && (
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <AnalysisSummaryCard
-                  instrument={instrument}
-                  timeframe={timeframe}
-                  summaryBullets={summaryBullets}
-                  resistance={resistance}
-                  support={support}
-                  trend={sentiment.toUpperCase()}
-                  lastPrice={currentPrice}
-                  dataStatus={statusLabel}
-                />
-                <MarketSentimentGauge
-                  sentiment={sentiment}
-                  confidence={confidence}
-                />
+              <div style={{ fontSize: 10, color: '#64748b', padding: '0 2px' }}>
+                Ringkasan teknikal multi-timeframe ditampilkan di atas.
               </div>
             )}
 
@@ -1004,16 +1096,18 @@ export default function PlatformTrader() {
               scanProgress={scanProgress}
             />
 
-            {/* 3. Sinyal & Rencana */}
-            <SignalPlanCard
-              signal={signal}
-              instrument={instrument}
-              tradingMode={tradingMode}
-              demoAutoMode={demoAutoMode}
-              onToggleAutoMode={setDemoAutoMode}
-              onExecuteDemo={handleExecuteDemoSignal}
-              onLogJournal={handleLogToJournal}
-            />
+            {/* 3. Sinyal & Rencana (fallback saat sidebar ditutup) */}
+            {!sidebarOpen && (
+              <SignalPlanCard
+                signal={signal}
+                instrument={instrument}
+                tradingMode={tradingMode}
+                demoAutoMode={demoAutoMode}
+                onToggleAutoMode={setDemoAutoMode}
+                onExecuteDemo={handleExecuteDemoSignal}
+                onLogJournal={handleLogToJournal}
+              />
+            )}
           </div>
         </div>
       </main>

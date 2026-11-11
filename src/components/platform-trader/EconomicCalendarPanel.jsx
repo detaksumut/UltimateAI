@@ -92,10 +92,10 @@ export default function EconomicCalendarPanel({ instrument = 'XAUUSD' }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>
-            📅 JADWAL RILIS MAKROEKONOMI RESMI (FED / BLS / BEA)
+            📅 JADWAL RILIS MAKROEKONOMI RESMI (FED / BLS / BEA / TREASURY)
           </h3>
           <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-            Diambil langsung dari jadwal rilis resmi lembaga pemerintah Amerika Serikat untuk instrumen {instrument}
+            Isi jadwal rilis diambil dari bagian utama halaman resmi (navigasi/footer dibuang) untuk instrumen {instrument}
           </div>
         </div>
 
@@ -199,19 +199,19 @@ export default function EconomicCalendarPanel({ instrument = 'XAUUSD' }) {
 
                 <div
                   style={{
-                    fontSize: 10.5,
-                    color: '#94a3b8',
-                    lineHeight: 1.5,
-                    maxHeight: 120,
+                    fontSize: 11,
+                    color: '#cbd5e1',
+                    lineHeight: 1.55,
+                    maxHeight: 240,
                     overflowY: 'auto',
                     whiteSpace: 'pre-wrap',
-                    fontFamily: 'monospace',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                     background: 'rgba(0, 0, 0, 0.3)',
-                    padding: '6px 8px',
+                    padding: '8px 10px',
                     borderRadius: 4
                   }}
                 >
-                  {isRead ? (src.content ? src.content.slice(0, 800) + '...' : 'Data jadwal berhasil dibaca.') : `Sumber tidak dapat diakses (${src.error || 'Network error'})`}
+                  {isRead ? (src.content || 'Konten jadwal tidak ditemukan pada halaman sumber.') : `Sumber tidak dapat diakses (${src.error || 'Network error'})`}
                 </div>
               </div>
             );

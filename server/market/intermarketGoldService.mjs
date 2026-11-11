@@ -38,6 +38,10 @@ export const BIAS_THRESHOLD = 0.12;
 export const CORRELATION_WINDOW_DAYS = 180;
 export const H4_CORRELATION_WINDOW_BARS = 180;
 export const ROLE_MULTIPLIER = { CORE: 1.2, CONFIRMATION: 1, CONDITIONAL: 0.8 };
+// A macro factor bias is only meaningful while its inputs still describe the
+// live move. When Gold itself has already moved materially against the model,
+// the linear score is stale/conditional, so the bias is downgraded to MIXED.
+export const LIVE_DIVERGENCE_THRESHOLD_PCT = 0.25;
 // A quote is only marked LIVE when the provider reports an open regular
 // session AND the timestamp is very fresh. Yahoo is a public feed, so this is
 // deliberately conservative; everything older stays DELAYED/STALE.
@@ -528,7 +532,13 @@ function buildFactorMetrics(instruments, gold, goldH4Changes) {
     }
 
     const changes = instrument.dailyChanges.map((change) => change.change).filter(Number.isFinite);
-    const latestChange = instrument.dailyChanges.at(-1)?.change ?? null;
+    // Prefer the live change (latest vs previous close). The last completed
+    // daily bar can lag the live tape for hours, which is what made a macro
+    // model disagree with an intraday chart. Fall back to the last daily bar
+    // only when a live change is not available.
+    const barChange = instrument.dailyChanges.at(-1)?.change ?? null;
+    const liveChange = Number.isFinite(instrument.change) ? instrument.change : null;
+    const latestChange = Number.isFinite(liveChange) ? liveChange : barChange;
     const volatility = stdDev(changes);
     const magnitude = volatility && volatility > 0 && Number.isFinite(latestChange)
       ? Math.min(3, Math.abs(latestChange) / volatility)
@@ -602,6 +612,10 @@ function assignWeights(metrics) {
     && metric.status !== 'UNAVAILABLE'
     && metric.correlationD1.r != null
     && Math.abs(metric.correlationD1.r) >= MIN_ABS_CORRELATION
+    // A correlation whose sign flipped between the two halves of the window is
+    // a regime change, not evidence. Weighting it linearly would let an old
+    // relationship dictate the current direction.
+    && metric.correlationD1.stability?.status !== 'UNSTABLE'
   ));
 
   // Instruments in the same influence group (e.g. nominal/real yields) share a
@@ -746,6 +760,7 @@ function buildOilAnalysis({ instruments, metrics, nominal, real }) {
 
 function buildNarrative({
   bias, strength, confirm, conflict, independentConfirm, independentConflict, dominant, oilAnalysis, missing, stale,
+  freshness, liveDivergence,
 }) {
   const staleText = stale?.length
     ? ` Data usang (tidak diberi bobot): ${stale.join(', ')}.`
@@ -759,7 +774,48 @@ function buildNarrative({
   const oilText = oilAnalysis?.available
     ? ` Oil: ${oilAnalysis.symbol} ${oilAnalysis.direction} (${oilAnalysis.speed}); status pengaruh ${oilAnalysis.strength}.`
     : ' Oil tidak tersedia.';
-  return `GOLD BIAS ${bias} dengan kekuatan ${strength}. Konfirmasi ${confirm} faktor (${independentConfirm} grup independen), konflik ${conflict} faktor (${independentConflict} grup).${dominantText}${oilText}${staleText} Korelasi memakai ${CORRELATION_WINDOW_DAYS} observasi harian terakhir; korelasi historis bukan hubungan sebab-akibat.`;
+  const scopeText = freshness?.scope === 'INTRADAY'
+    ? ' Cakupan: konteks intraday karena input inti LIVE.'
+    : ' Cakupan: konteks D1 makro (input inti DELAYED/DAILY), bukan sinyal entry M1.';
+  const divergenceText = liveDivergence
+    ? ` Gate non-linier aktif: ${liveDivergence.reason} Bias diturunkan ke MIXED.`
+    : '';
+  return `GOLD BIAS ${bias} dengan kekuatan ${strength}. Konfirmasi ${confirm} faktor (${independentConfirm} grup independen), konflik ${conflict} faktor (${independentConflict} grup).${dominantText}${oilText}${staleText}${scopeText}${divergenceText} Korelasi memakai ${CORRELATION_WINDOW_DAYS} observasi harian terakhir; korelasi historis bukan hubungan sebab-akibat.`;
+}
+
+function buildFreshness(instruments, gold) {
+  const list = Array.isArray(instruments) ? instruments : [];
+  const countStatus = (status) => list.filter((instrument) => instrument.status === status).length;
+  const goldLive = gold?.status === 'LIVE';
+  const dxyLive = list.some((instrument) => instrument.id === 'dxy' && instrument.status === 'LIVE');
+  // Only the live-traded legs decide whether the conclusion can be called
+  // intraday. Daily-only series (FRED yields) stay macro even when fresh.
+  const scope = goldLive && dxyLive ? 'INTRADAY' : 'D1_MACRO';
+  const freshness = {
+    scope,
+    live: countStatus('LIVE'),
+    delayed: countStatus('DELAYED'),
+    stale: countStatus('STALE'),
+    unavailable: countStatus('UNAVAILABLE'),
+    total: list.length,
+    goldStatus: gold?.status || 'UNAVAILABLE',
+    goldUpdatedAt: gold?.updatedAt || null,
+  };
+  return {
+    ...freshness,
+    label: scope === 'INTRADAY'
+      ? 'Input inti LIVE; bias boleh dibaca sebagai konteks intraday.'
+      : 'Input inti DELAYED/DAILY; bias hanya konteks D1 makro, bukan sinyal entry M1.',
+  };
+}
+
+function goldLiveChangePercent(gold) {
+  if (!gold) return null;
+  if (Number.isFinite(gold.changePercent)) return gold.changePercent;
+  if (Number.isFinite(gold.change) && Number.isFinite(gold.previousClose) && gold.previousClose !== 0) {
+    return (gold.change / gold.previousClose) * 100;
+  }
+  return null;
 }
 
 function cryptoNarrativeFor(crypto) {
@@ -842,8 +898,35 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
 
   const dataComplete = missingIds.length === 0 && eligible.length >= 3 && coreFactorsUsable;
   const rawBias = score >= BIAS_THRESHOLD ? 'UP' : score <= -BIAS_THRESHOLD ? 'DOWN' : 'MIXED';
-  const bias = dataComplete && (confirm + conflict) > 0 ? rawBias : 'INSUFFICIENT DATA';
-  const strength = bias === 'INSUFFICIENT DATA' ? 'WEAK' : strengthLabel({ score, confirm, conflict });
+  const freshness = buildFreshness(safeInstruments, gold);
+  const goldLivePct = goldLiveChangePercent(gold);
+  let bias = dataComplete && (confirm + conflict) > 0 ? rawBias : 'INSUFFICIENT DATA';
+  let strength = bias === 'INSUFFICIENT DATA' ? 'WEAK' : strengthLabel({ score, confirm, conflict });
+  let liveDivergence = null;
+
+  // Non-linear gate: the linear score is only a factor tally. If XAUUSD itself
+  // has already moved materially the other way, the tally no longer describes
+  // the live tape, so the directional claim is withdrawn (MIXED) instead of
+  // being presented as an active DOWN/UP bias.
+  if ((bias === 'UP' || bias === 'DOWN')
+    && Number.isFinite(goldLivePct)
+    && Math.abs(goldLivePct) >= LIVE_DIVERGENCE_THRESHOLD_PCT) {
+    const goldSign = Math.sign(goldLivePct);
+    const biasSign = bias === 'UP' ? 1 : -1;
+    if (goldSign !== biasSign) {
+      liveDivergence = {
+        type: 'LIVE_DIVERGENCE',
+        biasBeforeGate: bias,
+        goldLiveChangePercent: goldLivePct,
+        thresholdPercent: LIVE_DIVERGENCE_THRESHOLD_PCT,
+        scope: freshness.scope,
+        reason: `XAUUSD live ${goldLivePct > 0 ? '+' : ''}${goldLivePct.toFixed(2)}% bergerak berlawanan dengan bias ${bias}; skor faktor linier tidak lagi menggambarkan tape saat ini.`,
+      };
+      bias = 'MIXED';
+      strength = 'WEAK';
+    }
+  }
+
   const cryptoAnalysis = alignCryptoWithBias(crypto, bias);
 
   const dominant = eligible
@@ -882,6 +965,7 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
       || metric.status === 'STALE'
       || metric.status === 'UNAVAILABLE'
       || (metric.correlationD1.r != null && Math.abs(metric.correlationD1.r) < MIN_ABS_CORRELATION)
+      || metric.correlationD1.stability?.status === 'UNSTABLE'
     ))
     .map((metric) => ({
       id: metric.id,
@@ -891,9 +975,11 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
         ? 'Data usang (STALE); tidak diberi bobot agar tidak dianggap data terbaru.'
         : metric.status === 'UNAVAILABLE'
           ? 'Data tidak tersedia dari provider; tidak diberi bobot.'
-          : !metric.validated
-            ? (metric.reason || 'Korelasi historis belum tervalidasi.')
-            : `Korelasi D1 ${metric.correlationD1.r.toFixed(2)} (${metric.correlationD1.n} observasi, ${metric.correlationD1.stability?.status || 'UNKNOWN'}) di bawah ambang ${MIN_ABS_CORRELATION}; tidak diberi bobot.`,
+          : metric.correlationD1.stability?.status === 'UNSTABLE'
+            ? `Korelasi D1 ${metric.correlationD1.r.toFixed(2)} tidak stabil (tanda berubah antara ${metric.correlationD1.stability.firstHalf?.toFixed(2) ?? '—'} dan ${metric.correlationD1.stability.secondHalf?.toFixed(2) ?? '—'}); tidak diberi bobot.`
+            : !metric.validated
+              ? (metric.reason || 'Korelasi historis belum tervalidasi.')
+              : `Korelasi D1 ${metric.correlationD1.r.toFixed(2)} (${metric.correlationD1.n} observasi, ${metric.correlationD1.stability?.status || 'UNKNOWN'}) di bawah ambang ${MIN_ABS_CORRELATION}; tidak diberi bobot.`,
     }));
 
   const conflicts = [];
@@ -925,15 +1011,15 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
         reason: `${metric.label}: tanda korelasi D1 dan H4 berbeda.`,
       });
     }
-    if (metric.correlationD1.stability?.status === 'UNSTABLE') {
-      conflicts.push({
-        id: metric.id,
-        symbol: metric.symbol,
-        label: metric.label,
-        type: 'CORRELATION_UNSTABLE',
-        reason: `${metric.label}: korelasi 180 hari tidak stabil (paruh pertama ${metric.correlationD1.stability.firstHalf.toFixed(2)}, paruh kedua ${metric.correlationD1.stability.secondHalf.toFixed(2)}).`,
-      });
-    }
+  }
+  if (liveDivergence) {
+    conflicts.push({
+      id: 'gold',
+      symbol: 'XAUUSD',
+      label: 'Gold live vs model',
+      type: 'LIVE_DIVERGENCE',
+      reason: liveDivergence.reason,
+    });
   }
 
   const nominal = safeInstruments.find((instrument) => instrument.id === 'us10y') || null;
@@ -959,8 +1045,13 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
   return {
     status: bias === 'INSUFFICIENT DATA' ? 'INSUFFICIENT_DATA' : 'OK',
     bias,
+    modelBias: dataComplete && (confirm + conflict) > 0 ? rawBias : 'INSUFFICIENT DATA',
+    biasScope: freshness.scope,
     strength,
     score: Number.isFinite(score) ? score : 0,
+    goldLiveChangePercent: Number.isFinite(goldLivePct) ? goldLivePct : null,
+    liveDivergence,
+    freshness,
     confirmationCount: confirm,
     conflictCount: conflict,
     independentConfirmationCount: confirmingGroups.size,
@@ -987,6 +1078,8 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
       validatedFactorCount: eligible.length,
       correlationWindow: CORRELATION_WINDOW_DAYS,
       validationWarnings,
+      scope: freshness.scope,
+      freshness,
     },
     factorMetrics: metrics.map((metric) => ({
       id: metric.id,
@@ -1019,6 +1112,8 @@ export function buildGoldIntermarketAnalysis({ instruments, gold, crypto = null,
       oilAnalysis,
       missing: missingIds,
       stale: staleIds,
+      freshness,
+      liveDivergence,
     }),
     generatedAt: new Date(now).toISOString(),
     calcVersion: CALC_VERSION,

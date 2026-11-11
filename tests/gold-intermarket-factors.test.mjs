@@ -699,4 +699,69 @@ test('alignCryptoWithBias confirms/opposes without changing the macro call', () 
   assert.equal(alignCryptoWithBias(null, 'UP'), null);
 });
 
+test('unstable correlation is reported but never weighted', () => {
+  const goldChanges = makeChanges(60, 0.01, 1);
+  const instruments = coreInstruments(goldChanges);
+  const target = instruments.find((instrument) => instrument.id === 'us10y');
+  const flipped = goldChanges.map((change, index) => ({
+    ...change,
+    change: index < goldChanges.length / 2 ? -change.change : change.change,
+  }));
+  target.dailyChanges = flipped;
+  target.h4Changes = flipped;
+  target.change = flipped.at(-1).change;
+
+  const analysis = buildGoldIntermarketAnalysis({
+    instruments,
+    gold: { latest: 4000, dailyChanges: goldChanges, h4Changes: goldChanges },
+    now: Date.now(),
+  });
+
+  const us10y = analysis.factorMetrics.find((metric) => metric.id === 'us10y');
+  assert.equal(us10y.correlationD1.stability.status, 'UNSTABLE');
+  assert.equal(us10y.weight, 0);
+  assert.equal(us10y.weighted, false);
+  assert.ok(analysis.unvalidated.some((item) => item.id === 'us10y' && /tidak stabil/i.test(item.reason)));
+});
+
+test('live gold moving against the model downgrades bias to MIXED', () => {
+  const goldChanges = makeChanges(30, 0.01, 1);
+  const instruments = coreInstruments(goldChanges);
+  const analysis = buildGoldIntermarketAnalysis({
+    instruments,
+    gold: {
+      latest: 4000,
+      previousClose: 3900,
+      change: 100,
+      changePercent: 2.5,
+      status: 'DELAYED',
+      dailyChanges: goldChanges,
+      h4Changes: goldChanges,
+    },
+    now: Date.now(),
+  });
+
+  assert.equal(analysis.modelBias, 'DOWN');
+  assert.equal(analysis.bias, 'MIXED');
+  assert.equal(analysis.strength, 'WEAK');
+  assert.equal(analysis.biasScope, 'D1_MACRO');
+  assert.equal(analysis.liveDivergence.type, 'LIVE_DIVERGENCE');
+  assert.ok(analysis.conflicts.some((conflict) => conflict.type === 'LIVE_DIVERGENCE'));
+  assert.match(analysis.narrative, /MIXED/);
+});
+
+test('LIVE core inputs mark the bias as intraday scope', () => {
+  const goldChanges = makeChanges(31, 0.01, 1);
+  const instruments = coreInstruments(goldChanges);
+  instruments.find((instrument) => instrument.id === 'dxy').status = 'LIVE';
+  const analysis = buildGoldIntermarketAnalysis({
+    instruments,
+    gold: { latest: 4000, status: 'LIVE', dailyChanges: goldChanges, h4Changes: goldChanges },
+    now: Date.now(),
+  });
+
+  assert.equal(analysis.biasScope, 'INTRADAY');
+  assert.equal(analysis.freshness.scope, 'INTRADAY');
+});
+
 console.log(`\n${passed} tests passed.`);

@@ -752,6 +752,40 @@ export default function ProfessionalCandlestickChart({
     });
   }, [localPrice]);
 
+  // ── 4b. Auto-scroll price scale: keep the live price on screen ──
+  // Once the user manually pans/stretches the price axis, autoScale is turned
+  // off so the scale can be moved freely. Without this the live price can keep
+  // drifting past the top/bottom edge and disappear for good. Whenever price
+  // approaches an edge we shift the visible price range just enough to keep it
+  // inside, so the chart scrolls down when price hits the top and up when it
+  // hits the bottom.
+  useEffect(() => {
+    const chart = chartRef.current;
+    const scale = chart?.priceScale('right');
+    if (!chart || !scale) return;
+    if (scale.options().autoScale) return;
+    if (!Number.isFinite(localPrice) || localPrice <= 0) return;
+
+    const range = scale.getVisibleRange();
+    if (!range || !(range.to > range.from)) return;
+
+    const span = range.to - range.from;
+    const trigger = span * 0.015;
+    const settle = span * 0.12;
+    let shift = 0;
+
+    if (localPrice > range.to - trigger) {
+      shift = localPrice - range.to + settle;
+    } else if (localPrice < range.from + trigger) {
+      shift = localPrice - range.from - settle;
+    }
+
+    if (shift === 0) return;
+    try {
+      scale.setVisibleRange({ from: range.from + shift, to: range.to + shift });
+    } catch (_) {}
+  }, [localPrice, lwcCandles]);
+
   // ── 5. Visual Open Positions (Entry, SL, TP1, TP2) ──
   useEffect(() => {
     if (!seriesRef.current.candle) return;

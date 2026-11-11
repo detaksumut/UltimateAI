@@ -326,9 +326,9 @@ function InstrumentCard({ instrument, metric, now }) {
       )}
 
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
-        <span style={{ fontSize: 7.5, color: '#64748b', fontWeight: 800, alignSelf: 'center' }}>D1</span>
+        <span style={{ fontSize: 7.5, color: '#64748b', fontWeight: 800, alignSelf: 'center' }} title="Arah instrumen ini, bukan arah Gold">TREN D1</span>
         <TrendPill trend={instrument.d1?.trend} />
-        <span style={{ fontSize: 7.5, color: '#64748b', fontWeight: 800, alignSelf: 'center' }}>H4</span>
+        <span style={{ fontSize: 7.5, color: '#64748b', fontWeight: 800, alignSelf: 'center' }} title="Arah instrumen ini, bukan arah Gold">TREN H4</span>
         {instrument.h4?.available
           ? <TrendPill trend={instrument.h4?.trend} />
           : <Pill text="N/A" color="#64748b" title={instrument.h4?.reason || 'H4 tidak tersedia'} />}
@@ -584,12 +584,9 @@ export default function FaktorUpDownGoldPanel({ enabled = true }) {
   const [notice, setNotice] = useState(null);
   const [lastRunAt, setLastRunAt] = useState(null);
   const [now, setNow] = useState(() => Date.now());
-  const busyRef = useRef(false);
   const abortRef = useRef(null);
 
   const load = useCallback(async ({ force = false } = {}) => {
-    if (busyRef.current) return;
-    busyRef.current = true;
     setLoading(true);
     setError('');
     abortRef.current?.abort();
@@ -632,7 +629,6 @@ export default function FaktorUpDownGoldPanel({ enabled = true }) {
       }
     } finally {
       if (!controller.signal.aborted) setLoading(false);
-      busyRef.current = false;
     }
   }, []);
 
@@ -756,9 +752,29 @@ export default function FaktorUpDownGoldPanel({ enabled = true }) {
               title="Faktor inti: DXY dan US10Y Real Yield harus tersedia dan tidak STALE."
             />
           )}
+          {analysis?.biasScope && (
+            <Pill
+              text={analysis.biasScope === 'INTRADAY' ? 'SKALA INTRADAY' : 'SKALA D1 MAKRO'}
+              color={analysis.biasScope === 'INTRADAY' ? '#34d399' : '#fbbf24'}
+              title={analysis.freshness?.label || ''}
+            />
+          )}
           {lastRunAt && <Pill text={`ANALISIS ${lastRunAt.toLocaleTimeString('id-ID')}`} color="#64748b" />}
           {data?.cached && <Pill text="CACHE SERVER" color="#fbbf24" />}
         </div>
+
+        {analysis?.biasScope === 'D1_MACRO' && (
+          <div style={{ ...ui.small, fontSize: 8, color: '#fbbf24', marginTop: 5 }}>
+            Bias ini konteks D1 makro (input DELAYED/DAILY), bukan sinyal entry M1. Cek chart intraday untuk timing.
+          </div>
+        )}
+
+        {analysis?.liveDivergence && (
+          <div style={{ ...ui.small, fontSize: 8, color: '#fda4af', marginTop: 4 }}>
+            Gate divergence: {text(analysis.liveDivergence.reason)} Bias diturunkan ke MIXED
+            (model sebelumnya {text(analysis.liveDivergence.biasBeforeGate)}).
+          </div>
+        )}
 
         {notice && (
           <div
@@ -840,7 +856,7 @@ export default function FaktorUpDownGoldPanel({ enabled = true }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 8.5, minWidth: 520 }}>
             <thead>
               <tr>
-                {['INSTRUMEN', 'PERAN', 'D1', 'H4', 'CORR D1', 'STAB', 'BOBOT', 'PENGARUH'].map((heading) => (
+                {['INSTRUMEN', 'PERAN', 'TREN D1', 'TREN H4', 'CORR D1', 'STAB', 'BOBOT', 'PENGARUH KE GOLD'].map((heading) => (
                   <th key={heading} style={{ textAlign: 'left', padding: '3px 4px', color: '#94a3b8', borderBottom: '1px solid rgba(148,163,184,0.2)', fontWeight: 800 }}>
                     {heading}
                   </th>

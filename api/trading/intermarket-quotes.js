@@ -14,29 +14,49 @@ const INSTRUMENTS = [
   { symbol: 'US10Y', label: 'US Treasury 10Y', ticker: '^TNX' },
   { symbol: 'BRENT', label: 'Brent crude oil', ticker: 'BZ=F' },
   { symbol: 'WTI', label: 'WTI crude oil', ticker: 'CL=F' },
+  { symbol: 'XAUUSD', label: 'Gold futures proxy', ticker: 'GC=F' },
   { symbol: 'XAGUSD', label: 'Silver futures proxy', ticker: 'SI=F' },
   { symbol: 'COPPER', label: 'Copper futures', ticker: 'HG=F' },
   { symbol: 'SPX', label: 'S&P 500', ticker: '^GSPC' },
   { symbol: 'USDJPY', label: 'USD/JPY', ticker: 'USDJPY=X' }
 ];
 
+const YAHOO_CHART_HOSTS = [
+  'https://query1.finance.yahoo.com/v8/finance/chart',
+  'https://query2.finance.yahoo.com/v8/finance/chart'
+];
+
+const QUOTE_TIMEOUT_MS = 12_000;
+
 const finiteOrNull = value =>
   value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
     ? Number(value)
     : null;
 
-async function quote(item) {
-  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(item.ticker) + '?range=5d&interval=5m';
-  const response = await fetch(url, {
-    headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 JIN-GoldNews/1.0' },
-    signal: AbortSignal.timeout(8000),
-    cache: 'no-store'
-  });
-  if (!response.ok) throw new Error(item.symbol + ' provider HTTP ' + response.status);
-  const payload = await response.json();
-  const result = payload?.chart?.result?.[0];
-  if (!result?.meta) throw new Error(item.symbol + ' quote metadata unavailable');
+async function fetchChart(item) {
+  let lastError = null;
+  for (const host of YAHOO_CHART_HOSTS) {
+    try {
+      const url = host + '/' + encodeURIComponent(item.ticker) + '?range=5d&interval=5m';
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 JIN-GoldNews/1.0' },
+        signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS),
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error(item.symbol + ' provider HTTP ' + response.status);
+      const payload = await response.json();
+      const result = payload?.chart?.result?.[0];
+      if (!result?.meta) throw new Error(item.symbol + ' quote metadata unavailable');
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error(item.symbol + ' quote unavailable');
+}
 
+async function quote(item) {
+  const result = await fetchChart(item);
   const meta = result.meta;
   const price = finiteOrNull(meta.regularMarketPrice);
   const previousClose = finiteOrNull(meta.chartPreviousClose ?? meta.previousClose);

@@ -13,7 +13,8 @@ export default function SignalPlanCard({
   demoAutoMode = false,
   onToggleAutoMode = null,
   onExecuteDemo = null,
-  onLogJournal = null
+  onLogJournal = null,
+  compact = false
 }) {
   const side = signal?.side || 'WAIT';
   const isValid = (side === 'BUY' || side === 'SELL') && signal?.isValid === true && Number.isFinite(signal?.entry);
@@ -48,15 +49,15 @@ export default function SignalPlanCard({
         background: '#071224',
         border: '1px solid rgba(0, 229, 255, 0.15)',
         borderRadius: 10,
-        padding: '14px',
+        padding: compact ? '10px' : '14px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12
+        gap: compact ? 6 : 12
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 4 : 6 }}>
           <span style={{ fontSize: 14 }}>🎯</span>
           <span style={{ fontSize: 12, fontWeight: 800, color: '#f1f5f9', letterSpacing: '0.04em' }}>
             Sinyal & Rencana
@@ -72,7 +73,7 @@ export default function SignalPlanCard({
               color: '#00e5ff',
               fontSize: 9,
               fontWeight: 700,
-              padding: '3px 7px',
+              padding: compact ? '2px 5px' : '3px 7px',
               cursor: 'pointer'
             }}
             title="Catat setup tervalidasi ini ke Prediction Journal"
@@ -88,11 +89,11 @@ export default function SignalPlanCard({
           background: badgeBg,
           border: badgeBorder,
           borderRadius: 8,
-          padding: '10px 14px',
+          padding: compact ? '7px 8px' : '10px 14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: compact ? 4 : 8,
           boxShadow: isSell
             ? '0 0 15px rgba(225, 29, 72, 0.25)'
             : isBuy
@@ -100,14 +101,15 @@ export default function SignalPlanCard({
             : 'none'
         }}
       >
-        <span style={{ fontSize: 18 }}>{isBuy ? '🐂' : isSell ? '🐻' : '⏳'}</span>
+        <span style={{ fontSize: compact ? 12 : 18 }}>{isBuy ? '🐂' : isSell ? '🐻' : '⏳'}</span>
         <span
           style={{
-            fontSize: 13,
+            fontSize: compact ? 10.5 : 13,
             fontWeight: 900,
             color: badgeColor,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase'
+            letterSpacing: compact ? '0.02em' : '0.06em',
+            textTransform: 'uppercase',
+            lineHeight: 1.25
           }}
         >
           {isValid ? `${side} (Setup Valid)` : 'WAIT (Menunggu Konfirmasi Valid)'}
@@ -118,13 +120,13 @@ export default function SignalPlanCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '110px 1fr',
-          gap: '6px 8px',
+          gridTemplateColumns: compact ? '74px 1fr' : '110px 1fr',
+          gap: compact ? '5px 8px' : '6px 8px',
           fontSize: 11,
           background: 'rgba(2, 6, 23, 0.6)',
           border: '1px solid rgba(255, 255, 255, 0.05)',
           borderRadius: 6,
-          padding: '10px 12px'
+          padding: compact ? '8px 10px' : '10px 12px'
         }}
       >
         <div style={{ color: '#94a3b8', fontWeight: 600 }}>Entry</div>
@@ -161,34 +163,37 @@ export default function SignalPlanCard({
       )}
 
       {/* Demo Action & Auto-Execution Controls */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#94a3b8', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={demoAutoMode}
-              onChange={(e) => onToggleAutoMode?.(e.target.checked)}
-              style={{ cursor: 'pointer', accentColor: '#00e5ff' }}
-            />
-            <span>Mode Auto Eksekusi Demo</span>
-          </label>
-          <span style={{ fontSize: 8.5, color: demoAutoMode ? '#00e5ff' : '#64748b', fontWeight: 800 }}>
-            {demoAutoMode ? '● AUTO ON' : '○ MANUAL'}
-          </span>
-        </div>
+      {(!compact || (isValid && !!onExecuteDemo)) && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 4 : 6, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: compact ? 6 : 8 }}>
+        {!compact && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#94a3b8', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={demoAutoMode}
+                onChange={(e) => onToggleAutoMode?.(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: '#00e5ff' }}
+              />
+              <span>Mode Auto Eksekusi Demo</span>
+            </label>
+            <span style={{ fontSize: 8.5, color: demoAutoMode ? '#00e5ff' : '#64748b', fontWeight: 800, whiteSpace: 'nowrap' }}>
+              {demoAutoMode ? '● AUTO ON' : '○ MANUAL'}
+            </span>
+          </div>
+        )}
 
         {isValid && onExecuteDemo && (
           <button
             onClick={() => onExecuteDemo(signal)}
             style={{
-              padding: '8px 12px',
+              padding: compact ? '6px 8px' : '8px 12px',
               borderRadius: 6,
               background: isBuy
                 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
                 : 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
               border: 'none',
               color: '#ffffff',
-              fontSize: 11,
+              fontSize: compact ? 10.5 : 11,
               fontWeight: 900,
               letterSpacing: '0.04em',
               cursor: 'pointer',
@@ -199,11 +204,8 @@ export default function SignalPlanCard({
             ⚡ Eksekusi Sinyal Demo ({side})
           </button>
         )}
-
-        <div style={{ fontSize: 8, color: '#475569', lineHeight: 1.3, fontStyle: 'italic' }}>
-          * Confidence AI merupakan keselarasan indikator multi-timeframe & bukan jaminan kemenangan. Kelola risiko dengan disiplin.
-        </div>
       </div>
+      )}
 
       {signal?.calculatedAt && (
         <div style={{ fontSize: 8.5, color: '#64748b', textAlign: 'right', fontFamily: 'monospace' }}>
@@ -213,3 +215,4 @@ export default function SignalPlanCard({
     </div>
   );
 }
+

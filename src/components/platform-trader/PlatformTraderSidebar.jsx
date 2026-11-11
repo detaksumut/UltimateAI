@@ -1,34 +1,29 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import SidebarMarketPulse from './SidebarMarketPulse.jsx';
+import SignalPlanCard from './SignalPlanCard.jsx';
 
 /**
  * PlatformTraderSidebar
  * Left navigation panel matching the reference screenshot design:
  * - UltimateAI JINI logo at the top using /logo-ultimateAI.png
  * - OS Workspace category
- * - Navigation links (Beranda, Chat AI, Trading OS, Platform Trader, Broker Workspace, Market Intelligence, etc.)
- * - Document Studio, Image Studio, Data Lab, Code Lab, Knowledge Lab
+ * - Navigation links (Beranda, Chat AI, Trading OS, Platform Trader, Broker Workspace, Riset Gold, Prediction Journal)
+ * - Live inverse-factor pulse (DXY, US10Y, TIPS, US02Y, WTI)
  * - Pengaturan (Settings) at the bottom
  */
 export default function PlatformTraderSidebar({
   activeMenu = 'Platform Trader',
   onSelectMenu = null,
   onOpenJournal = null,
-  onOpenTradingStudio = null
+  onOpenTradingStudio = null,
+  signalCardProps = null
 }) {
   const navigate = useNavigate();
 
   const handleMenuClick = (item) => {
-    if (item.name === 'Beranda' || item.name === 'Chat AI') {
+    if (item.name === 'Chat AI') {
       navigate('/simulator');
-      return;
-    }
-    if (item.name === 'Trading OS') {
-      if (onOpenTradingStudio) {
-        onOpenTradingStudio();
-      } else {
-        navigate('/trading');
-      }
       return;
     }
     if (item.name === 'Platform Trader') {
@@ -39,8 +34,13 @@ export default function PlatformTraderSidebar({
       navigate('/broker-workspace');
       return;
     }
+    if (item.name === 'Riset Gold') {
+      navigate('/research-gold');
+      return;
+    }
     if (item.name === 'Prediction Journal') {
       if (onOpenJournal) onOpenJournal();
+      else navigate('/platform-trader?journal=1');
       return;
     }
     if (onSelectMenu) {
@@ -49,22 +49,7 @@ export default function PlatformTraderSidebar({
   };
 
   const mainMenuItems = [
-    { name: 'Beranda', icon: '🏠' },
-    { name: 'Chat AI', icon: '💬' },
-    { name: 'Trading OS', icon: '🎛️' },
-    { name: 'Platform Trader', icon: '📊' },
-    { name: 'Broker Workspace', icon: '🏛️', badge: 'LIVE XM' },
-    { name: 'Market Intelligence', icon: '🌐' },
-    { name: 'Strategy Lab', icon: '🎯' },
-    { name: 'Prediction Journal', icon: '📅' },
-  ];
-
-  const studioItems = [
-    { name: 'Document Studio', icon: '📄', isParent: true },
-    { name: 'Image Studio', icon: '🖼️' },
-    { name: 'Data Lab', icon: '💾' },
-    { name: 'Code Lab', icon: '</>' },
-    { name: 'Knowledge Lab', icon: '📖' },
+    { name: 'Riset Gold', icon: '🧭' },
   ];
 
   return (
@@ -79,7 +64,7 @@ export default function PlatformTraderSidebar({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '14px 10px',
+        padding: '10px 10px',
         boxSizing: 'border-box',
         overflowY: 'auto'
       }}
@@ -92,10 +77,10 @@ export default function PlatformTraderSidebar({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '4px 6px 14px',
+            padding: '2px 6px 10px',
             cursor: 'pointer',
             borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            marginBottom: 12
+            marginBottom: 8
           }}
         >
           <img
@@ -110,18 +95,22 @@ export default function PlatformTraderSidebar({
           />
         </div>
 
-        {/* Section Header: OS Workspace */}
+        {/* Live inverse-factor pulse above the menu */}
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 800,
-            color: '#f8fafc',
-            letterSpacing: '0.04em',
-            padding: '4px 8px 8px'
+            paddingBottom: 8,
+            marginBottom: 8,
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
           }}
         >
-          OS Workspace
+          <SidebarMarketPulse />
         </div>
+
+        {signalCardProps && (
+          <div style={{ marginBottom: 8 }}>
+            <SignalPlanCard {...signalCardProps} compact />
+          </div>
+        )}
 
         {/* Main Menu List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -136,7 +125,7 @@ export default function PlatformTraderSidebar({
                   alignItems: 'center',
                   gap: 10,
                   width: '100%',
-                  padding: '8px 12px',
+                  padding: '7px 12px',
                   borderRadius: 8,
                   fontSize: 12,
                   fontWeight: isActive ? 800 : 500,
@@ -176,49 +165,33 @@ export default function PlatformTraderSidebar({
             );
           })}
         </div>
+      </div>
 
-        {/* Divider & Document Studio Group */}
-        <div
+      {/* Genie decorative backdrop in the empty sidebar space */}
+      <div
+        aria-hidden="true"
+        style={{
+          flex: 1,
+          minHeight: 40,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          paddingTop: 4
+        }}
+      >
+        <img
+          src="/uploads/genie-bg.png"
+          alt=""
           style={{
-            margin: '14px 0 8px',
-            paddingTop: 10,
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+            width: '100%',
+            maxWidth: 190,
+            maxHeight: '100%',
+            objectFit: 'contain',
+            opacity: 0.9,
+            filter: 'drop-shadow(0 0 16px rgba(99, 102, 241, 0.45))'
           }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {studioItems.map((item) => (
-              <button
-                key={item.name}
-                onClick={() => handleMenuClick(item)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  width: '100%',
-                  padding: '7px 12px',
-                  borderRadius: 6,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'color 0.15s'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, width: 18, textAlign: 'center', color: '#64748b' }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.name}</span>
-                </div>
-                {item.isParent && <span style={{ fontSize: 10, color: '#64748b' }}>›</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+        />
       </div>
 
       {/* Settings at Bottom */}
@@ -248,3 +221,4 @@ export default function PlatformTraderSidebar({
     </aside>
   );
 }
+

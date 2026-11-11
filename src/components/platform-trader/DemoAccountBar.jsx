@@ -15,8 +15,10 @@ export default function DemoAccountBar({
   onOpenAccountCenter,
   onOpenBrokerWorkspace,
   depositBalanceIdr = 0,
+  embedded = false,
 }) {
   const isDemo = tradingMode === 'DEMO';
+  const XM_REFERRAL_URL = 'https://www.xm.com/register?referral=RAFNVQ7QN';
   const balance = demoState?.balance ?? 5000;
   const equity = demoState?.equity ?? 5000;
   const floatingPl = demoState?.floatingPl ?? 0;
@@ -32,15 +34,21 @@ export default function DemoAccountBar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '7px 12px',
-        background: isDemo
+        padding: embedded ? '0 2px' : '7px 12px',
+        background: embedded
+          ? 'transparent'
+          : isDemo
           ? 'linear-gradient(90deg, rgba(8, 28, 48, 0.95) 0%, rgba(4, 18, 34, 0.98) 100%)'
           : 'linear-gradient(90deg, rgba(40, 14, 24, 0.95) 0%, rgba(20, 6, 12, 0.98) 100%)',
-        border: `1px solid ${isDemo ? 'rgba(0, 229, 255, 0.3)' : 'rgba(244, 63, 94, 0.4)'}`,
-        borderRadius: 8,
+        border: embedded
+          ? 'none'
+          : `1px solid ${isDemo ? 'rgba(0, 229, 255, 0.3)' : 'rgba(244, 63, 94, 0.4)'}`,
+        borderRadius: embedded ? 0 : 8,
+        flex: embedded ? 1 : undefined,
+        minWidth: 0,
         flexWrap: 'wrap',
-        gap: 8,
-        boxShadow: isDemo ? '0 0 15px rgba(0, 229, 255, 0.08)' : '0 0 15px rgba(244, 63, 94, 0.08)',
+        gap: embedded ? 6 : 8,
+        boxShadow: embedded ? 'none' : isDemo ? '0 0 15px rgba(0, 229, 255, 0.08)' : '0 0 15px rgba(244, 63, 94, 0.08)',
         transition: 'all 0.2s ease',
       }}
     >
@@ -163,8 +171,8 @@ export default function DemoAccountBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {/* Trading Account Center & E-Wallet Deposit Button */}
         <button
-          onClick={onOpenAccountCenter}
-          title="Buka Trading Account Center (Deposit DANA / OVO / GoPay)"
+          onClick={() => window.open(XM_REFERRAL_URL, '_blank', 'noopener,noreferrer')}
+          title="Daftar akun XM dengan referral RAFNVQ7QN"
           style={{
             padding: '4px 10px',
             borderRadius: 5,
@@ -181,8 +189,8 @@ export default function DemoAccountBar({
             transition: 'all 0.15s ease',
           }}
         >
-          <span>💳</span>
-          <span>DEPOSIT E-WALLET {depositBalanceIdr > 0 ? `(Rp ${depositBalanceIdr.toLocaleString('id-ID')})` : ''}</span>
+          <span>🌐</span>
+          <span>REAL TRADING</span>
         </button>
 
         {isDemo && (

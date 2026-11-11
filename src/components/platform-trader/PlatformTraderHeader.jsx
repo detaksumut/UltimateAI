@@ -16,7 +16,8 @@ export default function PlatformTraderHeader({
   isLive = false,
   statusLabel = 'OFFLINE / MENUNGGU MT5',
   lastUpdated = '—',
-  onToggleSidebar = null
+  onToggleSidebar = null,
+  accountBar = null
 }) {
   const hasValidPrice = Number.isFinite(currentPrice) && currentPrice > 0;
   const hasChange = Number.isFinite(priceChange) && Number.isFinite(priceChangePercent);
@@ -55,15 +56,17 @@ export default function PlatformTraderHeader({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 16px',
+          gap: 10,
+          padding: '6px 12px',
           background: 'rgba(7, 18, 36, 0.65)',
           backdropFilter: 'blur(8px)',
-          borderBottom: '1px solid rgba(0, 229, 255, 0.12)',
-          borderRadius: 8
+          border: '1px solid rgba(0, 229, 255, 0.12)',
+          borderRadius: 8,
+          flexWrap: 'wrap'
         }}
       >
         {/* Left: Hamburger & Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
@@ -82,70 +85,13 @@ export default function PlatformTraderHeader({
               ☰
             </button>
           )}
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', letterSpacing: '0.04em' }}>
-            Trading OS — Market Intelligence Center
-          </span>
         </div>
 
-        {/* Right: Notification, Profile, Star Action */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Notification Bell */}
-          <div style={{ position: 'relative', cursor: 'pointer' }}>
-            <span style={{ fontSize: 16, color: '#cbd5e1' }}>🔔</span>
-            <span
-              style={{
-                position: 'absolute',
-                top: -2,
-                right: -2,
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: isLive ? '#10b981' : '#f43f5e',
-                boxShadow: isLive ? '0 0 6px #10b981' : '0 0 6px #f43f5e'
-              }}
-            />
-          </div>
-
-          {/* User Profile */}
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              background: 'rgba(0, 229, 255, 0.1)',
-              border: '1px solid rgba(0, 229, 255, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#00e5ff',
-              fontSize: 14
-            }}
-            title="Profil Trader"
-          >
-            👤
-          </div>
-
-          {/* Star Icon */}
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              background: 'rgba(234, 179, 8, 0.15)',
-              border: '1px solid rgba(234, 179, 8, 0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#facc15',
-              fontSize: 14
-            }}
-            title="Favorit"
-          >
-            ⭐
-          </div>
+        {/* Center: Account Bar */}
+        <div style={{ flex: '1 1 420px', minWidth: 0, display: 'flex' }}>
+          {accountBar}
         </div>
+
       </div>
 
       {/* ── Instrument Price & Status Bar ── */}
